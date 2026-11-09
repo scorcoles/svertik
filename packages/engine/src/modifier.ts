@@ -54,7 +54,7 @@ export interface ModifierContext {
 export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   type: string;
   label: string;
-  kind: 'deformer' | 'generator' | 'effector';
+  kind: 'deformer' | 'generator' | 'effector' | 'style';
   params: P;
   apply(geo: Geometry, params: ParamValues<P>, ctx: ModifierContext): Geometry;
 }

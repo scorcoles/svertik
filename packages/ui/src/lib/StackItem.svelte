@@ -6,7 +6,7 @@
 
   interface Props {
     label: string;
-    kind?: 'object' | 'deformer' | 'generator' | 'effector';
+    kind?: 'object' | 'deformer' | 'generator' | 'effector' | 'style';
     /** Icono del efecto; por defecto, uno según el tipo. */
     icon?: IconName;
     /** Nivel en el árbol: 0 para el objeto, 1 para sus modificadores… */

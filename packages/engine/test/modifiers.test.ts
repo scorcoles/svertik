@@ -295,3 +295,66 @@ describe('dado', () => {
     expect(randomizeParams(crack.params, resolveParams(crack.params), rng(1)).color).toBe('#000000');
   });
 });
+
+describe('color', () => {
+  const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="10" height="10" fill="#ff0000"/><rect x="50" width="10" height="10" fill="#ff0000" stroke="#0000ff"/><rect y="50" width="10" height="10" fill="none"/></svg>';
+  const run = (params: Record<string, unknown>, stack: Scene['stack'] = []) =>
+    createEngine(builtins).evaluate({ version: 1, source: two, stack: [...stack, { id: 'c', type: 'color', params }] });
+
+  it('shift: girar 120° el tono del rojo da verde; none no se toca', () => {
+    const geo = run({ mode: 'shift', hue: 120 });
+    expect(geo.shapes[0]!.style.fill).toBe('#00ff00');
+    expect(geo.shapes[2]!.style.fill).toBe('none');
+    expect(geo.shapes[1]!.style.stroke).toBe('#0000ff'); // target fill: el trazo, igual
+  });
+
+  it('gradient reparte de un color a otro entre los elementos', () => {
+    const geo = run({ mode: 'gradient', from: '#000000', to: '#ffffff' });
+    expect(geo.shapes[0]!.style.fill).toBe('#000000');
+    expect(geo.shapes[1]!.style.fill).toBe('#808080');
+  });
+
+  it('random es determinista y cambia con la semilla', () => {
+    const a = run({ mode: 'random', seed: 3 }).shapes.map((s) => s.style.fill);
+    expect(run({ mode: 'random', seed: 3 }).shapes.map((s) => s.style.fill)).toEqual(a);
+    expect(run({ mode: 'random', seed: 4 }).shapes.map((s) => s.style.fill)).not.toEqual(a);
+  });
+
+  it('dentro de Step, el tono se escalona copia a copia', () => {
+    const geo = createEngine(builtins).evaluate({
+      version: 1,
+      source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff0000"/></svg>',
+      stack: [
+        { id: 'cl', type: 'clone', params: { mode: 'linear', count: 3 } },
+        { id: 's', type: 'step', children: [{ id: 'c', type: 'color', params: { hue: 120 } }] },
+      ],
+    });
+    expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#00ff00', '#0000ff', '#ff0000']);
+  });
+
+  it('parseColor entiende hex corto, rgb() y nombres', async () => {
+    const { parseColor } = await import('../src');
+    expect(parseColor('#f00')).toEqual([255, 0, 0, 1]);
+    expect(parseColor('rgb(0, 128, 255)')).toEqual([0, 128, 255, 1]);
+    expect(parseColor('white')).toEqual([255, 255, 255, 1]);
+    expect(parseColor('url(#g)')).toBeNull();
+  });
+});
+
+describe('paint', () => {
+  const src = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="10" height="10" fill="#ff0000"/><line x1="0" y1="50" x2="100" y2="50" stroke="#000" fill="none"/></svg>';
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: src, stack: [{ id: 'p', type: 'paint', params }] });
+
+  it('cantidad 1 sustituye el relleno; 0.5 mezcla; las líneas sin relleno no se rellenan', () => {
+    expect(run({ fillColor: '#0000ff' }).shapes[0]!.style.fill).toBe('#0000ff');
+    expect(run({ fillColor: '#0000ff', fillAmount: 0.5 }).shapes[0]!.style.fill).toBe('#800080');
+    expect(run({ fillColor: '#0000ff' }).shapes[1]!.style.fill).toBe('none');
+    expect(run({ fillColor: '#0000ff', fillEmpty: true }).shapes[1]!.style.fill).toBe('#0000ff');
+  });
+
+  it('el trazo se añade con su color, grosor y opacidad', () => {
+    const s = run({ fill: false, stroke: true, strokeColor: '#00ff00', strokeWidth: 3, strokeOpacity: 0.5 }).shapes[0]!.style;
+    expect(s).toMatchObject({ fill: '#ff0000', stroke: '#00ff00', 'stroke-width': '3', 'stroke-opacity': '0.5' });
+  });
+});

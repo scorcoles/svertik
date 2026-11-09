@@ -8,6 +8,7 @@
     ['Deformers', modifierTypes.filter((t) => registry.get(t)?.kind === 'deformer')],
     ['Generators', modifierTypes.filter((t) => registry.get(t)?.kind === 'generator')],
     ['Effectors', modifierTypes.filter((t) => registry.get(t)?.kind === 'effector')],
+    ['Style', modifierTypes.filter((t) => registry.get(t)?.kind === 'style')],
   ] as const);
 </script>
 
