@@ -20,6 +20,9 @@
     onexpand?: (expanded: boolean) => void;
     /** Si se pasa, aparece una papelera al pasar por la fila (o con foco). */
     onremove?: () => void;
+    /** Visibilidad (objetos y grupos): un ojo que aparece al pasar y se queda tachado si está oculto. */
+    visible?: boolean;
+    onvisible?: (visible: boolean) => void;
   }
   let {
     label,
@@ -33,6 +36,8 @@
     ontoggle,
     onexpand,
     onremove,
+    visible,
+    onvisible,
   }: Props = $props();
 </script>
 
@@ -70,6 +75,16 @@
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove" onclick={(e) => e.stopPropagation()}>
       <IconButton icon="trash" label={`Remove ${label}`} onclick={onremove} />
+    </span>
+  {/if}
+  {#if onvisible}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span class="eye" data-off={visible === false || undefined} onclick={(e) => e.stopPropagation()}>
+      <IconButton
+        icon={visible === false ? 'eye-off' : 'eye'}
+        label={visible === false ? `Show ${label}` : `Hide ${label}`}
+        onclick={() => onvisible?.(visible === false)}
+      />
     </span>
   {/if}
   {#if kind !== 'object'}
@@ -127,6 +142,13 @@
   .remove :global(.sv-icon-button:hover) { color: var(--sv-signal-error); background: none; }
   .sv-stack-item:hover .remove,
   .sv-stack-item:focus-within .remove { visibility: visible; }
+  /* El ojo: al pasar o con foco; si está oculto, siempre (tachado). */
+  .eye { display: flex; margin-right: calc(var(--sv-space-2) * -1); visibility: hidden; }
+  .eye :global(.sv-icon-button) { width: 20px; height: 20px; }
+  .eye[data-off] :global(.sv-icon-button) { color: var(--sv-text-disabled); }
+  .sv-stack-item:hover .eye,
+  .sv-stack-item:focus-within .eye,
+  .eye[data-off] { visibility: visible; }
   .sv-stack-item:hover .toggle,
   .sv-stack-item:focus-within .toggle,
   [data-selected] .toggle,

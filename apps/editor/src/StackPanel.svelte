@@ -117,6 +117,8 @@
         onselect={() => (editor.selected = n.id)}
         onexpand={(v) => editor.toggleCollapsed(n.id, v)}
         onremove={() => editor.remove(n.id)}
+        visible={n.visible !== false}
+        onvisible={(v) => editor.setNode(n.id, 'visible', v, true)}
       />
     </div>
     {#if open}
