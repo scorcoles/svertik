@@ -55,3 +55,25 @@ describe('Editor', () => {
     expect(e.error).toMatch(/SVG/);
   });
 });
+
+describe('marcador del punto', () => {
+  it('aparece al mover un punto y se va a los 300 ms de parar', async () => {
+    const e = fresh();
+    e.add('spherize');
+    e.setParam('center', [0.3, 0.6]);
+    expect(e.marker).toEqual([0.3, 0.6]);
+    await new Promise((r) => setTimeout(r, 200));
+    e.setParam('center', [0.35, 0.6]); // sigue moviéndolo: se reinicia la cuenta
+    await new Promise((r) => setTimeout(r, 200));
+    expect(e.marker).toEqual([0.35, 0.6]);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(e.marker).toBeNull();
+  });
+
+  it('los parámetros que no son puntos no lo muestran', () => {
+    const e = fresh();
+    e.add('spherize');
+    e.setParam('strength', 0.2);
+    expect(e.marker).toBeNull();
+  });
+});
