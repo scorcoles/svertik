@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { builtins, createEngine, type Scene } from '@svertik/engine';
+  import { builtins, createEngine, migrateScene, type AnyScene, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, IconButton, Tabs } from '@svertik/ui';
   import CodeEditor from './CodeEditor.svelte';
-  import { exportJS, extractScript, jsDocument, sourceRange, syntaxErrorLine } from './code';
+  import { exportJS, extractScript, jsDocument, sourceRanges, syntaxErrorLine } from './code';
   import { registry, type Editor } from './editor.svelte';
   import { sceneJSON } from './exporters';
   import { Runner } from './runner';
@@ -20,10 +20,17 @@
   let fps = $state(0);
   let cursor = $state<[number, number]>([1, 1]);
 
-  const snapshot = () => $state.snapshot(editor.scene) as Scene;
+  const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
   const jsonDoc = $derived(editor.scene ? sceneJSON(editor.scene) : '');
-  const jsDoc = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as Scene, editor.script) : '');
-  const jsFold = $derived(sourceRange(jsDoc));
+  const jsDoc = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as SceneV2, editor.script) : '');
+  const jsFold = $derived(sourceRanges(jsDoc));
+  // En el JSON, los SVG van en una sola línea larga: también se pliegan.
+  const jsonFold = $derived([...jsonDoc.matchAll(/"source": "/g)].map((m) => {
+    const from = m.index! + m[0].length;
+    let i = from;
+    while (i < jsonDoc.length && jsonDoc[i] !== '"') i += jsonDoc[i] === '\\' ? 2 : 1;
+    return [from, i] as [number, number];
+  }));
 
   // SVG plano: se calcula solo con la pestaña abierta y como mucho cinco veces por segundo.
   let svgDoc = $state('');
@@ -31,28 +38,39 @@
   $effect(() => {
     if (tab !== 'SVG' || !editor.scene) return;
     const scene = snapshot();
-    if (editor.preview) scene.stack = $state.snapshot(editor.preview) as Scene['stack'];
+    if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     clearTimeout(svgTimer);
     svgTimer = setTimeout(() => (svgDoc = engine.toSVG(scene)), 200);
   });
 
   // ── Validación de lo que llega del código
 
-  function validate(s: unknown): Scene {
-    const scene = s as Scene;
-    if (!scene || typeof scene !== 'object') throw new Error('Expected an object');
-    if (scene.version !== 1) throw new Error('version must be 1');
-    if (typeof scene.source !== 'string') throw new Error('source must be a string with the SVG');
-    if (!Array.isArray(scene.stack)) throw new Error('stack must be an array');
-    const check = (list: unknown) => {
+  function validate(s: unknown): SceneV2 {
+    const raw = s as AnyScene;
+    if (!raw || typeof raw !== 'object') throw new Error('Expected an object');
+    if (raw.version !== 1 && raw.version !== 2) throw new Error('version must be 2');
+    if (raw.version === 1 && typeof raw.source !== 'string') throw new Error('source must be a string with the SVG');
+    if (raw.version === 2 && !Array.isArray(raw.objects)) throw new Error('objects must be an array');
+    const scene = migrateScene(raw);
+    const checkStack = (list: unknown) => {
       if (!Array.isArray(list)) throw new Error('stack and children must be arrays');
       for (const m of list) {
         if (!m || typeof m.id !== 'string') throw new Error('Every modifier needs a string id');
         if (!registry.has(m.type)) throw new Error(`Unknown modifier "${m.type}"`);
-        if (m.children !== undefined) check(m.children);
+        if (m.children !== undefined) checkStack(m.children);
       }
     };
-    check(scene.stack);
+    const checkNodes = (nodes: SceneNode[]) => {
+      for (const n of nodes) {
+        if (!n || typeof n.id !== 'string') throw new Error('Every object needs a string id');
+        if (n.kind === 'object' && typeof n.source !== 'string') throw new Error(`Object "${n.name}" needs a source SVG`);
+        if (n.kind !== 'object' && n.kind !== 'group') throw new Error('kind must be "object" or "group"');
+        checkStack(n.stack ?? []);
+        n.stack ??= [];
+        if (n.kind === 'group') checkNodes(n.children ?? []);
+      }
+    };
+    checkNodes(scene.objects);
     return scene;
   }
 
@@ -86,7 +104,7 @@
       }
       if (!playing) runner.idle();
     } else if (m.type === 'frame') {
-      editor.preview = m.stack;
+      editor.preview = m.objects;
       fps = m.fps;
     } else {
       error = { message: m.message, line: m.line ?? (tab === 'JS' ? syntaxErrorLine(lastRun) : null) };
@@ -139,7 +157,7 @@
     {#snippet children(t)}
       <div class="body">
         {#if t === 'JSON'}
-          <CodeEditor value={jsonDoc} lang="json" label="Scene JSON" errorLine={error?.line ?? null} onchange={onJSON} oncursor={(l, c) => (cursor = [l, c])} />
+          <CodeEditor value={jsonDoc} lang="json" label="Scene JSON" fold={jsonFold} errorLine={error?.line ?? null} onchange={onJSON} oncursor={(l, c) => (cursor = [l, c])} />
         {:else if t === 'JS'}
           <CodeEditor value={jsDoc} lang="js" label="Scene and script" fold={jsFold} errorLine={error?.line ?? null} onchange={onJS} oncursor={(l, c) => (cursor = [l, c])} />
         {:else}

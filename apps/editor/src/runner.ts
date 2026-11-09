@@ -1,9 +1,9 @@
 // Ejecuta el JS del panel en un Web Worker: sin acceso a la página y con freno si se cuelga.
-import type { ModifierInstance, Scene } from '@svertik/engine';
+import type { AnyScene, SceneNode } from '@svertik/engine';
 
 export type RunnerMessage =
-  | { type: 'scene'; scene: Scene }
-  | { type: 'frame'; stack: ModifierInstance[]; fps: number }
+  | { type: 'scene'; scene: AnyScene }
+  | { type: 'frame'; objects: SceneNode[]; fps: number }
   | { type: 'error'; message: string; line: number | null };
 
 // Código del worker. El script se envuelve en una función: `onFrame` viene de fuera
@@ -23,7 +23,7 @@ self.onmessage = (e) => {
       const body = msg.code.replace(/^\\s*import[^;]*;/gm, (s) => s.replace(/[^\\n]/g, ' '));
       const run = new Function('onFrame', body + '\\n;return typeof scene === "undefined" ? null : scene;');
       scene = run((f) => { fn = f; });
-      if (!scene || !Array.isArray(scene.stack)) throw new Error('The code must declare const scene = { … }');
+      if (!scene || !(Array.isArray(scene.objects) || Array.isArray(scene.stack))) throw new Error('The code must declare const scene = { … }');
       self.postMessage({ type: 'scene', scene });
     } catch (err) {
       self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err) });
@@ -41,7 +41,9 @@ function start() {
     catch (err) { clearInterval(timer); timer = null; self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err) }); return; }
     frames++;
     if (now - last >= 500) { fps = Math.round(frames * 1000 / (now - last)); frames = 0; last = now; }
-    self.postMessage({ type: 'frame', stack: scene.stack, fps });
+    // v1 (una pila) se manda como un objeto, para que el editor lo trate igual.
+    const objects = scene.objects || [{ kind: 'object', id: 'object-1', name: 'source.svg', source: scene.source, stack: scene.stack }];
+    self.postMessage({ type: 'frame', objects, fps });
   }, 1000 / 60);
 }
 `;

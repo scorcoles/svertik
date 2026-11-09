@@ -24,7 +24,10 @@
 <header class="toolbar">
   <div class="doc">
     <strong>svertik</strong>
-    {#if editor.scene}<span class="slash">/</span><span class="name" title={editor.name}>{editor.name}</span>{/if}
+    {#if editor.scene}
+      <span class="slash">/</span><span class="name" title={editor.name}>{editor.name}</span>
+      {#if editor.objectCount > 1}<span class="slash">·</span><span class="count">{editor.objectCount} objects</span>{/if}
+    {/if}
   </div>
   <span class="rule" aria-hidden="true"></span>
   <IconButton icon="import" label="Import SVG (⌘O)" onclick={onimport} />
@@ -57,6 +60,7 @@
   .doc strong { font-size: var(--sv-font-size-12); }
   .slash { color: var(--sv-text-disabled); }
   .name { color: var(--sv-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+  .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .effects { display: flex; gap: var(--sv-space-4); }
   .spacer { flex: 1; }

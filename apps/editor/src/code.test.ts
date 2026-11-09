@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import type { Scene } from '@svertik/engine';
-import { DEFAULT_SCRIPT, exportJS, extractScript, jsDocument, jsLiteral, sourceRange, syntaxErrorLine } from './code';
+import type { SceneV2 } from '@svertik/engine';
+import { DEFAULT_SCRIPT, exportJS, extractScript, jsDocument, jsLiteral, sourceRanges, syntaxErrorLine } from './code';
 
-const scene: Scene = {
-  version: 1,
-  source: '<svg viewBox="0 0 10 10"><rect width="5" height="5"/></svg>',
-  stack: [{ id: 'w', type: 'wave', enabled: true, params: { phase: 0 } }],
+const svg = '<svg viewBox="0 0 10 10"><rect width="5" height="5"/></svg>';
+const scene: SceneV2 = {
+  version: 2,
+  objects: [
+    { kind: 'object', id: 'a', name: 'Star Logo.svg', source: svg, stack: [{ id: 'w', type: 'wave', enabled: true, params: { phase: 0 } }] },
+    {
+      kind: 'group',
+      id: 'g',
+      name: 'Group',
+      stack: [],
+      children: [{ kind: 'object', id: 'b', name: '2x.svg', source: svg, stack: [], transform: { x: 40 } }],
+    },
+  ],
 };
 
 describe('JS del panel', () => {
@@ -13,31 +22,32 @@ describe('JS del panel', () => {
     expect(jsLiteral({ a: 'x', 'b-c': 1 })).toBe("{\n  a: 'x',\n  'b-c': 1\n}");
   });
 
-  it('el documento lleva import, source como constante, la escena y el script', () => {
+  it('una constante por SVG, con nombre sacado del archivo', () => {
     const doc = jsDocument(scene, DEFAULT_SCRIPT);
     expect(doc).toMatch(/^import \{ createEngine, wave \} from '@svertik\/engine';/);
-    expect(doc).toContain('const source = `<svg');
-    expect(doc).toContain("const scene = {\n  version: 1,\n  source,\n  stack: [\n    { id: 'w', type: 'wave', enabled: true, params: { phase: 0 } },\n  ],\n};");
+    expect(doc).toContain('const starLogo = `<svg');
+    expect(doc).toContain('const svg2x = `<svg');
+    expect(doc).toContain('source: starLogo,');
+    expect(doc).toContain("{ id: 'w', type: 'wave', enabled: true, params: { phase: 0 } },");
     expect(doc.endsWith(DEFAULT_SCRIPT)).toBe(true);
   });
 
   it('separa el script del usuario aunque cambie la escena', () => {
-    const mine = 'onFrame((t) => { scene.stack[0].params.phase = t; });\n';
-    const doc = jsDocument(scene, mine);
-    expect(extractScript(doc)).toBe(mine);
+    const mine = 'onFrame((t) => { scene.objects[0].stack[0].params.phase = t; });\n';
+    expect(extractScript(jsDocument(scene, mine))).toBe(mine);
   });
 
-  it('encuentra el literal del SVG para plegarlo', () => {
+  it('encuentra cada SVG para plegarlo', () => {
     const doc = jsDocument(scene, '');
-    const [a, b] = sourceRange(doc)!;
-    expect(doc.slice(a, b)).toBe(scene.source);
+    const ranges = sourceRanges(doc);
+    expect(ranges).toHaveLength(2);
+    for (const [a, b] of ranges) expect(doc.slice(a, b)).toBe(svg);
   });
 
-  it('el JS exportado define el motor y onFrame', () => {
+  it('el JS exportado define el motor y onFrame, y es JS válido', () => {
     const js = exportJS(scene, DEFAULT_SCRIPT);
     expect(js).toContain('const engine = createEngine([wave]);');
     expect(js).toContain('function onFrame(fn)');
-    // Es JS válido (sin el import, que necesita un módulo).
     expect(() => new Function(js.replace(/^import[^;]*;/m, ''))).not.toThrow();
   });
 
@@ -45,6 +55,12 @@ describe('JS del panel', () => {
     const body = jsDocument(scene, DEFAULT_SCRIPT).replace(/^import[^;]*;/m, '');
     const run = new Function('onFrame', body + '\n;return scene;');
     expect(run(() => {})).toEqual(scene);
+  });
+
+  it('una escena v1 se escribe como v2', () => {
+    const doc = jsDocument({ version: 1, source: svg, stack: [] }, '');
+    expect(doc).toContain('version: 2,');
+    expect(doc).toMatch(/import \{ createEngine \} from/);
   });
 
   it('localiza la línea de un error de sintaxis', () => {

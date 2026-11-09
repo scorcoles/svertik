@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Editor } from './editor.svelte';
 import { samples } from './samples';
 
+const stack = (e: Editor) => e.scene!.objects[0]!.stack;
+
 const fresh = () => {
   const e = new Editor();
   e.load(samples.grid, 'grid.svg');
@@ -13,9 +15,9 @@ describe('Editor', () => {
     const e = fresh();
     e.add('spherize');
     e.add('wave');
-    e.selected = e.scene!.stack[0]!.id;
+    e.selected = stack(e)[0]!.id;
     e.add('twist');
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['spherize', 'twist', 'wave']);
+    expect(stack(e).map((m) => m.type)).toEqual(['spherize', 'twist', 'wave']);
     expect(e.current?.type).toBe('twist');
   });
 
@@ -23,9 +25,9 @@ describe('Editor', () => {
     const e = fresh();
     e.add('spherize');
     e.add('wave');
-    e.selected = e.scene!.stack[0]!.id;
+    e.selected = stack(e)[0]!.id;
     e.remove();
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['wave']);
+    expect(stack(e).map((m) => m.type)).toEqual(['wave']);
     expect(e.current?.type).toBe('wave');
   });
 
@@ -33,8 +35,8 @@ describe('Editor', () => {
     const e = fresh();
     e.add('spherize');
     e.add('wave');
-    e.move(e.scene!.stack[1]!.id, 0);
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['wave', 'spherize']);
+    e.move(stack(e)[1]!.id, 0);
+    expect(stack(e).map((m) => m.type)).toEqual(['wave', 'spherize']);
   });
 
   it('deshacer justo después de arrastrar un valor deshace solo ese valor', () => {
@@ -42,10 +44,16 @@ describe('Editor', () => {
     e.add('crack');
     e.setParam('growth', 0.5); // queda pendiente (agrupado)
     e.undo();
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['crack']);
+    expect(stack(e).map((m) => m.type)).toEqual(['crack']);
     expect(e.current?.params?.growth).toBe(1);
     e.redo();
     expect(e.current?.params?.growth).toBe(0.5);
+  });
+
+  it('quitar el único objeto vuelve al estado vacío', () => {
+    const e = fresh();
+    e.remove(e.scene!.objects[0]!.id);
+    expect(e.scene).toBeNull();
   });
 
   it('rechaza lo que no es SVG', () => {
@@ -85,7 +93,7 @@ describe('Step con hijos', () => {
     e.add('step');
     e.add('twist');
     e.add('spherize');
-    const step = e.scene!.stack[1]!;
+    const step = stack(e)[1]!;
     expect(step.children!.map((m) => m.type)).toEqual(['twist', 'spherize']);
     expect(e.currentParent?.id).toBe(step.id);
   });
@@ -94,7 +102,7 @@ describe('Step con hijos', () => {
     const e = fresh();
     e.add('step');
     e.add('step');
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['step', 'step']);
+    expect(stack(e).map((m) => m.type)).toEqual(['step', 'step']);
   });
 
   it('moveTo mete y saca de Step; quitar un hijo selecciona su vecino o el Step', () => {
@@ -104,13 +112,13 @@ describe('Step con hijos', () => {
     e.add('step');
     const step = e.current!.id;
     e.moveTo(wave, step, 0);
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['step']);
-    expect(e.scene!.stack[0]!.children!.map((m) => m.type)).toEqual(['wave']);
+    expect(stack(e).map((m) => m.type)).toEqual(['step']);
+    expect(stack(e)[0]!.children!.map((m) => m.type)).toEqual(['wave']);
     e.remove(wave);
     expect(e.selected).toBe(step);
     e.add('noise');
     e.moveTo(e.current!.id, null, 0);
-    expect(e.scene!.stack.map((m) => m.type)).toEqual(['noise', 'step']);
+    expect(stack(e).map((m) => m.type)).toEqual(['noise', 'step']);
   });
 
   it('los parámetros de un hijo se editan igual', () => {
@@ -118,7 +126,7 @@ describe('Step con hijos', () => {
     e.add('step');
     e.add('transform');
     e.setParam('rotation', 10);
-    expect(e.scene!.stack[0]!.children![0]!.params!.rotation).toBe(10);
+    expect(stack(e)[0]!.children![0]!.params!.rotation).toBe(10);
   });
 });
 
@@ -131,5 +139,57 @@ describe('dado', () => {
     expect(JSON.stringify(e.current!.params)).not.toBe(before);
     e.undo();
     expect(JSON.stringify(e.current!.params)).toBe(before);
+  });
+});
+
+describe('varios objetos y grupos', () => {
+  it('cargar con una escena abierta añade un objeto y lo selecciona; los efectos van a su pila', () => {
+    const e = fresh();
+    e.add('wave');
+    e.load(samples.star, 'star.svg');
+    expect(e.scene!.objects.map((n) => n.name)).toEqual(['grid.svg', 'star.svg']);
+    expect(e.currentNode?.name).toBe('star.svg');
+    e.add('twist');
+    expect(e.scene!.objects[1]!.stack.map((m) => m.type)).toEqual(['twist']);
+    expect(e.activeNode?.name).toBe('star.svg');
+  });
+
+  it('agrupar y desagrupar dejan los nodos en su sitio', () => {
+    const e = fresh();
+    e.load(samples.star, 'star.svg');
+    const star = e.scene!.objects[1]!.id;
+    e.group(star);
+    const g = e.scene!.objects[1]!;
+    expect(g.kind).toBe('group');
+    e.moveNode(e.scene!.objects[0]!.id, g.id, 0);
+    expect(e.scene!.objects).toHaveLength(1);
+    expect((e.scene!.objects[0] as { children: { name: string }[] }).children.map((c) => c.name)).toEqual(['grid.svg', 'star.svg']);
+    e.ungroup(g.id);
+    expect(e.scene!.objects.map((n) => n.name)).toEqual(['grid.svg', 'star.svg']);
+  });
+
+  it('un grupo no entra en sí mismo', () => {
+    const e = fresh();
+    e.group(e.scene!.objects[0]!.id);
+    const g = e.scene!.objects[0]!.id;
+    e.moveNode(g, g, 0);
+    expect(e.scene!.objects[0]!.id).toBe(g);
+  });
+
+  it('posición, opacidad y visibilidad de un nodo, con deshacer', () => {
+    const e = fresh();
+    const id = e.scene!.objects[0]!.id;
+    e.setNode(id, 'x', 30, true);
+    e.setNode(id, 'opacity', 0.5, true);
+    expect(e.scene!.objects[0]).toMatchObject({ transform: { x: 30 }, opacity: 0.5 });
+    e.undo();
+    expect(e.scene!.objects[0]!.opacity).toBeUndefined();
+  });
+
+  it('applyScene acepta una v1 y la convierte', () => {
+    const e = fresh();
+    e.applyScene({ version: 1, source: samples.rings, stack: [{ id: 'x', type: 'wave' }] });
+    expect(e.scene!.version).toBe(2);
+    expect(stack(e).map((m) => m.type)).toEqual(['wave']);
   });
 });

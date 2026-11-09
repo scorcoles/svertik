@@ -1,5 +1,19 @@
-// Estado del editor: la escena, la selección, el historial y la URL.
-import { builtins, randomizeParams, resolveParams, rng, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
+// Estado del editor: la escena (v2: varios objetos y grupos), la selección, el historial y la URL.
+import {
+  builtins,
+  migrateScene,
+  randomizeParams,
+  resolveParams,
+  rng,
+  walkNodes,
+  type AnyScene,
+  type GroupNode,
+  type ModifierDef,
+  type ModifierInstance,
+  type ObjectNode,
+  type SceneNode,
+  type SceneV2,
+} from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
 
@@ -9,7 +23,7 @@ export const modifierTypes = builtins.map((m) => m.type);
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 export const containers = new Set(['step']);
 
-/** Dónde está un modificador en el árbol: su lista, su posición y quién la contiene. */
+/** Dónde está un modificador en el árbol de una pila: su lista, su posición y quién la contiene. */
 export interface Location {
   list: ModifierInstance[];
   index: number;
@@ -29,21 +43,54 @@ export function locate(stack: ModifierInstance[], id: string | null, parent: Mod
   return null;
 }
 
+/** Dónde está un nodo (objeto o grupo): su lista, su posición y su grupo. */
+export interface NodeLocation {
+  list: SceneNode[];
+  index: number;
+  node: SceneNode;
+  parent: GroupNode | null;
+}
+
+export function locateNode(nodes: SceneNode[], id: string | null, parent: GroupNode | null = null): NodeLocation | null {
+  if (!id) return null;
+  for (const [index, node] of nodes.entries()) {
+    if (node.id === id) return { list: nodes, index, node, parent };
+    if (node.kind === 'group') {
+      const found = locateNode(node.children, id, node);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** Un modificador y el nodo cuya pila lo contiene. */
+export function locateModifier(scene: SceneV2, id: string | null): (Location & { owner: SceneNode }) | null {
+  if (!id) return null;
+  for (const { node } of walkNodes(scene.objects)) {
+    const at = locate(node.stack, id);
+    if (at) return { ...at, owner: node };
+  }
+  return null;
+}
+
 const HISTORY_LIMIT = 200;
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 export class Editor {
-  scene = $state<Scene | null>(null);
-  name = $state('untitled.svg');
+  scene = $state<SceneV2 | null>(null);
+  /** Nombre del documento (el del primer SVG, mientras no haya otro). */
+  name = $state('untitled');
+  /** Lo seleccionado: un nodo (objeto o grupo) o un modificador. */
   selected = $state<string | null>(null);
-  expanded = $state(true);
+  /** Nodos plegados en la pila. */
+  collapsed = $state<string[]>([]);
   showOriginal = $state(false);
   showWire = $state(false);
   error = $state<string | null>(null);
   /** Script del panel de código (lo que va después de la escena en la pestaña JS). */
   script = $state(DEFAULT_SCRIPT);
-  /** Pila animada por el script mientras corre; no entra en el historial. */
-  preview = $state<ModifierInstance[] | null>(null);
+  /** Objetos animados por el script mientras corre; no entran en el historial. */
+  preview = $state<SceneNode[] | null>(null);
   codeOpen = $state(false);
   /** Punto que se está moviendo (fracción de la caja de origen); se borra al parar. */
   marker = $state<[number, number] | null>(null);
@@ -62,34 +109,112 @@ export class Editor {
 
   canUndo = $derived(this.#index > 0);
   canRedo = $derived(this.#index < this.#historyLength - 1);
-  current = $derived(this.scene ? (locate(this.scene.stack, this.selected)?.inst ?? null) : null);
+  /** El modificador seleccionado, con el nodo que lo contiene. */
+  #mod = $derived(this.scene ? locateModifier(this.scene, this.selected) : null);
+  current = $derived(this.#mod?.inst ?? null);
   /** El Step (u otro contenedor) del que cuelga el seleccionado, si lo hay. */
-  currentParent = $derived(this.scene ? (locate(this.scene.stack, this.selected)?.parent ?? null) : null);
+  currentParent = $derived(this.#mod?.parent ?? null);
+  /** El nodo seleccionado (objeto o grupo), si lo seleccionado es un nodo. */
+  currentNode = $derived(this.scene ? (locateNode(this.scene.objects, this.selected)?.node ?? null) : null);
+  /** El nodo con el que se trabaja: el seleccionado o el dueño del efecto seleccionado. */
+  activeNode = $derived(this.currentNode ?? this.#mod?.owner ?? null);
+  objectCount = $derived(this.scene ? [...walkNodes(this.scene.objects)].filter((x) => x.node.kind === 'object').length : 0);
 
   // ── Origen
 
+  /** Carga un SVG: si no hay escena, la crea; si la hay, lo añade como un objeto nuevo, centrado. */
   load(source: string, name: string) {
     this.error = null;
     if (!/<svg[\s>]/i.test(source)) {
       this.error = 'That is not an SVG.';
       return;
     }
-    this.scene = { version: 1, source, stack: [] };
-    this.name = name;
-    this.selected = null;
-    this.#history = [];
-    this.#index = -1;
+    const node: ObjectNode = { kind: 'object', id: `object-${uid()}`, name, source, stack: [] };
+    if (!this.scene) {
+      this.scene = { version: 2, objects: [node] };
+      this.name = name.replace(/\.svg$/i, '');
+      this.#history = [];
+      this.#index = -1;
+    } else {
+      this.scene.objects.push(node);
+    }
+    this.selected = node.id;
     this.record(true);
   }
 
-  // ── Pila
+  /** Cambia el SVG de un objeto, conservando su pila y su posición. */
+  replaceSource(id: string, source: string, name: string) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'object' || !/<svg[\s>]/i.test(source)) return;
+    at.node.source = source;
+    at.node.name = name;
+    this.record(true);
+  }
+
+  // ── Nodos
+
+  isCollapsed = (id: string) => this.collapsed.includes(id);
+  toggleCollapsed(id: string, expanded: boolean) {
+    this.collapsed = expanded ? this.collapsed.filter((x) => x !== id) : [...this.collapsed, id];
+  }
+
+  /** Mete el nodo seleccionado en un grupo nuevo, en su mismo sitio. */
+  group(id = this.activeNode?.id ?? null) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at) return;
+    const g: GroupNode = { kind: 'group', id: `group-${uid()}`, name: 'Group', stack: [], children: [at.node] };
+    at.list.splice(at.index, 1, g);
+    this.selected = g.id;
+    this.record(true);
+  }
+
+  /** Deshace un grupo: sus hijos quedan en su lugar (su posición y sus efectos se pierden). */
+  ungroup(id = this.currentNode?.id ?? null) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'group') return;
+    at.list.splice(at.index, 1, ...at.node.children);
+    this.selected = at.node.children[0]?.id ?? null;
+    this.record(true);
+  }
+
+  /** Mueve un nodo: dentro de `groupId` (o arriba del todo) en la posición `index`. */
+  moveNode(id: string, groupId: string | null, index: number) {
+    if (!this.scene || id === groupId) return;
+    const at = locateNode(this.scene.objects, id);
+    if (!at) return;
+    // Un grupo no entra en sí mismo ni en sus descendientes.
+    if (groupId && at.node.kind === 'group' && locateNode(at.node.children, groupId)) return;
+    const target = groupId ? locateNode(this.scene.objects, groupId)?.node : null;
+    if (groupId && (!target || target.kind !== 'group')) return;
+    const list = target && target.kind === 'group' ? target.children : this.scene.objects;
+    const [n] = at.list.splice(at.index, 1);
+    const i = list === at.list && index > at.index ? index - 1 : index;
+    list.splice(Math.max(0, Math.min(list.length, i)), 0, n!);
+    this.record(true);
+  }
+
+  /** Posición, escala, giro, opacidad, visibilidad o nombre de un nodo. */
+  setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'opacity' | 'visible' | 'name', value: unknown, now = false) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at) return;
+    const n = at.node;
+    if (key === 'opacity') n.opacity = value as number;
+    else if (key === 'visible') n.visible = value as boolean;
+    else if (key === 'name') n.name = String(value);
+    else n.transform = { ...n.transform, [key]: value as number };
+    this.record(now);
+  }
+
+  // ── Pila del nodo activo
 
   add(type: string) {
     const def = registry.get(type);
-    if (!this.scene || !def) return;
+    const owner = this.activeNode;
+    if (!this.scene || !def || !owner) return;
     const inst: ModifierInstance = { id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(def.params) } };
     if (containers.has(type)) inst.children = [];
-    const at = locate(this.scene.stack, this.selected);
+    const stack = owner.stack;
+    const at = locate(stack, this.selected);
     if (at && containers.has(at.inst.type) && !containers.has(type)) {
       // Con Step seleccionado: dentro, al final.
       (at.inst.children ??= []).push(inst);
@@ -97,47 +222,61 @@ export class Editor {
       // Con algo de dentro de Step seleccionado: dentro, debajo de él.
       at.list.splice(at.index + 1, 0, inst);
     } else {
-      // Si no, en la pila principal, debajo del seleccionado (o del Step que lo contiene).
-      const top = at?.parent ? this.scene.stack.findIndex((m) => m.id === at.parent!.id) : (at?.index ?? -1);
-      this.scene.stack.splice(top < 0 ? this.scene.stack.length : top + 1, 0, inst);
+      // Si no, en la pila del nodo, debajo del seleccionado (o del Step que lo contiene); con el nodo seleccionado, al final.
+      const top = at?.parent ? stack.findIndex((m) => m.id === at.parent!.id) : (at?.index ?? -1);
+      stack.splice(top < 0 ? stack.length : top + 1, 0, inst);
     }
     this.selected = inst.id;
-    this.expanded = true;
+    this.collapsed = this.collapsed.filter((x) => x !== owner.id);
     this.record(true);
   }
 
+  /** Quita un modificador o un nodo. */
   remove(id = this.selected) {
     if (!this.scene || !id) return;
-    const at = locate(this.scene.stack, id);
-    if (!at) return;
-    at.list.splice(at.index, 1);
-    const next = at.list[Math.min(at.index, at.list.length - 1)];
-    this.selected = next?.id ?? at.parent?.id ?? null;
+    const at = locateModifier(this.scene, id);
+    if (at) {
+      at.list.splice(at.index, 1);
+      const next = at.list[Math.min(at.index, at.list.length - 1)];
+      this.selected = next?.id ?? at.parent?.id ?? at.owner.id;
+      this.record(true);
+      return;
+    }
+    const n = locateNode(this.scene.objects, id);
+    if (!n) return;
+    n.list.splice(n.index, 1);
+    this.selected = n.list[Math.min(n.index, n.list.length - 1)]?.id ?? n.parent?.id ?? null;
+    // Sin objetos no hay escena: vuelta al estado vacío.
+    if (this.objectCount === 0) {
+      this.scene = null;
+      this.selected = null;
+    }
     this.record(true);
   }
 
-  /** Mueve dentro de su misma lista (teclado: ⌥↑/↓). */
+  /** Mueve dentro de su misma lista (teclado: ⌥↑/↓). Vale para modificadores y nodos. */
   move(id: string, to: number) {
     if (!this.scene) return;
-    const at = locate(this.scene.stack, id);
+    const at = locateModifier(this.scene, id) ?? locateNode(this.scene.objects, id);
     if (!at) return;
-    const clamped = Math.max(0, Math.min(at.list.length - 1, to));
+    const list = at.list as unknown[];
+    const clamped = Math.max(0, Math.min(list.length - 1, to));
     if (clamped === at.index) return;
-    const [m] = at.list.splice(at.index, 1);
-    at.list.splice(clamped, 0, m!);
+    const [m] = list.splice(at.index, 1);
+    list.splice(clamped, 0, m);
     this.record(true);
   }
 
-  /** Mueve a cualquier sitio del árbol: dentro de `parentId` (o la pila principal) en la posición `index`. */
+  /** Mueve un modificador a cualquier sitio de la pila de su nodo: dentro de `parentId` (un Step) o arriba. */
   moveTo(id: string, parentId: string | null, index: number) {
     if (!this.scene) return;
-    const at = locate(this.scene.stack, id);
+    const at = locateModifier(this.scene, id);
     if (!at || id === parentId) return;
-    // Un contenedor no entra en otro contenedor.
     if (parentId && containers.has(at.inst.type)) return;
-    const target = parentId ? locate(this.scene.stack, parentId)?.inst : null;
+    const stack = at.owner.stack;
+    const target = parentId ? locate(stack, parentId)?.inst : null;
     if (parentId && (!target || !containers.has(target.type))) return;
-    const list = target ? (target.children ??= []) : this.scene.stack;
+    const list = target ? (target.children ??= []) : stack;
     const [m] = at.list.splice(at.index, 1);
     const i = list === at.list && index > at.index ? index - 1 : index;
     list.splice(Math.max(0, Math.min(list.length, i)), 0, m!);
@@ -152,11 +291,12 @@ export class Editor {
   }
 
   /** Sustituye la escena entera (desde el panel de código). Devuelve false si no cambia nada. */
-  applyScene(next: Scene) {
+  applyScene(next: AnyScene) {
     if (!this.scene) return false;
-    if (JSON.stringify(next) === JSON.stringify($state.snapshot(this.scene))) return false;
-    this.scene = next;
-    if (this.selected && !locate(next.stack, this.selected)) this.selected = next.stack.at(-1)?.id ?? null;
+    const v2 = migrateScene(next);
+    if (JSON.stringify(v2) === JSON.stringify($state.snapshot(this.scene))) return false;
+    this.scene = v2;
+    if (this.selected && !locateNode(v2.objects, this.selected) && !locateModifier(v2, this.selected)) this.selected = v2.objects[0]?.id ?? null;
     this.record();
     return true;
   }
@@ -175,7 +315,7 @@ export class Editor {
   }
 
   setEnabled(id: string, enabled: boolean) {
-    const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
+    const m = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
     if (!m) return;
     m.enabled = enabled;
     this.record(true);
@@ -183,7 +323,7 @@ export class Editor {
 
   /** El dado: valores aleatorios (dentro de rangos razonables) para el efecto seleccionado. */
   randomize(id = this.selected, seed = Math.floor(Math.random() * 2 ** 31)) {
-    const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
+    const m = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
     const def = m && registry.get(m.type);
     if (!m || !def) return;
     m.params = randomizeParams(def.params, resolveParams(def.params, m.params), rng(seed));
@@ -191,7 +331,7 @@ export class Editor {
   }
 
   reset(id = this.selected) {
-    const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
+    const m = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
     const def = m && registry.get(m.type);
     if (!m || !def) return;
     m.params = { ...resolveParams(def.params) };
@@ -228,12 +368,14 @@ export class Editor {
   #restore(i: number) {
     const snap = this.#history[i];
     if (!snap) return;
-    const { scene, name, script } = JSON.parse(snap) as { scene: Scene; name: string; script?: string };
+    const { scene, name, script } = JSON.parse(snap) as { scene: SceneV2 | null; name: string; script?: string };
     this.scene = scene;
     this.name = name;
     this.script = script ?? DEFAULT_SCRIPT;
     this.#index = i;
-    if (this.selected && scene && !locate(scene.stack, this.selected)) this.selected = scene.stack.at(-1)?.id ?? null;
+    if (this.selected && scene && !locateNode(scene.objects, this.selected) && !locateModifier(scene, this.selected)) {
+      this.selected = scene.objects[0]?.id ?? null;
+    }
     void this.saveToURL();
   }
 
@@ -249,8 +391,11 @@ export class Editor {
   // ── URL
 
   async saveToURL() {
-    if (!this.scene) return;
-    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as Scene, name: this.name, script: this.script });
+    if (!this.scene) {
+      history.replaceState(null, '', `${location.pathname}${location.search}`);
+      return;
+    }
+    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script });
     const hash = encoded.length < MAX_HASH ? `#s=${encoded}` : '';
     history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
   }
@@ -260,10 +405,11 @@ export class Editor {
     if (!m) return false;
     const state = await decodeState(m[1]!);
     if (!state) return false;
-    this.load(state.scene.source, state.name);
-    this.scene!.stack = state.scene.stack;
+    const scene = migrateScene(state.scene, state.name.endsWith('.svg') ? state.name : `${state.name}.svg`);
+    this.scene = scene;
+    this.name = state.name.replace(/\.svg$/i, '');
     if (state.script) this.script = state.script;
-    this.selected = state.scene.stack.at(-1)?.id ?? null;
+    this.selected = scene.objects[0]?.id ?? null;
     this.#history = [];
     this.#index = -1;
     this.record(true);
