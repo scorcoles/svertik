@@ -22,6 +22,8 @@ export const icons = {
   noise: 'M0.5 9.5l2-3 2 4 2-6 2 5 2-3 2 4 2-3',
   clone: 'M1.5 1.5h5v5h-5z M9.5 1.5h5v5h-5z M1.5 9.5h5v5h-5z M9.5 9.5h5v5h-5z',
   step: 'M1.5 14.5h4v-4h4v-4h4v-4h1',
+  color: 'M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13 M8 1.5v13 M8 4.5h4.5 M8 8h6.5 M8 11.5h4.5',
+  paint: 'M2.5 2.5h8v8h-8z M5.5 5.5h8v8h-8z',
   crack: 'M8 1.5l-1 4 2 2-2.5 3 1 4 M7 5.5l-4-1 M9 7.5l4 1.5 M6.5 10.5l-3 2',
   // Interfaz
   dice: 'M2.5 2.5h11v11h-11z M5 5h1v1h-1z M10 10h1v1h-1z M7.5 7.5h1v1h-1z M10 5h1v1h-1z M5 10h1v1h-1z',

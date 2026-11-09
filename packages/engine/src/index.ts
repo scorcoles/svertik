@@ -5,3 +5,4 @@ export * from './modifier';
 export { createEngine, type Engine, type Scene, type ModifierInstance } from './engine';
 export * from './modifiers';
 export { rng, noise2D } from './random';
+export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor } from './color';
