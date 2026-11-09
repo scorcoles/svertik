@@ -57,6 +57,8 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       svg.appendChild(path);
     }
     path.setAttribute('d', toPathData(shape, precision));
+    if (shape.node) path.setAttribute('data-node', shape.node);
+    else path.removeAttribute('data-node');
     for (const [k, v] of Object.entries(shape.style)) {
       if (path.getAttribute(k) !== v) path.setAttribute(k, v);
     }
