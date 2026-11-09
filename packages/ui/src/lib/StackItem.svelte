@@ -25,6 +25,8 @@
     onvisible?: (visible: boolean) => void;
     /** Grupos: desagrupar de un clic (aparece al pasar, como la papelera). */
     onungroup?: () => void;
+    /** Renombrar: un lápiz al pasar (o doble clic en el nombre) edita el nombre en la propia fila. */
+    onrename?: (name: string) => void;
   }
   let {
     label,
@@ -41,7 +43,24 @@
     visible,
     onvisible,
     onungroup,
+    onrename,
   }: Props = $props();
+
+  let editing = $state(false);
+  let input = $state<HTMLInputElement>();
+  function startRename() {
+    if (!onrename) return;
+    editing = true;
+    queueMicrotask(() => {
+      input?.focus();
+      input?.select();
+    });
+  }
+  function commit(value: string) {
+    const name = value.trim();
+    if (editing && name && name !== label) onrename?.(name);
+    editing = false;
+  }
 </script>
 
 <div
@@ -73,7 +92,32 @@
     <span class="chevron" aria-hidden="true"></span>
   {/if}
   <span class="icon"><Icon name={icon} /></span>
-  <span class="label">{label}</span>
+  {#if editing}
+    <!-- svelte-ignore a11y_autofocus -->
+    <input
+      bind:this={input}
+      class="rename"
+      value={label}
+      aria-label="Name"
+      spellcheck="false"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') commit(e.currentTarget.value);
+        else if (e.key === 'Escape') editing = false;
+      }}
+      onblur={(e) => commit(e.currentTarget.value)}
+    />
+  {:else}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <span class="label" ondblclick={(e) => { e.stopPropagation(); startRename(); }}>{label}</span>
+  {/if}
+  {#if onrename && !editing}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span class="remove pencil" onclick={(e) => e.stopPropagation()}>
+      <IconButton icon="pencil" label={`Rename ${label}`} onclick={startRename} />
+    </span>
+  {/if}
   {#if onungroup}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove ungroup" onclick={(e) => e.stopPropagation()}>
@@ -149,7 +193,19 @@
   .remove { display: flex; margin-right: calc(var(--sv-space-2) * -1); visibility: hidden; }
   .remove :global(.sv-icon-button) { width: 20px; height: 20px; }
   .remove :global(.sv-icon-button:hover) { color: var(--sv-signal-error); background: none; }
-  .ungroup :global(.sv-icon-button:hover) { color: var(--sv-accent-fill); }
+  .ungroup :global(.sv-icon-button:hover),
+  .pencil :global(.sv-icon-button:hover) { color: var(--sv-accent-fill); }
+  .rename {
+    flex: 1;
+    min-width: 0;
+    height: 18px;
+    padding: 0 var(--sv-space-4);
+    font: inherit;
+    color: var(--sv-text-primary);
+    background: var(--sv-surface-field);
+    border: 1px solid var(--sv-accent-fill);
+    outline: none;
+  }
   .sv-stack-item:hover .remove,
   .sv-stack-item:focus-within .remove { visibility: visible; }
   /* El ojo: al pasar o con foco; si está oculto, siempre (tachado). */

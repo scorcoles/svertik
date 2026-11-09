@@ -2,6 +2,7 @@
 import {
   builtins,
   migrateScene,
+  shapeRegistry,
   randomizeParams,
   resolveParams,
   rng,
@@ -13,6 +14,7 @@ import {
   type ObjectNode,
   type SceneNode,
   type SceneV2,
+  type ShapeNode,
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
@@ -92,6 +94,8 @@ export class Editor {
   /** Objetos animados por el script mientras corre; no entran en el historial. */
   preview = $state<SceneNode[] | null>(null);
   codeOpen = $state(false);
+  /** Herramienta de primitivas armada (se dibuja arrastrando en el lienzo). */
+  tool = $state<string | null>(null);
   /** Punto que se está moviendo (fracción de la caja de origen); se borra al parar. */
   marker = $state<[number, number] | null>(null);
   #markerTimer: ReturnType<typeof setTimeout> | undefined;
@@ -118,7 +122,7 @@ export class Editor {
   currentNode = $derived(this.scene ? (locateNode(this.scene.objects, this.selected)?.node ?? null) : null);
   /** El nodo con el que se trabaja: el seleccionado o el dueño del efecto seleccionado. */
   activeNode = $derived(this.currentNode ?? this.#mod?.owner ?? null);
-  objectCount = $derived(this.scene ? [...walkNodes(this.scene.objects)].filter((x) => x.node.kind === 'object').length : 0);
+  objectCount = $derived(this.scene ? [...walkNodes(this.scene.objects)].filter((x) => x.node.kind !== 'group').length : 0);
 
   // ── Origen
 
@@ -140,6 +144,45 @@ export class Editor {
     }
     this.selected = node.id;
     this.record(true);
+  }
+
+  /** Añade una primitiva (rectángulo, estrella…) en `at` (centro, en el documento) con sus parámetros. */
+  addShape(type: string, params: Record<string, unknown> = {}, at: { x: number; y: number } = { x: 0, y: 0 }) {
+    const def = shapeRegistry.get(type);
+    if (!def) return;
+    const taken = new Set(this.scene ? [...walkNodes(this.scene.objects)].map((x) => x.node.name) : []);
+    let name = def.label;
+    for (let i = 2; taken.has(name); i++) name = `${def.label} ${i}`;
+    const node: ShapeNode = {
+      kind: 'shape',
+      id: `${type}-${uid()}`,
+      name,
+      shape: type,
+      params: { ...resolveParams(def.params), ...params },
+      stack: [],
+      transform: { x: Math.round(at.x * 100) / 100, y: Math.round(at.y * 100) / 100 },
+    };
+    if (!this.scene) {
+      this.scene = { version: 2, objects: [node] };
+      this.name = 'untitled';
+      this.#history = [];
+      this.#index = -1;
+    } else {
+      // Dentro del grupo seleccionado, si lo hay; si no, arriba del todo.
+      const g = this.currentNode?.kind === 'group' ? this.currentNode : null;
+      (g ? g.children : this.scene.objects).push(node);
+    }
+    this.selected = node.id;
+    this.tool = null;
+    this.record(true);
+  }
+
+  /** Un parámetro de una primitiva. */
+  setShapeParam(id: string, name: string, value: unknown) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'shape') return;
+    at.node.params[name] = value;
+    this.record();
   }
 
   /** Cambia el SVG de un objeto, conservando su pila y su posición. */
