@@ -179,11 +179,8 @@ describe('clone', () => {
 });
 
 describe('step', () => {
-  const run = (stack: Scene['stack']) => createEngine(builtins).evaluate({ version: 1, source: square, stack });
-  const centerOf = (geo: ReturnType<typeof run>, i: number) => {
-    const b = bounds({ ...geo, shapes: [geo.shapes[i]!] });
-    return [b.x + b.width / 2, b.y + b.height / 2] as const;
-  };
+  const run = (stack: Scene['stack'], source = square) => createEngine(builtins).evaluate({ version: 1, source, stack });
+  const boxOf = (geo: ReturnType<typeof run>, i: number) => bounds({ ...geo, shapes: [geo.shapes[i]!] });
 
   it('Clone marca cada copia con su número y los deformadores lo conservan', () => {
     const geo = run([
@@ -193,24 +190,46 @@ describe('step', () => {
     expect(geo.shapes.map((s) => s.clone)).toEqual([0, 1, 2, 3]);
   });
 
-  it('gira cada copia un paso más que la anterior, sobre su propio centro', () => {
+  it('sin hijos no hace nada', () => {
     const base = run([{ id: 'c', type: 'clone', params: { mode: 'linear', count: 3 } }]);
-    const geo = run([
-      { id: 'c', type: 'clone', params: { mode: 'linear', count: 3 } },
-      { id: 's', type: 'step', params: { rotation: 45 } },
-    ]);
-    // El centro no se mueve (gira sobre sí misma)…
-    for (const i of [0, 1, 2]) expect(centerOf(geo, i)[0]).toBeCloseTo(centerOf(base, i)[0]);
-    // …y el ancho crece con el giro: 45° (1.ª) y 135° (3.ª) dan el mismo ancho, 90° (2.ª) el original.
-    const width = (i: number) => bounds({ ...geo, shapes: [geo.shapes[i]!] }).width;
-    expect(width(0)).toBeCloseTo(width(2));
-    expect(width(1)).toBeCloseTo(60);
+    const geo = run([{ id: 'c', type: 'clone', params: { mode: 'linear', count: 3 } }, { id: 's', type: 'step' }]);
+    expect(geo.shapes.map((_, i) => boxOf(geo, i))).toEqual(base.shapes.map((_, i) => boxOf(base, i)));
   });
 
-  it('sin Clone, cada forma es un elemento', () => {
+  it('aplica cualquier modificador hijo con sus números multiplicados por la posición', () => {
+    const geo = run([
+      { id: 'c', type: 'clone', params: { mode: 'linear', count: 3 } },
+      { id: 's', type: 'step', children: [{ id: 't', type: 'transform', params: { rotation: 45 } }] },
+    ]);
+    // 45° (1.ª) y 135° (3.ª) dan el mismo ancho; 90° (2.ª), el del cuadrado: cada copia gira sobre su centro.
+    expect(boxOf(geo, 0).width).toBeCloseTo(boxOf(geo, 2).width);
+    expect(boxOf(geo, 1).width).toBeCloseTo(60);
+  });
+
+  it('la escala crece desde 1, no desde 0', () => {
+    const geo = run([
+      { id: 'c', type: 'clone', params: { mode: 'linear', count: 2 } },
+      { id: 's', type: 'step', children: [{ id: 't', type: 'transform', params: { scale: 1.5 } }] },
+    ]);
+    expect(boxOf(geo, 0).width).toBeCloseTo(90); // 1 + 0.5 × 1
+    expect(boxOf(geo, 1).width).toBeCloseTo(120); // 1 + 0.5 × 2
+  });
+
+  it('dentro de cada copia, el centro 0.5 es el de la copia', () => {
+    const geo = run([
+      { id: 'c', type: 'clone', params: { mode: 'linear', count: 2 } },
+      { id: 's', type: 'step', children: [{ id: 'sp', type: 'spherize', params: { strength: 0.5, radius: 0.4 } }] },
+    ]);
+    // Las dos copias se deforman (con un centro global, la segunda quedaría fuera del radio).
+    expect(geo.shapes[0]!.subpaths[0]!.segs.length).toBeGreaterThan(4);
+    expect(geo.shapes[1]!.subpaths[0]!.segs.length).toBeGreaterThan(4);
+  });
+
+  it('sin Clone, cada forma es un elemento; un hijo apagado no cuenta', () => {
     const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="0" y="0" width="10" height="10"/><rect x="50" y="0" width="10" height="10"/></svg>';
-    const geo = createEngine(builtins).evaluate({ version: 1, source: two, stack: [{ id: 's', type: 'step', params: { rotation: 0, offset: [0, 0.1] } }] });
-    const ys = geo.shapes.map((s) => bounds({ ...geo, shapes: [s] }).y);
-    expect(ys[1]! - ys[0]!).toBeCloseTo(1); // paso de 0.1 × 10 de alto: la 1.ª baja 1 y la 2.ª, 2
+    const on = run([{ id: 's', type: 'step', children: [{ id: 't', type: 'transform', params: { y: 5 } }] }], two);
+    expect(boxOf(on, 1).y - boxOf(on, 0).y).toBeCloseTo(5);
+    const off = run([{ id: 's', type: 'step', children: [{ id: 't', type: 'transform', enabled: false, params: { y: 5 } }] }], two);
+    expect(boxOf(off, 0).y).toBe(0);
   });
 });

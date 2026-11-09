@@ -10,7 +10,7 @@ export const transform = defineModifier({
     x: { type: 'number', default: 0, step: 1, unit: 'px' },
     y: { type: 'number', default: 0, step: 1, unit: 'px' },
     rotation: { type: 'angle', default: 0 },
-    scale: { type: 'number', default: 1, min: 0, step: 0.01 },
+    scale: { type: 'number', default: 1, min: 0, step: 0.01, neutral: 1 },
     pivot: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Pivot' },
   },
   apply(geo, p, ctx) {

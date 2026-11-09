@@ -1,60 +1,46 @@
-import { bounds, mapPoints, type Geometry, type Shape } from '../geometry';
-import { defineModifier, deg } from '../modifier';
+import { bounds, type Geometry, type Shape } from '../geometry';
+import { defineModifier, rampParams, type ModifierContext } from '../modifier';
 
 /**
- * Efector incremental (como el Step Effector de C4D): cada elemento recibe el cambio
- * multiplicado por su posición. Con 10° de giro, el primero gira 10°, el segundo 20°…
+ * Efector incremental (como el Step Effector de C4D): aplica los modificadores que cuelgan de él
+ * a cada elemento por separado, con sus números multiplicados por la posición del elemento.
+ * Un Twist de 10° debajo de Step: el primero gira 10°, el segundo 20°…
  * Los elementos son las copias de Clone; sin Clone, cada forma del SVG.
- * Cada elemento gira y escala sobre su propio centro.
+ * Dentro de cada elemento, las fracciones (centro, pivote…) se miden sobre su propia caja.
  */
 export const step = defineModifier({
   type: 'step',
   label: 'Step',
   kind: 'effector',
   params: {
-    rotation: { type: 'angle', default: 10, label: 'Rotate' },
-    scale: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, label: 'Scale' },
-    offset: { type: 'point', default: [0, 0], unit: 'fraction', label: 'Offset' },
-    reverse: { type: 'boolean', default: false, label: 'Reverse', animatable: false },
-    amount: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Strength', group: 'Mix' },
+    strength: { type: 'number', default: 1, min: 0, max: 2, step: 0.01, ramp: false },
+    reverse: { type: 'boolean', default: false, animatable: false },
   },
   apply(geo, p, ctx) {
+    const children = ctx.children.filter((c) => c.enabled);
+    if (!children.length) return geo;
+
     // Elementos: por número de copia si los hay; si no, una forma = un elemento.
     const tagged = geo.shapes.some((s) => s.clone !== undefined);
     const keyOf = (s: Shape, i: number) => (tagged ? (s.clone ?? -1) : i);
     const keys = [...new Set(geo.shapes.map(keyOf))].filter((k) => k >= 0).sort((a, b) => a - b);
     const n = keys.length;
-    if (n === 0) return geo;
     const order = new Map(keys.map((k, i) => [k, p.reverse ? n - i : i + 1]));
 
-    // Centro de cada elemento.
-    const centers = new Map<number, [number, number]>();
-    for (const k of keys) {
-      const b = bounds({ viewBox: geo.viewBox, shapes: geo.shapes.filter((s, i) => keyOf(s, i) === k) });
-      centers.set(k, [b.x + b.width / 2, b.y + b.height / 2]);
+    const out: Shape[] = [];
+    const untouched: Shape[] = [];
+    for (const key of keys) {
+      const own = geo.shapes.filter((s, i) => keyOf(s, i) === key);
+      let part: Geometry = { viewBox: geo.viewBox, shapes: own };
+      const k = order.get(key)! * p.strength;
+      const local: ModifierContext = { ...ctx, bounds: bounds(part), children: [] };
+      for (const c of children) {
+        const params = rampParams(c.def.params, c.params, k);
+        part = c.def.apply(part, params, { ...local, children: c.children });
+      }
+      out.push(...part.shapes.map((s) => (tagged ? { ...s, clone: key } : s)));
     }
-
-    const W = ctx.bounds.width;
-    const H = ctx.bounds.height;
-    const shapes = geo.shapes.map((s, i) => {
-      const key = keyOf(s, i);
-      const k = order.get(key);
-      if (k === undefined) return s;
-      const f = k * p.amount;
-      const a = deg(p.rotation) * f;
-      const sc = Math.max(0, 1 + p.scale * f);
-      const c = Math.cos(a) * sc;
-      const sn = Math.sin(a) * sc;
-      const [cx, cy] = centers.get(key)!;
-      const dx = p.offset[0] * W * f;
-      const dy = p.offset[1] * H * f;
-      const one: Geometry = { viewBox: geo.viewBox, shapes: [s] };
-      return mapPoints(one, ([x, y]) => {
-        const ux = x - cx;
-        const uy = y - cy;
-        return [cx + ux * c - uy * sn + dx, cy + ux * sn + uy * c + dy];
-      }).shapes[0]!;
-    });
-    return { viewBox: geo.viewBox, shapes };
+    for (const [i, s] of geo.shapes.entries()) if (keyOf(s, i) < 0) untouched.push(s);
+    return { viewBox: geo.viewBox, shapes: [...out, ...untouched] };
   },
 });

@@ -9,6 +9,10 @@ interface ParamBase {
   animatable?: boolean;
   /** Sección del panel de atributos donde aparece. Sin grupo: la sección principal. */
   group?: string;
+  /** Dentro de Step, ¿crece con cada copia? Por defecto, los números y ángulos sí. */
+  ramp?: boolean;
+  /** Valor «sin efecto» desde el que crece (por defecto 0; la escala, 1). */
+  neutral?: number;
 }
 
 export type ParamSpec =
@@ -25,11 +29,20 @@ export type ParamSchema = Record<string, ParamSpec>;
 type ValueOf<S extends ParamSpec> = S['default'];
 export type ParamValues<P extends ParamSchema> = { [K in keyof P]: ValueOf<P[K]> };
 
+export interface ResolvedModifier {
+  def: ModifierDef<any>;
+  params: Record<string, unknown>;
+  enabled: boolean;
+  children: ResolvedModifier[];
+}
+
 export interface ModifierContext {
   /** Caja del SVG de origen: referencia estable para los parámetros relativos (fracciones). */
   bounds: Bounds;
   /** Longitud máxima de tramo al subdividir antes de deformar, en unidades del SVG. */
   resolution: number;
+  /** Modificadores colgados de este (solo los usa Step). */
+  children: ResolvedModifier[];
 }
 
 export interface ModifierDef<P extends ParamSchema = ParamSchema> {
@@ -51,6 +64,22 @@ export function resolveParams<P extends ParamSchema>(schema: P, given: Record<st
     out[name] = v === undefined ? spec.default : v;
   }
   return out as ParamValues<P>;
+}
+
+/**
+ * Parámetros de un modificador para la copia k (1, 2, 3…) dentro de Step:
+ * los números crecen desde su valor neutro; la semilla cambia por copia; el resto, igual.
+ */
+export function rampParams(schema: ParamSchema, params: Record<string, unknown>, k: number): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...params };
+  for (const [name, spec] of Object.entries(schema)) {
+    const v = params[name];
+    if (spec.type === 'seed' && typeof v === 'number') out[name] = v + Math.round(k) - 1;
+    if ((spec.type !== 'number' && spec.type !== 'angle') || spec.ramp === false || typeof v !== 'number') continue;
+    const n = spec.neutral ?? 0;
+    out[name] = n + (v - n) * k;
+  }
+  return out;
 }
 
 /** Fracción de la caja de origen → coordenadas del SVG. */

@@ -6,6 +6,29 @@ import { decodeState, encodeState, MAX_HASH } from './share';
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
 export const modifierTypes = builtins.map((m) => m.type);
 
+/** Modificadores que aceptan otros colgados (y los aplican a su manera). */
+export const containers = new Set(['step']);
+
+/** Dónde está un modificador en el árbol: su lista, su posición y quién la contiene. */
+export interface Location {
+  list: ModifierInstance[];
+  index: number;
+  inst: ModifierInstance;
+  parent: ModifierInstance | null;
+}
+
+export function locate(stack: ModifierInstance[], id: string | null, parent: ModifierInstance | null = null): Location | null {
+  if (!id) return null;
+  for (const [index, inst] of stack.entries()) {
+    if (inst.id === id) return { list: stack, index, inst, parent };
+    if (inst.children) {
+      const found = locate(inst.children, id, inst);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 const HISTORY_LIMIT = 200;
 const uid = () => Math.random().toString(36).slice(2, 8);
 
@@ -39,7 +62,9 @@ export class Editor {
 
   canUndo = $derived(this.#index > 0);
   canRedo = $derived(this.#index < this.#historyLength - 1);
-  current = $derived(this.scene?.stack.find((m) => m.id === this.selected) ?? null);
+  current = $derived(this.scene ? (locate(this.scene.stack, this.selected)?.inst ?? null) : null);
+  /** El Step (u otro contenedor) del que cuelga el seleccionado, si lo hay. */
+  currentParent = $derived(this.scene ? (locate(this.scene.stack, this.selected)?.parent ?? null) : null);
 
   // ── Origen
 
@@ -63,9 +88,19 @@ export class Editor {
     const def = registry.get(type);
     if (!this.scene || !def) return;
     const inst: ModifierInstance = { id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(def.params) } };
-    // Debajo del seleccionado, o al final.
-    const i = this.scene.stack.findIndex((m) => m.id === this.selected);
-    this.scene.stack.splice(i < 0 ? this.scene.stack.length : i + 1, 0, inst);
+    if (containers.has(type)) inst.children = [];
+    const at = locate(this.scene.stack, this.selected);
+    if (at && containers.has(at.inst.type) && !containers.has(type)) {
+      // Con Step seleccionado: dentro, al final.
+      (at.inst.children ??= []).push(inst);
+    } else if (at && at.parent && !containers.has(type)) {
+      // Con algo de dentro de Step seleccionado: dentro, debajo de él.
+      at.list.splice(at.index + 1, 0, inst);
+    } else {
+      // Si no, en la pila principal, debajo del seleccionado (o del Step que lo contiene).
+      const top = at?.parent ? this.scene.stack.findIndex((m) => m.id === at.parent!.id) : (at?.index ?? -1);
+      this.scene.stack.splice(top < 0 ? this.scene.stack.length : top + 1, 0, inst);
+    }
     this.selected = inst.id;
     this.expanded = true;
     this.record(true);
@@ -73,22 +108,39 @@ export class Editor {
 
   remove(id = this.selected) {
     if (!this.scene || !id) return;
-    const i = this.scene.stack.findIndex((m) => m.id === id);
-    if (i < 0) return;
-    this.scene.stack.splice(i, 1);
-    const next = this.scene.stack[Math.min(i, this.scene.stack.length - 1)];
-    this.selected = next?.id ?? null;
+    const at = locate(this.scene.stack, id);
+    if (!at) return;
+    at.list.splice(at.index, 1);
+    const next = at.list[Math.min(at.index, at.list.length - 1)];
+    this.selected = next?.id ?? at.parent?.id ?? null;
     this.record(true);
   }
 
+  /** Mueve dentro de su misma lista (teclado: ⌥↑/↓). */
   move(id: string, to: number) {
     if (!this.scene) return;
-    const from = this.scene.stack.findIndex((m) => m.id === id);
-    if (from < 0) return;
-    const clamped = Math.max(0, Math.min(this.scene.stack.length - 1, to));
-    if (clamped === from) return;
-    const [m] = this.scene.stack.splice(from, 1);
-    this.scene.stack.splice(clamped, 0, m!);
+    const at = locate(this.scene.stack, id);
+    if (!at) return;
+    const clamped = Math.max(0, Math.min(at.list.length - 1, to));
+    if (clamped === at.index) return;
+    const [m] = at.list.splice(at.index, 1);
+    at.list.splice(clamped, 0, m!);
+    this.record(true);
+  }
+
+  /** Mueve a cualquier sitio del árbol: dentro de `parentId` (o la pila principal) en la posición `index`. */
+  moveTo(id: string, parentId: string | null, index: number) {
+    if (!this.scene) return;
+    const at = locate(this.scene.stack, id);
+    if (!at || id === parentId) return;
+    // Un contenedor no entra en otro contenedor.
+    if (parentId && containers.has(at.inst.type)) return;
+    const target = parentId ? locate(this.scene.stack, parentId)?.inst : null;
+    if (parentId && (!target || !containers.has(target.type))) return;
+    const list = target ? (target.children ??= []) : this.scene.stack;
+    const [m] = at.list.splice(at.index, 1);
+    const i = list === at.list && index > at.index ? index - 1 : index;
+    list.splice(Math.max(0, Math.min(list.length, i)), 0, m!);
     this.record(true);
   }
 
@@ -99,13 +151,12 @@ export class Editor {
     this.record();
   }
 
-  /** Marca el punto en el lienzo y la quita a los 300 ms de dejar de moverlo. */
   /** Sustituye la escena entera (desde el panel de código). Devuelve false si no cambia nada. */
   applyScene(next: Scene) {
     if (!this.scene) return false;
     if (JSON.stringify(next) === JSON.stringify($state.snapshot(this.scene))) return false;
     this.scene = next;
-    if (this.selected && !next.stack.some((m) => m.id === this.selected)) this.selected = next.stack.at(-1)?.id ?? null;
+    if (this.selected && !locate(next.stack, this.selected)) this.selected = next.stack.at(-1)?.id ?? null;
     this.record();
     return true;
   }
@@ -116,6 +167,7 @@ export class Editor {
     this.record();
   }
 
+  /** Marca el punto en el lienzo y la quita a los 300 ms de dejar de moverlo. */
   showMarker(point: [number, number]) {
     this.marker = point;
     clearTimeout(this.#markerTimer);
@@ -123,14 +175,14 @@ export class Editor {
   }
 
   setEnabled(id: string, enabled: boolean) {
-    const m = this.scene?.stack.find((x) => x.id === id);
+    const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
     if (!m) return;
     m.enabled = enabled;
     this.record(true);
   }
 
   reset(id = this.selected) {
-    const m = this.scene?.stack.find((x) => x.id === id);
+    const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
     const def = m && registry.get(m.type);
     if (!m || !def) return;
     m.params = { ...resolveParams(def.params) };
@@ -172,7 +224,7 @@ export class Editor {
     this.name = name;
     this.script = script ?? DEFAULT_SCRIPT;
     this.#index = i;
-    if (this.selected && !scene?.stack.some((m) => m.id === this.selected)) this.selected = scene?.stack.at(-1)?.id ?? null;
+    if (this.selected && scene && !locate(scene.stack, this.selected)) this.selected = scene.stack.at(-1)?.id ?? null;
     void this.saveToURL();
   }
 

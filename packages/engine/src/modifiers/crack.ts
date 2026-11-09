@@ -19,11 +19,11 @@ export const crack = defineModifier({
   kind: 'generator',
   params: {
     growth: { type: 'number', default: 1, min: 0, max: 1, step: 0.01 },
-    cracks: { type: 'number', default: 5, min: 1, max: 16, step: 1 },
+    cracks: { type: 'number', default: 5, min: 1, max: 16, step: 1, ramp: false },
     length: { type: 'number', default: 0.6, min: 0, max: 2, step: 0.01, unit: 'fraction' },
     branching: { type: 'number', default: 0.35, min: 0, max: 1, step: 0.01 },
     jagged: { type: 'number', default: 0.4, min: 0, max: 1, step: 0.01 },
-    width: { type: 'number', default: 1, min: 0, max: 10, step: 0.1, unit: 'px', group: 'Style' },
+    width: { type: 'number', default: 1, min: 0, max: 10, step: 0.1, unit: 'px', group: 'Style', ramp: false },
     color: { type: 'color', default: '#000000', group: 'Style' },
     impact: { type: 'point', default: [0.4, 0.35], unit: 'fraction', group: 'Impact', label: 'Point' },
     seed: { type: 'seed', default: 1, group: 'Impact' },
