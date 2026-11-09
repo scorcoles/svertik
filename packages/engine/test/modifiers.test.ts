@@ -134,3 +134,46 @@ describe('crack', () => {
     expect(svg(2)).not.toBe(svg(3));
   });
 });
+
+describe('rotate3d', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'r', type: 'rotate3d', params }] });
+
+  it('sin giro no cambia nada', () => {
+    expect(bounds(run({ rotateX: 0 }))).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  });
+  it('solo Z equivale a girar en plano (90° deja el cuadrado igual de grande)', () => {
+    const b = bounds(run({ rotateX: 0, rotateZ: 90 }));
+    expect(b.width).toBeCloseTo(60);
+    expect(b.height).toBeCloseTo(60);
+  });
+  it('inclinar en X con perspectiva: el borde que se acerca crece y el que se aleja encoge', () => {
+    const pts = run({ rotateX: 40 }).shapes[0]!.subpaths[0]!.segs.map((s) => s.p);
+    const top = pts.filter((p) => p[1] < 50);
+    const bottom = pts.filter((p) => p[1] > 50);
+    const span = (ps: typeof pts) => Math.max(...ps.map((p) => p[0])) - Math.min(...ps.map((p) => p[0]));
+    expect(span(top)).not.toBeCloseTo(span(bottom), 0);
+  });
+});
+
+describe('clone', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'clone', params }] });
+
+  it('grid: filas × columnas copias, centradas en el original', () => {
+    const geo = run({ mode: 'grid', columns: 3, rows: 2 });
+    expect(geo.shapes).toHaveLength(6);
+    const b = bounds(geo);
+    expect(b.x + b.width / 2).toBeCloseTo(50);
+    expect(b.y + b.height / 2).toBeCloseTo(50);
+  });
+  it('radial: count copias a la distancia pedida', () => {
+    const geo = run({ mode: 'radial', count: 4, radius: 1, align: false });
+    expect(geo.shapes).toHaveLength(4);
+    expect(bounds(geo).width).toBeCloseTo(60 + 2 * 60);
+  });
+  it('el viewBox crece para que quepan las copias', () => {
+    const geo = run({ mode: 'linear', count: 5 });
+    expect(geo.viewBox[2]).toBeGreaterThan(100);
+  });
+});
