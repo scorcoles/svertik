@@ -1,6 +1,6 @@
 <script lang="ts">
   import { bounds, builtins, createEngine, renderInto, type Bounds, type Scene } from '@svertik/engine';
-  import { Button, Checkbox, Icon } from '@svertik/ui';
+  import { Button, Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
 
@@ -80,8 +80,6 @@
     <footer>
       <span>Fit</span>
       <span class="muted">{size[0]} × {size[1]}</span>
-      <label><Checkbox bind:checked={editor.showOriginal} label="Show original" /> Original</label>
-      <label><Checkbox bind:checked={editor.showWire} label="Wire view" /> Wire</label>
     </footer>
   {:else}
     <div class="drop">
@@ -144,7 +142,6 @@
     font-size: var(--sv-font-size-10);
     color: var(--sv-text-secondary);
   }
-  footer label { display: flex; align-items: center; gap: var(--sv-space-6); color: var(--sv-text-muted); cursor: pointer; }
   .muted { color: var(--sv-text-muted); }
   .drop {
     display: grid;

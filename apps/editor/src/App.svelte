@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { builtins, createEngine, type Scene } from '@svertik/engine';
+  import { Checkbox } from '@svertik/ui';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
@@ -111,6 +112,11 @@
     <aside class="inspector">
       <StackPanel {editor} />
       <Attributes {editor} />
+      <div class="view" class:off={!editor.scene}>
+        <strong>View</strong>
+        <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>
+        <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
+      </div>
       <footer>
         <span>svertik 0.0.0</span>
         <span>engine · {builtins.length} modifiers</span>
@@ -148,6 +154,18 @@
     background: var(--sv-surface-panel);
     border-left: var(--sv-border-1) solid var(--sv-rule-default);
   }
+  .view {
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-16);
+    flex: none;
+    height: 32px;
+    padding: 0 var(--sv-space-8);
+    border-top: var(--sv-border-1) solid var(--sv-rule-default);
+  }
+  .view strong { color: var(--sv-text-secondary); }
+  .view label { display: flex; align-items: center; gap: var(--sv-space-6); cursor: pointer; }
+  .view.off { opacity: 0.35; }
   .inspector footer {
     display: flex;
     justify-content: space-between;
