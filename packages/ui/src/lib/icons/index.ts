@@ -5,6 +5,7 @@
 export const icons = {
   // Objetos
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
+  ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
   object: 'M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3',
   // Efectos
   transform: 'M8 1.5v13 M1.5 8h13 M6 3.5l2-2 2 2 M6 12.5l2 2 2-2 M3.5 6l-2 2 2 2 M12.5 6l2 2-2 2',
