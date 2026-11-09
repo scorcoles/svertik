@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { Button, IconButton, type IconName } from '@svertik/ui';
+  import { Button, IconButton } from '@svertik/ui';
   import { modifierTypes, registry, type Editor } from './editor.svelte';
+  import GroupMenu from './GroupMenu.svelte';
 
   interface Props {
     editor: Editor;
@@ -10,7 +11,14 @@
     onexport: () => void;
   }
   let { editor, onimport, oncopyjson, oncopycode, onexport }: Props = $props();
-  const off = $derived(!editor.scene);
+  const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);
+  // Los efectos, por grupos: la barra no crece aunque crezca el catálogo.
+  const groups = [
+    { label: 'Deform', icon: 'spherize', types: of('deformer') },
+    { label: 'Generate', icon: 'clone', types: of('generator') },
+    { label: 'Effect', icon: 'step', types: of('effector') },
+    { label: 'Style', icon: 'color', types: of('style') },
+  ] as const;
 </script>
 
 <header class="toolbar">
@@ -23,16 +31,15 @@
   <IconButton icon="undo" label="Undo (⌘Z)" disabled={!editor.canUndo} onclick={() => editor.undo()} />
   <IconButton icon="redo" label="Redo (⇧⌘Z)" disabled={!editor.canRedo} onclick={() => editor.redo()} />
   <span class="rule" aria-hidden="true"></span>
-  <span class="add" class:off>Add</span>
   <div class="effects" role="group" aria-label="Add modifier">
-    {#each modifierTypes as type (type)}
-      <IconButton icon={type as IconName} label={`Add ${registry.get(type)?.label}`} disabled={off} onclick={() => editor.add(type)} />
+    {#each groups as g (g.label)}
+      <GroupMenu {editor} label={g.label} icon={g.icon} types={[...g.types]} />
     {/each}
   </div>
   <span class="spacer"></span>
-  <Button label="Copy JSON" disabled={off} onclick={oncopyjson} />
-  <Button label="Code" disabled={off} aria-pressed={editor.codeOpen} onclick={oncopycode} />
-  <Button label="Export SVG" kind="primary" disabled={off} onclick={onexport} />
+  <Button label="Copy JSON" disabled={!editor.scene} onclick={oncopyjson} />
+  <Button label="Code" disabled={!editor.scene} aria-pressed={editor.codeOpen} onclick={oncopycode} />
+  <Button label="Export SVG" kind="primary" disabled={!editor.scene} onclick={onexport} />
 </header>
 
 <style>
@@ -51,8 +58,6 @@
   .slash { color: var(--sv-text-disabled); }
   .name { color: var(--sv-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
-  .add { margin-right: var(--sv-space-2); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .add.off { opacity: 0.35; }
   .effects { display: flex; gap: var(--sv-space-4); }
   .spacer { flex: 1; }
 </style>
