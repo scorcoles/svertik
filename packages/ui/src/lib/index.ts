@@ -2,6 +2,7 @@ export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as ColorField } from './ColorField.svelte';
 export { default as Icon } from './Icon.svelte';
+export { default as IconButton } from './IconButton.svelte';
 export { icons, iconSVG, type IconName } from './icons';
 export { default as NumberField } from './NumberField.svelte';
 export { default as Panel } from './Panel.svelte';
