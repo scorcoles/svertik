@@ -53,4 +53,11 @@
   --sv-accent-on: var(--sv-turquesa-900);
   --sv-accent-selection: var(--sv-turquesa-950);
   --sv-signal-error: var(--sv-red-400);
+  --sv-code-keyword: var(--sv-turquesa-500);
+  --sv-code-string: var(--sv-gray-300);
+  --sv-code-number: var(--sv-gray-100);
+  --sv-code-property: var(--sv-gray-200);
+  --sv-code-punctuation: var(--sv-gray-400);
+  --sv-code-comment: var(--sv-gray-500);
+  --sv-code-gutter: var(--sv-gray-600);
 }

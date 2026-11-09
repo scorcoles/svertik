@@ -19,6 +19,7 @@ async function pipe(bytes: Uint8Array, stream: CompressionStream | Decompression
 export interface SharedState {
   scene: Scene;
   name: string;
+  script?: string;
 }
 
 export async function encodeState(state: SharedState): Promise<string> {

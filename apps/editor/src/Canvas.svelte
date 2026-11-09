@@ -24,6 +24,8 @@
   $effect(() => {
     if (!editor.scene || !result) return;
     const scene = $state.snapshot(editor.scene) as Scene;
+    // Mientras el script anima, se pinta su pila (sin tocar la escena guardada).
+    if (editor.preview) scene.stack = $state.snapshot(editor.preview) as Scene['stack'];
     try {
       const steps = engine.evaluateSteps(scene);
       renderInto(result, steps.at(-1)!);

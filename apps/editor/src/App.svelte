@@ -3,8 +3,9 @@
   import { builtins, createEngine, type Scene } from '@svertik/engine';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
+  import CodePanel from './CodePanel.svelte';
   import { Editor } from './editor.svelte';
-  import { codeSnippet, download, sceneJSON } from './exporters';
+  import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Toolbar from './Toolbar.svelte';
 
@@ -14,6 +15,19 @@
   let fileInput: HTMLInputElement;
   let toast = $state<string | null>(null);
   let toastTimer: ReturnType<typeof setTimeout>;
+
+  // Alto del panel de código: se arrastra desde su borde superior.
+  let codeHeight = $state(300);
+  function startResize(e: PointerEvent) {
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const y0 = e.clientY;
+    const h0 = codeHeight;
+    const move = (ev: PointerEvent) => (codeHeight = Math.max(140, Math.min(window.innerHeight - 200, h0 + (y0 - ev.clientY))));
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  }
 
   const say = (text: string) => {
     toast = text;
@@ -82,11 +96,18 @@
     {editor}
     onimport={() => fileInput.click()}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
-    oncopycode={() => copy(codeSnippet(snapshot()), 'Code')}
+    oncopycode={() => (editor.codeOpen = !editor.codeOpen)}
     onexport={exportSVG}
   />
   <main>
-    <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} />
+    <div class="left" style:grid-template-rows={editor.codeOpen && editor.scene ? `minmax(0, 1fr) 6px ${codeHeight}px` : 'minmax(0, 1fr)'}>
+      <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} />
+      {#if editor.codeOpen && editor.scene}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
+        <CodePanel {editor} oncopy={copy} />
+      {/if}
+    </div>
     <aside class="inspector">
       <StackPanel {editor} />
       <Attributes {editor} />
@@ -113,6 +134,13 @@
 <style>
   .app { display: grid; grid-template-rows: auto 1fr; height: 100dvh; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 0; }
+  .left { display: grid; min-height: 0; min-width: 0; }
+  .resize {
+    cursor: ns-resize;
+    background: var(--sv-surface-panel);
+    border-top: var(--sv-border-1) solid var(--sv-rule-default);
+  }
+  .resize:hover { background: var(--sv-accent-selection); }
   .inspector {
     display: flex;
     flex-direction: column;
