@@ -20,6 +20,8 @@ export type Style = Record<string, string>;
 export interface Shape {
   subpaths: SubPath[];
   style: Style;
+  /** Número de copia que le dio Clone (para efectores como Step). */
+  clone?: number;
 }
 
 export interface Geometry {
@@ -87,7 +89,7 @@ export function subdivide(geo: Geometry, maxLength: number): Geometry {
 export function mapSubPaths(geo: Geometry, fn: (sp: SubPath, shape: Shape) => SubPath): Geometry {
   return {
     viewBox: geo.viewBox,
-    shapes: geo.shapes.map((shape) => ({ style: shape.style, subpaths: shape.subpaths.map((sp) => fn(sp, shape)) })),
+    shapes: geo.shapes.map((shape) => ({ ...shape, subpaths: shape.subpaths.map((sp) => fn(sp, shape)) })),
   };
 }
 
