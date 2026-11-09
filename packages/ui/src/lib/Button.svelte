@@ -29,5 +29,10 @@
     color: var(--sv-accent-on);
   }
   .sv-button[data-kind='primary']:hover { filter: brightness(1.1); }
+  .sv-button[aria-pressed='true'] {
+    background: var(--sv-accent-selection);
+    border-color: var(--sv-accent-fill);
+    color: var(--sv-accent-fill);
+  }
   .sv-button:disabled { opacity: 0.4; cursor: default; }
 </style>

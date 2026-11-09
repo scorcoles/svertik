@@ -31,7 +31,7 @@
   </div>
   <span class="spacer"></span>
   <Button label="Copy JSON" disabled={off} onclick={oncopyjson} />
-  <Button label="Code" disabled={off} onclick={oncopycode} />
+  <Button label="Code" disabled={off} aria-pressed={editor.codeOpen} onclick={oncopycode} />
   <Button label="Export SVG" kind="primary" disabled={off} onclick={onexport} />
 </header>
 

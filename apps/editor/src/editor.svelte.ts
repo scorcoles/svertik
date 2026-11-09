@@ -1,5 +1,6 @@
 // Estado del editor: la escena, la selección, el historial y la URL.
 import { builtins, resolveParams, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
+import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
@@ -16,6 +17,11 @@ export class Editor {
   showOriginal = $state(false);
   showWire = $state(false);
   error = $state<string | null>(null);
+  /** Script del panel de código (lo que va después de la escena en la pestaña JS). */
+  script = $state(DEFAULT_SCRIPT);
+  /** Pila animada por el script mientras corre; no entra en el historial. */
+  preview = $state<ModifierInstance[] | null>(null);
+  codeOpen = $state(false);
   /** Punto que se está moviendo (fracción de la caja de origen); se borra al parar. */
   marker = $state<[number, number] | null>(null);
   #markerTimer: ReturnType<typeof setTimeout> | undefined;
@@ -94,6 +100,22 @@ export class Editor {
   }
 
   /** Marca el punto en el lienzo y la quita a los 300 ms de dejar de moverlo. */
+  /** Sustituye la escena entera (desde el panel de código). Devuelve false si no cambia nada. */
+  applyScene(next: Scene) {
+    if (!this.scene) return false;
+    if (JSON.stringify(next) === JSON.stringify($state.snapshot(this.scene))) return false;
+    this.scene = next;
+    if (this.selected && !next.stack.some((m) => m.id === this.selected)) this.selected = next.stack.at(-1)?.id ?? null;
+    this.record();
+    return true;
+  }
+
+  setScript(script: string) {
+    if (script === this.script) return;
+    this.script = script;
+    this.record();
+  }
+
   showMarker(point: [number, number]) {
     this.marker = point;
     clearTimeout(this.#markerTimer);
@@ -121,7 +143,7 @@ export class Editor {
     clearTimeout(this.#timer);
     const push = () => {
       this.#pending = false;
-      const snap = JSON.stringify({ scene: this.scene, name: this.name });
+      const snap = JSON.stringify({ scene: this.scene, name: this.name, script: this.script });
       if (snap === this.#history[this.#index]) return;
       this.#history = this.#history.slice(0, this.#index + 1);
       this.#history.push(snap);
@@ -145,9 +167,10 @@ export class Editor {
   #restore(i: number) {
     const snap = this.#history[i];
     if (!snap) return;
-    const { scene, name } = JSON.parse(snap) as { scene: Scene; name: string };
+    const { scene, name, script } = JSON.parse(snap) as { scene: Scene; name: string; script?: string };
     this.scene = scene;
     this.name = name;
+    this.script = script ?? DEFAULT_SCRIPT;
     this.#index = i;
     if (this.selected && !scene?.stack.some((m) => m.id === this.selected)) this.selected = scene?.stack.at(-1)?.id ?? null;
     void this.saveToURL();
@@ -166,7 +189,7 @@ export class Editor {
 
   async saveToURL() {
     if (!this.scene) return;
-    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as Scene, name: this.name });
+    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as Scene, name: this.name, script: this.script });
     const hash = encoded.length < MAX_HASH ? `#s=${encoded}` : '';
     history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
   }
@@ -178,6 +201,7 @@ export class Editor {
     if (!state) return false;
     this.load(state.scene.source, state.name);
     this.scene!.stack = state.scene.stack;
+    if (state.script) this.script = state.script;
     this.selected = state.scene.stack.at(-1)?.id ?? null;
     this.#history = [];
     this.#index = -1;
