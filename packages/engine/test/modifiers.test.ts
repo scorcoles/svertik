@@ -95,3 +95,42 @@ describe('motor', () => {
     expect(svg).toMatchSnapshot();
   });
 });
+
+describe('crack', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'crack', params }] });
+
+  it('añade una forma de solo trazo encima y no toca la original', () => {
+    const geo = run({});
+    expect(geo.shapes).toHaveLength(2);
+    expect(geo.shapes[1]!.style).toMatchObject({ fill: 'none', stroke: '#000000' });
+    expect(bounds({ ...geo, shapes: [geo.shapes[0]!] })).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  });
+
+  it('las grietas no salen de la forma', () => {
+    const b = bounds({ ...run({ length: 2, cracks: 12 }), shapes: [run({ length: 2, cracks: 12 }).shapes[1]!] });
+    expect(b.x).toBeGreaterThanOrEqual(20 - 1e-6);
+    expect(b.y).toBeGreaterThanOrEqual(20 - 1e-6);
+    expect(b.x + b.width).toBeLessThanOrEqual(80 + 1e-6);
+    expect(b.y + b.height).toBeLessThanOrEqual(80 + 1e-6);
+  });
+
+  it('growth 0 no dibuja nada; crecer no cambia el dibujo, solo cuánto se ve', () => {
+    expect(run({ growth: 0 }).shapes).toHaveLength(1);
+    const half = run({ growth: 0.5 }).shapes[1]!;
+    const full = run({ growth: 1 }).shapes[1]!;
+    expect(half.subpaths.length).toBeLessThanOrEqual(full.subpaths.length);
+    expect(half.subpaths[0]!.start).toEqual(full.subpaths[0]!.start);
+    expect(half.subpaths[0]!.segs[0]!.p).toEqual(full.subpaths[0]!.segs[0]!.p);
+  });
+
+  it('impacto fuera de la forma: sin grietas', () => {
+    expect(run({ impact: [-1, -1] }).shapes).toHaveLength(1);
+  });
+
+  it('es determinista con la semilla', () => {
+    const svg = (seed: number) => createEngine(builtins).toSVG({ version: 1, source: square, stack: [{ id: 'c', type: 'crack', params: { seed } }] });
+    expect(svg(2)).toBe(svg(2));
+    expect(svg(2)).not.toBe(svg(3));
+  });
+});

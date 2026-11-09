@@ -2,11 +2,12 @@
   // Pila + atributos + lienzo con el motor de verdad: lo que será el editor v1, en pequeño.
   import { builtins, createEngine, resolveParams, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
   import Button from '../lib/Button.svelte';
+  import type { IconName } from '../lib/icons';
   import Panel from '../lib/Panel.svelte';
   import Section from '../lib/Section.svelte';
   import StackItem from '../lib/StackItem.svelte';
   import Tabs from '../lib/Tabs.svelte';
-  import ParamControl from './ParamControl.svelte';
+  import ParamControl from '../lib/ParamControl.svelte';
 
   const lines = [1, 2, 3, 4, 5]
     .map((i) => `<line x1="${20 + i * 26.66}" y1="40" x2="${20 + i * 26.66}" y2="160"/><line x1="20" y1="${40 + i * 20}" x2="180" y2="${40 + i * 20}"/>`)
@@ -62,6 +63,7 @@
         <StackItem
           label={registry.get(m.type)?.label ?? m.type}
           kind={registry.get(m.type)?.kind}
+          icon={m.type as IconName}
           selected={m.id === selected}
           bind:enabled={m.enabled}
           onselect={() => (selected = m.id)}

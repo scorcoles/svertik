@@ -17,6 +17,7 @@ export type ParamSpec =
   | (ParamBase & { type: 'point'; default: [number, number]; unit?: 'fraction' })
   | (ParamBase & { type: 'seed'; default: number })
   | (ParamBase & { type: 'boolean'; default: boolean })
+  | (ParamBase & { type: 'color'; default: string })
   | (ParamBase & { type: 'enum'; default: string; options: readonly string[] });
 
 export type ParamSchema = Record<string, ParamSpec>;

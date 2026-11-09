@@ -1,13 +1,15 @@
 <script lang="ts">
   // Un parámetro del esquema del motor → su control. Así el esquema dibuja el panel de atributos.
   import type { ParamSpec } from '@svertik/engine';
-  import Checkbox from '../lib/Checkbox.svelte';
-  import NumberField from '../lib/NumberField.svelte';
-  import ParamRow from '../lib/ParamRow.svelte';
-  import PointField from '../lib/PointField.svelte';
-  import Segmented from '../lib/Segmented.svelte';
-  import Select from '../lib/Select.svelte';
-  import Slider from '../lib/Slider.svelte';
+  import Checkbox from './Checkbox.svelte';
+  import ColorField from './ColorField.svelte';
+  import type { IconName } from './icons';
+  import NumberField from './NumberField.svelte';
+  import ParamRow from './ParamRow.svelte';
+  import PointField from './PointField.svelte';
+  import Segmented from './Segmented.svelte';
+  import Select from './Select.svelte';
+  import Slider from './Slider.svelte';
 
   interface Props {
     name: string;
@@ -18,7 +20,6 @@
   let { name, spec, value, onchange }: Props = $props();
   const id = $derived(`param-${name}`);
   const label = $derived(spec.label ?? name.charAt(0).toUpperCase() + name.slice(1));
-  import type { IconName } from '../lib/icons';
   // Iconos para opciones conocidas; el resto se muestra como texto.
   const ICONS: Record<string, IconName> = { horizontal: 'axis-h', vertical: 'axis-v' };
 </script>
@@ -39,6 +40,8 @@
     <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
+  {:else if spec.type === 'color'}
+    <ColorField {id} value={value as string} {label} {onchange} />
   {:else if spec.type === 'boolean'}
     <Checkbox {id} checked={value as boolean} {onchange} />
   {/if}

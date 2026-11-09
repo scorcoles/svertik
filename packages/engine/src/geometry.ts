@@ -125,3 +125,40 @@ export function bounds(geo: Geometry): Bounds {
   if (x0 === Infinity) return { x: 0, y: 0, width: 0, height: 0 };
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
+
+/** Cúbica evaluada en t. */
+export function cubicAt(p0: Vec2, s: Cubic, t: number): Vec2 {
+  const u = 1 - t;
+  const a = u * u * u;
+  const b = 3 * u * u * t;
+  const c = 3 * u * t * t;
+  const d = t * t * t;
+  return [
+    a * p0[0] + b * s.c1[0] + c * s.c2[0] + d * s.p[0],
+    a * p0[1] + b * s.c1[1] + c * s.c2[1] + d * s.p[1],
+  ];
+}
+
+/** Subtrazado → polilínea (muestras fijas por tramo; basta para pruebas de dentro/fuera). */
+export function flatten(sp: SubPath, samplesPerSegment = 8): Vec2[] {
+  const pts: Vec2[] = [sp.start];
+  let p0 = sp.start;
+  for (const s of sp.segs) {
+    for (let i = 1; i <= samplesPerSegment; i++) pts.push(cubicAt(p0, s, i / samplesPerSegment));
+    p0 = s.p;
+  }
+  return pts;
+}
+
+/** Punto dentro de un conjunto de polígonos, con la regla par-impar (respeta agujeros). */
+export function insidePolygons(polys: Vec2[][], [x, y]: Vec2): boolean {
+  let inside = false;
+  for (const poly of polys) {
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i]!;
+      const [xj, yj] = poly[j]!;
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  }
+  return inside;
+}
