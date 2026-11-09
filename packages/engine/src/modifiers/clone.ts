@@ -56,7 +56,7 @@ export const clone = defineModifier({
     }
 
     const shapes: Shape[] = [];
-    for (const k of copies) {
+    for (const [index, k] of copies.entries()) {
       const c = Math.cos(k.rot) * k.scale;
       const s = Math.sin(k.rot) * k.scale;
       const moved = mapPoints(geo, ([x, y]) => {
@@ -64,7 +64,7 @@ export const clone = defineModifier({
         const uy = y - cy;
         return [cx + ux * c - uy * s + k.dx, cy + ux * s + uy * c + k.dy];
       });
-      shapes.push(...moved.shapes);
+      shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index })));
     }
 
     const out: Geometry = { viewBox: geo.viewBox, shapes };

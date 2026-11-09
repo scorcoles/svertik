@@ -177,3 +177,40 @@ describe('clone', () => {
     expect(geo.viewBox[2]).toBeGreaterThan(100);
   });
 });
+
+describe('step', () => {
+  const run = (stack: Scene['stack']) => createEngine(builtins).evaluate({ version: 1, source: square, stack });
+  const centerOf = (geo: ReturnType<typeof run>, i: number) => {
+    const b = bounds({ ...geo, shapes: [geo.shapes[i]!] });
+    return [b.x + b.width / 2, b.y + b.height / 2] as const;
+  };
+
+  it('Clone marca cada copia con su número y los deformadores lo conservan', () => {
+    const geo = run([
+      { id: 'c', type: 'clone', params: { mode: 'grid', columns: 2, rows: 2 } },
+      { id: 'w', type: 'wave' },
+    ]);
+    expect(geo.shapes.map((s) => s.clone)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('gira cada copia un paso más que la anterior, sobre su propio centro', () => {
+    const base = run([{ id: 'c', type: 'clone', params: { mode: 'linear', count: 3 } }]);
+    const geo = run([
+      { id: 'c', type: 'clone', params: { mode: 'linear', count: 3 } },
+      { id: 's', type: 'step', params: { rotation: 45 } },
+    ]);
+    // El centro no se mueve (gira sobre sí misma)…
+    for (const i of [0, 1, 2]) expect(centerOf(geo, i)[0]).toBeCloseTo(centerOf(base, i)[0]);
+    // …y el ancho crece con el giro: 45° (1.ª) y 135° (3.ª) dan el mismo ancho, 90° (2.ª) el original.
+    const width = (i: number) => bounds({ ...geo, shapes: [geo.shapes[i]!] }).width;
+    expect(width(0)).toBeCloseTo(width(2));
+    expect(width(1)).toBeCloseTo(60);
+  });
+
+  it('sin Clone, cada forma es un elemento', () => {
+    const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="0" y="0" width="10" height="10"/><rect x="50" y="0" width="10" height="10"/></svg>';
+    const geo = createEngine(builtins).evaluate({ version: 1, source: two, stack: [{ id: 's', type: 'step', params: { rotation: 0, offset: [0, 0.1] } }] });
+    const ys = geo.shapes.map((s) => bounds({ ...geo, shapes: [s] }).y);
+    expect(ys[1]! - ys[0]!).toBeCloseTo(1); // paso de 0.1 × 10 de alto: la 1.ª baja 1 y la 2.ª, 2
+  });
+});

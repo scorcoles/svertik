@@ -7,6 +7,7 @@
   const groups = $derived([
     ['Deformers', modifierTypes.filter((t) => registry.get(t)?.kind === 'deformer')],
     ['Generators', modifierTypes.filter((t) => registry.get(t)?.kind === 'generator')],
+    ['Effectors', modifierTypes.filter((t) => registry.get(t)?.kind === 'effector')],
   ] as const);
 </script>
 
