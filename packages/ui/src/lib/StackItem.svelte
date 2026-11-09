@@ -23,6 +23,8 @@
     /** Visibilidad (objetos y grupos): un ojo que aparece al pasar y se queda tachado si está oculto. */
     visible?: boolean;
     onvisible?: (visible: boolean) => void;
+    /** Grupos: desagrupar de un clic (aparece al pasar, como la papelera). */
+    onungroup?: () => void;
   }
   let {
     label,
@@ -38,6 +40,7 @@
     onremove,
     visible,
     onvisible,
+    onungroup,
   }: Props = $props();
 </script>
 
@@ -71,6 +74,12 @@
   {/if}
   <span class="icon"><Icon name={icon} /></span>
   <span class="label">{label}</span>
+  {#if onungroup}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span class="remove ungroup" onclick={(e) => e.stopPropagation()}>
+      <IconButton icon="ungroup" label={`Ungroup ${label} (⇧⌘G)`} onclick={onungroup} />
+    </span>
+  {/if}
   {#if onremove}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove" onclick={(e) => e.stopPropagation()}>
@@ -140,6 +149,7 @@
   .remove { display: flex; margin-right: calc(var(--sv-space-2) * -1); visibility: hidden; }
   .remove :global(.sv-icon-button) { width: 20px; height: 20px; }
   .remove :global(.sv-icon-button:hover) { color: var(--sv-signal-error); background: none; }
+  .ungroup :global(.sv-icon-button:hover) { color: var(--sv-accent-fill); }
   .sv-stack-item:hover .remove,
   .sv-stack-item:focus-within .remove { visibility: visible; }
   /* El ojo: al pasar o con foco; si está oculto, siempre (tachado). */
