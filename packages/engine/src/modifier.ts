@@ -13,6 +13,8 @@ interface ParamBase {
   ramp?: boolean;
   /** Valor «sin efecto» desde el que crece (por defecto 0; la escala, 1). */
   neutral?: number;
+  /** Un punto que es un lugar del dibujo se puede arrastrar en el lienzo. Por defecto, sí. */
+  handle?: boolean;
 }
 
 export type ParamSpec =
