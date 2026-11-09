@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { builtins, createEngine, renderInto, type Scene } from '@svertik/engine';
+  import { bounds, builtins, createEngine, renderInto, type Bounds, type Scene } from '@svertik/engine';
   import { Button, Checkbox, Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -17,6 +17,9 @@
   let renderError = $state<string | null>(null);
   let dragging = $state(false);
   let size = $state<[number, number]>([0, 0]);
+  let stage = $state<HTMLDivElement>();
+  let sourceBounds: Bounds | null = null;
+  let markerAt = $state<{ x: number; y: number } | null>(null);
 
   $effect(() => {
     if (!editor.scene || !result) return;
@@ -26,10 +29,26 @@
       renderInto(result, steps.at(-1)!);
       if (ghost) renderInto(ghost, steps[0]!);
       size = [steps[0]!.viewBox[2], steps[0]!.viewBox[3]];
+      sourceBounds = bounds(steps[0]!);
       renderError = null;
     } catch (e) {
       renderError = e instanceof Error ? e.message : String(e);
     }
+  });
+
+  // Fracción de la caja de origen → píxeles del escenario, con la misma transformación que el SVG pintado.
+  $effect(() => {
+    const m = editor.marker;
+    if (!m || !result || !stage || !sourceBounds) {
+      markerAt = null;
+      return;
+    }
+    const ctm = result.getScreenCTM();
+    if (!ctm) return;
+    const b = sourceBounds;
+    const p = new DOMPoint(b.x + m[0] * b.width, b.y + m[1] * b.height).matrixTransform(ctm);
+    const r = stage.getBoundingClientRect();
+    markerAt = { x: p.x - r.left, y: p.y - r.top };
   });
 
   function drop(e: DragEvent) {
@@ -50,9 +69,10 @@
   ondrop={drop}
 >
   {#if editor.scene}
-    <div class="stage">
+    <div class="stage" bind:this={stage}>
       {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
       <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
+      {#if markerAt}<span class="marker" style:left="{markerAt.x}px" style:top="{markerAt.y}px" aria-hidden="true"></span>{/if}
     </div>
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
     <footer>
@@ -93,6 +113,17 @@
   .stage { position: absolute; inset: 48px 48px 56px; }
   .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .ghost { opacity: 0.2; }
+  /* Cruz del punto que se está moviendo: tamaño fijo en pantalla, por encima del dibujo. */
+  .marker {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    translate: -50% -50%;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--sv-signal-error), var(--sv-signal-error)) center / 1px 100% no-repeat,
+      linear-gradient(var(--sv-signal-error), var(--sv-signal-error)) center / 100% 1px no-repeat;
+  }
   .wire :global(path) {
     fill: none !important;
     stroke: var(--sv-text-secondary) !important;

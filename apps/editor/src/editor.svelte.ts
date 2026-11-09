@@ -16,6 +16,9 @@ export class Editor {
   showOriginal = $state(false);
   showWire = $state(false);
   error = $state<string | null>(null);
+  /** Punto que se está moviendo (fracción de la caja de origen); se borra al parar. */
+  marker = $state<[number, number] | null>(null);
+  #markerTimer: ReturnType<typeof setTimeout> | undefined;
 
   #history: string[] = [];
   #index = $state(-1);
@@ -86,7 +89,15 @@ export class Editor {
   setParam(name: string, value: unknown) {
     if (!this.current?.params) return;
     this.current.params[name] = value;
+    if (registry.get(this.current.type)?.params[name]?.type === 'point') this.showMarker(value as [number, number]);
     this.record();
+  }
+
+  /** Marca el punto en el lienzo y la quita a los 300 ms de dejar de moverlo. */
+  showMarker(point: [number, number]) {
+    this.marker = point;
+    clearTimeout(this.#markerTimer);
+    this.#markerTimer = setTimeout(() => (this.marker = null), 300);
   }
 
   setEnabled(id: string, enabled: boolean) {
