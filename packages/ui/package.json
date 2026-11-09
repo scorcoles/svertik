@@ -8,7 +8,8 @@
       "svelte": "./src/lib/index.ts",
       "default": "./src/lib/index.ts"
     },
-    "./tokens.css": "./src/lib/tokens.css"
+    "./tokens.css": "./src/lib/tokens.css",
+    "./base.css": "./src/lib/base.css"
   },
   "scripts": {
     "tokens": "node scripts/tokens.mjs",

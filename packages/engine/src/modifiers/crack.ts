@@ -25,7 +25,7 @@ export const crack = defineModifier({
     jagged: { type: 'number', default: 0.4, min: 0, max: 1, step: 0.01 },
     width: { type: 'number', default: 1, min: 0, max: 10, step: 0.1, unit: 'px', group: 'Style' },
     color: { type: 'color', default: '#000000', group: 'Style' },
-    impact: { type: 'point', default: [0.4, 0.35], unit: 'fraction', group: 'Impact' },
+    impact: { type: 'point', default: [0.4, 0.35], unit: 'fraction', group: 'Impact', label: 'Point' },
     seed: { type: 'seed', default: 1, group: 'Impact' },
   },
   apply(geo, p, ctx) {
