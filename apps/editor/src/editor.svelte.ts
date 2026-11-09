@@ -140,7 +140,8 @@ export class Editor {
       this.#history = [];
       this.#index = -1;
     } else {
-      this.scene.objects.push(node);
+      // Lo nuevo, arriba de la lista: delante de todo.
+      this.scene.objects.unshift(node);
     }
     this.selected = node.id;
     this.record(true);
@@ -168,9 +169,9 @@ export class Editor {
       this.#history = [];
       this.#index = -1;
     } else {
-      // Dentro del grupo seleccionado, si lo hay; si no, arriba del todo.
+      // Dentro del grupo seleccionado, si lo hay; arriba de la lista (delante).
       const g = this.currentNode?.kind === 'group' ? this.currentNode : null;
-      (g ? g.children : this.scene.objects).push(node);
+      (g ? g.children : this.scene.objects).unshift(node);
     }
     this.selected = node.id;
     this.tool = null;
