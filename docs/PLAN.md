@@ -20,7 +20,9 @@ Como el motor solo necesita parámetros, animar (fase 2) consiste en cambiarlos 
 | Entrada | Formas y trazados: `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, grupos y transformaciones; relleno y trazo planos. Texto, máscaras, clips y degradados complejos pasan sin deformar. |
 | Efectos v1 | Desplazar (mover), esferizar, doblar, torcer, onda, ruido/jitter y agrietar. |
 | Interfaz | Svelte 5 + Vite, en inglés (nombres de efectos incluidos). Documentación en español. |
-| Componentes | Propios, con Storybook, sobre primitivas sin estilo de **Bits UI** (accesibilidad y comportamiento). Tweakpane solo para depurar o en las demos. |
+| Componentes | Propios, con Storybook, sobre primitivas sin estilo de **Bits UI** (confirmado). Tweakpane solo para depurar o en las demos. |
+| Orden | Motor primero, con una demo que se vea desde el principio (`apps/demos`, cadena sobre un rectángulo). |
+| Agrietar | Con librería de recorte de polígonos (`polygon-clipping` o `clipper2-js`) en vez de escribirlo a mano. |
 | Design system | En Penpot, a través de su MCP; los tokens pasan a variables CSS de `packages/ui`. |
 | Motor | TypeScript, sin dependencias salvo que alguna compense (ver «Pendiente»). |
 | Repo | Público, `scorcoles/svertik`, demos en GitHub Pages, como los experimentos del Lab. |
@@ -69,8 +71,8 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 
 ## Fases
 
-1. **Motor mínimo:** importar, geometría, render y desplazar, con tests. Una demo que aplique un JSON.
-2. **Deformadores:** subdivisión, esferizar, doblar, torcer, onda y ruido.
+1. ~~**Motor mínimo:** importar, geometría, render y desplazar, con tests.~~
+2. ~~**Deformadores:** subdivisión, esferizar, doblar, torcer, onda y ruido.~~
 3. **Agrietar.**
 4. **Design system en Penpot y `packages/ui` con Storybook.**
 5. **Editor v1:** lista, atributos, visor, importar y exportar.
@@ -83,7 +85,9 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 
 ## Pendiente de decidir
 
-- **Recortar polígonos para agrietar:** a mano (las celdas Voronoi son convexas, pero las formas con agujeros complican el recorte) o con una librería pequeña (`polygon-clipping`, `clipper2-js`).
-- **Salida de los deformadores:** curvas subdivididas tal cual (SVG más pesado) o reajustar curvas al final (más limpio, más trabajo). Propuesta: tal cual en la v1, con la tolerancia como parámetro.
-- **Penpot:** si ya tienes el MCP configurado y si el design system se hace antes del editor o en paralelo.
-- **Orden de trabajo:** motor primero y la interfaz después (propuesta), o los dos a la vez.
+- **Salida de los deformadores:** curvas subdivididas tal cual (SVG más pesado) o reajustar curvas al final (más limpio, más trabajo). En la v1 van tal cual, con la resolución como parámetro de la escena.
+- **Penpot:** conectar su MCP y decidir cuándo se hace el design system.
+
+## Hecho
+
+- 2026-11-09: monorepo (pnpm), motor con importación, render (SVG plano y en vivo), caché por pasos y seis modificadores: transform, spherize, twist, bend, wave y noise, con tests (Vitest). Demo `chain`.
