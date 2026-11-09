@@ -15,6 +15,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Deformer: Story = {};
+export const Removable: Story = { args: { onremove: () => {} }, parameters: { docs: { description: { story: 'Hover the row to see the trash icon.' } } } };
 export const Selected: Story = { args: { selected: true } };
 export const Disabled: Story = { args: { enabled: false } };
 export const Generator: Story = { args: { label: 'Crack', kind: 'generator', icon: 'crack' } };

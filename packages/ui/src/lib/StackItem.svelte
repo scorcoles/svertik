@@ -1,6 +1,7 @@
 <script lang="ts">
   import Checkbox from './Checkbox.svelte';
   import Icon from './Icon.svelte';
+  import IconButton from './IconButton.svelte';
   import type { IconName } from './icons';
 
   interface Props {
@@ -17,6 +18,8 @@
     onselect?: () => void;
     ontoggle?: (enabled: boolean) => void;
     onexpand?: (expanded: boolean) => void;
+    /** Si se pasa, aparece una papelera al pasar por la fila (o con foco). */
+    onremove?: () => void;
   }
   let {
     label,
@@ -29,6 +32,7 @@
     onselect,
     ontoggle,
     onexpand,
+    onremove,
   }: Props = $props();
 </script>
 
@@ -62,6 +66,12 @@
   {/if}
   <span class="icon"><Icon name={icon} /></span>
   <span class="label">{label}</span>
+  {#if onremove}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span class="remove" onclick={(e) => e.stopPropagation()}>
+      <IconButton icon="trash" label={`Remove ${label}`} onclick={onremove} />
+    </span>
+  {/if}
   {#if kind !== 'object'}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="toggle" onclick={(e) => e.stopPropagation()}>
@@ -111,6 +121,12 @@
   [data-disabled] .icon { color: var(--sv-text-disabled); }
   /* El interruptor solo se ve al pasar, en la fila seleccionada, con foco o si está apagado. */
   .toggle { display: flex; visibility: hidden; }
+  /* La papelera, solo al pasar o con foco: el resto del tiempo no hace ruido. */
+  .remove { display: flex; margin-right: calc(var(--sv-space-2) * -1); visibility: hidden; }
+  .remove :global(.sv-icon-button) { width: 20px; height: 20px; }
+  .remove :global(.sv-icon-button:hover) { color: var(--sv-signal-error); background: none; }
+  .sv-stack-item:hover .remove,
+  .sv-stack-item:focus-within .remove { visibility: visible; }
   .sv-stack-item:hover .toggle,
   .sv-stack-item:focus-within .toggle,
   [data-selected] .toggle,

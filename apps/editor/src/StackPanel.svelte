@@ -64,6 +64,7 @@
               enabled={m.enabled !== false}
               onselect={() => (editor.selected = m.id)}
               ontoggle={(v) => editor.setEnabled(m.id, v)}
+              onremove={() => editor.remove(m.id)}
             />
           </div>
         {/each}
