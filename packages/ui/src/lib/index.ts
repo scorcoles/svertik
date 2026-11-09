@@ -1,5 +1,7 @@
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
+export { default as Icon } from './Icon.svelte';
+export { icons, iconSVG, type IconName } from './icons';
 export { default as NumberField } from './NumberField.svelte';
 export { default as Panel } from './Panel.svelte';
 export { default as ParamRow } from './ParamRow.svelte';

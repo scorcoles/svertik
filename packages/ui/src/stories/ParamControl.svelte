@@ -18,8 +18,9 @@
   let { name, spec, value, onchange }: Props = $props();
   const id = $derived(`param-${name}`);
   const label = $derived(spec.label ?? name.charAt(0).toUpperCase() + name.slice(1));
-  // Glifos para opciones conocidas; el resto se muestra como texto.
-  const ICONS: Record<string, string> = { horizontal: '↔', vertical: '↕' };
+  import type { IconName } from '../lib/icons';
+  // Iconos para opciones conocidas; el resto se muestra como texto.
+  const ICONS: Record<string, IconName> = { horizontal: 'axis-h', vertical: 'axis-v' };
 </script>
 
 <ParamRow {label} for={id}>

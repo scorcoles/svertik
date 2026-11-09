@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ToggleGroup } from 'bits-ui';
+  import Icon from './Icon.svelte';
   import type { SegmentOption } from './types';
   interface Props {
     value: string;
@@ -18,7 +19,7 @@
 >
   {#each options as o (o.value)}
     <ToggleGroup.Item value={o.value} aria-label={o.label} title={o.label} class="sv-segment" data-icon={o.icon ? '' : undefined}>
-      {o.icon ?? o.label}
+      {#if o.icon}<Icon name={o.icon} />{:else}{o.label}{/if}
     </ToggleGroup.Item>
   {/each}
 </ToggleGroup.Root>
@@ -36,7 +37,7 @@
     border-radius: var(--sv-radius-none);
     cursor: pointer;
   }
-  :global(.sv-segment[data-icon]) { padding: 0; font-size: var(--sv-font-size-14); line-height: 1; }
+  :global(.sv-segment[data-icon]) { display: inline-grid; place-items: center; padding: 0; }
   :global(.sv-segment:hover) { color: var(--sv-text-secondary); }
   :global(.sv-segment[data-state='on']) { color: var(--sv-accent-fill); background: var(--sv-surface-raised); }
 </style>
