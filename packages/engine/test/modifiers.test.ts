@@ -233,3 +233,65 @@ describe('step', () => {
     expect(boxOf(off, 0).y).toBe(0);
   });
 });
+
+describe('distorsiones', () => {
+  const run = (type: string, params: Record<string, unknown> = {}) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'x', type, params }] });
+
+  it('todas funcionan con sus valores por defecto y sin efecto devuelven lo mismo', () => {
+    const neutral: Record<string, Record<string, unknown>> = {
+      taper: { amount: 0 },
+      shear: { x: 0, y: 0 },
+      ripple: { amplitude: 0 },
+      melt: { amount: 0 },
+      perspective: { topLeft: [0, 0], topRight: [1, 0] },
+      envelope: {},
+      cylinder: { wrap: 0.0001, perspective: 0 },
+    };
+    for (const [type, params] of Object.entries(neutral)) {
+      expect(() => run(type)).not.toThrow();
+      if (type === 'cylinder') continue; // con wrap mínimo es casi plano, no idéntico
+      const b = bounds(run(type, params));
+      expect(b.x).toBeCloseTo(20);
+      expect(b.width).toBeCloseTo(60);
+    }
+  });
+
+  it('taper estrecha el final; shear inclina', () => {
+    const t = run('taper', { amount: 0.5 }).shapes[0]!.subpaths[0]!.segs.map((s) => s.p);
+    const bottom = t.filter((p) => p[1] > 79.999);
+    expect(Math.max(...bottom.map((p) => p[0])) - Math.min(...bottom.map((p) => p[0]))).toBeCloseTo(30);
+    expect(bounds(run('shear', { x: 45, y: 0 })).width).toBeCloseTo(120);
+  });
+
+  it('perspective lleva cada esquina a su sitio', () => {
+    const geo = run('perspective', { topLeft: [0.25, 0], topRight: [0.75, 0], bottomRight: [1, 1], bottomLeft: [0, 1] });
+    const pts = geo.shapes[0]!.subpaths[0]!.segs.map((s) => s.p);
+    const top = pts.filter((p) => Math.abs(p[1] - 20) < 1e-6);
+    expect(Math.min(...top.map((p) => p[0]))).toBeCloseTo(35);
+    expect(Math.max(...top.map((p) => p[0]))).toBeCloseTo(65);
+  });
+
+  it('melt solo baja, y más abajo más', () => {
+    const b = bounds(run('melt', { amount: 0.5 }));
+    expect(b.y).toBeCloseTo(20);
+    expect(b.y + b.height).toBeGreaterThan(80);
+  });
+});
+
+describe('dado', () => {
+  it('sortea dentro de los rangos y es reproducible con el mismo azar', async () => {
+    const { randomizeParams, rng, spherize, clone, crack } = await import('../src');
+    const a = randomizeParams(spherize.params, resolveParams(spherize.params), rng(5));
+    const b = randomizeParams(spherize.params, resolveParams(spherize.params), rng(5));
+    expect(a).toEqual(b);
+    expect(a.strength as number).toBeGreaterThanOrEqual(-1);
+    expect(a.strength as number).toBeLessThanOrEqual(1);
+    const [cx, cy] = a.center as [number, number];
+    expect(cx).toBeGreaterThanOrEqual(0.2);
+    expect(cy).toBeLessThanOrEqual(0.8);
+    // El modo de Clone y el color de Crack no se sortean.
+    expect(randomizeParams(clone.params, resolveParams(clone.params), rng(1)).mode).toBe('grid');
+    expect(randomizeParams(crack.params, resolveParams(crack.params), rng(1)).color).toBe('#000000');
+  });
+});

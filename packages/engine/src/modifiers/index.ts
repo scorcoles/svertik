@@ -1,3 +1,10 @@
+import { cylinder } from './cylinder';
+import { envelope } from './envelope';
+import { melt } from './melt';
+import { perspective } from './perspective';
+import { ripple } from './ripple';
+import { shear } from './shear';
+import { taper } from './taper';
 import { bend } from './bend';
 import { clone } from './clone';
 import { crack } from './crack';
@@ -9,7 +16,25 @@ import { transform } from './transform';
 import { twist } from './twist';
 import { wave } from './wave';
 
-export { bend, clone, crack, noise, rotate3d, spherize, step, transform, twist, wave };
+export { bend, clone, crack, cylinder, envelope, melt, noise, perspective, ripple, rotate3d, shear, spherize, step, taper, transform, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
-export const builtins = [transform, rotate3d, spherize, twist, bend, wave, noise, crack, clone, step];
+export const builtins = [
+  transform,
+  rotate3d,
+  spherize,
+  twist,
+  bend,
+  taper,
+  shear,
+  wave,
+  ripple,
+  noise,
+  melt,
+  cylinder,
+  perspective,
+  envelope,
+  crack,
+  clone,
+  step,
+];

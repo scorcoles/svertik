@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, ParamControl, Section, Tabs } from '@svertik/ui';
+  import { Button, IconButton, ParamControl, Section, Tabs } from '@svertik/ui';
   import { registry, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
@@ -20,6 +20,7 @@
     <header>
       <h2>{def.label}</h2>
       <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : def.kind}</span>
+      <IconButton icon="dice" label="Randomize (R)" onclick={() => editor.randomize()} />
     </header>
     {#if editor.currentParent}
       <p class="note">Per element: numbers grow ×1, ×2, ×3… Centers are each element's own.</p>
@@ -62,7 +63,8 @@
 
 <style>
   .attrs { flex: 1; min-height: 0; overflow-y: auto; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: var(--sv-space-8); height: 28px; padding: 0 var(--sv-space-8); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: var(--sv-space-8); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); }
+  .meta { margin-left: auto; }
   h2 { margin: 0; font-size: var(--sv-font-size-11); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .params { padding: var(--sv-space-6) 0; }

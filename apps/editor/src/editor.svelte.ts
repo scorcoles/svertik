@@ -1,5 +1,5 @@
 // Estado del editor: la escena, la selección, el historial y la URL.
-import { builtins, resolveParams, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
+import { builtins, randomizeParams, resolveParams, rng, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
 
@@ -178,6 +178,15 @@ export class Editor {
     const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
     if (!m) return;
     m.enabled = enabled;
+    this.record(true);
+  }
+
+  /** El dado: valores aleatorios (dentro de rangos razonables) para el efecto seleccionado. */
+  randomize(id = this.selected, seed = Math.floor(Math.random() * 2 ** 31)) {
+    const m = this.scene ? locate(this.scene.stack, id)?.inst : undefined;
+    const def = m && registry.get(m.type);
+    if (!m || !def) return;
+    m.params = randomizeParams(def.params, resolveParams(def.params, m.params), rng(seed));
     this.record(true);
   }
 

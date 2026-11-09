@@ -67,6 +67,9 @@
     } else if (mod && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       fileInput.click();
+    } else if (e.key.toLowerCase() === 'r' && !mod && !e.altKey && editor.selected && !typing(e)) {
+      e.preventDefault();
+      editor.randomize();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && editor.selected && !typing(e)) {
       e.preventDefault();
       editor.remove();

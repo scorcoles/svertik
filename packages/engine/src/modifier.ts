@@ -15,6 +15,10 @@ interface ParamBase {
   neutral?: number;
   /** Un punto que es un lugar del dibujo se puede arrastrar en el lienzo. Por defecto, sí. */
   handle?: boolean;
+  /** Rango para el dado (aleatorio). false: el dado no lo toca. Sin rango: el de min/max o uno razonable. */
+  random?: [number, number] | false;
+  /** Para puntos: el rango aleatorio se suma al valor por defecto (mover un poco), no lo sustituye. */
+  randomRelative?: boolean;
 }
 
 export type ParamSpec =
@@ -80,6 +84,51 @@ export function rampParams(schema: ParamSchema, params: Record<string, unknown>,
     if ((spec.type !== 'number' && spec.type !== 'angle') || spec.ramp === false || typeof v !== 'number') continue;
     const n = spec.neutral ?? 0;
     out[name] = n + (v - n) * k;
+  }
+  return out;
+}
+
+/**
+ * Valores aleatorios para el dado. Respeta los rangos del esquema; lo que no tiene sentido sortear
+ * (colores, desplazamientos en píxeles…) se queda como está.
+ */
+export function randomizeParams(schema: ParamSchema, current: Record<string, unknown>, rand: () => number): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...current };
+  const between = (a: number, b: number) => a + (b - a) * rand();
+  const snap = (v: number, step?: number) => (step ? Math.round(v / step) * step : v);
+  const round = (v: number, step?: number) => Number(snap(v, step).toFixed(step && step < 1 ? String(step).split('.')[1]!.length : 3));
+  for (const [name, spec] of Object.entries(schema)) {
+    if (spec.random === false) continue;
+    switch (spec.type) {
+      case 'number': {
+        const [a, b] = spec.random ?? (spec.min !== undefined && spec.max !== undefined ? [spec.min, spec.max] : null) ?? [null, null];
+        if (a === null || b === null) break;
+        out[name] = round(between(a, b), spec.step);
+        break;
+      }
+      case 'angle': {
+        const [a, b] = spec.random ?? [-90, 90];
+        out[name] = Math.round(between(a, b));
+        break;
+      }
+      case 'point': {
+        if (spec.handle === false && !spec.random) break;
+        const [a, b] = spec.random ?? [0.2, 0.8];
+        const base: [number, number] = spec.randomRelative ? spec.default : [0, 0];
+        out[name] = [round(base[0] + between(a, b)), round(base[1] + between(a, b))];
+        break;
+      }
+      case 'seed':
+        out[name] = 1 + Math.floor(rand() * 9999);
+        break;
+      case 'enum':
+        if (spec.animatable === false && spec.random === undefined) break; // ejes y modos: decisión del usuario
+        out[name] = spec.options[Math.floor(rand() * spec.options.length)];
+        break;
+      case 'boolean':
+      case 'color':
+        break;
+    }
   }
   return out;
 }

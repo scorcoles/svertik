@@ -121,3 +121,15 @@ describe('Step con hijos', () => {
     expect(e.scene!.stack[0]!.children![0]!.params!.rotation).toBe(10);
   });
 });
+
+describe('dado', () => {
+  it('cambia los parámetros del seleccionado y se deshace con un paso', () => {
+    const e = fresh();
+    e.add('spherize');
+    const before = JSON.stringify(e.current!.params);
+    e.randomize(undefined, 42);
+    expect(JSON.stringify(e.current!.params)).not.toBe(before);
+    e.undo();
+    expect(JSON.stringify(e.current!.params)).toBe(before);
+  });
+});
