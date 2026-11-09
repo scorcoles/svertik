@@ -358,3 +358,17 @@ describe('paint', () => {
     expect(s).toMatchObject({ fill: '#ff0000', stroke: '#00ff00', 'stroke-width': '3', 'stroke-opacity': '0.5' });
   });
 });
+
+describe('tint', () => {
+  it('lleva el color hacia el objetivo; en Step, cada copia un poco más', () => {
+    const geo = createEngine(builtins).evaluate({
+      version: 1,
+      source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#000000"/></svg>',
+      stack: [
+        { id: 'cl', type: 'clone', params: { mode: 'linear', count: 3 } },
+        { id: 's', type: 'step', children: [{ id: 't', type: 'tint', params: { color: '#ffffff', amount: 0.25 } }] },
+      ],
+    });
+    expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#404040', '#808080', '#bfbfbf']);
+  });
+});

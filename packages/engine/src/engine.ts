@@ -1,6 +1,7 @@
 // La escena (lo que se guarda y se exporta como JSON) y el motor que la evalúa.
 
-import { bounds, type Geometry } from './geometry';
+import { createDocumentEvaluator, migrateScene, type AnyScene, type DocumentResult } from './document';
+import { bounds, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './import';
 import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
@@ -28,13 +29,15 @@ export interface Scene {
 }
 
 export interface Engine {
-  /** Evalúa la escena; reutiliza lo calculado si el principio de la pila no ha cambiado. */
+  /** Escena v1: evalúa la escena; reutiliza lo calculado si el principio de la pila no ha cambiado. */
   evaluate(scene: Scene): Geometry;
-  /** Resultado de cada paso de la pila: [origen, tras el 1.º, tras el 2.º, …]. */
+  /** Escena v1: resultado de cada paso de la pila: [origen, tras el 1.º, tras el 2.º, …]. */
   evaluateSteps(scene: Scene): Geometry[];
-  toSVG(scene: Scene, options?: ToSVGOptions): string;
+  /** Cualquier escena (v1 o v2): el documento entero, el origen colocado y la información de cada nodo. */
+  evaluateDocument(scene: AnyScene): DocumentResult;
+  toSVG(scene: AnyScene, options?: ToSVGOptions): string;
   /** Pinta la escena en un <svg> y devuelve con qué actualizarla. */
-  mount(svg: SVGSVGElement, scene: Scene, options?: ToSVGOptions): { update(scene: Scene): void };
+  mount(svg: SVGSVGElement, scene: AnyScene, options?: ToSVGOptions): { update(scene: AnyScene): void };
 }
 
 const DEFAULT_RESOLUTION = 0.01;
@@ -96,13 +99,30 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
 
   const evaluate = (scene: Scene) => evaluateSteps(scene).at(-1)!;
 
+  // Una pila aplicada a una geometría con su caja de referencia (para objetos y grupos de la v2).
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number): Geometry {
+    const ctx: ModifierContext = { bounds: ref, resolution: Math.max(ref.width, ref.height) * resolution || 1, children: [] };
+    for (const inst of stack) {
+      if (inst.enabled === false) continue;
+      const def = registry.get(inst.type);
+      if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
+      geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, children: resolveChildren(inst.children) });
+    }
+    return geo;
+  }
+  const documents = createDocumentEvaluator(runStack);
+  const evaluateDocument = (scene: AnyScene) => documents.evaluate(migrateScene(scene));
+  // v1 conserva su resultado de siempre (mismo viewBox); v2 compone el documento.
+  const flat = (scene: AnyScene) => (scene.version === 2 ? evaluateDocument(scene).geometry : evaluate(scene));
+
   return {
     evaluate,
     evaluateSteps,
-    toSVG: (scene, options) => toSVG(evaluate(scene), options),
+    evaluateDocument,
+    toSVG: (scene, options) => toSVG(flat(scene), options),
     mount(svg, scene, options) {
-      renderInto(svg, evaluate(scene), options);
-      return { update: (next) => renderInto(svg, evaluate(next), options) };
+      renderInto(svg, flat(scene), options);
+      return { update: (next) => renderInto(svg, flat(next), options) };
     },
   };
 }

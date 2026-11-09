@@ -22,6 +22,8 @@ export interface Shape {
   style: Style;
   /** Número de copia que le dio Clone (para efectores como Step). */
   clone?: number;
+  /** Objeto de la escena del que sale (para seleccionarlo en el lienzo). */
+  node?: string;
 }
 
 export interface Geometry {
