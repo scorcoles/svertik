@@ -8,8 +8,8 @@ const meta = {
     value: 'horizontal',
     label: 'Axis',
     options: [
-      { value: 'horizontal', label: 'Horizontal', icon: '↔' },
-      { value: 'vertical', label: 'Vertical', icon: '↕' },
+      { value: 'horizontal', label: 'Horizontal', icon: 'axis-h' },
+      { value: 'vertical', label: 'Vertical', icon: 'axis-v' },
     ],
   },
 } satisfies Meta<typeof Segmented>;
