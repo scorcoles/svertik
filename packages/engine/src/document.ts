@@ -2,6 +2,7 @@
 
 import { bounds, mapPoints, type Bounds, type Geometry, type Shape } from './geometry';
 import { importSVG } from './import';
+import { buildShape } from './shapes';
 import { IDENTITY, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
 
@@ -27,12 +28,19 @@ export interface ObjectNode extends NodeBase {
   source: string;
 }
 
+/** Primitiva: forma generada por parámetros (rectángulo, estrella…), con su propia pila. */
+export interface ShapeNode extends NodeBase {
+  kind: 'shape';
+  shape: string;
+  params: Record<string, unknown>;
+}
+
 export interface GroupNode extends NodeBase {
   kind: 'group';
   children: SceneNode[];
 }
 
-export type SceneNode = ObjectNode | GroupNode;
+export type SceneNode = ObjectNode | ShapeNode | GroupNode;
 
 export interface SceneV2 {
   version: 2;
@@ -67,7 +75,7 @@ export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null):
 
 export interface NodeInfo {
   id: string;
-  kind: 'object' | 'group';
+  kind: 'object' | 'shape' | 'group';
   /** Caja de referencia de los efectos del nodo (fracciones), en sus coordenadas locales. */
   bounds: Bounds;
   /** De coordenadas locales del nodo a coordenadas del documento. */
@@ -134,11 +142,11 @@ export function createDocumentEvaluator(
     function evalNode(node: SceneNode, parentMatrix: Mat): Shape[] {
       seen.add(node.id);
       const p = placementOf(node);
-      if (node.kind === 'object') {
-        const key = JSON.stringify([resolution, node.stack]) + '\n' + node.source;
+      if (node.kind === 'object' || node.kind === 'shape') {
+        const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params]);
         let entry = cache.get(node.id);
         if (!entry || entry.key !== key) {
-          const source = importSVG(node.source);
+          const source = node.kind === 'object' ? importSVG(node.source) : buildShape(node.shape, node.params);
           const ref = bounds(source);
           entry = { key, source, result: runStack(source, node.stack, ref, resolution) };
           cache.set(node.id, entry);
@@ -148,7 +156,7 @@ export function createDocumentEvaluator(
         const m = placementMatrix(p, centerOf(ref), [0, 0]);
         const world = multiply(parentMatrix, m);
         const placed = transformGeo(entry.result, m);
-        nodes.set(node.id, { id: node.id, kind: 'object', bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
+        nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
         if (node.visible === false) return [];
         return withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity);
       }
@@ -185,7 +193,7 @@ export function createDocumentEvaluator(
     // El origen de cada objeto, con su matriz final (la de sus grupos incluida).
     const placedSources: Shape[] = [];
     for (const { node } of walkNodes(scene.objects)) {
-      if (node.kind !== 'object' || node.visible === false) continue;
+      if (node.kind === 'group' || node.visible === false) continue;
       const entry = cache.get(node.id);
       const info = nodes.get(node.id);
       if (entry && info) placedSources.push(...transformGeo(entry.source, info.matrix).shapes.map((s) => ({ ...s, node: node.id })));
