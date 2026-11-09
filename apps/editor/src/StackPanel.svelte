@@ -110,7 +110,7 @@
       <StackItem
         label={n.name}
         kind="object"
-        icon={n.kind === 'group' ? 'group' : 'object'}
+        icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : 'object') as IconName}
         {depth}
         expanded={n.stack.length || n.kind === 'group' ? open : undefined}
         selected={editor.selected === n.id}
@@ -120,6 +120,7 @@
         visible={n.visible !== false}
         onvisible={(v) => editor.setNode(n.id, 'visible', v, true)}
         onungroup={n.kind === 'group' ? () => editor.ungroup(n.id) : undefined}
+        onrename={(name) => editor.setNode(n.id, 'name', name, true)}
       />
     </div>
     {#if open}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { builtins, createEngine, migrateScene, type AnyScene, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, migrateScene, shapeRegistry, type AnyScene, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, IconButton, Tabs } from '@svertik/ui';
   import CodeEditor from './CodeEditor.svelte';
   import { exportJS, extractScript, jsDocument, sourceRanges, syntaxErrorLine } from './code';
@@ -64,7 +64,9 @@
       for (const n of nodes) {
         if (!n || typeof n.id !== 'string') throw new Error('Every object needs a string id');
         if (n.kind === 'object' && typeof n.source !== 'string') throw new Error(`Object "${n.name}" needs a source SVG`);
-        if (n.kind !== 'object' && n.kind !== 'group') throw new Error('kind must be "object" or "group"');
+        if (n.kind === 'shape' && !shapeRegistry.has(n.shape)) throw new Error(`Unknown shape "${n.shape}"`);
+        if (n.kind === 'shape') n.params ??= {};
+        if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape') throw new Error('kind must be "object", "shape" or "group"');
         checkStack(n.stack ?? []);
         n.stack ??= [];
         if (n.kind === 'group') checkNodes(n.children ?? []);

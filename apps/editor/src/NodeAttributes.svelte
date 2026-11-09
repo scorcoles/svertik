@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { placementOf, type SceneNode } from '@svertik/engine';
-  import { Button, Checkbox, NumberField, ParamRow, PointField, Section, Slider } from '@svertik/ui';
+  import { placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
+  import { Button, Checkbox, NumberField, ParamControl, ParamRow, PointField, Section, Slider } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
   interface Props {
@@ -10,7 +10,11 @@
   }
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
-  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : 'object');
+  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : 'object');
+  // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
+  const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
+  const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
+  const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => s.group === 'Style'));
 </script>
 
 <header>
@@ -25,6 +29,18 @@
   <span class="meta">{kindLabel}</span>
 </header>
 <div class="params">
+  {#if node.kind === 'shape' && shapeDef}
+    <Section title={shapeDef.label}>
+      {#each shapeMain as [name, spec] (name)}
+        <ParamControl {name} {spec} value={node.params[name]} onchange={(v) => editor.setShapeParam(node.id, name, v)} />
+      {/each}
+    </Section>
+    <Section title="Style">
+      {#each shapeStyle as [name, spec] (name)}
+        <ParamControl {name} {spec} value={node.params[name]} onchange={(v) => editor.setShapeParam(node.id, name, v)} />
+      {/each}
+    </Section>
+  {/if}
   <Section title="Transform">
     <ParamRow label="Position" for="node-x">
       <PointField id="node-x" label="Position" step={1} value={[p.x, p.y]} onchange={([x, y]) => { editor.setNode(node.id, 'x', x); editor.setNode(node.id, 'y', y); }} />
@@ -47,18 +63,18 @@
     </ParamRow>
   </Section>
   <div class="actions">
-    {#if node.kind === 'object'}
-      <Button label="Replace SVG…" onclick={onreplace} />
-      <Button label="Group" onclick={() => editor.group(node.id)} />
-    {:else}
+    {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
+    {#if node.kind === 'group'}
       <Button label="Ungroup" onclick={() => editor.ungroup(node.id)} />
+    {:else}
+      <Button label="Group" onclick={() => editor.group(node.id)} />
     {/if}
     <Button label="Remove" onclick={() => editor.remove(node.id)} />
   </div>
   <p class="note">
     {node.kind === 'group'
       ? 'Effects on a group apply to all its children together; Step treats each child as an element.'
-      : 'Effects below this object apply only to it. Drag it on the canvas to move it.'}
+      : 'Effects below apply only to it. Drag it on the canvas to move it.'}
   </p>
 </div>
 

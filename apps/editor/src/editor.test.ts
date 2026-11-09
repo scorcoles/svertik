@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Editor } from './editor.svelte';
+import { Editor, locateNode } from './editor.svelte';
 import { samples } from './samples';
 
 const stack = (e: Editor) => e.scene!.objects[0]!.stack;
@@ -191,5 +191,31 @@ describe('varios objetos y grupos', () => {
     e.applyScene({ version: 1, source: samples.rings, stack: [{ id: 'x', type: 'wave' }] });
     expect(e.scene!.version).toBe(2);
     expect(stack(e).map((m) => m.type)).toEqual(['wave']);
+  });
+});
+
+describe('primitivas', () => {
+  it('sin escena, añadir una primitiva la crea; los nombres no se repiten', () => {
+    const e = new Editor();
+    e.addShape('star');
+    e.addShape('star', { points: 7 }, { x: 50, y: 0 });
+    expect(e.scene!.objects.map((n) => n.name)).toEqual(['Star', 'Star 2']);
+    const second = e.scene!.objects[1]!;
+    expect(second).toMatchObject({ kind: 'shape', shape: 'star', transform: { x: 50, y: 0 } });
+    expect((second as { params: Record<string, unknown> }).params.points).toBe(7);
+    expect(e.currentNode?.id).toBe(second.id);
+  });
+
+  it('con un grupo seleccionado, la primitiva entra en él; sus parámetros se editan y se deshacen', () => {
+    const e = fresh();
+    e.group(e.scene!.objects[0]!.id);
+    e.addShape('rectangle');
+    const g = e.scene!.objects[0] as { children: { kind: string; id: string }[] };
+    expect(g.children.map((c) => c.kind)).toEqual(['object', 'shape']);
+    const id = g.children[1]!.id;
+    e.setShapeParam(id, 'radius', 12);
+    e.flush();
+    e.undo();
+    expect((locateNode(e.scene!.objects, id)!.node as { params: Record<string, unknown> }).params.radius).toBe(0);
   });
 });
