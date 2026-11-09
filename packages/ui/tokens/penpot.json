@@ -1,0 +1,28 @@
+{
+  "$source": "Penpot · archivo «Design System» · tema mode/dark. Regenerar tokens.css con `pnpm tokens`.",
+  "primitives": {
+    "color": {
+      "gray.100": "#EDEDED", "gray.200": "#D0D0D0", "gray.300": "#A8A8A8", "gray.400": "#808080",
+      "gray.500": "#5A5A5A", "gray.600": "#3D3D3D", "gray.700": "#2E2E2E", "gray.800": "#232323",
+      "gray.850": "#1B1B1B", "gray.900": "#141414", "gray.950": "#0B0B0B",
+      "turquesa.500": "#09FDD1", "turquesa.900": "#00211B", "turquesa.950": "#0F2A26", "red.400": "#FF6B5E"
+    },
+    "spacing": { "space.2": 2, "space.4": 4, "space.6": 6, "space.8": 8, "space.12": 12, "space.16": 16, "space.24": 24, "space.32": 32 },
+    "fontFamilies": { "font.mono": "JetBrains Mono" },
+    "fontSizes": { "font.size.10": 10, "font.size.11": 11, "font.size.12": 12, "font.size.14": 14 },
+    "fontWeights": { "font.weight.regular": 400, "font.weight.bold": 700 },
+    "borderRadius": { "radius.none": 0 },
+    "borderWidth": { "border.1": 1 },
+    "sizing": { "size.row": 24, "size.icon": 16 }
+  },
+  "theme/dark": {
+    "color": {
+      "surface.app": "{gray.900}", "surface.panel": "{gray.850}", "surface.field": "{gray.950}",
+      "surface.hover": "{gray.800}", "surface.raised": "{gray.700}",
+      "rule.default": "{gray.700}", "rule.strong": "{gray.600}",
+      "text.primary": "{gray.100}", "text.secondary": "{gray.300}", "text.muted": "{gray.400}", "text.disabled": "{gray.500}",
+      "accent.fill": "{turquesa.500}", "accent.on": "{turquesa.900}", "accent.selection": "{turquesa.950}",
+      "signal.error": "{red.400}"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@svertik/ui",
+  "version": "0.0.0",
+  "type": "module",
+  "svelte": "./src/lib/index.ts",
+  "exports": {
+    ".": {
+      "svelte": "./src/lib/index.ts",
+      "default": "./src/lib/index.ts"
+    },
+    "./tokens.css": "./src/lib/tokens.css"
+  },
+  "scripts": {
+    "tokens": "node scripts/tokens.mjs",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "bits-ui": "^2.20.6"
+  },
+  "devDependencies": {
+    "@storybook/svelte-vite": "^10.6.6",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@svertik/engine": "workspace:^",
+    "storybook": "^10.6.6",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.7",
+    "vitest": "^5.1.0"
+  }
+}

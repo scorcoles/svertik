@@ -74,7 +74,7 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 1. ~~**Motor mínimo:** importar, geometría, render y desplazar, con tests.~~
 2. ~~**Deformadores:** subdivisión, esferizar, doblar, torcer, onda y ruido.~~
 3. **Agrietar.**
-4. **Design system en Penpot y `packages/ui` con Storybook.**
+4. ~~**Design system en Penpot y `packages/ui` con Storybook.**~~ (primera tanda)
 5. **Editor v1:** lista, atributos, visor, importar y exportar.
 6. **Publicación:** repo público, Pages y página en vertik.net.
 
@@ -90,3 +90,4 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 ## Hecho
 
 - 2026-11-09: monorepo (pnpm), motor con importación, render (SVG plano y en vivo), caché por pasos y seis modificadores: transform, spherize, twist, bend, wave y noise, con tests (Vitest). Demo `chain`.
+- 2026-11-09: design system en Penpot (tokens, fundamentos, componentes con variantes). `packages/ui`: Svelte 5 + Bits UI + Storybook 10, `tokens.css` generado desde `tokens/penpot.json` (`pnpm tokens`), componentes Button, NumberField (arrastre tipo C4D), Slider, Checkbox, Select, Tabs, Panel, ParamRow y StackItem. Historia `Editor/Live`: pila + atributos generados del esquema del motor + lienzo en vivo.
