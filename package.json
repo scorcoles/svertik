@@ -1,0 +1,11 @@
+{
+  "name": "svertik",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "demos": "pnpm --filter @svertik/demos dev"
+  },
+  "packageManager": "pnpm@9.15.3"
+}
