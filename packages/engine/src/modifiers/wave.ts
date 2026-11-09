@@ -7,8 +7,8 @@ export const wave = defineModifier({
   label: 'Wave',
   kind: 'deformer',
   params: {
-    amplitude: { type: 'number', default: 0.05, min: 0, step: 0.005, unit: 'fraction' },
-    wavelength: { type: 'number', default: 0.5, min: 0.01, step: 0.01, unit: 'fraction' },
+    amplitude: { type: 'number', default: 0.05, min: 0, max: 0.5, step: 0.005, unit: 'fraction' },
+    wavelength: { type: 'number', default: 0.5, min: 0.01, max: 2, step: 0.01, unit: 'fraction' },
     phase: { type: 'angle', default: 0 },
     direction: { type: 'angle', default: 0 },
   },

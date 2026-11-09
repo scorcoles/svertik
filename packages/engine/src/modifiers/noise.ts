@@ -10,8 +10,8 @@ export const noise = defineModifier({
   params: {
     amount: { type: 'number', default: 0.03, min: 0, step: 0.005, unit: 'fraction' },
     scale: { type: 'number', default: 4, min: 0.1, step: 0.1, label: 'Frequency' },
-    evolution: { type: 'number', default: 0, step: 0.01 },
-    seed: { type: 'seed', default: 1 },
+    evolution: { type: 'number', default: 0, step: 0.01, group: 'Variation' },
+    seed: { type: 'seed', default: 1, group: 'Variation' },
   },
   apply(geo, p, ctx) {
     const b = ctx.bounds;

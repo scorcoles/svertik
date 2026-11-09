@@ -1,8 +1,9 @@
 <script lang="ts">
   // Pila + atributos + lienzo con el motor de verdad: lo que será el editor v1, en pequeño.
-  import { builtins, createEngine, resolveParams, type ModifierInstance, type Scene } from '@svertik/engine';
+  import { builtins, createEngine, resolveParams, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
   import Button from '../lib/Button.svelte';
   import Panel from '../lib/Panel.svelte';
+  import Section from '../lib/Section.svelte';
   import StackItem from '../lib/StackItem.svelte';
   import Tabs from '../lib/Tabs.svelte';
   import ParamControl from './ParamControl.svelte';
@@ -12,7 +13,7 @@
     .join('');
   const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect x="20" y="40" width="160" height="120" fill="#09fdd1" stroke="#000" stroke-width="1.5"/><g stroke="#000" stroke-width="0.5" fill="none">${lines}</g></svg>`;
 
-  const registry = new Map(builtins.map((m) => [m.type, m]));
+  const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
   const make = (type: string, i: number): ModifierInstance => ({
     id: `${type}-${i}`,
     type,
@@ -23,15 +24,26 @@
   let scene: Scene = $state({
     version: 1,
     source,
-    stack: [make('transform', 0), make('spherize', 1), make('twist', 2), make('wave', 3)],
+    stack: [make('transform', 0), make('spherize', 1), make('twist', 2), make('bend', 3), make('wave', 4)],
   });
   scene.stack[1]!.params!.strength = 0.6;
   scene.stack[2]!.params!.angle = 45;
+  scene.stack[3]!.params!.angle = 20;
 
   let selected = $state('spherize-1');
   let tab = $state('Params');
   const current = $derived(scene.stack.find((m) => m.id === selected));
   const def = $derived(current ? registry.get(current.type) : undefined);
+  let expanded = $state(true);
+  // Sin grupo: arriba, sin cabecera. Con grupo: en secciones plegables, en el orden del esquema.
+  const main = $derived(Object.entries(def?.params ?? {}).filter(([, s]) => !s.group).map(([n]) => n));
+  const groups = $derived.by(() => {
+    const out = new Map<string, string[]>();
+    for (const [name, spec] of Object.entries(def?.params ?? {})) {
+      if (spec.group) out.set(spec.group, [...(out.get(spec.group) ?? []), name]);
+    }
+    return [...out];
+  });
 
   const engine = createEngine(builtins);
   let svg: SVGSVGElement;
@@ -44,9 +56,9 @@
 <div class="editor">
   <Panel title="Stack">
     {#snippet actions()}<span class="muted">{scene.stack.length} modifiers</span>{/snippet}
-    <div role="listbox" aria-label="Modifier stack">
-      <StackItem label="grid.svg" kind="object" />
-      {#each scene.stack as m (m.id)}
+    <div role="tree" aria-label="Modifier stack">
+      <StackItem label="grid.svg" kind="object" {expanded} onexpand={(v) => (expanded = v)} />
+      {#each expanded ? scene.stack : [] as m (m.id)}
         <StackItem
           label={registry.get(m.type)?.label ?? m.type}
           kind={registry.get(m.type)?.kind}
@@ -65,8 +77,15 @@
       {#snippet children(t)}
         <div class="params">
           {#if t === 'Params' && current && def}
-            {#each Object.entries(def.params) as [name, spec] (name)}
-              <ParamControl {name} {spec} value={current.params?.[name]} onchange={(v) => (current.params![name] = v)} />
+            {#each main as name (name)}
+              <ParamControl {name} spec={def.params[name]!} value={current.params?.[name]} onchange={(v) => (current.params![name] = v)} />
+            {/each}
+            {#each groups as [group, names] (group)}
+              <Section title={group}>
+                {#each names as name (name)}
+                  <ParamControl {name} spec={def.params[name]!} value={current.params?.[name]} onchange={(v) => (current.params![name] = v)} />
+                {/each}
+              </Section>
             {/each}
           {:else if t === 'Info'}
             <p class="muted">Every control here is generated from the modifier's parameter schema in @svertik/engine.</p>

@@ -7,6 +7,8 @@ interface ParamBase {
   label?: string;
   /** Se podrá animar en la línea de tiempo (fase 2). Por defecto, sí. */
   animatable?: boolean;
+  /** Sección del panel de atributos donde aparece. Sin grupo: la sección principal. */
+  group?: string;
 }
 
 export type ParamSpec =

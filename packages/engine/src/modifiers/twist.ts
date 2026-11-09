@@ -7,8 +7,8 @@ export const twist = defineModifier({
   label: 'Twist',
   kind: 'deformer',
   params: {
-    center: { type: 'point', default: [0.5, 0.5], unit: 'fraction' },
-    radius: { type: 'number', default: 0.6, min: 0, step: 0.01, unit: 'fraction' },
+    center: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Falloff' },
+    radius: { type: 'number', default: 0.6, min: 0, max: 2, step: 0.01, unit: 'fraction', group: 'Falloff' },
     angle: { type: 'angle', default: 90 },
   },
   apply(geo, p, ctx) {

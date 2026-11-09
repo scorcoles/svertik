@@ -7,6 +7,8 @@
     min?: number;
     max?: number;
     unit?: string;
+    /** Letra o símbolo dentro del campo, a la izquierda (X, Y, W…). */
+    prefix?: string;
     /** Nombre accesible si no hay <label> asociado. */
     label?: string;
     id?: string;
@@ -21,6 +23,7 @@
     min,
     max,
     unit = '',
+    prefix = '',
     label,
     id,
     width = '72px',
@@ -101,6 +104,7 @@
   data-state={scrubbing && moved ? 'scrub' : error || invalid ? 'error' : editing ? 'edit' : 'idle'}
   data-disabled={disabled || undefined}
 >
+  {#if prefix}<span class="prefix" aria-hidden="true">{prefix}</span>{/if}
   <input
     bind:this={input}
     {id}
@@ -154,5 +158,6 @@
     cursor: ew-resize;
   }
   input:not([readonly]) { cursor: text; }
-  .unit { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .unit,
+  .prefix { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

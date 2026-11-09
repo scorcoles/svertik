@@ -10,8 +10,8 @@ export const spherize = defineModifier({
   label: 'Spherize',
   kind: 'deformer',
   params: {
-    center: { type: 'point', default: [0.5, 0.5], unit: 'fraction' },
-    radius: { type: 'number', default: 0.5, min: 0, step: 0.01, unit: 'fraction' },
+    center: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Falloff' },
+    radius: { type: 'number', default: 0.5, min: 0, max: 2, step: 0.01, unit: 'fraction', group: 'Falloff' },
     strength: { type: 'number', default: 0.5, min: -1, max: 1, step: 0.01 },
   },
   apply(geo, p, ctx) {
