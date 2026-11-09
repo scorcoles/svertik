@@ -4,7 +4,7 @@
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
-  import { Editor } from './editor.svelte';
+  import { Editor, locate } from './editor.svelte';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Toolbar from './Toolbar.svelte';
@@ -69,10 +69,10 @@
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && editor.selected && !typing(e)) {
       e.preventDefault();
       editor.remove();
-    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && editor.selected && editor.scene) {
+    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && editor.selected && editor.scene && !typing(e)) {
       e.preventDefault();
-      const i = editor.scene.stack.findIndex((m) => m.id === editor.selected);
-      editor.move(editor.selected, i + (e.key === 'ArrowUp' ? -1 : 1));
+      const at = locate(editor.scene.stack, editor.selected);
+      if (at) editor.move(editor.selected, at.index + (e.key === 'ArrowUp' ? -1 : 1));
     }
   }
   function paste(e: ClipboardEvent) {

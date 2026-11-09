@@ -19,8 +19,13 @@
   {#if m && def}
     <header>
       <h2>{def.label}</h2>
-      <span class="meta">{def.kind}</span>
+      <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : def.kind}</span>
     </header>
+    {#if editor.currentParent}
+      <p class="note">Per element: numbers grow ×1, ×2, ×3… Centers are each element's own.</p>
+    {:else if m.children}
+      <p class="note">Applies the modifiers nested under it to each element, stepping their numbers. Drop modifiers onto it, or select it and add.</p>
+    {/if}
     <Tabs bind:value={tab} tabs={['Params', 'Info']}>
       {#snippet children(t)}
         {#if t === 'Params'}
@@ -66,4 +71,5 @@
   .info dd { margin: 0; color: var(--sv-text-primary); }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
   .hint { margin: 0; padding: var(--sv-space-8); color: var(--sv-text-muted); }
+  .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

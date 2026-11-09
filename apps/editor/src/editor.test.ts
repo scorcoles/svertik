@@ -77,3 +77,47 @@ describe('marcador del punto', () => {
     expect(e.marker).toBeNull();
   });
 });
+
+describe('Step con hijos', () => {
+  it('con Step seleccionado, lo que se añade entra dentro; con un hijo seleccionado, debajo de él', () => {
+    const e = fresh();
+    e.add('clone');
+    e.add('step');
+    e.add('twist');
+    e.add('spherize');
+    const step = e.scene!.stack[1]!;
+    expect(step.children!.map((m) => m.type)).toEqual(['twist', 'spherize']);
+    expect(e.currentParent?.id).toBe(step.id);
+  });
+
+  it('un Step no entra en otro: va a la pila principal', () => {
+    const e = fresh();
+    e.add('step');
+    e.add('step');
+    expect(e.scene!.stack.map((m) => m.type)).toEqual(['step', 'step']);
+  });
+
+  it('moveTo mete y saca de Step; quitar un hijo selecciona su vecino o el Step', () => {
+    const e = fresh();
+    e.add('wave');
+    const wave = e.current!.id;
+    e.add('step');
+    const step = e.current!.id;
+    e.moveTo(wave, step, 0);
+    expect(e.scene!.stack.map((m) => m.type)).toEqual(['step']);
+    expect(e.scene!.stack[0]!.children!.map((m) => m.type)).toEqual(['wave']);
+    e.remove(wave);
+    expect(e.selected).toBe(step);
+    e.add('noise');
+    e.moveTo(e.current!.id, null, 0);
+    expect(e.scene!.stack.map((m) => m.type)).toEqual(['noise', 'step']);
+  });
+
+  it('los parámetros de un hijo se editan igual', () => {
+    const e = fresh();
+    e.add('step');
+    e.add('transform');
+    e.setParam('rotation', 10);
+    expect(e.scene!.stack[0]!.children![0]!.params!.rotation).toBe(10);
+  });
+});

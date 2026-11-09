@@ -44,10 +44,15 @@
     if (scene.version !== 1) throw new Error('version must be 1');
     if (typeof scene.source !== 'string') throw new Error('source must be a string with the SVG');
     if (!Array.isArray(scene.stack)) throw new Error('stack must be an array');
-    for (const m of scene.stack) {
-      if (!m || typeof m.id !== 'string') throw new Error('Every modifier needs a string id');
-      if (!registry.has(m.type)) throw new Error(`Unknown modifier "${m.type}"`);
-    }
+    const check = (list: unknown) => {
+      if (!Array.isArray(list)) throw new Error('stack and children must be arrays');
+      for (const m of list) {
+        if (!m || typeof m.id !== 'string') throw new Error('Every modifier needs a string id');
+        if (!registry.has(m.type)) throw new Error(`Unknown modifier "${m.type}"`);
+        if (m.children !== undefined) check(m.children);
+      }
+    };
+    check(scene.stack);
     return scene;
   }
 

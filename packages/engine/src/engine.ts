@@ -2,7 +2,7 @@
 
 import { bounds, type Geometry } from './geometry';
 import { importSVG } from './import';
-import { resolveParams, type ModifierContext, type ModifierDef } from './modifier';
+import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 
 export interface ModifierInstance {
@@ -11,6 +11,8 @@ export interface ModifierInstance {
   type: string;
   enabled?: boolean;
   params?: Record<string, unknown>;
+  /** Modificadores colgados de este (Step los aplica copia a copia). */
+  children?: ModifierInstance[];
 }
 
 /**
@@ -61,12 +63,13 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     const ctx: ModifierContext = {
       bounds: b,
       resolution: Math.max(b.width, b.height) * (scene.resolution ?? DEFAULT_RESOLUTION) || 1,
+      children: [],
     };
     const out: Geometry[] = [source];
     let geo = source;
     let reusable = true;
     scene.stack.forEach((inst, i) => {
-      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}]);
+      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
       const cached = steps[i];
       if (reusable && cached && cached.key === key) {
         geo = cached.geo;
@@ -74,13 +77,21 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         reusable = false;
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        if (inst.enabled !== false) geo = def.apply(geo, resolveParams(def.params, inst.params), ctx);
+        if (inst.enabled !== false) geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, children: resolveChildren(inst.children) });
         steps[i] = { key, geo };
       }
       out.push(geo);
     });
     steps.length = scene.stack.length;
     return out;
+  }
+
+  function resolveChildren(children: ModifierInstance[] = []): ResolvedModifier[] {
+    return children.map((c) => {
+      const def = registry.get(c.type);
+      if (!def) throw new Error(`svertik: modificador desconocido «${c.type}»`);
+      return { def, params: resolveParams(def.params, c.params), enabled: c.enabled !== false, children: resolveChildren(c.children) };
+    });
   }
 
   const evaluate = (scene: Scene) => evaluateSteps(scene).at(-1)!;

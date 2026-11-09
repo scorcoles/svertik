@@ -13,7 +13,7 @@ export const rotate3d = defineModifier({
     rotateX: { type: 'angle', default: 30, label: 'Tilt X' },
     rotateY: { type: 'angle', default: 0, label: 'Tilt Y' },
     rotateZ: { type: 'angle', default: 0, label: 'Spin Z' },
-    perspective: { type: 'number', default: 2, min: 0.5, max: 10, step: 0.1, unit: 'fraction', group: 'Camera' },
+    perspective: { type: 'number', default: 2, min: 0.5, max: 10, step: 0.1, unit: 'fraction', group: 'Camera', ramp: false },
     pivot: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Camera' },
   },
   apply(geo, p, ctx) {
