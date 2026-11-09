@@ -3,3 +3,5 @@ dist
 .DS_Store
 storybook-static
 *.log
+# SVG de prueba con marcas de terceros: no se publican
+demo/
