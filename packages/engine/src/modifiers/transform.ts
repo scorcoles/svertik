@@ -11,7 +11,7 @@ export const transform = defineModifier({
     y: { type: 'number', default: 0, step: 1, unit: 'px' },
     rotation: { type: 'angle', default: 0 },
     scale: { type: 'number', default: 1, min: 0, step: 0.01 },
-    pivot: { type: 'point', default: [0.5, 0.5], unit: 'fraction' },
+    pivot: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Pivot' },
   },
   apply(geo, p, ctx) {
     const [px, py] = fromFraction(ctx.bounds, p.pivot);

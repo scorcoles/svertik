@@ -4,6 +4,8 @@
   import Checkbox from '../lib/Checkbox.svelte';
   import NumberField from '../lib/NumberField.svelte';
   import ParamRow from '../lib/ParamRow.svelte';
+  import PointField from '../lib/PointField.svelte';
+  import Segmented from '../lib/Segmented.svelte';
   import Select from '../lib/Select.svelte';
   import Slider from '../lib/Slider.svelte';
 
@@ -16,6 +18,8 @@
   let { name, spec, value, onchange }: Props = $props();
   const id = $derived(`param-${name}`);
   const label = $derived(spec.label ?? name.charAt(0).toUpperCase() + name.slice(1));
+  // Glifos para opciones conocidas; el resto se muestra como texto.
+  const ICONS: Record<string, string> = { horizontal: '↔', vertical: '↕' };
 </script>
 
 <ParamRow {label} for={id}>
@@ -29,9 +33,9 @@
   {:else if spec.type === 'seed'}
     <NumberField {id} value={value as number} step={1} min={0} {onchange} />
   {:else if spec.type === 'point'}
-    {@const p = value as [number, number]}
-    <NumberField {id} label={`${label} X`} value={p[0]} step={0.01} onchange={(x) => onchange([x, p[1]])} />
-    <NumberField label={`${label} Y`} value={p[1]} step={0.01} onchange={(y) => onchange([p[0], y])} />
+    <PointField {id} {label} value={value as [number, number]} {onchange} />
+  {:else if spec.type === 'enum' && spec.options.length <= 3}
+    <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
   {:else if spec.type === 'boolean'}
