@@ -44,6 +44,7 @@ export type SceneNode = ObjectNode | ShapeNode | GroupNode;
 
 export interface SceneV2 {
   version: 2;
+  /** Como en las capas de Illustrator o Figma: el primero de la lista está delante. */
   objects: SceneNode[];
   /** Longitud máxima de tramo al subdividir, como fracción del tamaño de cada objeto. */
   resolution?: number;
@@ -161,12 +162,13 @@ export function createDocumentEvaluator(
         return withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity);
       }
       // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
+      // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
+      // cada hijo es un elemento numerado en el orden de la lista (respetando sus copias).
       const childShapes: Shape[] = [];
-      node.children.forEach((child, i) => {
-        // Para Step, Color…: cada hijo es un elemento (respetando las copias que ya traiga).
-        const shapes = evalNode(child, IDENTITY);
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        const shapes = evalNode(node.children[i]!, IDENTITY);
         childShapes.push(...shapes.map((s) => ({ ...s, clone: i * 10000 + (s.clone ?? 0) })));
-      });
+      }
       const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
       const ref = bounds(inner);
       const result = node.stack.length ? runStack(inner, node.stack, ref, resolution) : inner;
@@ -189,7 +191,8 @@ export function createDocumentEvaluator(
       if (node.kind === 'group') for (const c of node.children) reparent(c, groupWorld);
     }
 
-    const shapes = scene.objects.flatMap((n) => evalNode(n, IDENTITY));
+    // El primero de la lista se pinta el último: queda delante.
+    const shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
     // El origen de cada objeto, con su matriz final (la de sus grupos incluida).
     const placedSources: Shape[] = [];
     for (const { node } of walkNodes(scene.objects)) {

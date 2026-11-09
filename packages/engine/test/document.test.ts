@@ -23,7 +23,8 @@ describe('escena v2', () => {
     const doc = engine().evaluateDocument(scene);
     expect(doc.nodes.get('a')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
     expect(doc.nodes.get('b')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
-    expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['a', 'b']);
+    // El primero de la lista se pinta el último (delante).
+    expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['b', 'a']);
   });
 
   it('cada objeto tiene su propia pila y su propia caja de referencia', () => {
@@ -66,8 +67,8 @@ describe('escena v2', () => {
       ],
     };
     const doc = engine().evaluateDocument(scene);
-    const ys = doc.geometry.shapes.map((s) => bounds({ viewBox: [0, 0, 0, 0], shapes: [s] }).y);
-    expect(ys).toEqual([5, 15]); // −5 + 10 × 1 y −5 + 10 × 2
+    const y = (id: string) => bounds({ viewBox: [0, 0, 0, 0], shapes: doc.geometry.shapes.filter((s) => s.node === id) }).y;
+    expect([y('a'), y('b')]).toEqual([5, 15]); // −5 + 10 × 1 y −5 + 10 × 2, en el orden de la lista
   });
 
   it('invisible no se pinta; la opacidad se multiplica', () => {

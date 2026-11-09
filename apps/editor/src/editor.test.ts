@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Editor, locateNode } from './editor.svelte';
 import { samples } from './samples';
 
-const stack = (e: Editor) => e.scene!.objects[0]!.stack;
+// El objeto de partida (grid.svg); lo nuevo entra arriba de la lista, así que es el último.
+const stack = (e: Editor) => e.scene!.objects.at(-1)!.stack;
 
 const fresh = () => {
   const e = new Editor();
@@ -143,25 +144,25 @@ describe('dado', () => {
 });
 
 describe('varios objetos y grupos', () => {
-  it('cargar con una escena abierta añade un objeto y lo selecciona; los efectos van a su pila', () => {
+  it('lo nuevo entra arriba de la lista (delante) y queda seleccionado; los efectos van a su pila', () => {
     const e = fresh();
     e.add('wave');
     e.load(samples.star, 'star.svg');
-    expect(e.scene!.objects.map((n) => n.name)).toEqual(['grid.svg', 'star.svg']);
+    expect(e.scene!.objects.map((n) => n.name)).toEqual(['star.svg', 'grid.svg']);
     expect(e.currentNode?.name).toBe('star.svg');
     e.add('twist');
-    expect(e.scene!.objects[1]!.stack.map((m) => m.type)).toEqual(['twist']);
+    expect(e.scene!.objects[0]!.stack.map((m) => m.type)).toEqual(['twist']);
     expect(e.activeNode?.name).toBe('star.svg');
   });
 
   it('agrupar y desagrupar dejan los nodos en su sitio', () => {
     const e = fresh();
     e.load(samples.star, 'star.svg');
-    const star = e.scene!.objects[1]!.id;
+    const star = e.scene!.objects[0]!.id;
     e.group(star);
-    const g = e.scene!.objects[1]!;
+    const g = e.scene!.objects[0]!;
     expect(g.kind).toBe('group');
-    e.moveNode(e.scene!.objects[0]!.id, g.id, 0);
+    e.moveNode(e.scene!.objects[1]!.id, g.id, 0);
     expect(e.scene!.objects).toHaveLength(1);
     expect((e.scene!.objects[0] as { children: { name: string }[] }).children.map((c) => c.name)).toEqual(['grid.svg', 'star.svg']);
     e.ungroup(g.id);
@@ -199,8 +200,8 @@ describe('primitivas', () => {
     const e = new Editor();
     e.addShape('star');
     e.addShape('star', { points: 7 }, { x: 50, y: 0 });
-    expect(e.scene!.objects.map((n) => n.name)).toEqual(['Star', 'Star 2']);
-    const second = e.scene!.objects[1]!;
+    expect(e.scene!.objects.map((n) => n.name)).toEqual(['Star 2', 'Star']);
+    const second = e.scene!.objects[0]!;
     expect(second).toMatchObject({ kind: 'shape', shape: 'star', transform: { x: 50, y: 0 } });
     expect((second as { params: Record<string, unknown> }).params.points).toBe(7);
     expect(e.currentNode?.id).toBe(second.id);
@@ -211,8 +212,8 @@ describe('primitivas', () => {
     e.group(e.scene!.objects[0]!.id);
     e.addShape('rectangle');
     const g = e.scene!.objects[0] as { children: { kind: string; id: string }[] };
-    expect(g.children.map((c) => c.kind)).toEqual(['object', 'shape']);
-    const id = g.children[1]!.id;
+    expect(g.children.map((c) => c.kind)).toEqual(['shape', 'object']);
+    const id = g.children[0]!.id;
     e.setShapeParam(id, 'radius', 12);
     e.flush();
     e.undo();
