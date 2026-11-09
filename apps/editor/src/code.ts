@@ -1,6 +1,6 @@
 // El JS del panel de código: escena generada arriba, script del usuario abajo.
 import { parser } from '@lezer/javascript';
-import type { Scene } from '@svertik/engine';
+import { migrateScene, walkNodes, type AnyScene, type ModifierInstance, type SceneNode, type SceneV2 } from '@svertik/engine';
 
 /** Primera línea con error de sintaxis (los SyntaxError de JS no dicen dónde). */
 export function syntaxErrorLine(text: string): number | null {
@@ -40,20 +40,62 @@ export function inlineLiteral(value: unknown): string {
 
 const sourceLiteral = (source: string) => '`' + source.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${') + '`';
 
-export function sceneTypes(scene: Scene) {
-  return [...new Set(scene.stack.map((m) => m.type))];
+export function sceneTypes(scene: AnyScene): string[] {
+  const v2 = migrateScene(scene);
+  const types = new Set<string>();
+  const add = (stack: ModifierInstance[]) => {
+    for (const m of stack) {
+      types.add(m.type);
+      if (m.children) add(m.children);
+    }
+  };
+  for (const { node } of walkNodes(v2.objects)) add(node.stack);
+  return [...types];
 }
 
-/** La parte generada: import, la constante con el SVG y la escena. */
-export function generatedPart(scene: Scene): string {
-  const { source: _source, stack, ...rest } = scene;
-  // Una línea por modificador: así se lee la pila de un vistazo.
+/** Nombre de variable a partir del nombre del archivo: «Star Logo.svg» → starLogo. Únicos. */
+function variableNames(scene: SceneV2): Map<string, string> {
+  const out = new Map<string, string>();
+  const used = new Set(['scene', 'source', 'engine', 'live', 'onFrame', 'createEngine']);
+  for (const { node } of walkNodes(scene.objects)) {
+    if (node.kind !== 'object') continue;
+    const words = node.name.replace(/\.svg$/i, '').split(/[^A-Za-z0-9]+/).filter(Boolean);
+    let base = words.map((w, i) => (i ? w[0]!.toUpperCase() + w.slice(1) : w.toLowerCase())).join('') || 'drawing';
+    if (/^\d/.test(base)) base = `svg${base}`;
+    let name = base;
+    for (let i = 2; used.has(name); i++) name = `${base}${i}`;
+    used.add(name);
+    out.set(node.id, name);
+  }
+  return out;
+}
+
+function writeNode(node: SceneNode, vars: Map<string, string>, indent: string): string {
+  const { stack, ...rest } = node;
+  const head = Object.entries(rest)
+    .filter(([k]) => k !== 'children' && k !== 'source')
+    .map(([k, v]) => `${k}: ${inlineLiteral(v)}`);
+  if (node.kind === 'object') head.push(`source: ${vars.get(node.id)}`);
+  const inner = indent + '  ';
+  const list = (items: string[]) => (items.length ? `[\n${items.map((x) => `${inner}  ${x},`).join('\n')}\n${inner}]` : '[]');
+  const parts = [...head, `stack: ${list(stack.map((m) => inlineLiteral(m)))}`];
+  if (node.kind === 'group') parts.push(`children: [\n${node.children.map((c) => `${inner}  ${writeNode(c, vars, inner + '  ')},`).join('\n')}\n${inner}]`);
+  return `{\n${parts.map((p) => `${inner}${p},`).join('\n')}\n${indent}}`;
+}
+
+/** La parte generada: import, una constante por SVG y la escena. */
+export function generatedPart(scene: AnyScene): string {
+  const v2 = migrateScene(scene);
+  const vars = variableNames(v2);
+  const consts: string[] = [];
+  for (const { node } of walkNodes(v2.objects)) if (node.kind === 'object') consts.push(`const ${vars.get(node.id)} = ${sourceLiteral(node.source)};`);
+  const { objects, ...rest } = v2;
   const head = Object.entries(rest).map(([k, v]) => `  ${k}: ${inlineLiteral(v)},`);
-  const sceneText = ['{', ...head, '  source,', '  stack: [', ...stack.map((m) => `    ${inlineLiteral(m)},`), '  ],', '}'].join('\n');
+  const sceneText = ['{', ...head, '  objects: [', ...objects.map((n) => `    ${writeNode(n, vars, '    ')},`), '  ],', '}'].join('\n');
   return [
-    `import { createEngine, ${sceneTypes(scene).join(', ')} } from '@svertik/engine';`,
+    `import { createEngine, ${sceneTypes(v2).join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
     '',
-    `const source = ${sourceLiteral(scene.source)};`,
+    ...consts,
     '',
     `const scene = ${sceneText};`,
     '',
@@ -62,7 +104,7 @@ export function generatedPart(scene: Scene): string {
 }
 
 /** El texto completo que se ve en la pestaña JS. */
-export function jsDocument(scene: Scene, script: string) {
+export function jsDocument(scene: AnyScene, script: string) {
   return generatedPart(scene) + script;
 }
 
@@ -73,22 +115,28 @@ export function extractScript(text: string): string {
   return text.slice(m.index + m[0].length).replace(/^\n/, '');
 }
 
-/** Posición del literal del SVG en el documento, para plegarlo. */
-export function sourceRange(text: string): [number, number] | null {
-  const start = text.indexOf('const source = `');
-  if (start < 0) return null;
-  const open = start + 'const source = `'.length;
-  let i = open;
-  while (i < text.length) {
-    if (text[i] === '\\') { i += 2; continue; }
-    if (text[i] === '`') return [open, i];
-    i++;
+/** Posición de cada literal con un SVG (const x = `<svg…`), para plegarlos. */
+export function sourceRanges(text: string): [number, number][] {
+  const out: [number, number][] = [];
+  const re = /const [A-Za-z_$][\w$]* = `/g;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    const open = m.index + m[0].length;
+    if (!text.startsWith('<', open) && !text.startsWith('<?', open)) continue;
+    let i = open;
+    while (i < text.length) {
+      if (text[i] === '\\') { i += 2; continue; }
+      if (text[i] === '`') { out.push([open, i]); break; }
+      i++;
+    }
   }
-  return null;
+  return out;
 }
 
+/** El primero (compatibilidad). */
+export const sourceRange = (text: string) => sourceRanges(text)[0] ?? null;
+
 /** Fragmento autosuficiente para pegar en otra web: añade el motor y onFrame. */
-export function exportJS(scene: Scene, script: string): string {
+export function exportJS(scene: AnyScene, script: string): string {
   const types = sceneTypes(scene);
   return (
     generatedPart(scene) +

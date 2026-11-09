@@ -15,13 +15,13 @@
     readonly?: boolean;
     /** Línea (1…) con error, para marcarla. */
     errorLine?: number | null;
-    /** Rango a plegar cada vez que el texto llega de fuera (el SVG de origen). */
-    fold?: [number, number] | null;
+    /** Rangos a plegar cada vez que el texto llega de fuera (los SVG de origen). */
+    fold?: [number, number][];
     label: string;
     onchange?: (text: string) => void;
     oncursor?: (line: number, col: number) => void;
   }
-  let { value, lang, readonly = false, errorLine = null, fold = null, label, onchange, oncursor }: Props = $props();
+  let { value, lang, readonly = false, errorLine = null, fold = [], label, onchange, oncursor }: Props = $props();
 
   let host: HTMLDivElement;
   let view: EditorView | undefined;
@@ -67,9 +67,9 @@
   };
 
   const foldSource = () => {
-    if (!view || !fold) return;
-    const [from, to] = fold;
-    if (to - from > 40) view.dispatch({ effects: foldEffect.of({ from, to }) });
+    if (!view || !fold.length) return;
+    const effects = fold.filter(([from, to]) => to - from > 40).map(([from, to]) => foldEffect.of({ from, to }));
+    if (effects.length) view.dispatch({ effects });
   };
 
   onMount(() => {

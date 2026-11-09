@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { builtins, createEngine, type Scene } from '@svertik/engine';
+  import { builtins, createEngine, type SceneV2 } from '@svertik/engine';
   import { Checkbox } from '@svertik/ui';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
-  import { Editor, locate } from './editor.svelte';
+  import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Toolbar from './Toolbar.svelte';
@@ -35,10 +35,15 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (toast = null), 1600);
   };
-  const snapshot = () => $state.snapshot(editor.scene) as Scene;
+  const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
 
   async function openFile(file: File) {
     editor.load(await file.text(), file.name);
+  }
+  // Sustituir el SVG del objeto seleccionado (desde sus atributos).
+  let replaceInput: HTMLInputElement;
+  async function replaceFile(file: File) {
+    if (editor.currentNode) editor.replaceSource(editor.currentNode.id, await file.text(), file.name);
   }
   async function copy(text: string, what: string) {
     try {
@@ -49,7 +54,7 @@
     }
   }
   function exportSVG() {
-    const name = editor.name.replace(/\.svg$/i, '') + '.svertik.svg';
+    const name = `${editor.name}.svertik.svg`;
     download(name, engine.toSVG(snapshot()), 'image/svg+xml');
     say(`Saved ${name}`);
   }
@@ -75,8 +80,12 @@
       editor.remove();
     } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && editor.selected && editor.scene && !typing(e)) {
       e.preventDefault();
-      const at = locate(editor.scene.stack, editor.selected);
+      const at = locateModifier(editor.scene, editor.selected) ?? locateNode(editor.scene.objects, editor.selected);
       if (at) editor.move(editor.selected, at.index + (e.key === 'ArrowUp' ? -1 : 1));
+    } else if (mod && e.key.toLowerCase() === 'g' && !typing(e)) {
+      e.preventDefault();
+      if (e.shiftKey) editor.ungroup();
+      else editor.group();
     }
   }
   function paste(e: ClipboardEvent) {
@@ -114,7 +123,7 @@
     </div>
     <aside class="inspector">
       <StackPanel {editor} />
-      <Attributes {editor} />
+      <Attributes {editor} onreplace={() => replaceInput.click()} />
       <div class="view" class:off={!editor.scene}>
         <strong>View</strong>
         <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>
@@ -130,10 +139,22 @@
     bind:this={fileInput}
     type="file"
     accept=".svg,image/svg+xml"
+    multiple
+    hidden
+    onchange={async (e) => {
+      const input = e.currentTarget;
+      for (const f of Array.from(input.files ?? [])) await openFile(f);
+      input.value = '';
+    }}
+  />
+  <input
+    bind:this={replaceInput}
+    type="file"
+    accept=".svg,image/svg+xml"
     hidden
     onchange={(e) => {
       const f = e.currentTarget.files?.[0];
-      if (f) void openFile(f);
+      if (f) void replaceFile(f);
       e.currentTarget.value = '';
     }}
   />

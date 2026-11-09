@@ -1,8 +1,9 @@
 <script lang="ts">
   import { Button, IconButton, ParamControl, Section, Tabs } from '@svertik/ui';
   import { registry, type Editor } from './editor.svelte';
+  import NodeAttributes from './NodeAttributes.svelte';
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
   let tab = $state('Params');
   const m = $derived(editor.current);
   const def = $derived(m ? registry.get(m.type) : undefined);
@@ -55,9 +56,10 @@
         {/if}
       {/snippet}
     </Tabs>
+  {:else if editor.currentNode}
+    {#key editor.currentNode.id}<NodeAttributes {editor} node={editor.currentNode} {onreplace} />{/key}
   {:else if editor.scene}
-    <header><h2>{editor.name}</h2><span class="meta">source</span></header>
-    <p class="hint">Select a modifier in the stack to edit it.</p>
+    <p class="hint">Select an object or a modifier to edit it. Drop more SVGs to add objects.</p>
   {/if}
 </section>
 

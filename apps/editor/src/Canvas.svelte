@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { bounds, builtins, createEngine, renderInto, type Bounds, type Scene } from '@svertik/engine';
+  import { apply, builtins, createEngine, invert, renderInto, type NodeInfo, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, Icon } from '@svertik/ui';
-  import { registry, type Editor } from './editor.svelte';
+  import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
 
@@ -18,28 +18,26 @@
   let stage = $state<HTMLDivElement>();
   let renderError = $state<string | null>(null);
   let dropping = $state(false);
-  let size = $state<[number, number]>([0, 0]);
   let viewBox = $state<[number, number, number, number]>([0, 0, 1, 1]);
-  let sourceBounds = $state<Bounds | null>(null);
+  /** Información de cada nodo tras evaluar: caja de referencia, matriz al documento y caja final. */
+  let nodes = $state.raw<Map<string, NodeInfo>>(new Map());
 
   // ── Pintar
 
   $effect(() => {
     if (!editor.scene || !result) return;
-    const scene = $state.snapshot(editor.scene) as Scene;
-    // Mientras el script anima, se pinta su pila (sin tocar la escena guardada).
-    if (editor.preview) scene.stack = $state.snapshot(editor.preview) as Scene['stack'];
+    const scene = $state.snapshot(editor.scene) as SceneV2;
+    // Mientras el script anima, se pintan sus objetos (sin tocar la escena guardada).
+    if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     try {
-      const steps = engine.evaluateSteps(scene);
-      const last = steps.at(-1)!;
-      renderInto(result, last);
+      const doc = engine.evaluateDocument(scene);
+      renderInto(result, doc.geometry);
       if (ghost) {
-        renderInto(ghost, steps[0]!);
-        ghost.setAttribute('viewBox', last.viewBox.join(' '));
+        renderInto(ghost, doc.sources);
+        ghost.setAttribute('viewBox', doc.geometry.viewBox.join(' '));
       }
-      size = [steps[0]!.viewBox[2], steps[0]!.viewBox[3]];
-      viewBox = last.viewBox;
-      sourceBounds = bounds(steps[0]!);
+      viewBox = doc.geometry.viewBox;
+      nodes = doc.nodes;
       renderError = null;
     } catch (e) {
       renderError = e instanceof Error ? e.message : String(e);
@@ -62,12 +60,12 @@
   const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
   const percent = $derived(Math.round(fit * view.zoom * 100));
 
-  // Al cambiar de dibujo, se vuelve a encajar.
-  let lastSource = '';
+  // Al empezar una escena (o cambiar de documento), se vuelve a encajar.
+  let lastFirst = '';
   $effect(() => {
-    const src = editor.scene?.source ?? '';
-    if (src !== lastSource) {
-      lastSource = src;
+    const first = editor.scene?.objects[0]?.id ?? '';
+    if (first !== lastFirst) {
+      lastFirst = first;
       view = FIT;
     }
   });
@@ -112,7 +110,7 @@
     if (e.code === 'Space') space = false;
   }
   function pointerdown(e: PointerEvent) {
-    if (!(space || e.button === 1)) return;
+    if (!(space || e.button === 1)) return pick(e);
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
@@ -140,27 +138,94 @@
       .map(([name, s]) => ({ name, label: s.label ?? name }));
   });
 
-  const toScreen = (fx: number, fy: number): [number, number] | null => {
+  /** El nodo dueño del efecto seleccionado: su caja de referencia y su matriz al documento. */
+  const ownerInfo = () => (editor.activeNode ? nodes.get(editor.activeNode.id) : undefined);
+
+  /** Documento → píxeles del escenario (con el zoom y el encaje que haya). */
+  const docToStage = (x: number, y: number): [number, number] | null => {
     const ctm = result?.getScreenCTM();
-    const b = sourceBounds;
-    if (!ctm || !b || !stage) return null;
-    const p = new DOMPoint(b.x + fx * b.width, b.y + fy * b.height).matrixTransform(ctm);
+    if (!ctm || !stage) return null;
+    const p = new DOMPoint(x, y).matrixTransform(ctm);
     const r = stage.getBoundingClientRect();
     return [p.x - r.left, p.y - r.top];
   };
-  const toFraction = (clientX: number, clientY: number): [number, number] | null => {
+  const clientToDoc = (clientX: number, clientY: number): [number, number] | null => {
     const ctm = result?.getScreenCTM();
-    const b = sourceBounds;
-    if (!ctm || !b || b.width === 0 || b.height === 0) return null;
+    if (!ctm) return null;
     const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
-    const r = (n: number) => Math.round(n * 1000) / 1000;
-    return [r((p.x - b.x) / b.width), r((p.y - b.y) / b.height)];
+    return [p.x, p.y];
   };
+
+  const toScreen = (fx: number, fy: number): [number, number] | null => {
+    const info = ownerInfo();
+    if (!info) return null;
+    const b = info.bounds;
+    const [x, y] = apply(info.matrix, [b.x + fx * b.width, b.y + fy * b.height]);
+    return docToStage(x, y);
+  };
+  const toFraction = (clientX: number, clientY: number): [number, number] | null => {
+    const info = ownerInfo();
+    const d = clientToDoc(clientX, clientY);
+    if (!info || !d || info.bounds.width === 0 || info.bounds.height === 0) return null;
+    const [x, y] = apply(invert(info.matrix), d);
+    const b = info.bounds;
+    const r = (n: number) => Math.round(n * 1000) / 1000;
+    return [r((x - b.x) / b.width), r((y - b.y) / b.height)];
+  };
+
+  // ── Selección: recuadro del nodo seleccionado; clic para seleccionar y arrastrar para mover
+
+  let selection = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const node = editor.currentNode;
+    const frame = requestAnimationFrame(() => {
+      const info = node ? nodes.get(node.id) : undefined;
+      if (!info || info.box.width + info.box.height === 0) return (selection = null);
+      const a = docToStage(info.box.x, info.box.y);
+      const b = docToStage(info.box.x + info.box.width, info.box.y + info.box.height);
+      selection = a && b ? { x: a[0], y: a[1], w: b[0] - a[0], h: b[1] - a[1] } : null;
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function pick(e: PointerEvent) {
+    if (space || e.button !== 0 || !editor.scene) return;
+    const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
+    if (!id) {
+      editor.selected = null;
+      return;
+    }
+    e.preventDefault();
+    editor.selected = id;
+    // Arrastrar mueve el objeto (en las coordenadas de su grupo, si lo tiene).
+    const at = locateNode(editor.scene.objects, id);
+    if (!at) return;
+    const parentInfo = at.parent ? nodes.get(at.parent.id) : undefined;
+    const toParent = parentInfo ? invert(parentInfo.matrix) : null;
+    const start = clientToDoc(e.clientX, e.clientY);
+    const t0 = { x: at.node.transform?.x ?? 0, y: at.node.transform?.y ?? 0 };
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      const now = clientToDoc(ev.clientX, ev.clientY);
+      if (!start || !now) return;
+      let dx = now[0] - start[0];
+      let dy = now[1] - start[1];
+      if (toParent) [dx, dy] = [toParent[0] * dx + toParent[2] * dy, toParent[1] * dx + toParent[3] * dy];
+      const r = (n: number) => Math.round(n * 100) / 100;
+      editor.setNode(id, 'x', r(t0.x + dx));
+      editor.setNode(id, 'y', r(t0.y + dy));
+    };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  }
 
   // Se calculan después de pintar (con el zoom ya aplicado en el DOM), no antes.
   let handles = $state<Handle[]>([]);
   $effect(() => {
-    void view; void stageSize; void viewBox; void sourceBounds;
+    void view; void stageSize; void viewBox; void nodes;
     const m = editor.current;
     const values = handleParams.map(({ name }) => $state.snapshot(m?.params?.[name]) as [number, number] | undefined);
     const frame = requestAnimationFrame(() => {
@@ -202,8 +267,8 @@
   function drop(e: DragEvent) {
     e.preventDefault();
     dropping = false;
-    const file = e.dataTransfer?.files[0];
-    if (file) onfile(file);
+    // Varios archivos a la vez: un objeto por cada uno.
+    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg/i.test(file.type) || file.name.endsWith('.svg')) onfile(file);
   }
 </script>
 
@@ -225,6 +290,9 @@
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
       </div>
+      {#if selection}
+        <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
+      {/if}
       {#each handles as h (h.name)}
         <button
           type="button"
@@ -248,7 +316,7 @@
         <button type="button" onclick={() => (view = FIT)} title="Fit (⇧1)">Fit</button>
         <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
       </span>
-      <span class="muted">{size[0]} × {size[1]}</span>
+      <span class="muted">{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</span>
     </footer>
   {:else}
     <div class="drop">
@@ -304,6 +372,18 @@
   .handle[data-active]::after { display: block; }
   .handle:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
   .stage[data-space] .handle { pointer-events: none; }
+  .result :global(path[data-node]) { cursor: default; }
+  /* Recuadro del objeto o grupo seleccionado, con las esquinas marcadas. */
+  .selection {
+    position: absolute;
+    pointer-events: none;
+    outline: 1px solid var(--sv-accent-fill);
+    background:
+      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 0 0 / 5px 5px no-repeat,
+      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 100% 0 / 5px 5px no-repeat,
+      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 0 100% / 5px 5px no-repeat,
+      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 100% 100% / 5px 5px no-repeat;
+  }
   .ghost { opacity: 0.2; }
   .wire :global(path) {
     fill: none !important;
