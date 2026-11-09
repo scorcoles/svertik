@@ -92,3 +92,13 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 - 2026-11-09: monorepo (pnpm), motor con importación, render (SVG plano y en vivo), caché por pasos y seis modificadores: transform, spherize, twist, bend, wave y noise, con tests (Vitest). Demo `chain`.
 - 2026-11-09: design system en Penpot (tokens, fundamentos, componentes con variantes). `packages/ui`: Svelte 5 + Bits UI + Storybook 10, `tokens.css` generado desde `tokens/penpot.json` (`pnpm tokens`), componentes Button, NumberField (arrastre tipo C4D), Slider, Checkbox, Select, Tabs, Panel, ParamRow y StackItem. Historia `Editor/Live`: pila + atributos generados del esquema del motor + lienzo en vivo.
 - 2026-11-09: iconos de 16 px (Penpot y código), crack, pantallas del editor en Penpot (default, menú «+», vacío) y `apps/editor`: barra con efectos, lienzo (Original/Wire), pila con árbol y arrastre, atributos por esquema, deshacer/rehacer, escena en la URL, exportar SVG/JSON/código.
+- 2026-11-10: escena v2 (varios objetos y grupos con pila propia; el primero de la lista, delante), primitivas (barra vertical, dibujar arrastrando), 19 efectos en 4 grupos (Deform, Generate, Effect, Style) con dado (R), Step con efectos colgados, panel de código (JSON, JS con `onFrame` en un worker, SVG), zoom y tiradores en el lienzo con encuadre fijo, ojo, lápiz y desagrupar en la pila.
+
+## Siguiente
+
+1. Efectos entre objetos: Clone sobre el contorno o el interior de otro objeto; Boolean (unir, restar, intersectar) con librería de recorte de polígonos.
+2. Con esa librería: Glitch y Mosaic (el usuario pasará imágenes de referencia) y la cara trasera de Cylinder.
+3. Publicar: repo en GitHub, Pages y página en vertik.net.
+4. Fase 2: línea de tiempo con fotogramas clave y easing.
+5. Penpot va por detrás: falta la barra de primitivas y el lápiz en las pantallas del editor.
+6. Al final: pantallas estrechas.
