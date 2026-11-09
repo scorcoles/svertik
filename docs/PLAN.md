@@ -23,7 +23,7 @@ Como el motor solo necesita parámetros, animar (fase 2) consiste en cambiarlos 
 | Componentes | Propios, con Storybook, sobre primitivas sin estilo de **Bits UI** (confirmado). Tweakpane solo para depurar o en las demos. |
 | Orden | Motor primero, con una demo que se vea desde el principio (`apps/demos`, cadena sobre un rectángulo). |
 | Agrietar | Con librería de recorte de polígonos (`polygon-clipping` o `clipper2-js`) en vez de escribirlo a mano. |
-| Design system | En Penpot, a través de su MCP; los tokens pasan a variables CSS de `packages/ui`. |
+| Design system | En Penpot (archivo «Design System»), a través de su MCP; los tokens pasan a variables CSS de `packages/ui`. Tema **oscuro** de herramienta, **todo en JetBrains Mono**, acento **turquesa VERTIK** (#09fdd1, como relleno), densidad **compacta** (filas de 24 px, texto de 11 px), radio 0. Tokens en dos conjuntos: `primitives` y `theme/dark` (semánticos: surface, rule, text, accent, signal). |
 | Motor | TypeScript, sin dependencias salvo que alguna compense (ver «Pendiente»). |
 | Repo | Público, `scorcoles/svertik`, demos en GitHub Pages, como los experimentos del Lab. |
 
@@ -86,7 +86,6 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 ## Pendiente de decidir
 
 - **Salida de los deformadores:** curvas subdivididas tal cual (SVG más pesado) o reajustar curvas al final (más limpio, más trabajo). En la v1 van tal cual, con la resolución como parámetro de la escena.
-- **Penpot:** conectar su MCP y decidir cuándo se hace el design system.
 
 ## Hecho
 
