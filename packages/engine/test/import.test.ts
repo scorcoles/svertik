@@ -49,3 +49,18 @@ describe('importSVG', () => {
     for (const k of ['x', 'y', 'width', 'height'] as const) expect(bb[k]).toBeCloseTo(ba[k], 5);
   });
 });
+
+describe('hojas de estilo', () => {
+  it('aplica las reglas de <style> por clase, id y etiqueta (como Illustrator)', () => {
+    const geo = importSVG(
+      svg(
+        '<defs><style>.cls-1 { fill: #f40000; } #b { stroke: blue } rect.big, circle { opacity: .5 }</style></defs>' +
+          '<path class="cls-1" d="M0 0L1 1"/><rect id="b" class="big" width="1" height="1"/><circle r="1" fill="green" style="fill: pink"/>',
+      ),
+    );
+    expect(geo.shapes[0]!.style.fill).toBe('#f40000');
+    expect(geo.shapes[1]!.style).toMatchObject({ stroke: 'blue', opacity: '.5' });
+    // El atributo style manda sobre la hoja; la hoja, sobre el atributo suelto.
+    expect(geo.shapes[2]!.style.fill).toBe('pink');
+  });
+});

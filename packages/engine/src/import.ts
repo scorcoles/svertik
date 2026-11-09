@@ -25,8 +25,42 @@ const num = (el: Element, name: string, fallback = 0) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
+/** Reglas CSS sencillas de los <style> del SVG: por clase, id o etiqueta (como exporta Illustrator). */
+type Rule = { selector: string; decls: [string, string][] };
+
+function parseStyleSheets(root: Element): Rule[] {
+  const rules: Rule[] = [];
+  for (const el of Array.from(root.getElementsByTagName('style'))) {
+    const css = (el.textContent ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const decls = m[2]!
+        .split(';')
+        .map((d) => d.split(':').map((x) => x.trim()) as [string, string])
+        .filter(([k, v]) => k && v && (INHERITED.includes(k) || OWN.includes(k)));
+      for (const selector of m[1]!.split(',').map((s) => s.trim()).filter(Boolean)) rules.push({ selector, decls });
+    }
+  }
+  return rules;
+}
+
+/** ¿Encaja un selector simple (.a, #b, path, path.a, .a.b) con el elemento? */
+function matches(el: Element, selector: string): boolean {
+  const m = /^([a-zA-Z][\w-]*)?((?:[.#][\w-]+)*)$/.exec(selector);
+  if (!m) return false;
+  if (m[1] && el.localName !== m[1]) return false;
+  const classes = (el.getAttribute('class') ?? '').split(/\s+/);
+  for (const part of m[2]!.match(/[.#][\w-]+/g) ?? []) {
+    if (part[0] === '.' && !classes.includes(part.slice(1))) return false;
+    if (part[0] === '#' && el.getAttribute('id') !== part.slice(1)) return false;
+  }
+  return true;
+}
+
+let sheet: Rule[] = [];
+
 function readStyle(el: Element, inherited: Style): Style {
   const style: Style = { ...inherited };
+  // Orden de prioridad: atributos sueltos < hoja de estilo < atributo style.
   const fromAttr = (names: string[]) => {
     for (const n of names) {
       const v = el.getAttribute(n);
@@ -34,7 +68,8 @@ function readStyle(el: Element, inherited: Style): Style {
     }
   };
   fromAttr([...INHERITED, ...OWN]);
-  // El atributo style manda sobre los atributos sueltos.
+  for (const rule of sheet) if (matches(el, rule.selector)) for (const [k, v] of rule.decls) style[k] = v;
+  // El atributo style manda sobre los atributos sueltos y la hoja de estilo.
   for (const decl of (el.getAttribute('style') ?? '').split(';')) {
     const i = decl.indexOf(':');
     if (i < 0) continue;
@@ -180,6 +215,7 @@ export function importSVG(source: string): Geometry {
   const root = doc.documentElement;
   if (!root || root.localName !== 'svg') throw new Error('svertik: el origen no es un SVG');
 
+  sheet = parseStyleSheets(root);
   const shapes: Shape[] = [];
   const walk = (el: Element, transform: string, inherited: Style) => {
     const style = readStyle(el, inherited);
