@@ -19,7 +19,14 @@
   let stage = $state<HTMLDivElement>();
   let renderError = $state<string | null>(null);
   let dropping = $state(false);
+  /**
+   * Encuadre del lienzo, en coordenadas del documento. Se fija al abrir y con Fit (⇧1);
+   * mover o deformar no lo cambia, para que el lienzo no salte mientras se edita.
+   */
   let viewBox = $state<[number, number, number, number]>([0, 0, 1, 1]);
+  /** El viewBox que tendría el documento ahora (se ajusta al contenido): el que usa Fit. */
+  let docViewBox: [number, number, number, number] = [0, 0, 1, 1];
+  let framed = false;
   /** Información de cada nodo tras evaluar: caja de referencia, matriz al documento y caja final. */
   let nodes = $state.raw<Map<string, NodeInfo>>(new Map());
 
@@ -32,12 +39,17 @@
     if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     try {
       const doc = engine.evaluateDocument(scene);
+      docViewBox = doc.geometry.viewBox;
+      if (!framed) {
+        viewBox = docViewBox;
+        framed = true;
+      }
       renderInto(result, doc.geometry);
+      result.setAttribute('viewBox', viewBox.join(' '));
       if (ghost) {
         renderInto(ghost, doc.sources);
-        ghost.setAttribute('viewBox', doc.geometry.viewBox.join(' '));
+        ghost.setAttribute('viewBox', viewBox.join(' '));
       }
-      viewBox = doc.geometry.viewBox;
       nodes = doc.nodes;
       renderError = null;
     } catch (e) {
@@ -61,12 +73,19 @@
   const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
   const percent = $derived(Math.round(fit * view.zoom * 100));
 
+  /** Encajar: el encuadre pasa a ser el del contenido actual, sin zoom ni desplazamiento. */
+  function refit() {
+    viewBox = docViewBox;
+    view = FIT;
+  }
+
   // Al empezar una escena (o cambiar de documento), se vuelve a encajar.
   let lastFirst = '';
   $effect(() => {
     const first = editor.scene?.objects[0]?.id ?? '';
     if (first !== lastFirst) {
       lastFirst = first;
+      framed = false;
       view = FIT;
     }
   });
@@ -105,7 +124,7 @@
     if (typing(e) || !editor.scene) return;
     if (e.key === 'Escape' && editor.tool) { editor.tool = null; e.preventDefault(); }
     else if (e.code === 'Space' && !e.repeat) { space = true; e.preventDefault(); }
-    else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); view = FIT; }
+    else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
     else if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); view = actualSize(view, fit, box[0], box[1]); }
   }
   function keyup(e: KeyboardEvent) {
@@ -363,7 +382,7 @@
     <footer>
       <span class="pct" title="Zoom (wheel or pinch)">{percent}%</span>
       <span class="zoom">
-        <button type="button" onclick={() => (view = FIT)} title="Fit (⇧1)">Fit</button>
+        <button type="button" onclick={refit} title="Fit (⇧1)">Fit</button>
         <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
       </span>
       <span class="muted">{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</span>
