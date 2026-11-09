@@ -1,0 +1,56 @@
+/* Generado por scripts/tokens.mjs desde tokens/penpot.json. No editar a mano. */
+:root {
+  --sv-gray-100: #EDEDED;
+  --sv-gray-200: #D0D0D0;
+  --sv-gray-300: #A8A8A8;
+  --sv-gray-400: #808080;
+  --sv-gray-500: #5A5A5A;
+  --sv-gray-600: #3D3D3D;
+  --sv-gray-700: #2E2E2E;
+  --sv-gray-800: #232323;
+  --sv-gray-850: #1B1B1B;
+  --sv-gray-900: #141414;
+  --sv-gray-950: #0B0B0B;
+  --sv-turquesa-500: #09FDD1;
+  --sv-turquesa-900: #00211B;
+  --sv-turquesa-950: #0F2A26;
+  --sv-red-400: #FF6B5E;
+  --sv-space-2: 2px;
+  --sv-space-4: 4px;
+  --sv-space-6: 6px;
+  --sv-space-8: 8px;
+  --sv-space-12: 12px;
+  --sv-space-16: 16px;
+  --sv-space-24: 24px;
+  --sv-space-32: 32px;
+  --sv-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sv-font-size-10: 10px;
+  --sv-font-size-11: 11px;
+  --sv-font-size-12: 12px;
+  --sv-font-size-14: 14px;
+  --sv-font-weight-regular: 400;
+  --sv-font-weight-bold: 700;
+  --sv-radius-none: 0px;
+  --sv-border-1: 1px;
+  --sv-size-row: 24px;
+  --sv-size-icon: 16px;
+}
+
+:root,
+[data-sv-theme='dark'] {
+  --sv-surface-app: var(--sv-gray-900);
+  --sv-surface-panel: var(--sv-gray-850);
+  --sv-surface-field: var(--sv-gray-950);
+  --sv-surface-hover: var(--sv-gray-800);
+  --sv-surface-raised: var(--sv-gray-700);
+  --sv-rule-default: var(--sv-gray-700);
+  --sv-rule-strong: var(--sv-gray-600);
+  --sv-text-primary: var(--sv-gray-100);
+  --sv-text-secondary: var(--sv-gray-300);
+  --sv-text-muted: var(--sv-gray-400);
+  --sv-text-disabled: var(--sv-gray-500);
+  --sv-accent-fill: var(--sv-turquesa-500);
+  --sv-accent-on: var(--sv-turquesa-900);
+  --sv-accent-selection: var(--sv-turquesa-950);
+  --sv-signal-error: var(--sv-red-400);
+}
