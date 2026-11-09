@@ -1,9 +1,13 @@
 <script lang="ts">
   import Checkbox from './Checkbox.svelte';
+  import Icon from './Icon.svelte';
+  import type { IconName } from './icons';
 
   interface Props {
     label: string;
     kind?: 'object' | 'deformer' | 'generator';
+    /** Icono del efecto; por defecto, uno según el tipo. */
+    icon?: IconName;
     /** Nivel en el árbol: 0 para el objeto, 1 para sus modificadores… */
     depth?: number;
     /** Si tiene hijos: plegado o desplegado. Sin valor, no hay flecha. */
@@ -17,6 +21,7 @@
   let {
     label,
     kind = 'deformer',
+    icon = kind === 'object' ? 'object' : kind === 'generator' ? 'crack' : 'transform',
     depth = kind === 'object' ? 0 : 1,
     expanded,
     selected = false,
@@ -55,7 +60,7 @@
   {:else}
     <span class="chevron" aria-hidden="true"></span>
   {/if}
-  <span class="icon" aria-hidden="true"></span>
+  <span class="icon"><Icon name={icon} /></span>
   <span class="label">{label}</span>
   {#if kind !== 'object'}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -99,13 +104,11 @@
     border: 0;
     cursor: pointer;
   }
-  .icon { flex: none; width: 8px; height: 8px; border: var(--sv-border-1) solid var(--sv-text-secondary); }
-  [data-kind='object'] .icon { width: 10px; height: 10px; }
-  [data-kind='generator'] .icon { background: var(--sv-text-secondary); }
+  .icon { display: flex; color: var(--sv-text-secondary); }
+  [data-selected] .icon { color: var(--sv-accent-fill); }
   .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [data-disabled] .label { color: var(--sv-text-disabled); }
-  [data-disabled] .icon { border-color: var(--sv-text-disabled); }
-  [data-disabled][data-kind='generator'] .icon { background: var(--sv-text-disabled); }
+  [data-disabled] .icon { color: var(--sv-text-disabled); }
   /* El interruptor solo se ve al pasar, en la fila seleccionada, con foco o si está apagado. */
   .toggle { display: flex; visibility: hidden; }
   .sv-stack-item:hover .toggle,
