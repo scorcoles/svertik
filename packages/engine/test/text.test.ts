@@ -22,6 +22,11 @@ describe('texto', () => {
     expect(bounds(buildShape('text', { text: 'ab', size: 100, tracking: 500 })).width).toBeGreaterThan(one.width + 40);
   });
 
+  it('los contornos de las letras son cerrados (aunque la fuente no ponga la Z): los recortes funcionan', () => {
+    const geo = buildShape('text', { text: 'BO', size: 100 });
+    expect(geo.shapes.every((s) => s.subpaths.every((sp) => sp.closed))).toBe(true);
+  });
+
   it('una fuente que no está: se usa la primera registrada, y se sabe', () => {
     expect(fontFor('Nope')?.fallback).toBe(true);
     expect(buildShape('text', { text: 'a', font: 'Nope' }).shapes).toHaveLength(1);

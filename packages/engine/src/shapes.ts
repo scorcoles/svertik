@@ -180,13 +180,23 @@ export const pawn = defineShape({
   },
 });
 
-/** Contorno de un glifo (comandos M L Q C Z de opentype.js) como subtrazados de cúbicas. */
+/**
+ * Contorno de un glifo (comandos M L Q C Z de opentype.js) como subtrazados de cúbicas.
+ * Los contornos de una fuente siempre son cerrados, lleven o no la «Z» (muchas fuentes no la ponen).
+ */
 function glyphSubpaths(commands: { type: string; x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number }[]): SubPath[] {
   const out: SubPath[] = [];
   let cur: SubPath | null = null;
   let p0: Vec2 = [0, 0];
+  const close = () => {
+    if (!cur) return;
+    if (cur.segs.length && (Math.abs(p0[0] - cur.start[0]) > 1e-9 || Math.abs(p0[1] - cur.start[1]) > 1e-9)) cur.segs.push(line(p0, cur.start));
+    cur.closed = true;
+    cur = null;
+  };
   for (const c of commands) {
     if (c.type === 'M') {
+      close();
       cur = { start: [c.x!, c.y!], segs: [], closed: false };
       out.push(cur);
       p0 = [c.x!, c.y!];
@@ -201,12 +211,9 @@ function glyphSubpaths(commands: { type: string; x?: number; y?: number; x1?: nu
     } else if (c.type === 'C' && cur) {
       cur.segs.push({ c1: [c.x1!, c.y1!], c2: [c.x2!, c.y2!], p: [c.x!, c.y!] });
       p0 = [c.x!, c.y!];
-    } else if (c.type === 'Z' && cur) {
-      if (cur.segs.length && (p0[0] !== cur.start[0] || p0[1] !== cur.start[1])) cur.segs.push(line(p0, cur.start));
-      cur.closed = true;
-      p0 = cur.start;
-    }
+    } else if (c.type === 'Z') close();
   }
+  close();
   return out.filter((sp) => sp.segs.length);
 }
 
