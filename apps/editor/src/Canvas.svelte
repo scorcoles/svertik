@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { apply, builtins, buildShape, createEngine, invert, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { apply, builtins, buildShape, createEngine, invert, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, Icon } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -210,6 +210,59 @@
     return () => cancelAnimationFrame(frame);
   });
 
+  // ── Escalar y rotar desde el recuadro: esquinas para escalar (uniforme), justo fuera de ellas para rotar.
+  // Todo gira y escala alrededor del centro del nodo (su pivote), como en sus atributos.
+
+  type Corner = 'nw' | 'ne' | 'se' | 'sw';
+  const corners: Corner[] = ['nw', 'ne', 'se', 'sw'];
+  const cornerAt = (c: Corner, b: { x: number; y: number; w: number; h: number }) => ({
+    x: c === 'nw' || c === 'sw' ? b.x : b.x + b.w,
+    y: c === 'nw' || c === 'ne' ? b.y : b.y + b.h,
+  });
+  /** Lo que se está haciendo con el recuadro, para el rótulo junto al puntero. */
+  let gesture = $state<{ text: string; x: number; y: number } | null>(null);
+
+  function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate') {
+    const node = editor.currentNode;
+    const info = node ? nodes.get(node.id) : undefined;
+    if (!node || !info || !stage || space) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const b = info.bounds;
+    const pivot = docToStage(...apply(info.matrix, [b.x + b.width / 2, b.y + b.height / 2]));
+    if (!pivot) return;
+    const r = stage.getBoundingClientRect();
+    const at = (ev: PointerEvent) => [ev.clientX - r.left - pivot[0], ev.clientY - r.top - pivot[1]] as const;
+    const [x0, y0] = at(e);
+    const p0 = placementOf(node);
+    const d0 = Math.hypot(x0, y0) || 1;
+    const a0 = Math.atan2(y0, x0);
+    const move = (ev: PointerEvent) => {
+      const [x, y] = at(ev);
+      const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+      if (mode === 'scale') {
+        const k = Math.round(Math.max(0.01, (p0.scale * Math.hypot(x, y)) / d0) * 100) / 100;
+        editor.setNode(node.id, 'scale', k);
+        gesture = { text: `× ${k.toFixed(2)}`, ...label };
+      } else {
+        let deg = p0.rotation + ((Math.atan2(y, x) - a0) * 180) / Math.PI;
+        deg = ev.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
+        deg = ((((deg + 180) % 360) + 360) % 360) - 180;
+        editor.setNode(node.id, 'rotation', deg);
+        gesture = { text: `${deg}°`, ...label };
+      }
+    };
+    const up = () => {
+      gesture = null;
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  }
+
   // ── Dibujar primitivas: con una herramienta armada, arrastrar define tamaño y sitio.
   // Mientras se arrastra se ve la forma real (con su estilo por defecto), no un rectángulo.
 
@@ -380,7 +433,15 @@
       </div>
       {#if selection && !editor.tool}
         <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
+        {#each corners as c (c)}
+          {@const p = cornerAt(c, selection)}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Rotate (⇧ snaps to 15°)" onpointerdown={(e) => transformFrom(e, 'rotate')}></span>
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
+        {/each}
       {/if}
+      {#if gesture}<span class="gesture" style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
       {#each handles as h (h.name)}
         <button
           type="button"
@@ -465,16 +526,38 @@
   .handle:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
   .stage[data-space] .handle { pointer-events: none; }
   .result :global(path[data-node]) { cursor: default; }
-  /* Recuadro del objeto o grupo seleccionado, con las esquinas marcadas. */
-  .selection {
+  /* Recuadro del objeto o grupo seleccionado. */
+  .selection { position: absolute; pointer-events: none; outline: 1px solid var(--sv-accent-fill); }
+  /* Esquinas: escalar. Un poco más allá de cada una (la zona grande, debajo): rotar. */
+  .corner,
+  .rotate { position: absolute; translate: -50% -50%; }
+  .corner { width: 7px; height: 7px; background: var(--sv-accent-fill); }
+  .corner::before { content: ''; position: absolute; inset: -4px; }
+  .corner[data-corner='nw'],
+  .corner[data-corner='se'] { cursor: nwse-resize; }
+  .corner[data-corner='ne'],
+  .corner[data-corner='sw'] { cursor: nesw-resize; }
+  .rotate {
+    width: 28px;
+    height: 28px;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M4 11a6 6 0 1 0 2-5' fill='none' stroke='%23000' stroke-width='3'/%3E%3Cpath d='M4 11a6 6 0 1 0 2-5' fill='none' stroke='%23fff' stroke-width='1.2'/%3E%3Cpath d='M3 3v5h5' fill='none' stroke='%23000' stroke-width='3'/%3E%3Cpath d='M3 3v5h5' fill='none' stroke='%23fff' stroke-width='1.2'/%3E%3C/svg%3E") 10 10, alias;
+  }
+  /* La zona de rotar asoma hacia fuera del recuadro, no hacia dentro. */
+  .rotate[data-corner='nw'] { translate: -80% -80%; }
+  .rotate[data-corner='ne'] { translate: -20% -80%; }
+  .rotate[data-corner='se'] { translate: -20% -20%; }
+  .rotate[data-corner='sw'] { translate: -80% -20%; }
+  .stage[data-space] .corner,
+  .stage[data-space] .rotate { pointer-events: none; }
+  .gesture {
     position: absolute;
+    z-index: 2;
+    padding: 1px var(--sv-space-4);
     pointer-events: none;
-    outline: 1px solid var(--sv-accent-fill);
-    background:
-      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 0 0 / 5px 5px no-repeat,
-      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 100% 0 / 5px 5px no-repeat,
-      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 0 100% / 5px 5px no-repeat,
-      linear-gradient(var(--sv-accent-fill), var(--sv-accent-fill)) 100% 100% / 5px 5px no-repeat;
+    background: var(--sv-surface-panel);
+    color: var(--sv-text-primary);
+    font-size: var(--sv-font-size-10);
+    white-space: nowrap;
   }
   .ghost { opacity: 0.2; }
   .wire :global(path) {
