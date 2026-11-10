@@ -3,6 +3,7 @@
   // Las claves se arrastran (encajan en fotogramas); la seleccionada se borra con Supr.
   // Entre dos claves se dibuja la curva del tramo (el easing de la primera); al pulsarla se elige otra.
   import { Popover } from 'bits-ui';
+  import { tick } from 'svelte';
   import { EASES, ease, shapeRegistry, walkNodes, type Ease, type Track } from '@svertik/engine';
   import { Checkbox, IconButton, NumberField, Select } from '@svertik/ui';
   import { locateNode, locateModifier, registry, type Editor } from './editor.svelte';
@@ -13,14 +14,43 @@
   const duration = $derived(anim?.duration ?? 3);
   const fps = $derived(anim?.fps ?? 30);
   let area = $state<HTMLDivElement>();
-  let width = $state(400);
+  /** Ancho visible de las pistas (sin el margen de los lados). */
+  let visible = $state(400);
+  const SIDE = 12;
   $effect(() => {
     if (!area) return;
-    const ro = new ResizeObserver(([e]) => (width = e!.contentRect.width));
+    const ro = new ResizeObserver(([e]) => (visible = Math.max(50, e!.contentRect.width - 2 * SIDE)));
     ro.observe(area);
     return () => ro.disconnect();
   });
+  // ── Zoom: 1 = toda la duración a la vista; como mucho, un fotograma = 48 px.
+  let zoom = $state(1);
+  const maxZoom = $derived(Math.max(1, (48 * duration * fps) / visible));
+  const width = $derived(visible * zoom);
   const x = (t: number) => (t / duration) * width;
+  /** Cambia el zoom dejando quieto el instante que hay bajo `px` (px desde el borde visible de las pistas). */
+  async function zoomTo(next: number, px = visible / 2) {
+    if (!area) return;
+    const z = Math.min(maxZoom, Math.max(1, next));
+    const t = ((area.scrollLeft + px) / width) * duration;
+    zoom = z;
+    await tick();
+    area.scrollLeft = (t / duration) * visible * z - px;
+  }
+  function wheel(e: WheelEvent) {
+    // ⌘ o Ctrl + rueda, o pellizcar en el trackpad (llega igual): zoom hacia el puntero.
+    if (!(e.metaKey || e.ctrlKey) || !area) return;
+    e.preventDefault();
+    const r = area.getBoundingClientRect();
+    void zoomTo(zoom * Math.exp(-e.deltaY * 0.01), e.clientX - r.left - SIDE);
+  }
+  // Reproduciendo con zoom: si el cabezal se sale de la vista, la vista lo sigue.
+  $effect(() => {
+    const t = editor.time;
+    if (!editor.playing || !area || zoom === 1) return;
+    const hx = x(t);
+    if (hx < area.scrollLeft || hx > area.scrollLeft + visible) area.scrollLeft = hx - visible * 0.1;
+  });
   const snap = (t: number) => Math.round(t * fps) / fps;
 
   // ── Reproducir
@@ -143,10 +173,10 @@
   });
   const toggleFold = (id: string) => (folded = folded.includes(id) ? folded.filter((x) => x !== id) : [...folded, id]);
 
-  const ticks = $derived.by(() => {
-    const step = duration <= 2 ? 0.25 : duration <= 6 ? 0.5 : duration <= 20 ? 1 : 5;
-    return Array.from({ length: Math.floor(duration / step) + 1 }, (_, i) => i * step);
-  });
+  // Marcas de la regla: las que quepan (una cada 56 px o más), con su etiqueta.
+  const tickStep = $derived([1 / fps, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30].find((s) => (s / duration) * width >= 56) ?? 60);
+  const ticks = $derived(Array.from({ length: Math.floor(duration / tickStep + 1e-6) + 1 }, (_, i) => Math.round(i * tickStep * 1000) / 1000));
+  const tickLabel = (t: number) => (tickStep >= 1 ? `${t}s` : tickStep >= 0.1 ? `${t.toFixed(tickStep >= 0.25 ? 2 : 1).replace(/0$/, '')}s` : `${t.toFixed(2)}s`);
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -167,6 +197,13 @@
       <IconButton icon="trash" label="Delete keyframe (Del)" onclick={() => { editor.removeKey(selectedKey.tr.id, selectedKey.key.t); selected = null; }} />
     {/if}
     <span class="spacer"></span>
+    <!-- Zoom de la línea de tiempo (también ⌘ + rueda, o pellizcar, sobre las pistas). -->
+    <span class="zoom">
+      <IconButton icon="minus" label="Zoom out (⌘ + wheel)" disabled={zoom <= 1} onclick={() => zoomTo(zoom / 1.5)} />
+      <span class="pct">{Math.round(zoom * 100)}%</span>
+      <IconButton icon="plus" label="Zoom in (⌘ + wheel)" disabled={zoom >= maxZoom} onclick={() => zoomTo(zoom * 1.5)} />
+      <IconButton icon="fit-width" label="Fit the whole duration" disabled={zoom === 1} onclick={() => zoomTo(1)} />
+    </span>
     <IconButton icon="down" label="Close timeline" onclick={() => { editor.timelineOpen = false; editor.playing = false; }} />
   </header>
   <div class="body">
@@ -195,11 +232,12 @@
         {/if}
       {/each}
     </div>
-    <div class="lanes" bind:this={area}>
+    <div class="lanes" bind:this={area} onwheel={wheel}>
+      <div class="inner" style:width="{width}px">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="ruler" onpointerdown={scrub}>
         {#each ticks as t (t)}
-          <span class="tick" style:left="{x(t)}px">{Number.isInteger(t) ? `${t}s` : ''}</span>
+          <span class="tick" style:left="{x(t)}px">{tickLabel(t)}</span>
         {/each}
       </div>
       {#each groups as g (g.id)}
@@ -273,6 +311,7 @@
         <p class="empty">Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.</p>
       {/if}
       <span class="head" style:left="{x(editor.time)}px" aria-hidden="true"></span>
+      </div>
     </div>
   </div>
 </section>
@@ -306,7 +345,10 @@
   .label .x { position: absolute; right: 4px; padding: 0 4px; font: inherit; color: var(--sv-text-muted); background: var(--sv-surface-panel); border: 0; cursor: pointer; visibility: hidden; }
   .label:hover .x { visibility: visible; }
   .label .x:hover { color: var(--sv-signal-error); }
-  .lanes { position: relative; min-width: 0; margin: 0 var(--sv-space-12); }
+  .lanes { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .inner { position: relative; margin: 0 12px; }
+  .zoom { display: flex; align-items: center; gap: 2px; }
+  .zoom .pct { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .ruler { position: relative; cursor: ew-resize; }
   .tick { position: absolute; top: 0; bottom: 0; padding-left: 3px; border-left: 1px solid var(--sv-rule-strong); font-size: var(--sv-font-size-10); color: var(--sv-text-muted); line-height: 20px; }
   .lane { position: relative; cursor: ew-resize; }
