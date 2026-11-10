@@ -2,6 +2,7 @@
 
 import { bounds, mapPoints, type Bounds, type Geometry, type Shape } from './geometry';
 import { importSVG } from './import';
+import { fontsVersion } from './fonts';
 import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
@@ -196,7 +197,8 @@ export function createDocumentEvaluator(
         seen.add(node.id);
         const p = placementOf(node);
         if (node.kind === 'object' || node.kind === 'shape') {
-          const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params]);
+          // El texto depende de las fuentes registradas: si llega una nueva, se vuelve a dibujar.
+          const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
           if (!entry || entry.key !== key || entry.dynamic) {
             const source = entry && entry.key === key ? entry.source : node.kind === 'object' ? importSVG(node.source) : buildShape(node.shape, node.params);

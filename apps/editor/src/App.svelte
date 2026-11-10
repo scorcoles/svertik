@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { builtins, createEngine, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, hasFont, walkNodes, type SceneV2 } from '@svertik/engine';
+  import { BUNDLED, ensureFont, loadBundled } from './fonts';
   import { Checkbox, ColorField } from '@svertik/ui';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
@@ -115,7 +116,29 @@
   }
 
   onMount(() => {
-    void editor.loadFromURL();
+    void (async () => {
+      await loadBundled();
+      editor.fonts = Object.keys(BUNDLED);
+      editor.fontsTick++;
+      await editor.loadFromURL();
+    })();
+  });
+
+  // Las fuentes que usan los textos de la escena: si alguna es del sistema y ya hay permiso, se lee.
+  $effect(() => {
+    if (!editor.scene) return;
+    const wanted = new Set<string>();
+    for (const { node } of walkNodes(editor.scene.objects)) if (node.kind === 'shape' && node.shape === 'text') wanted.add(String(node.params.font ?? 'JetBrains Mono'));
+    for (const name of wanted) if (!hasFont(name)) void ensureFont(name).then((ok) => ok && editor.fontsTick++);
+  });
+
+  // Avisos del editor (al importar un SVG con texto, por ejemplo): un rato más que los normales.
+  $effect(() => {
+    const n = editor.notice;
+    if (!n) return;
+    toast = n;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => ((toast = null), (editor.notice = null)), 5000);
   });
 </script>
 
@@ -230,6 +253,7 @@
     font-size: var(--sv-font-size-10);
   }
   .toast {
+    max-width: min(560px, 90vw);
     position: fixed;
     left: 50%;
     bottom: var(--sv-space-16);

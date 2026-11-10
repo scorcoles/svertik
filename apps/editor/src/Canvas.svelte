@@ -40,6 +40,7 @@
 
   $effect(() => {
     if (!editor.scene || !result) return;
+    void editor.fontsTick; // al llegar una fuente, el texto se vuelve a dibujar
     const scene = $state.snapshot(editor.scene) as SceneV2;
     // Mientras el script anima, se pintan sus objetos (sin tocar la escena guardada).
     if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
@@ -376,6 +377,8 @@
           ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
           : type === 'pawn'
             ? { height: r2(Math.max(Math.abs(dy), Math.abs(dx) * (200 / 120))) }
+            : type === 'text'
+              ? { size: r2(Math.abs(dy)) }
             : { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2) };
     return { params, center };
   }

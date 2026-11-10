@@ -17,8 +17,10 @@
     nodes?: { id: string; label: string }[];
     /** Colores del documento (muestras del selector de color). */
     swatches?: string[];
+    /** Fuentes disponibles (parámetros `font`). */
+    fonts?: string[];
   }
-  let { params, values, onchange, nodes, swatches }: Props = $props();
+  let { params, values, onchange, nodes, swatches, fonts }: Props = $props();
 
   type Item = { name: string; spec: ParamSpec; color?: string; pair?: { name: string; spec: ParamSpec } };
   // Parejas enlazadas (ancho ↔ alto), por nombre del primero.
@@ -76,7 +78,7 @@
       </span>
     </div>
   {:else}
-    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {swatches} onchange={(v) => onchange(it.name, v)} />
+    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {swatches} {fonts} onchange={(v) => onchange(it.name, v)} />
   {/if}
 {/each}
 
