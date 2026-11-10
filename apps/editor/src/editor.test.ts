@@ -383,3 +383,22 @@ describe('presets de animación', () => {
     expect(e.timelineOpen).toBe(true);
   });
 });
+
+describe('proyecto .svrtk', () => {
+  it('guardar y volver a abrir deja el documento igual (y vale el JSON de la escena a secas)', () => {
+    const e = fresh();
+    e.add('wave');
+    e.setName('mi-proyecto');
+    const id = e.scene!.objects[0]!.id;
+    e.toggleKey({ node: id, on: 'node', param: 'rotation' });
+    const file = e.projectFile()!;
+    const other = new Editor();
+    expect(other.openProject(file)).toBe(true);
+    expect(other.name).toBe('mi-proyecto');
+    // Igual salvo lo que escribe el instante actual (el giro animado queda como 0 explícito).
+    expect(JSON.stringify(other.scene!.animation)).toBe(JSON.stringify(e.scene!.animation));
+    expect(other.scene!.objects.map((n) => [n.id, n.name, n.stack.map((m) => m.type)])).toEqual(e.scene!.objects.map((n) => [n.id, n.name, n.stack.map((m) => m.type)]));
+    expect(new Editor().openProject(JSON.stringify(e.scene))).toBe(true);
+    expect(new Editor().openProject('hola')).toBe(false);
+  });
+});

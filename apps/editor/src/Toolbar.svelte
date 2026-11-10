@@ -6,11 +6,12 @@
   interface Props {
     editor: Editor;
     onimport: () => void;
+    onsave: () => void;
     oncopyjson: () => void;
     oncopycode: () => void;
     onexport: () => void;
   }
-  let { editor, onimport, oncopyjson, oncopycode, onexport }: Props = $props();
+  let { editor, onimport, onsave, oncopyjson, oncopycode, onexport }: Props = $props();
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);
   // Los efectos, por grupos: la barra no crece aunque crezca el catálogo.
   const groups = [
@@ -24,6 +25,7 @@
 <header class="toolbar">
   <div class="doc">
     <strong>svertik</strong>
+    <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
       <input
@@ -43,7 +45,8 @@
     {/if}
   </div>
   <span class="rule" aria-hidden="true"></span>
-  <IconButton icon="import" label="Import SVG (⌘O)" onclick={onimport} />
+  <IconButton icon="import" label="Open project or import SVG (⌘O)" onclick={onimport} />
+  <IconButton icon="save" label="Save project (⌘S)" disabled={!editor.scene} onclick={onsave} />
   <IconButton icon="undo" label="Undo (⌘Z)" disabled={!editor.canUndo} onclick={() => editor.undo()} />
   <IconButton icon="redo" label="Redo (⇧⌘Z)" disabled={!editor.canRedo} onclick={() => editor.redo()} />
   <span class="rule" aria-hidden="true"></span>
@@ -71,6 +74,15 @@
   }
   .doc { display: flex; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: 0; }
   .doc strong { font-size: var(--sv-font-size-12); }
+  .alpha {
+    align-self: center;
+    padding: 1px 4px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sv-surface-app);
+    background: var(--sv-accent-fill);
+  }
   .slash { color: var(--sv-text-disabled); }
   .name {
     max-width: 240px;

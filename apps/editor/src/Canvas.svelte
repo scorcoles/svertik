@@ -628,7 +628,7 @@
     e.preventDefault();
     dropping = false;
     // Varios archivos a la vez: un objeto por cada uno.
-    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg/i.test(file.type) || file.name.endsWith('.svg')) onfile(file);
+    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg|json/i.test(file.type) || /\.(svg|svrtk|json)$/i.test(file.name)) onfile(file);
   }
 </script>
 
@@ -822,7 +822,7 @@
   {:else}
     <div class="drop">
       <Icon name="import" />
-      <strong>Drop an SVG here</strong>
+      <strong>Drop an SVG or a .svrtk project here</strong>
       <span class="muted">or paste it (⌘V)</span>
       <Button label="Choose file…" onclick={onimport} />
       <span class="samples muted">

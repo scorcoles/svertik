@@ -955,6 +955,43 @@ export class Editor {
     if (this.canRedo) this.#restore(this.#index + 1);
   }
 
+  // ── Proyecto: todo en un archivo (.svrtk) para guardarlo y volver a abrirlo
+
+  /** El proyecto entero como texto: objetos (con sus SVG), pilas, animación, script, nombre y lienzo. */
+  projectFile(): string | null {
+    if (!this.scene) return null;
+    return JSON.stringify(
+      { svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script, scene: $state.snapshot(this.scene) },
+      null,
+      2,
+    );
+  }
+
+  /** Abre un proyecto guardado. Devuelve false si el texto no es un proyecto de svertik. */
+  openProject(text: string): boolean {
+    let data: { svertik?: string; name?: string; canvas?: string; script?: string; scene?: AnyScene };
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return false;
+    }
+    // También vale el JSON de la escena a secas («Copy JSON»).
+    const scene = data?.svertik === 'project' ? data.scene : (data as unknown as AnyScene);
+    if (!scene || (scene.version !== 1 && scene.version !== 2)) return false;
+    this.scene = migrateScene(scene);
+    this.name = data.name ?? 'untitled';
+    if (data.canvas) this.canvas = data.canvas;
+    this.script = data.script ?? DEFAULT_SCRIPT;
+    this.selected = this.scene.objects[0]?.id ?? null;
+    this.time = 0;
+    this.playing = false;
+    this.#history = [];
+    this.#index = -1;
+    this.#applyTime();
+    this.record(true);
+    return true;
+  }
+
   // ── URL
 
   async saveToURL() {
