@@ -193,6 +193,237 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
   },
 };
 
+// ── El resto de deformadores
+
+const center = (b: Bounds): Vec2 => [b.x + b.width / 2, b.y + b.height / 2];
+const boxLine = (b: Bounds): GizmoLine => ({ pts: [[b.x, b.y], [b.x + b.width, b.y], [b.x + b.width, b.y + b.height], [b.x, b.y + b.height]], closed: true, dashed: true });
+const clamp = (n: number, a: number, z: number) => Math.max(a, Math.min(z, n));
+const range = (n: number, f: (t: number) => Vec2) => Array.from({ length: n + 1 }, (_, i) => f(i / n));
+
+Object.assign(builders, {
+  bend(p: Params, b: Bounds): Gizmo {
+    // El eje del dibujo, doblado como lo dobla el efecto; el tirador, en su extremo.
+    const horizontal = p.axis !== 'vertical';
+    const L = horizontal ? b.width : b.height;
+    const theta = rad(Number(p.angle) || 0);
+    const [cx, cy] = center(b);
+    const R = Math.abs(theta) < 1e-6 ? Infinity : L / theta;
+    const bendAt = (u: number): Vec2 => {
+      const nu = R === Infinity ? u : R * Math.sin(u / R);
+      const nv = R === Infinity ? 0 : R - R * Math.cos(u / R);
+      return horizontal ? [cx + nu, cy + nv] : [cx - nv, cy + nu];
+    };
+    const axis = range(48, (t) => bendAt((t - 0.5) * L));
+    const straight: Vec2[] = horizontal ? [[b.x, cy], [b.x + b.width, cy]] : [[cx, b.y], [cx, b.y + b.height]];
+    return {
+      lines: [{ pts: straight, dashed: true }, { pts: axis }],
+      handles: [
+        {
+          at: axis[axis.length - 1]!,
+          label: 'Angle',
+          // Lo que se aparta el extremo del eje recto, en proporción a su longitud: 180° por cada mitad.
+          drag: (p0, from, to, snap) => {
+            const d = horizontal ? to[1] - from[1] : from[0] - to[0];
+            return { angle: snapDeg(Number(p0.angle) + (d / (L / 2)) * 90, snap) };
+          },
+        },
+      ],
+    };
+  },
+
+  ripple(p: Params, b: Bounds): Gizmo {
+    const c = at(b, p.center);
+    const size = sizeOf(b);
+    const L = Math.max(0.02, Number(p.wavelength)) * size;
+    const rings: GizmoLine[] = [];
+    for (let r = L, i = 0; r < size * 0.75 && i < 12; r += L, i++) rings.push({ pts: ellipse(c, r, r), closed: true, dashed: i > 0 });
+    return {
+      lines: rings,
+      handles: [{ at: [c[0] + L, c[1]], label: 'Wavelength', drag: (_p0, _f, to) => ({ wavelength: round(clamp(Math.hypot(to[0] - c[0], to[1] - c[1]) / size, 0.02, 1), 100) }) }],
+    };
+  },
+
+  taper(p: Params, b: Bounds): Gizmo {
+    // El contorno de la caja estrechado como el dibujo: lados curvos si hay curva.
+    const vertical = p.axis !== 'horizontal';
+    const [cx, cy] = center(b);
+    const amount = Number(p.amount) || 0;
+    const curve = Number(p.curve) || 0;
+    const f = (t: number) => Math.max(0, 1 - amount * (curve === 0 ? t : Math.pow(t, Math.pow(2, -curve * 2))));
+    const side = (s: 1 | -1) =>
+      range(32, (t) => (vertical ? [cx + s * (b.width / 2) * f(t), b.y + t * b.height] : [b.x + t * b.width, cy + s * (b.height / 2) * f(t)]));
+    const a = side(1), z = side(-1).reverse();
+    const end = a[a.length - 1]!;
+    return {
+      lines: [{ pts: [...a, ...z], closed: true }],
+      handles: [
+        {
+          at: end,
+          label: 'Amount',
+          drag: (p0, from, to) => {
+            const half = (vertical ? b.width : b.height) / 2 || 1;
+            const d = vertical ? to[0] - from[0] : to[1] - from[1];
+            return { amount: round(clamp(Number(p0.amount) - d / half, -1, 1), 100) };
+          },
+        },
+      ],
+    };
+  },
+
+  shear(p: Params, b: Bounds): Gizmo {
+    const [cx, cy] = center(b);
+    const tx = Math.tan(rad(clamp(Number(p.x) || 0, -85, 85)));
+    const ty = Math.tan(rad(clamp(Number(p.y) || 0, -85, 85)));
+    const m = ([x, y]: Vec2): Vec2 => [x + tx * (y - cy), y + ty * (x - cx)];
+    const quad = boxLine(b).pts.map(m);
+    const bottom = m([cx, b.y + b.height]);
+    const right = m([b.x + b.width, cy]);
+    return {
+      lines: [boxLine(b), { pts: quad, closed: true }],
+      handles: [
+        { at: bottom, label: 'Shear X', drag: (_p0, _f, to, snap) => ({ x: snapDeg(deg(Math.atan((to[0] - cx) / (b.height / 2 || 1))), snap) }) },
+        { at: right, label: 'Shear Y', drag: (_p0, _f, to, snap) => ({ y: snapDeg(deg(Math.atan((to[1] - cy) / (b.width / 2 || 1))), snap) }) },
+      ],
+    };
+  },
+
+  perspective(p: Params, b: Bounds): Gizmo {
+    // Las cuatro esquinas ya tienen tirador (son puntos): aquí, el cuadrilátero que forman.
+    return { lines: [boxLine(b), { pts: [at(b, p.topLeft), at(b, p.topRight), at(b, p.bottomRight), at(b, p.bottomLeft)], closed: true }], handles: [] };
+  },
+
+  envelope(p: Params, b: Bounds): Gizmo {
+    // La malla: líneas de la superficie a u, v = 0, ½, 1 (los nueve puntos tienen su propio tirador).
+    const names = ['p00', 'p10', 'p20', 'p01', 'p11', 'p21', 'p02', 'p12', 'p22'];
+    const P = names.map((n, i) => at(b, p[n] ?? [(i % 3) / 2, Math.floor(i / 3) / 2]));
+    const bern = (t: number) => [(1 - t) * (1 - t), 2 * t * (1 - t), t * t];
+    const surf = (u: number, v: number): Vec2 => {
+      const bu = bern(u), bv = bern(v);
+      let x = 0, y = 0;
+      for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+        const w = bu[i]! * bv[j]!;
+        x += w * P[j * 3 + i]![0];
+        y += w * P[j * 3 + i]![1];
+      }
+      return [x, y];
+    };
+    const lines: GizmoLine[] = [];
+    for (const k of [0, 0.5, 1]) {
+      lines.push({ pts: range(24, (t) => surf(t, k)), dashed: k === 0.5 });
+      lines.push({ pts: range(24, (t) => surf(k, t)), dashed: k === 0.5 });
+    }
+    return { lines, handles: [] };
+  },
+
+  cylinder(p: Params, b: Bounds): Gizmo {
+    // El cilindro en el que se enrolla: tapas (elipses) y laterales; el tirador del lateral cambia `wrap`.
+    const W = b.width || 1;
+    const R = W / (2 * Math.PI * Math.max(0.01, Number(p.wrap)));
+    const [cx] = center(b);
+    const k = 0.2;
+    const top = b.y, bot = b.y + b.height;
+    return {
+      lines: [
+        { pts: ellipse([cx, top], R, R * k), closed: true },
+        { pts: ellipse([cx, bot], R, R * k, 0, 0, Math.PI) },
+        { pts: ellipse([cx, bot], R, R * k, 0, Math.PI, Math.PI * 2), dashed: true },
+        { pts: [[cx - R, top], [cx - R, bot]] },
+        { pts: [[cx + R, top], [cx + R, bot]] },
+      ],
+      handles: [
+        { at: [cx + R, (top + bot) / 2], label: 'Wrap', drag: (_p0, _f, to) => ({ wrap: round(clamp(W / (2 * Math.PI * Math.max(1e-6, Math.abs(to[0] - cx))), 0.01, 1), 100) }) },
+      ],
+    };
+  },
+
+  transform(p: Params, b: Bounds): Gizmo {
+    // Un aro alrededor del pivote, ya movido, girado y escalado: arrastrar el aro mueve; su tirador gira y escala
+    // a la vez. El pivote (punto) tiene su propio tirador.
+    const pv = at(b, p.pivot);
+    const x = Number(p.x) || 0, y = Number(p.y) || 0, s = Number(p.scale ?? 1), r = Number(p.rotation) || 0;
+    const c: Vec2 = [pv[0] + x, pv[1] + y];
+    const R0 = sizeOf(b) * 0.25;
+    const R = R0 * s;
+    const knob: Vec2 = [c[0] + Math.cos(rad(r)) * R, c[1] + Math.sin(rad(r)) * R];
+    return {
+      lines: [
+        { pts: ellipse(c, R, R), closed: true, label: 'Move', drag: (p0, from, to) => ({ x: Math.round(Number(p0.x ?? 0) + to[0] - from[0]), y: Math.round(Number(p0.y ?? 0) + to[1] - from[1]) }) },
+        { pts: [c, knob] },
+      ],
+      handles: [
+        {
+          at: knob,
+          label: 'Rotate · scale',
+          drag: (p0, from, to, snap) => {
+            const d0 = Math.hypot(from[0] - c[0], from[1] - c[1]) || 1;
+            return {
+              rotation: snapDeg(Number(p0.rotation ?? 0) + turn(c, from, to), snap),
+              scale: round(Math.max(0, (Number(p0.scale ?? 1) * Math.hypot(to[0] - c[0], to[1] - c[1])) / d0), 100),
+            };
+          },
+        },
+      ],
+    };
+  },
+
+  clone(p: Params, b: Bounds): Gizmo {
+    const c = center(b);
+    const W = b.width, H = b.height, size = sizeOf(b);
+    if (p.mode === 'radial') {
+      const R = Number(p.radius) * size;
+      const a = rad(Number(p.startAngle) || 0);
+      return {
+        lines: [{ pts: ellipse(c, R, R), closed: true, dashed: true }],
+        handles: [
+          {
+            at: [c[0] + Math.cos(a) * R, c[1] + Math.sin(a) * R],
+            label: 'Radius · start',
+            drag: (p0, from, to, snap) => ({
+              radius: round(clamp(Math.hypot(to[0] - c[0], to[1] - c[1]) / size, 0, 5), 100),
+              startAngle: snapDeg(Number(p0.startAngle ?? 0) + turn(c, from, to), snap),
+            }),
+          },
+        ],
+      };
+    }
+    if (p.mode === 'linear') {
+      const n = Math.max(1, Math.round(Number(p.count)));
+      const [ox, oy] = (p.offset as Vec2) ?? [1.1, 0];
+      const t = (n - 1) / 2;
+      const last: Vec2 = [c[0] + t * ox * W, c[1] + t * oy * H];
+      const first: Vec2 = [c[0] - t * ox * W, c[1] - t * oy * H];
+      return {
+        lines: [{ pts: [first, last], dashed: true }],
+        handles: n > 1 ? [{ at: last, label: 'Offset', drag: (_p0, _f, to) => ({ offset: [round((to[0] - c[0]) / t / (W || 1), 100), round((to[1] - c[1]) / t / (H || 1), 100)] }) }] : [],
+      };
+    }
+    // Rejilla: la caja que ocupan los centros de las copias; el tirador de la esquina reparte la separación.
+    const cols = Math.max(1, Math.round(Number(p.columns))), rows = Math.max(1, Math.round(Number(p.rows)));
+    const [sx, sy] = (p.spacing as Vec2) ?? [1.1, 1.1];
+    const hx = ((cols - 1) / 2) * sx * W, hy = ((rows - 1) / 2) * sy * H;
+    const corner: Vec2 = [c[0] + hx, c[1] + hy];
+    return {
+      lines: [{ pts: [[c[0] - hx, c[1] - hy], [c[0] + hx, c[1] - hy], corner, [c[0] - hx, c[1] + hy]], closed: true, dashed: true }],
+      handles:
+        cols > 1 || rows > 1
+          ? [{
+              at: corner,
+              label: 'Spacing',
+              drag: (p0, _f, to) => {
+                const [s0x, s0y] = (p0.spacing as Vec2) ?? [1.1, 1.1];
+                return {
+                  spacing: [
+                    cols > 1 ? round(Math.max(0, (to[0] - c[0]) / (((cols - 1) / 2) * (W || 1))), 100) : s0x,
+                    rows > 1 ? round(Math.max(0, (to[1] - c[1]) / (((rows - 1) / 2) * (H || 1))), 100) : s0y,
+                  ],
+                };
+              },
+            }]
+          : [],
+    };
+  },
+} satisfies Record<string, (p: Params, b: Bounds) => Gizmo>);
+
 export function gizmoFor(type: string, params: Params, bounds: Bounds): Gizmo | null {
   const build = builders[type];
   return build && bounds.width + bounds.height > 0 ? build(params, bounds) : null;
