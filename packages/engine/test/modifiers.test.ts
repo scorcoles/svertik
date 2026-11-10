@@ -894,6 +894,10 @@ describe('rgb split', () => {
     expect(geo.shapes[0]!.style.fill).toBe('#fff');
     expect(geo.shapes.at(-1)!.style['mix-blend-mode']).toBe('screen');
   });
+  it('sin el original: solo las dos copias', () => {
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 5, original: false } }] });
+    expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#00e5ff', '#00e5ff', '#ff2bd6', '#ff2bd6']);
+  });
   it('dentro de Step, cada elemento con su distancia (la 2.ª, el doble)', () => {
     const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 's', type: 'step', children: [{ id: 'r', type: 'rgbsplit', params: { distance: 4 } }] }] });
     const cyan = geo.shapes.filter((s) => s.style.fill === '#00e5ff').map(xOf);
@@ -929,7 +933,7 @@ describe('rgb split con efectos dentro (solo a las copias)', () => {
   });
   it('detrás de RGB Split, otro efecto no pierde el filtro de las copias', () => {
     const s = scene([{ id: 'b', type: 'blur', params: { amount: 3 } }]);
-    s.objects[0]!.stack.push({ id: 'w', type: 'wave', children: undefined as never, params: { amplitude: 0.02 } });
+    s.objects[0]!.stack.push({ id: 'w', type: 'wave', children: undefined as never, params: { amplitude: 0.02 } as never });
     expect(Object.keys(createEngine(builtins).evaluateDocument(s).geometry.filters ?? {})).toHaveLength(1);
   });
 });

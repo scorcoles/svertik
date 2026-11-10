@@ -370,6 +370,7 @@ const move = (m: MultiPolygon, dx: number, dy: number): MultiPolygon => m.map((p
  * dibujo, con su modo de fusión (screen o multiply mezclan los colores donde se cruzan).
  * Lo que va dentro de RGB Split (como en Step) se aplica solo a las copias: Blur o Glow las desenfocan,
  * Transform o Step las mueven, un Glitch las rompe… El dibujo se queda como está.
+ * Sin Original, el dibujo desaparece y solo quedan las copias.
  */
 export const rgbsplit = defineModifier({
   type: 'rgbsplit',
@@ -383,9 +384,10 @@ export const rgbsplit = defineModifier({
     colorB: { type: 'color', default: '#ff2bd6', label: 'Color B' },
     layer: { type: 'enum', default: 'behind', options: ['behind', 'front'] as const, label: 'Layer', animatable: false },
     blend: { type: 'enum', default: 'normal', options: BLEND_MODES, label: 'Blend', animatable: false },
+    original: { type: 'boolean', default: true, label: 'Original' },
   },
   apply(geo, p, ctx) {
-    if (!(p.distance > 0)) return geo;
+    if (!(p.distance > 0) && p.original) return geo;
     const a = deg(p.angle);
     const [dx, dy] = [Math.cos(a) * p.distance, Math.sin(a) * p.distance];
     const paint = (v: string | undefined, color: string) => (v && v !== 'none' ? color : v);
@@ -420,7 +422,9 @@ export const rgbsplit = defineModifier({
       copies = { ...copies, shapes: copies.shapes.map((s) => ({ ...s, wrap: [...(s.wrap ?? []), `@${key}`] })) };
       inner = { ...inner, ...copies.inner, [key]: { chain, ref: bounds(copies) } };
     } else if (copies.inner) inner = { ...inner, ...copies.inner };
-    const shapes = p.layer === 'front' ? [...geo.shapes, ...copies.shapes] : [...copies.shapes, ...geo.shapes];
+    // Sin el original: solo las copias.
+    const base = p.original ? geo.shapes : [];
+    const shapes = p.layer === 'front' ? [...base, ...copies.shapes] : [...copies.shapes, ...base];
     return { viewBox: geo.viewBox, shapes, ...(inner ? { inner } : {}) };
   },
 });
