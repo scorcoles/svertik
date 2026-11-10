@@ -246,8 +246,9 @@ export const scanlines = defineModifier({
 });
 
 /**
- * Rayas que se escapan por los lados, saliendo del borde real de la forma. Con Bite, cada una deja su
- * bocado: un hueco del mismo grosor que entra desde ese borde (lo que sale fuera falta dentro).
+ * Rayas que se escapan por los lados, saliendo del borde real de la forma. Con Bite, como si la franja
+ * se hubiera corrido: lo que asoma por un lado falta por el otro, a la misma altura. Bite es el tamaño
+ * de ese hueco frente a la raya: 0, sin hueco; 1, igual; menos, más pequeño; más, más grande.
  */
 export const streaks = defineModifier({
   type: 'streaks',
@@ -258,7 +259,7 @@ export const streaks = defineModifier({
     count: { type: 'number', default: 6, min: 1, max: 40, step: 1, ramp: false, label: 'Count' },
     length: { type: 'number', default: 0.15, min: 0.01, max: 1, step: 0.01, unit: 'fraction', label: 'Length' },
     width: { type: 'number', default: 1.5, min: 0.25, max: 10, step: 0.25, unit: 'px', label: 'Width' },
-    bite: { type: 'number', default: 0.5, min: 0, max: 2, step: 0.05, label: 'Bite' },
+    bite: { type: 'number', default: 1, min: 0, max: 2, step: 0.05, label: 'Bite' },
     seed: { type: 'seed', default: 1 },
   },
   apply(geo, p, ctx) {
@@ -288,15 +289,16 @@ export const streaks = defineModifier({
       }
       const len = p.length * size * (0.4 + rand());
       const left = rand() < 0.5;
-      const deep = p.bite * len * (0.6 + rand() * 0.8);
       if (!span) continue;
+      const deep = Math.max(0, p.bite) * len;
       const edge = left ? span[0] : span[1];
-      // Sin bocado, la raya se mete un poco en la forma (para que se vea pegada); con bocado, sale del borde.
+      // Sin hueco, la raya se mete un poco en la forma (para que se vea pegada); con hueco, sale del borde.
       const inside = deep > 0 ? 0 : len * 0.3;
       const x0 = left ? edge - len + inside : edge - inside;
       const sp = toSubPath(rect(x0, y, len, p.width));
       if (sp) bars.push({ subpaths: [sp], style: { fill } });
-      if (deep > 0) bites.push({ x: left ? edge : edge - deep, y, w: deep, h: p.width });
+      // El hueco, en el borde contrario: sale por la izquierda, falta por la derecha (y al revés).
+      if (deep > 0) bites.push({ x: left ? span[1] - deep : span[0], y, w: deep, h: p.width });
     }
     // Los bocados: se quitan de las formas que tocan; las demás se quedan como estaban (con sus curvas).
     let shapes = geo.shapes;

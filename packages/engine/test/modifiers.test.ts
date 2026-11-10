@@ -845,9 +845,25 @@ describe('streaks', () => {
     const intact = run(0).shapes[0]!;
     expect(intact.subpaths).toHaveLength(1);
     expect(intact.subpaths[0]!.segs).toHaveLength(4);
-    // Con bocados, el contorno del cuadrado tiene más vértices (las muescas).
-    const bitten = run(0.5).shapes[0]!;
+    // Con hueco, el contorno del cuadrado tiene más vértices (las muescas).
+    const bitten = run(1).shapes[0]!;
     expect(bitten.subpaths.reduce((n, sp) => n + sp.segs.length, 0)).toBeGreaterThan(4 + 5 * 3);
+  });
+
+  it('lo que sale por un lado falta por el otro, del mismo largo con Bite 1', () => {
+    const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#777"/></svg>';
+    const geo = createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 's', type: 'streaks', params: { count: 1, width: 4, bite: 1, seed: 7 } }] });
+    const [shape, bar] = geo.shapes;
+    const xs = (sh: typeof shape) => sh!.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]).map((q) => q[0]);
+    const barX = xs(bar);
+    const barLen = Math.max(...barX) - Math.min(...barX);
+    const outLeft = Math.min(...barX) < 0;
+    // La muesca: los vértices del cuadrado que no están en sus esquinas ni en sus lados de arriba y abajo.
+    const notch = shape!.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]).filter((q) => q[1] > 0.5 && q[1] < 199.5 && q[0] > 0.5 && q[0] < 199.5).map((q) => q[0]);
+    expect(notch.length).toBeGreaterThan(0);
+    // Sale por la izquierda: la muesca está a la derecha, y entra lo mismo que asoma la raya.
+    if (outLeft) expect(200 - Math.min(...notch)).toBeCloseTo(barLen, 0);
+    else expect(Math.max(...notch)).toBeCloseTo(barLen, 0);
   });
 
   it('cada raya sale del contorno real (en un círculo, no de su caja)', () => {
