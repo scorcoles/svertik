@@ -998,7 +998,10 @@
     left: 0;
     bottom: 0;
     z-index: 1;
-    background: var(--canvas, var(--sv-surface-field));
+    /* Fondo de panel, no el del lienzo: se lee igual con cualquier color de lienzo. */
+    background: var(--sv-surface-panel);
+    border-top: var(--sv-border-1) solid var(--sv-rule-default);
+    border-right: var(--sv-border-1) solid var(--sv-rule-default);
     display: flex;
     align-items: center;
     gap: var(--sv-space-16);
