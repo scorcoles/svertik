@@ -1,7 +1,9 @@
 // Pack: congela un nodo (con sus efectos) en un objeto que solo dibuja el resultado.
 // El original va dentro, con lo que lo animaba o lo hacía reaccionar; Unpack lo devuelve tal cual.
 
-import { mapPoints, type Geometry } from './geometry';
+import { bounds, mapPoints, type Geometry, type Shape } from './geometry';
+import { buildShape } from './shapes';
+import { toSVG } from './render';
 import { invert, type Mat } from './matrix';
 import { walkNodes, type DocumentResult, type GroupNode, type ObjectNode, type SceneNode, type SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
@@ -140,4 +142,35 @@ export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) =>
     scene.interactions.push(...data.interactions);
   }
   return node.id;
+}
+
+/**
+ * Convierte una primitiva (un texto, una estrella…) en un objeto de trazados: el SVG de su forma, en su mismo
+ * sitio, con su id, su pila de efectos, su colocación y su aspecto. Cada pieza (cada letra) es un trazado aparte.
+ * Lo que animaba parámetros de la forma (el tamaño, el propio texto…) ya no tiene a qué aplicarse y se quita.
+ * Devuelve cuántas pistas o interacciones se quitaron, o null si el nodo no es una primitiva.
+ */
+export function outlineNode(scene: SceneV2, id: string): { removed: number } | null {
+  const at = locate(scene.objects, id);
+  const node = at?.list[at.index];
+  if (!at || !node || node.kind !== 'shape') return null;
+  const geo = buildShape(node.shape, node.params);
+  if (!geo.shapes.length) return null;
+  const b = bounds(geo);
+  const source = toSVG({ viewBox: [b.x, b.y, b.width || 1, b.height || 1], shapes: geo.shapes.map(({ clone: _c, word: _w, line: _l, ...s }) => s as Shape) });
+  const { shape: _s, params: _p, kind: _k, ...rest } = node;
+  at.list[at.index] = { ...rest, kind: 'object', source } as ObjectNode;
+  let removed = 0;
+  const anim = scene.animation;
+  if (anim) {
+    const keep = anim.tracks.filter((t) => !(t.node === id && t.on === 'shape'));
+    removed += anim.tracks.length - keep.length;
+    anim.tracks = keep;
+  }
+  if (scene.interactions) {
+    const keep = scene.interactions.filter((x) => !(x.target.node === id && x.target.on === 'shape'));
+    removed += scene.interactions.length - keep.length;
+    scene.interactions = keep;
+  }
+  return { removed };
 }

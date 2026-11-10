@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, packNode, unpackNode, type SceneV2 } from '../src';
+import { builtins, createEngine, outlineNode, packNode, unpackNode, type SceneV2 } from '../src';
 
 const scene = (): SceneV2 => ({
   version: 2,
@@ -80,5 +80,35 @@ describe('pack', () => {
     const copy = g.children.at(-1)!;
     expect(copy.stack[0]!.id).toBe('tw-b');
     expect(s.animation!.tracks.map((t) => [t.node, t.modifier])).toEqual([['star', 'tw'], ['star-b', 'tw-b']]);
+  });
+});
+
+describe('convertir en trazados', () => {
+  it('la primitiva pasa a ser un objeto de trazados que se ve igual, con sus efectos', () => {
+    const e = createEngine(builtins);
+    const s: SceneV2 = {
+      version: 2,
+      objects: [{ kind: 'shape', id: 'st', name: 'Star', shape: 'star', params: { points: 6 }, stack: [{ id: 'tw', type: 'twist', params: { angle: 60 } }], transform: { x: 40, y: -20, rotation: 15, scale: 1.3 }, opacity: 0.7 }],
+      animation: { duration: 2, tracks: [
+        { id: 'a', node: 'st', on: 'shape', param: 'points', keys: [{ t: 0, value: 5 }, { t: 2, value: 8 }] },
+        { id: 'b', node: 'st', on: 'node', param: 'x', keys: [{ t: 0, value: 40 }, { t: 2, value: 80 }] },
+      ] },
+    };
+    const before = e.evaluateDocument(s);
+    expect(outlineNode(s, 'st')).toEqual({ removed: 1 });
+    const n = s.objects[0]!;
+    expect(n.kind).toBe('object');
+    expect(n.stack[0]!.id).toBe('tw');
+    expect(n.opacity).toBe(0.7);
+    expect(s.animation!.tracks.map((t) => t.id)).toEqual(['b']);
+    const after = e.evaluateDocument(s);
+    // El SVG guarda los números con dos decimales: igual a una centésima.
+    const a = after.nodes.get('st')!.box, b = before.nodes.get('st')!.box;
+    for (const k of ['x', 'y', 'width', 'height'] as const) expect(a[k]).toBeCloseTo(b[k], 1);
+  });
+
+  it('un objeto (no primitiva) no se convierte', () => {
+    const s = scene();
+    expect(outlineNode(s, 'g')).toBeNull();
   });
 });

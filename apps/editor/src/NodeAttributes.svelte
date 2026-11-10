@@ -186,6 +186,7 @@
       <Button label="Unpack" onclick={() => editor.unpack(node.id)} />
     {:else}
       {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
+      {#if node.kind === 'shape'}<Button label="Convert to outlines" title="Turn it into editable paths (each letter, a path). Its effects stay." onclick={() => editor.outline(node.id)} />{/if}
       <Button label="Pack" onclick={() => editor.pack(node.id)} />
     {/if}
     {#if node.kind === 'group'}

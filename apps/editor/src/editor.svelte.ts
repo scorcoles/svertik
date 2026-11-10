@@ -2,6 +2,7 @@
 import {
   builtins,
   createEngine,
+  outlineNode,
   packNode,
   unpackNode,
   linearOf,
@@ -397,6 +398,17 @@ export class Editor {
   }
 
   /** Mete el nodo seleccionado en un grupo nuevo, en su mismo sitio. */
+  /** Convierte la primitiva (un texto, una forma) en un objeto de trazados, en su sitio y con sus efectos. */
+  outline(id = this.activeNode?.id ?? null) {
+    if (!this.scene || !id) return;
+    const r = outlineNode(this.scene, id);
+    if (!r) return;
+    this.selected = id;
+    if (r.removed) this.notice = `Converted to outlines. ${r.removed === 1 ? 'One animation of its shape was' : `${r.removed} animations of its shape were`} removed (Undo brings it back).`;
+    this.#applyTime();
+    this.record(true);
+  }
+
   // ── Pack: congelar un nodo en su resultado (y desempaquetarlo)
 
   /** El nodo activo es un paquete. */
