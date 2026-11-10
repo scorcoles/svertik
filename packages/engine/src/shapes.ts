@@ -1,6 +1,7 @@
 // Primitivas: formas generadas por parámetros (como los objetos primitivos de C4D), no SVG importados.
 
 import { line, type Cubic, type Geometry, type Style, type SubPath, type Vec2 } from './geometry';
+import { parsePathData } from './import';
 import { resolveParams, type ParamSchema, type ParamValues } from './modifier';
 
 export interface ShapeDef<P extends ParamSchema = ParamSchema> {
@@ -152,7 +153,31 @@ export const spiral = defineShape({
   },
 });
 
-export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral];
+// Peón de ajedrez: la «tetera de Utah» de svertik, una forma de prueba con curvas, cuello y base.
+// Perfil de 120 × 200 centrado en el origen (cabeza, collarín, cuerpo cóncavo, anillo y peana).
+const PAWN =
+  'M0 -100 A26 26 0 0 1 12 -51 L12 -46 C12 -44 26 -43 26 -38 C26 -33 16 -32 15 -30 ' +
+  'C15 -6 26 30 40 52 C44 58 48 60 52 62 C55 63 55 70 52 72 L52 74 C58 75 60 78 60 82 L60 100 ' +
+  'L-60 100 L-60 82 C-60 78 -58 75 -52 74 L-52 72 C-55 70 -55 63 -52 62 C-48 60 -44 58 -40 52 ' +
+  'C-26 30 -15 -6 -15 -30 C-16 -32 -26 -33 -26 -38 C-26 -43 -12 -44 -12 -46 L-12 -51 A26 26 0 0 1 0 -100 Z';
+
+export const pawn = defineShape({
+  type: 'pawn',
+  label: 'Pawn',
+  params: {
+    height: { type: 'number', default: 200, min: 1, step: 1, unit: 'px' },
+    ...style,
+  },
+  build: ({ height }) => {
+    const k = height / 200;
+    return parsePathData(PAWN).map((sp) => {
+      const f = (q: Vec2): Vec2 => [q[0] * k, q[1] * k];
+      return { start: f(sp.start), segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })), closed: sp.closed };
+    });
+  },
+});
+
+export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, pawn];
 export const shapeRegistry = new Map<string, ShapeDef>(shapes.map((s) => [s.type, s as ShapeDef]));
 
 /** Geometría de una primitiva, con su estilo. */
