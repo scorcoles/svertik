@@ -19,6 +19,7 @@ export const damage = defineModifier({
     growth: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Growth' },
     roughness: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Roughness', ramp: false },
     cracks: { type: 'number', default: 3, min: 0, max: 12, step: 1, ramp: false, group: 'Cracks', label: 'Count' },
+    through: { type: 'number', default: 0, min: 0, max: 8, step: 1, ramp: false, group: 'Cracks', label: 'Through' },
     length: { type: 'number', default: 0.55, min: 0.05, max: 1.5, step: 0.01, unit: 'fraction', group: 'Cracks', label: 'Length' },
     width: { type: 'number', default: 0.012, min: 0.001, max: 0.06, step: 0.001, unit: 'fraction', group: 'Cracks', label: 'Width' },
     jagged: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, group: 'Cracks', label: 'Jagged' },
@@ -79,6 +80,35 @@ export const damage = defineModifier({
       if (rand() < 0.6) holes.push([blob(at, p.chipSize * size * (0.5 + rand() * 0.6), 7, rand)]);
     }
 
+    // ── Grietas pasantes: de un lado de la caja al opuesto, cortando todo lo que encuentran (parten el objeto).
+    for (let i = 0; i < Math.round(p.through); i++) {
+      const horizontal = rand() < 0.5;
+      const m = size * 0.03;
+      const from: Vec2 = horizontal ? [b.x - m, b.y + b.height * (0.15 + rand() * 0.7)] : [b.x + b.width * (0.15 + rand() * 0.7), b.y - m];
+      const to: Vec2 = horizontal ? [b.x + b.width + m, b.y + b.height * (0.15 + rand() * 0.7)] : [b.x + b.width * (0.15 + rand() * 0.7), b.y + b.height + m];
+      const heading = Math.atan2(to[1] - from[1], to[0] - from[0]);
+      const seg = size * 0.012;
+      const pts: Vec2[] = [from];
+      let q = from, a = heading;
+      // Avanza hasta haber recorrido (en la dirección del destino) la parte que diga `growth`.
+      const total = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      const goal = total * Math.max(0, Math.min(1, p.growth));
+      const [ux, uy] = [(to[0] - from[0]) / total, (to[1] - from[1]) / total];
+      for (let guard = 0; (q[0] - from[0]) * ux + (q[1] - from[1]) * uy < goal && guard < 4000; guard++) {
+        if (rand() < 0.18 + p.jagged * 0.25) a += (rand() - 0.5) * (0.6 + p.jagged * 2.2);
+        else a += (rand() - 0.5) * p.jagged * 0.3;
+        // Tira hacia el punto de destino: siempre llega al otro lado.
+        const toward = Math.atan2(to[1] - q[1], to[0] - q[0]);
+        a = a * 0.7 + toward * 0.3;
+        const st = seg * (0.5 + rand());
+        q = [q[0] + Math.cos(a) * st, q[1] + Math.sin(a) * st];
+        pts.push(q);
+      }
+      if (pts.length < 3) continue;
+      crackLines.push(pts);
+      holes.push([band(pts, p.width * size * 0.8, 0.2, rand)]);
+    }
+
     // ── Desconchones sueltos en el borde.
     for (let i = 0; i < Math.round(p.chips); i++) {
       const { at } = edges();
@@ -116,6 +146,7 @@ export const damage = defineModifier({
 
     // Cada forma conserva su estilo: se le restan los agujeros.
     const out: Shape[] = [];
+    let piece = 0;
     for (const s of geo.shapes) {
       if ((s.style.fill ?? 'black') === 'none') {
         out.push(s);
@@ -129,8 +160,11 @@ export const damage = defineModifier({
       } catch {
         return geo;
       }
-      const subpaths = cut.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
-      if (subpaths.length) out.push({ ...s, subpaths });
+      // Cada trozo que queda suelto (un polígono con sus agujeros), un elemento: Step lo trata por separado.
+      for (const pl of cut) {
+        const subpaths = pl.map(toSubPath).filter((x) => x !== null);
+        if (subpaths.length) out.push({ ...s, subpaths, clone: piece++ });
+      }
     }
     return { viewBox: geo.viewBox, shapes: out };
   },

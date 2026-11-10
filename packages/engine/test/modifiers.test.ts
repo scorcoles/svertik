@@ -537,3 +537,11 @@ describe('fractal fit y glitch', () => {
     expect(JSON.stringify(run([{ id: 'g', type: 'glitch', params: { seed: 3 } }]))).toBe(JSON.stringify(a));
   });
 });
+
+describe('damage: trozos', () => {
+  it('una grieta pasante parte el cuadrado: cada trozo es un elemento', () => {
+    const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params: { cracks: 0, chips: 0, specks: 0, through: 1, roughness: 0 } }] });
+    expect(geo.shapes.length).toBeGreaterThanOrEqual(2);
+    expect(geo.shapes.map((s) => s.clone)).toEqual(geo.shapes.map((_, i) => i));
+  });
+});
