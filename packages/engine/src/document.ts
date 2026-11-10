@@ -176,13 +176,29 @@ export type TargetLookup = (id: string) => Geometry | null;
 export function createDocumentEvaluator(
   runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup) => Geometry,
 ): DocumentEvaluator {
-  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean }>();
+  // `deps`: en los que usan otro objeto, la huella de lo que vieron de cada uno (su geometría y dónde
+  // estaban los dos). Mientras no cambie, el resultado vale: no se rehace al tocar otra cosa.
+  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][] }>();
+  /** Lo que salió la última vez (matriz y geometría de cada nodo): la primera pasada parte de ahí. */
+  let last = new Map<string, { world: Mat; geo: Geometry }>();
 
   function evaluate(scene: SceneV2): DocumentResult {
     const resolution = scene.resolution ?? 0.01;
     const seen = new Set<string>();
     /** Lo de la pasada anterior: matriz y resultado (en el documento) de cada nodo. */
-    let known = new Map<string, { world: Mat; geo: Geometry }>();
+    let known = last;
+    // Huella de la geometría de cada nodo conocido (se calcula una vez por pasada).
+    let prints = new Map<string, number>();
+    const printOf = (id: string) => {
+      let h = prints.get(id);
+      if (h === undefined) prints.set(id, (h = known.has(id) ? hashGeo(known.get(id)!.geo) : -1));
+      return h;
+    };
+    /** Lo que `ownerId` ve de `id`: cambia si cambia el otro o si se mueve cualquiera de los dos. */
+    const depOf = (ownerId: string, id: string) => {
+      const owner = known.get(ownerId);
+      return owner && known.has(id) ? mix(printOf(id), owner.world) : -1;
+    };
     let nodes = new Map<string, NodeInfo>();
     let shapes: Shape[] = [];
 
@@ -190,9 +206,14 @@ export function createDocumentEvaluator(
       nodes = new Map<string, NodeInfo>();
       const results = new Map<string, Geometry>();
       let asked = false;
-      const lookupFor = (ownerId: string): TargetLookup => (id) => {
+      // Lo que se pidió en esta pasada, para saber si la siguiente hace falta.
+      const seenDeps: { owner: string; id: string; h: number }[] = [];
+      const lookupFor = (ownerId: string, deps?: [string, number][]): TargetLookup => (id) => {
         if (!id || id === ownerId) return null;
         asked = true;
+        const h = depOf(ownerId, id);
+        deps?.push([id, h]);
+        seenDeps.push({ owner: ownerId, id, h });
         const owner = known.get(ownerId);
         const t = known.get(id);
         return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
@@ -206,13 +227,20 @@ export function createDocumentEvaluator(
           // El texto depende de las fuentes registradas: si llega una nueva, se vuelve a dibujar.
           const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
-          if (!entry || entry.key !== key || entry.dynamic) {
+          // Uno que usa otro objeto vale si lo que ve de él no ha cambiado.
+          const fresh = entry && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
+          if (entry && fresh && entry.dynamic) {
+            asked = true;
+            for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
+          }
+          if (!entry || !fresh) {
             const source = entry && entry.key === key ? entry.source : node.kind === 'object' ? importSVG(node.source) : buildShape(node.shape, node.params);
             const ref = bounds(source);
             const before = asked;
             asked = false;
-            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id));
-            entry = { key, source, result, dynamic: asked };
+            const deps: [string, number][] = [];
+            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id, deps));
+            entry = { key, source, result, dynamic: asked, deps };
             asked = asked || before;
             cache.set(node.id, entry);
           }
@@ -260,8 +288,15 @@ export function createDocumentEvaluator(
       // El primero de la lista se pinta el último: queda delante.
       shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
       // Nadie pidió otro objeto: no hace falta otra pasada.
-      if (!asked) break;
+      if (!asked) {
+        last = new Map();
+        break;
+      }
       known = new Map([...nodes].map(([id, info]) => [id, { world: info.matrix, geo: transformGeo(results.get(id)!, info.matrix) }]));
+      prints = new Map();
+      last = known;
+      // Si con lo que salió ahora se vería lo mismo que se vio, ya está: otra pasada daría lo mismo.
+      if (seenDeps.every((d) => depOf(d.owner, d.id) === d.h)) break;
     }
 
     // El origen de cada objeto, con su matriz final (la de sus grupos incluida).
@@ -303,3 +338,33 @@ function transformBox(b: Bounds, m: Mat): Bounds {
 }
 
 export { union as unionBounds };
+
+/** Huella numérica de una geometría (sus puntos, redondeados): para saber si ha cambiado. */
+function hashGeo(geo: Geometry): number {
+  let h = 2166136261;
+  const add = (v: number) => {
+    h ^= Math.round(v * 1000) | 0;
+    h = Math.imul(h, 16777619);
+  };
+  for (const s of geo.shapes) {
+    add(s.subpaths.length);
+    for (const sp of s.subpaths) {
+      add(sp.start[0]);
+      add(sp.start[1]);
+      add(sp.closed ? 1 : 0);
+      for (const g of sp.segs) {
+        add(g.c1[0]); add(g.c1[1]); add(g.c2[0]); add(g.c2[1]); add(g.p[0]); add(g.p[1]);
+      }
+    }
+  }
+  return h >>> 0;
+}
+
+/** La huella de la geometría, junto con la matriz del que la mira. */
+function mix(h: number, m: Mat): number {
+  for (const v of m) {
+    h ^= Math.round(v * 1000) | 0;
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}

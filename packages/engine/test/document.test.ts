@@ -314,3 +314,45 @@ describe('render en vivo', () => {
     expect(svg.querySelector('path')!.getAttribute('opacity')).toBeNull();
   });
 });
+
+describe('caché de los que usan otro objeto', () => {
+  // Un efecto de prueba que cuenta cuántas veces se calcula y copia la caja del otro objeto.
+  let calls = 0;
+  const spy = {
+    type: 'spy',
+    label: 'Spy',
+    kind: 'generator' as const,
+    params: { target: { type: 'node' as const, default: '' } },
+    apply(geo: Geometry, p: { target: string }, ctx: { target?: (id: string) => Geometry | null }) {
+      const t = p.target ? ctx.target?.(p.target) : null;
+      if (t) calls++;
+      return t ?? geo;
+    },
+  };
+  const scene = (otherX: number, targetW: number): SceneV2 => ({
+    version: 2,
+    objects: [
+      { kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [{ id: 's', type: 'spy', params: { target: 'b' } }] },
+      { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: targetW, height: 10 }, stack: [], transform: { x: 100 } },
+      { kind: 'object', id: 'c', name: 'c', source: rect(10, 10), stack: [], transform: { x: otherX } },
+    ],
+  });
+
+  it('no se rehace al tocar otra cosa; sí al cambiar el objeto al que mira', () => {
+    const e = createEngine([...builtins, spy]);
+    calls = 0;
+    const first = e.evaluateDocument(scene(0, 20));
+    expect(calls).toBeGreaterThan(0);
+    calls = 0;
+    e.evaluateDocument(scene(0, 20));
+    expect(calls).toBe(0);
+    // Mover un tercero no le afecta.
+    e.evaluateDocument(scene(50, 20));
+    expect(calls).toBe(0);
+    // Cambiar el otro, sí; y con el resultado bueno.
+    const after = e.evaluateDocument(scene(50, 40));
+    expect(calls).toBeGreaterThan(0);
+    expect(after.nodes.get('a')!.box.width).toBeCloseTo(40);
+    expect(first.nodes.get('a')!.box.width).toBeCloseTo(20);
+  });
+});
