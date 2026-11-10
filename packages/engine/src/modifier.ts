@@ -100,6 +100,18 @@ export function rampParams(schema: ParamSchema, params: Record<string, unknown>,
   return out;
 }
 
+/** Para Range y Field: números y ángulos, desde su neutro hasta su valor, según el peso w (0–1). Las semillas no cambian. */
+export function weightParams(schema: ParamSchema, params: Record<string, unknown>, w: number): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...params };
+  for (const [name, spec] of Object.entries(schema)) {
+    const v = params[name];
+    if ((spec.type !== 'number' && spec.type !== 'angle') || spec.ramp === false || typeof v !== 'number') continue;
+    const n = spec.neutral ?? 0;
+    out[name] = n + (v - n) * w;
+  }
+  return out;
+}
+
 /**
  * Valores aleatorios para el dado. Respeta los rangos del esquema; lo que no tiene sentido sortear
  * (colores, desplazamientos en píxeles…) se queda como está.

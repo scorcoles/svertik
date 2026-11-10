@@ -13,6 +13,8 @@ export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   build(p: ParamValues<P>): SubPath[];
   /** Si la forma tiene varios elementos (Text: una por letra), cada uno por separado (para Step, Color…). */
   buildParts?(p: ParamValues<P>): SubPath[][];
+  /** Marcas de cada pieza (Text: su palabra y su línea), para Range por palabras o líneas. */
+  partTags?(p: ParamValues<P>): { word?: number; line?: number }[];
 }
 
 const defineShape = <P extends ParamSchema>(d: ShapeDef<P>): ShapeDef<P> => d;
@@ -233,7 +235,31 @@ export const text = defineShape({
     return textParts(p).flat();
   },
   buildParts: (p) => textParts(p),
+  partTags: (p) => textTags(p),
 });
+
+/** Palabra y línea de cada letra visible, en el mismo orden que textParts. */
+function textTags(p: Record<string, unknown>): { word: number; line: number }[] {
+  const found = fontFor(String(p.font));
+  if (!found) return [];
+  const tags: { word: number; line: number }[] = [];
+  let word = 0;
+  String(p.text).split('\n').forEach((l, line) => {
+    let inWord = false;
+    found.font.forEachGlyph(l, 0, 0, Number(p.size), { kerning: true }, (glyph, gx, gy) => {
+      const visible = glyph.getPath(gx, gy, Number(p.size)).commands.length > 0;
+      if (visible) {
+        if (!inWord) inWord = true;
+        tags.push({ word, line });
+      } else if (inWord) {
+        inWord = false;
+        word++;
+      }
+    });
+    if (inWord) word++;
+  });
+  return tags;
+}
 
 /** Una pieza por letra (los espacios no cuentan), con kerning; varias líneas con su alineación. */
 function textParts(p: Record<string, unknown>): SubPath[][] {
@@ -279,5 +305,6 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
     fill: p.fill ? String(p.fillColor) : 'none',
     ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round') } : {}),
   };
-  return { viewBox: [0, 0, 0, 0], shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}) })) };
+  const tags = def.partTags?.(p as never) ?? [];
+  return { viewBox: [0, 0, 0, 0], shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}), ...(tags[i] ?? {}) })) };
 }

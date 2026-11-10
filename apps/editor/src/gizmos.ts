@@ -399,6 +399,29 @@ Object.assign(builders, {
     };
   },
 
+  field(p: Params, b: Bounds): Gizmo {
+    // El campo: su forma (borde exterior) y, discontinuo, donde empieza la transición (Softness).
+    const c = at(b, p.center);
+    const R = Number(p.radius) * sizeOf(b);
+    const inner = R * (1 - clamp(Number(p.softness), 0, 1));
+    const a = rad(Number(p.angle) || 0);
+    const [ux, uy] = [Math.cos(a), Math.sin(a)];
+    const lines: GizmoLine[] = [];
+    if (p.shape === 'linear') {
+      const L = sizeOf(b);
+      const seg = (d: number, dashed: boolean): GizmoLine => ({ pts: [[c[0] + ux * d - uy * L, c[1] + uy * d + ux * L], [c[0] + ux * d + uy * L, c[1] + uy * d - ux * L]], dashed });
+      lines.push(seg(0, true), seg(R, false));
+    } else if (p.shape === 'box') {
+      const sq = (r: number): Vec2[] => [[-r, -r], [r, -r], [r, r], [-r, r]].map(([x, y]) => [c[0] + x! * ux - y! * uy, c[1] + x! * uy + y! * ux] as Vec2);
+      lines.push({ pts: sq(R), closed: true }, { pts: sq(inner), closed: true, dashed: true });
+    } else lines.push({ pts: ellipse(c, R, R), closed: true }, { pts: ellipse(c, inner, inner), closed: true, dashed: true });
+    const edge: Vec2 = p.shape === 'linear' ? [c[0] + ux * R, c[1] + uy * R] : [c[0] + ux * R, c[1] + uy * R];
+    return {
+      lines,
+      handles: [{ at: edge, label: 'Radius', drag: (_p0, _f, to) => ({ radius: round(clamp(Math.hypot(to[0] - c[0], to[1] - c[1]) / sizeOf(b), 0.01, 2), 100) }) }],
+    };
+  },
+
   clone(p: Params, b: Bounds): Gizmo {
     const c = center(b);
     const W = b.width, H = b.height, size = sizeOf(b);

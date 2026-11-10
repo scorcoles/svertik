@@ -13,13 +13,19 @@
   let { value = $bindable(), min = 0, max = 1, step = 0.01, label, width = '100px', onchange }: Props = $props();
 </script>
 
+<!-- Solo avisa de cambios del usuario: si el valor llega de fuera (animación, otro campo) y el
+     deslizador solo lo redondea a su paso, no es un cambio (si no, la animación grabaría claves sola). -->
 <Slider.Root
   type="single"
-  bind:value
+  {value}
   {min}
   {max}
   {step}
-  onValueChange={(v) => onchange?.(v)}
+  onValueChange={(v) => {
+    if (Math.abs(v - value) <= step / 2 + 1e-9) return;
+    value = v;
+    onchange?.(v);
+  }}
   class="sv-slider"
   style="width: {width}"
 >
