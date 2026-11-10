@@ -49,7 +49,7 @@
   {:else if spec.type === 'seed'}
     <NumberField {id} value={value as number} step={1} min={0} {onchange} />
   {:else if spec.type === 'point'}
-    <PointField {id} {label} value={value as [number, number]} linkable={spec.linkable} {onchange} />
+    <PointField {id} {label} value={value as [number, number]} step={spec.step ?? 0.01} min={spec.min} linkable={spec.linkable} {onchange} />
   {:else if spec.type === 'enum' && spec.options.length <= 3}
     <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
