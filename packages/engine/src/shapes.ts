@@ -1,7 +1,8 @@
 // Primitivas: formas generadas por parámetros, no SVG importados.
 
 import { line, type Cubic, type Geometry, type Style, type SubPath, type Vec2 } from './geometry';
-import { fontFor } from './fonts';
+import type { Font } from 'opentype.js';
+import { fontFor, fontKey } from './fonts';
 import { parsePathData } from './import';
 import { resolveParams, type ParamSchema, type ParamValues } from './modifier';
 
@@ -225,6 +226,8 @@ export const text = defineShape({
   params: {
     text: { type: 'text', default: 'svertik', label: 'Text' },
     font: { type: 'font', default: 'JetBrains Mono', label: 'Font' },
+    weight: { type: 'number', default: 400, min: 100, max: 900, step: 100, label: 'Weight', ramp: false, animatable: false, random: false },
+    italic: { type: 'boolean', default: false, label: 'Italic', animatable: false },
     size: { type: 'number', default: 72, min: 1, step: 1, unit: 'px' },
     tracking: { type: 'number', default: 0, min: -500, max: 2000, step: 5, label: 'Tracking', ramp: false },
     lineHeight: { type: 'number', default: 1.2, min: 0.5, max: 4, step: 0.05, label: 'Line height', ramp: false },
@@ -238,15 +241,35 @@ export const text = defineShape({
   partTags: (p) => textTags(p),
 });
 
+/**
+ * Opciones de dibujo del texto (con ligaduras). Algunas fuentes traen sustituciones que opentype.js aún
+ * no sabe aplicar (y lanza un error): esas se dibujan letra a letra (se prueba una vez por fuente).
+ */
+const probed = new WeakSet<object>();
+function textOptions(font: Font, text: string, extra: object = {}): object {
+  const opts = { kerning: true, features: { liga: true, rlig: true }, ...extra };
+  if (!probed.has(font)) {
+    probed.add(font);
+    try {
+      font.forEachGlyph(`${text} The quick brown fox jumps over the lazy dog fi fl ffi ffl Th 0123`, 0, 0, 10, opts, () => {});
+    } catch {
+      // Esa fuente, letra a letra: sin sustituciones (ligaduras, composición), con su avance y su kerning.
+      const f = font as unknown as { stringToGlyphs: (s: string) => unknown[]; charToGlyph: (c: string) => unknown };
+      f.stringToGlyphs = (str: string) => Array.from(str, (c) => f.charToGlyph(c));
+    }
+  }
+  return opts;
+}
+
 /** Palabra y línea de cada letra visible, en el mismo orden que textParts. */
 function textTags(p: Record<string, unknown>): { word: number; line: number }[] {
-  const found = fontFor(String(p.font));
+  const found = fontFor(fontKey(String(p.font), Number(p.weight ?? 400), !!p.italic), String(p.font));
   if (!found) return [];
   const tags: { word: number; line: number }[] = [];
   let word = 0;
   String(p.text).split('\n').forEach((l, line) => {
     let inWord = false;
-    found.font.forEachGlyph(l, 0, 0, Number(p.size), { kerning: true }, (glyph, gx, gy) => {
+    found.font.forEachGlyph(l, 0, 0, Number(p.size), textOptions(found.font, String(p.text)), (glyph, gx, gy) => {
       const visible = glyph.getPath(gx, gy, Number(p.size)).commands.length > 0;
       if (visible) {
         if (!inWord) inWord = true;
@@ -263,12 +286,12 @@ function textTags(p: Record<string, unknown>): { word: number; line: number }[] 
 
 /** Una pieza por letra (los espacios no cuentan), con kerning; varias líneas con su alineación. */
 function textParts(p: Record<string, unknown>): SubPath[][] {
-  const found = fontFor(String(p.font));
+  const found = fontFor(fontKey(String(p.font), Number(p.weight ?? 400), !!p.italic), String(p.font));
   if (!found) return [];
   const { font } = found;
   const size = Number(p.size);
   const lines = String(p.text).split('\n');
-  const opts = { kerning: true, tracking: Number(p.tracking) };
+  const opts = textOptions(font, String(p.text), { tracking: Number(p.tracking) });
   const widths = lines.map((l) => font.forEachGlyph(l, 0, 0, size, opts, () => {}));
   const maxW = Math.max(0, ...widths);
   const parts: SubPath[][] = [];

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
+  import { DropdownMenu } from 'bits-ui';
   import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -13,8 +14,10 @@
     editor: Editor;
     onimport: () => void;
     onfile: (file: File) => void;
+    /** Abre una demo (la escena actual se cambia por ella, preguntando si hay cambios). */
+    ondemo: (which: 'intro' | 'shatter') => void;
   }
-  let { editor, onimport, onfile }: Props = $props();
+  let { editor, onimport, onfile, ondemo }: Props = $props();
 
   // Motor del lienzo; «Redraw» lo cambia por uno nuevo (sin nada guardado de antes) y repinta todo.
   let engine = $state.raw(createEngine(builtins));
@@ -843,11 +846,25 @@
       </span>
     </footer>
   {:else}
+    <!-- Tarjeta con fondo propio: se lee igual sobre cualquier color de lienzo. -->
     <div class="drop">
-      <Icon name="import" />
+      <span class="icon"><Icon name="import" /></span>
       <strong>Drop an SVG or a .svrtk project here</strong>
-      <span class="muted">or paste it (⌘V)</span>
-      <Button label="Choose file…" onclick={onimport} />
+      <span class="muted">or paste it (⌘V), or draw with the tools on the left</span>
+      <div class="start">
+        <Button kind="primary" label="Choose file…" onclick={onimport} />
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            {#snippet child({ props })}<Button {...props} label="Demos ▾" />{/snippet}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content class="sv-menu" sideOffset={4} collisionPadding={8}>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('intro')}><Icon name="play" /> Intro: the logo</DropdownMenu.Item>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /> Shatter: a triangle that explodes</DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
       <span class="samples muted">
         or start from a sample:
         {#each Object.keys(samples) as name, i (name)}
@@ -1072,13 +1089,22 @@
     display: grid;
     justify-items: center;
     gap: var(--sv-space-12);
-    width: min(480px, 100% - 32px);
-    padding: 64px var(--sv-space-16);
-    border: 1px dashed var(--sv-rule-strong);
+    width: min(440px, 100% - 32px);
+    padding: 40px var(--sv-space-24, 24px);
     color: var(--sv-text-muted);
     text-align: center;
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-strong);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
+    outline: 1px dashed transparent;
+    outline-offset: 8px;
+    transition: outline-color 120ms;
   }
+  /* Al arrastrar un archivo encima, el marco discontinuo de soltar. */
+  [data-dragging] .drop { outline-color: var(--sv-accent-fill); }
+  .drop .icon { display: grid; place-items: center; width: 36px; height: 36px; color: var(--sv-accent-fill); border: var(--sv-border-1) solid var(--sv-rule-default); }
   .drop strong { color: var(--sv-text-primary); font-size: var(--sv-font-size-12); }
+  .start { display: flex; gap: var(--sv-space-8); margin-top: var(--sv-space-4); }
   .samples { font-size: var(--sv-font-size-10); display: flex; gap: var(--sv-space-6); flex-wrap: wrap; justify-content: center; }
   .samples button { padding: 0; font: inherit; color: var(--sv-text-secondary); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .samples button:hover { color: var(--sv-accent-fill); }

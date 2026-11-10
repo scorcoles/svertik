@@ -39,3 +39,12 @@ describe('Range y Field', () => {
     expect(geo.shapes.map((s) => [s.word, s.line])).toEqual([[0, 0], [0, 0], [1, 0], [2, 1], [2, 1]]);
   });
 });
+
+describe('fuentes con peso y cursiva', () => {
+  it('nombre con que se registra y dirección en Fontsource', async () => {
+    const { fontKey, fontsourceURL } = await import('../src');
+    expect(fontKey('Inter')).toBe('Inter');
+    expect(fontKey('Inter', 700, true)).toBe('Inter 700 italic');
+    expect(fontsourceURL('Playfair Display', 900, true)).toBe('https://cdn.jsdelivr.net/fontsource/fonts/playfair-display@latest/latin-900-italic.woff');
+  });
+});

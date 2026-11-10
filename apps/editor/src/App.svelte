@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { builtins, createEngine, hasFont, walkNodes, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, hasFont, sceneFonts, type SceneV2 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
@@ -205,12 +205,12 @@
     })();
   });
 
-  // Las fuentes que usan los textos de la escena: si alguna es del sistema y ya hay permiso, se lee.
+  // Las fuentes que usan los textos de la escena: la incluida, o se bajan de Fontsource.
   $effect(() => {
     if (!editor.scene) return;
-    const wanted = new Set<string>();
-    for (const { node } of walkNodes(editor.scene.objects)) if (node.kind === 'shape' && node.shape === 'text') wanted.add(String(node.params.font ?? 'JetBrains Mono'));
-    for (const name of wanted) if (!hasFont(name)) void ensureFont(name).then((ok) => ok && editor.fontsTick++);
+    for (const f of sceneFonts($state.snapshot(editor.scene) as SceneV2)) {
+      if (!hasFont(f.key)) void ensureFont(f.family, f.weight, f.italic).then((ok) => ok && editor.fontsTick++);
+    }
   });
 
   // Avisos del editor (al importar un SVG con texto, por ejemplo): un rato más que los normales.
@@ -245,7 +245,7 @@
         ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
       ].join(' ')}
     >
-      <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} />
+      <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} />
       {#if editor.codeOpen && editor.scene}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>

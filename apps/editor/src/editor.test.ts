@@ -528,3 +528,12 @@ describe('Documento', () => {
     expect(e.scene!.document).toBeUndefined();
   });
 });
+
+describe('Fuentes', () => {
+  it('el peso disponible más cercano y la cursiva solo si la familia la tiene', async () => {
+    const { nearest } = await import('./fonts');
+    const f = { family: 'X', category: 'sans' as const, weights: [300, 400, 700], italic: false, pick: false };
+    expect(nearest(f, 900, true)).toEqual({ weight: 700, italic: false });
+    expect(nearest(f, 350, false)).toEqual({ weight: 300, italic: false });
+  });
+});

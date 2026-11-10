@@ -1,6 +1,6 @@
 // El JS del panel de código: escena generada arriba, script del usuario abajo.
 import { parser } from '@lezer/javascript';
-import { migrateScene, walkNodes, type AnyScene, type ModifierInstance, type SceneNode, type SceneV2 } from '@svertik/engine';
+import { migrateScene, sceneFonts, walkNodes, type AnyScene, type ModifierInstance, type SceneNode, type SceneV2 } from '@svertik/engine';
 
 /** Primera línea con error de sintaxis (los SyntaxError de JS no dicen dónde). */
 export function syntaxErrorLine(text: string): number | null {
@@ -143,8 +143,12 @@ export function exportJS(scene: AnyScene, script: string): string {
   const types = sceneTypes(scene);
   // Con animación o interacciones, el reproductor del motor (línea de tiempo, hover, clic y «reducir movimiento»).
   const player = !!(v2.animation?.tracks.length || v2.interactions?.length);
+  // Con textos, sus fuentes (libres, de Fontsource) se bajan antes de dibujar.
+  const fonts = sceneFonts(v2).length > 0;
+  const head = generatedPart(scene);
   return (
-    generatedPart(scene) +
+    (fonts ? head.replace('import { createEngine', 'import { createEngine, loadFonts') : head) +
+    (fonts ? `// Las fuentes de los textos (Fontsource, en jsDelivr).\nawait loadFonts(scene);\n\n` : '') +
     `const engine = createEngine([${types.join(', ')}]);
 ` +
     (player

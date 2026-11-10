@@ -1,7 +1,6 @@
 // Página de Play (play.html#p=…): la escena de un enlace compartido, a pantalla completa, con el
 // mismo reproductor que el código exportado. Solo carga el motor: sin el editor ni su interfaz.
-import { builtins, createEngine, createPlayer, migrateScene, walkNodes } from '@svertik/engine';
-import { loadBundled } from './fonts';
+import { builtins, createEngine, createPlayer, loadFonts, migrateScene } from '@svertik/engine';
 import { createFpsMeter } from './fpsmeter';
 import { decodeState } from './share';
 
@@ -25,8 +24,8 @@ async function start() {
   if (state.canvas) document.body.style.background = state.canvas;
   // El editor abre la misma escena (#s=…).
   edit.href = `./#s=${m![1]}`;
-  // Las fuentes incluidas, solo si hay textos.
-  if ([...walkNodes(scene.objects)].some(({ node }) => node.kind === 'shape' && node.shape === 'text')) await loadBundled();
+  // Las fuentes de sus textos, de Fontsource (solo si hay textos).
+  await loadFonts(scene);
   // Rendimiento: D o ?debug en la URL.
   const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());

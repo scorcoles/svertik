@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { BLEND_MODES, EASES, hasFont, placementOf, shapeRegistry, type Ease, type SceneNode } from '@svertik/engine';
-  import { canUseSystemFonts, listSystemFonts } from './fonts';
+  import { BLEND_MODES, EASES, placementOf, shapeRegistry, type Ease, type SceneNode } from '@svertik/engine';
+  import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, type Editor } from './editor.svelte';
 
@@ -28,17 +28,11 @@
     for (const param of params) editor.toggleKey({ node: node.id, on: 'node', param });
   };
   const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => s.group === 'Style'));
-  // Fuentes del sistema (Chrome/Edge): se piden una vez; se suman a la lista del campo Font.
-  let systemListed = $state(false);
-  async function addSystemFonts() {
-    try {
-      const names = await listSystemFonts();
-      editor.fonts = [...new Set([...editor.fonts, ...names])];
-      systemListed = true;
-    } catch {
-      editor.notice = 'The browser didn’t allow reading system fonts.';
-    }
-  }
+  // Texto: la fuente (familia, peso y cursiva) va en su propio bloque, después del texto.
+  const FONT = new Set(['font', 'weight', 'italic']);
+  const isText = $derived(node.kind === 'shape' && node.shape === 'text');
+  const beforeFont = $derived(isText ? shapeMain.slice(0, shapeMain.findIndex(([n]) => n === 'font')) : shapeMain);
+  const afterFont = $derived(isText ? shapeMain.slice(shapeMain.findIndex(([n]) => n === 'font')).filter(([n]) => !FONT.has(n)) : []);
 </script>
 
 <header>
@@ -55,15 +49,10 @@
 <div class="params">
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
-      <ParamList swatches={editor.docColors} fonts={editor.fonts} params={shapeMain} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
-      {#if node.kind === 'shape' && node.shape === 'text'}
-        {@const font = String(node.params.font ?? 'JetBrains Mono')}
-        {#if editor.fontsTick >= 0 && !hasFont(font)}
-          <p class="warn">“{font}” isn’t available here: drawn with JetBrains Mono.</p>
-        {/if}
-        {#if canUseSystemFonts() && !systemListed}
-          <div class="actions"><Button label="System fonts…" onclick={addSystemFonts} /></div>
-        {/if}
+      <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      {#if node.kind === 'shape' && isText}
+        <FontField {editor} {node} />
+        <ParamList swatches={editor.docColors} params={afterFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
       {/if}
     </Section>
     <Section title="Style">
@@ -239,6 +228,5 @@
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
-  .warn { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-4) 100px; color: var(--sv-signal-error); font-size: var(--sv-font-size-10); }
   .note { margin: 0; padding: var(--sv-space-8) var(--sv-space-8) 0 100px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

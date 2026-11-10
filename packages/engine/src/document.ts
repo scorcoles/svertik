@@ -2,7 +2,7 @@
 
 import { bounds, mapPoints, type Bounds, type Geometry, type Shape } from './geometry';
 import { importSVG } from './import';
-import { fontsVersion } from './fonts';
+import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { Animation, Track } from './animation';
@@ -409,4 +409,23 @@ function mix(h: number, m: Mat): number {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+/** Las fuentes que usan los textos de la escena (también los de dentro de un paquete). */
+export function sceneFonts(scene: SceneV2) {
+  const params: Record<string, unknown>[] = [];
+  const visit = (nodes: SceneNode[]) => {
+    for (const { node } of walkNodes(nodes)) {
+      if (node.kind === 'shape' && node.shape === 'text') params.push(node.params);
+      if (node.kind === 'object' && node.packed?.original) visit([node.packed.original]);
+    }
+  };
+  visit(scene.objects);
+  return fontsOf(params);
+}
+
+/** Baja de Fontsource las fuentes que usa la escena y aún no están registradas. */
+export async function loadFonts(scene: AnyScene): Promise<void> {
+  const v2 = migrateScene(scene);
+  await Promise.all(sceneFonts(v2).filter((f) => !hasFont(f.key)).map((f) => loadFont(f.family, f.weight, f.italic)));
 }
