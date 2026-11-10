@@ -266,3 +266,17 @@ describe('morph y explosion', () => {
     expect(after.width).toBeGreaterThan(before.width * 1.3);
   });
 });
+
+describe('morph con pasos', () => {
+  it('el original, los pasos y el destino: cada uno, un elemento', () => {
+    const scene: SceneV2 = {
+      version: 2,
+      objects: [
+        { kind: 'shape', id: 'sq', name: 'sq', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'morph', params: { target: 'c', amount: 1, steps: 3 } }] },
+        { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 50, height: 50 }, stack: [], transform: { x: 300 } },
+      ],
+    };
+    const shapes = engine().evaluateDocument(scene).geometry.shapes.filter((s) => s.node === 'sq');
+    expect(shapes.map((s) => s.clone)).toEqual([0, 1, 2, 3, 4]);
+  });
+});

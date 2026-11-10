@@ -7,6 +7,8 @@ import { defineModifier } from '../modifier';
  * con el más grande…), se reparten en el mismo número de puntos por su longitud y se interpolan.
  * Si uno tiene más trazados que el otro, los que sobran nacen (o se apagan) en un punto. El relleno
  * también pasa de un color al otro. `amount` de 0 a 1: para animarlo.
+ * Con `steps` (como Fusión en Illustrator): el original, `steps` formas intermedias y el destino, cada una
+ * un elemento (Step, Color, Explosion…). Amount, entonces, dice hasta dónde llega la secuencia.
  */
 export const morph = defineModifier({
   type: 'morph',
@@ -17,11 +19,12 @@ export const morph = defineModifier({
     amount: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Amount' },
     points: { type: 'number', default: 200, min: 16, max: 1000, step: 8, label: 'Points', ramp: false },
     colors: { type: 'boolean', default: true, label: 'Blend colors', animatable: false },
+    steps: { type: 'number', default: 0, min: 0, max: 100, step: 1, ramp: false, label: 'Steps' },
   },
   apply(geo, p, ctx) {
     const target = p.target ? ctx.target?.(p.target) : null;
     if (!target) return geo;
-    const t = Math.max(0, Math.min(1, p.amount));
+    const T = Math.max(0, Math.min(1, p.amount));
     const n = Math.max(16, Math.round(p.points));
     type Item = { pts: Vec2[]; shape: Shape; area: number };
     const items = (g: Geometry): Item[] =>
@@ -33,28 +36,35 @@ export const morph = defineModifier({
     const A = items(geo), B = items(target);
     if (!A.length || !B.length) return geo;
     const count = Math.max(A.length, B.length);
-    const byShape = new Map<Shape, SubPath[]>();
     const lastA = A[A.length - 1]!;
-    for (let i = 0; i < count; i++) {
+    // Parejas, una vez: de dónde sale cada punto y a dónde va.
+    const pairs = Array.from({ length: count }, (_, i) => {
       const a = A[i], b = B[i];
       // Lo que no tiene pareja nace o se apaga en el centro de su contraparte más pequeña.
-      const pa = a ? a.pts : collapse(b!.pts, centroid((A[A.length - 1] ?? lastA).pts));
+      const pa = a ? a.pts : collapse(b!.pts, centroid(lastA.pts));
       const pbRaw = b ? b.pts : collapse(a!.pts, centroid(B[B.length - 1]!.pts));
-      const pb = align(pa, pbRaw);
-      const pts = pa.map((q, k) => [q[0] + (pb[k]![0] - q[0]) * t, q[1] + (pb[k]![1] - q[1]) * t] as Vec2);
-      const owner = (a ?? lastA).shape;
-      const segs = pts.map((q, k) => line(q, pts[(k + 1) % pts.length]!));
-      byShape.set(owner, [...(byShape.get(owner) ?? []), { start: pts[0]!, segs, closed: true }]);
-    }
-    const fillOf = (s: Shape) => parseColor(s.style.fill ?? '#000000');
-    const out: Shape[] = [...byShape].map(([shape, subpaths]) => {
-      let style = shape.style;
-      if (p.colors) {
-        const ca = fillOf(shape), cb = fillOf(B[0]!.shape);
-        if (ca && cb && shape.style.fill !== 'none') style = { ...style, fill: toHex(mixColor(ca, cb, t)) };
-      }
-      return { ...shape, style, subpaths };
+      return { pa, pb: align(pa, pbRaw), owner: (a ?? lastA).shape };
     });
+    const fillOf = (s: Shape) => parseColor(s.style.fill ?? '#000000');
+    const at = (t: number, clone?: number): Shape[] => {
+      const byShape = new Map<Shape, SubPath[]>();
+      for (const { pa, pb, owner } of pairs) {
+        const pts = pa.map((q, k) => [q[0] + (pb[k]![0] - q[0]) * t, q[1] + (pb[k]![1] - q[1]) * t] as Vec2);
+        const segs = pts.map((q, k) => line(q, pts[(k + 1) % pts.length]!));
+        byShape.set(owner, [...(byShape.get(owner) ?? []), { start: pts[0]!, segs, closed: true }]);
+      }
+      return [...byShape].map(([shape, subpaths]) => {
+        let style = shape.style;
+        if (p.colors) {
+          const ca = fillOf(shape), cb = fillOf(B[0]!.shape);
+          if (ca && cb && shape.style.fill !== 'none') style = { ...style, fill: toHex(mixColor(ca, cb, t)) };
+        }
+        return { ...shape, style, subpaths, ...(clone !== undefined ? { clone } : {}) };
+      });
+    };
+    const steps = Math.max(0, Math.round(p.steps));
+    // Sin pasos: una forma en `amount`. Con pasos: la secuencia entera, del original (0) hasta `amount`.
+    const out: Shape[] = steps === 0 ? at(T) : Array.from({ length: steps + 2 }, (_, i) => at((i / (steps + 1)) * T, i)).flat();
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
