@@ -3,7 +3,7 @@
   // Las claves se arrastran (encajan en fotogramas); la seleccionada se borra con Supr.
   // Entre dos claves se dibuja la curva del tramo (el easing de la primera); al pulsarla se elige otra.
   import { Popover } from 'bits-ui';
-  import { EASES, ease, shapeRegistry, type Ease } from '@svertik/engine';
+  import { EASES, ease, shapeRegistry, walkNodes, type Ease, type Track } from '@svertik/engine';
   import { Checkbox, IconButton, NumberField, Select } from '@svertik/ui';
   import { locateNode, locateModifier, registry, type Editor } from './editor.svelte';
 
@@ -124,6 +124,25 @@
     const def = m ? registry.get(m.type) : undefined;
     return { node, what: def?.label ?? '?', param: def?.params[tr.param]?.label ?? tr.param };
   }
+  // ── Pistas agrupadas por objeto, en el orden del panel Stack; cada grupo se pliega.
+  let folded = $state<string[]>([]);
+  const groups = $derived.by(() => {
+    const tracks = anim?.tracks ?? [];
+    if (!editor.scene || !tracks.length) return [];
+    const order = [...walkNodes(editor.scene.objects)].map(({ node }) => node);
+    const byNode = new Map<string, Track[]>();
+    for (const tr of tracks) byNode.set(tr.node, [...(byNode.get(tr.node) ?? []), tr]);
+    return order
+      .filter((n) => byNode.has(n.id))
+      .map((n) => {
+        const list = byNode.get(n.id)!;
+        // Los instantes con alguna clave del objeto: sus rombos de resumen.
+        const times = [...new Set(list.flatMap((tr) => tr.keys.map((k) => k.t)))].sort((a, b) => a - b);
+        return { id: n.id, name: n.name, tracks: list, times, open: !folded.includes(n.id) };
+      });
+  });
+  const toggleFold = (id: string) => (folded = folded.includes(id) ? folded.filter((x) => x !== id) : [...folded, id]);
+
   const ticks = $derived.by(() => {
     const step = duration <= 2 ? 0.25 : duration <= 6 ? 0.5 : duration <= 20 ? 1 : 5;
     return Array.from({ length: Math.floor(duration / step) + 1 }, (_, i) => i * step);
@@ -153,12 +172,21 @@
   <div class="body">
     <div class="labels">
       <div class="ruler-gap"></div>
-      {#each anim?.tracks ?? [] as tr (tr.id)}
-        {@const l = labelOf(tr)}
-        <div class="label" title={`${l.node}${l.what ? ` · ${l.what}` : ''} · ${l.param}`}>
-          <span class="node">{l.node}</span>{#if l.what}<span class="dim"> · {l.what}</span>{/if}<span class="param"> · {l.param}</span>
-          <button type="button" class="x" title="Stop animating this" aria-label="Remove track" onclick={() => editor.removeTrack(tr.id)}>×</button>
+      {#each groups as g (g.id)}
+        <div class="label group" data-selected={editor.activeNode?.id === g.id || undefined}>
+          <button type="button" class="fold" aria-expanded={g.open} aria-label={g.open ? `Fold ${g.name}` : `Unfold ${g.name}`} onclick={() => toggleFold(g.id)}>{g.open ? '▾' : '▸'}</button>
+          <button type="button" class="name" title={`Select ${g.name}`} onclick={() => (editor.selected = g.id)}>{g.name}</button>
+          <span class="dim count">{g.tracks.length}</span>
         </div>
+        {#if g.open}
+          {#each g.tracks as tr (tr.id)}
+            {@const l = labelOf(tr)}
+            <div class="label track" title={`${l.node}${l.what ? ` · ${l.what}` : ''} · ${l.param}`}>
+              {#if l.what}<span class="dim">{l.what} · </span>{/if}<span class="param">{l.param}</span>
+              <button type="button" class="x" title="Stop animating this" aria-label="Remove track" onclick={() => editor.removeTrack(tr.id)}>×</button>
+            </div>
+          {/each}
+        {/if}
       {/each}
     </div>
     <div class="lanes" bind:this={area}>
@@ -168,7 +196,23 @@
           <span class="tick" style:left="{x(t)}px">{Number.isInteger(t) ? `${t}s` : ''}</span>
         {/each}
       </div>
-      {#each anim?.tracks ?? [] as tr (tr.id)}
+      {#each groups as g (g.id)}
+        <!-- Fila del objeto: un rombo pequeño donde tenga alguna clave (lleva el cabezal a ese instante). -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="lane group" onpointerdown={scrub}>
+          {#each g.times as t (t)}
+            <button
+              type="button"
+              class="key summary"
+              style:left="{x(t)}px"
+              title={`${t.toFixed(2)} s`}
+              aria-label={`${g.name}: keyframes at ${t.toFixed(2)} seconds`}
+              onpointerdown={(e) => { e.stopPropagation(); editor.setTime(t); }}
+            ></button>
+          {/each}
+        </div>
+        {#if g.open}
+          {#each g.tracks as tr (tr.id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="lane" onpointerdown={scrub}>
           {#each tr.keys.slice(0, -1) as a, i (a.t)}
@@ -217,6 +261,8 @@
           {/each}
         </div>
       {/each}
+        {/if}
+      {/each}
       {#if !anim?.tracks.length}
         <p class="empty">Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.</p>
       {/if}
@@ -238,7 +284,15 @@
   .ruler-gap, .ruler { height: 20px; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .label, .lane { height: 22px; border-bottom: var(--sv-border-1) solid var(--sv-rule-subtle, var(--sv-rule-default)); }
   .label { position: relative; display: flex; align-items: center; padding: 0 var(--sv-space-8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--sv-font-size-10); }
-  .label .node { color: var(--sv-text-secondary); }
+  .label.group { gap: var(--sv-space-4); padding-left: var(--sv-space-4); background: var(--sv-surface-raised); }
+  .label.group[data-selected] .name { color: var(--sv-accent-fill); }
+  .label.group button { padding: 0; font: inherit; color: var(--sv-text-primary); background: none; border: 0; cursor: pointer; }
+  .label.group .fold { width: 14px; color: var(--sv-text-muted); }
+  .label.group .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--sv-font-weight-bold); }
+  .label.group .count { margin-left: auto; font-size: var(--sv-font-size-10); }
+  .label.track { padding-left: 26px; }
+  .lane.group { background: rgb(255 255 255 / 0.025); }
+  .key.summary { width: 7px; height: 7px; background: var(--sv-text-secondary); cursor: pointer; }
   .label .param { color: var(--sv-text-primary); }
   .label .x { position: absolute; right: 4px; padding: 0 4px; font: inherit; color: var(--sv-text-muted); background: var(--sv-surface-panel); border: 0; cursor: pointer; visibility: hidden; }
   .label:hover .x { visibility: visible; }
