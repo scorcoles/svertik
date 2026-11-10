@@ -49,7 +49,7 @@
   const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => ICONS[o])));
 </script>
 
-<ParamRow {label} for={id}>
+<ParamRow {label} for={id} tall={spec.type === 'text'}>
   {#if spec.type === 'number'}
     <NumberField {id} value={value as number} step={spec.step ?? 0.01} min={spec.min} max={spec.max} unit={spec.unit === 'fraction' ? '' : spec.unit} {onchange} />
     {#if spec.min !== undefined && spec.max !== undefined}
