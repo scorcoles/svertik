@@ -98,7 +98,18 @@ describe('motor', () => {
 
 describe('crack', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'crack', params }] });
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'crack', params: { mode: 'lines', ...params } }] });
+
+  it('cut: recorta las grietas como huecos (sin forma de trazo encima); shatter: separa los trozos', () => {
+    const cut = run({ mode: 'cut', width: 2 });
+    expect(cut.shapes.every((s) => s.style.stroke !== '#000000')).toBe(true);
+    // Hay huecos: más subtrazados (o trozos) que el cuadrado entero.
+    expect(cut.shapes.flatMap((s) => s.subpaths).length).toBeGreaterThan(1);
+    const shatter = run({ mode: 'shatter', width: 2, separation: 10 });
+    expect(shatter.shapes.map((s) => s.clone)).toEqual(shatter.shapes.map((_, i) => i));
+    const b = bounds(shatter);
+    expect(b.width).toBeGreaterThan(60);
+  });
 
   it('añade una forma de solo trazo encima y no toca la original', () => {
     const geo = run({});
