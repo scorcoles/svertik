@@ -28,7 +28,7 @@ interface ParamBase {
 export type ParamSpec =
   | (ParamBase & { type: 'number'; default: number; min?: number; max?: number; step?: number; unit?: string })
   | (ParamBase & { type: 'angle'; default: number })
-  | (ParamBase & { type: 'point'; default: [number, number]; unit?: 'fraction' })
+  | (ParamBase & { type: 'point'; default: [number, number]; unit?: 'fraction' | 'px'; step?: number; min?: number })
   | (ParamBase & { type: 'seed'; default: number })
   | (ParamBase & { type: 'boolean'; default: boolean })
   | (ParamBase & { type: 'color'; default: string })

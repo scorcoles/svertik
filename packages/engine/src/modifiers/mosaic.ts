@@ -16,7 +16,8 @@ export const mosaic = defineModifier({
     columns: { type: 'number', default: 8, min: 1, max: 60, step: 1, ramp: false, pair: 'rows' },
     rows: { type: 'number', default: 8, min: 1, max: 60, step: 1, ramp: false },
     tile: { type: 'enum', default: 'rect', options: ['rect', 'triangle', 'hexagon', 'circle'] as const, label: 'Tile', animatable: false },
-    gutter: { type: 'point', default: [0.1, 0.1], unit: 'fraction', label: 'Gutter', handle: false, linkable: true, random: [0, 0.4] },
+    // Separación entre teselas, en las unidades del dibujo (px), en X y en Y.
+    gutter: { type: 'point', default: [4, 4], unit: 'px', step: 0.5, min: 0, label: 'Gutter', handle: false, linkable: true, random: [0, 16] },
     angle: { type: 'angle', default: 0, ramp: false, random: [-45, 45] },
   },
   apply(geo, p, ctx) {
@@ -34,7 +35,7 @@ export const mosaic = defineModifier({
     const b = a ? bounds(mapPoints(geo, (q) => rot(q as Pair, -1))) : b0;
     const cols = Math.max(1, Math.round(p.columns));
     const rows = Math.max(1, Math.round(p.rows));
-    const [gx, gy] = [clamp01(p.gutter[0]), clamp01(p.gutter[1])];
+    const [gx, gy] = [Math.max(0, p.gutter[0]), Math.max(0, p.gutter[1])];
     const step = Math.max(ctx.resolution, 1e-3);
     // Cada forma, como superficie (con su caja, para no recortar contra teselas que no toca).
     const regions = geo.shapes
@@ -43,8 +44,11 @@ export const mosaic = defineModifier({
       .map((x) => ({ ...x, box: boxOf(x.r) }));
     const out: Shape[] = [];
     tiles(p.tile, b, cols, rows).forEach((poly, index) => {
-      // La separación encoge cada tesela alrededor de su centro.
-      const t = shrink(poly, 1 - gx, 1 - gy).map((q) => (a ? rot(q, 1) : q));
+      // La separación encoge cada tesela alrededor de su centro: la mitad por cada lado, así entre dos
+      // teselas queda el hueco entero. En triángulos y hexágonos es aproximada (se mide en su caja).
+      const pb = boxOfRing(poly);
+      if (pb.width <= gx || pb.height <= gy) return;
+      const t = shrink(poly, 1 - gx / pb.width, 1 - gy / pb.height).map((q) => (a ? rot(q, 1) : q));
       const tb = boxOfRing(t);
       for (const { s, r, box } of regions) {
         if (box.x > tb.x + tb.width || box.x + box.width < tb.x || box.y > tb.y + tb.height || box.y + box.height < tb.y) continue;
@@ -57,7 +61,6 @@ export const mosaic = defineModifier({
   },
 });
 
-const clamp01 = (n: number) => Math.max(0, Math.min(0.95, n));
 
 /** Las teselas, en orden de lectura (filas de arriba abajo, de izquierda a derecha). */
 function tiles(kind: string, b: Bounds, cols: number, rows: number): Pair[][] {

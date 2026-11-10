@@ -433,10 +433,13 @@ describe('mosaic', () => {
     expect(area(geo)).toBeCloseTo(3600);
   });
 
-  it('la separación encoge cada tesela (a la mitad en X e Y: un cuarto del área)', () => {
-    expect(area(run({ columns: 2, rows: 2, gutter: [0.5, 0.5] }))).toBeCloseTo(900);
-    // Solo en X: la mitad.
-    expect(area(run({ columns: 3, rows: 3, gutter: [0.5, 0] }))).toBeCloseTo(1800);
+  it('la separación, en px: el hueco entre teselas', () => {
+    // 2 × 2 teselas de 30 con 10 px de hueco: cada una, 20 × 20.
+    expect(area(run({ columns: 2, rows: 2, gutter: [10, 10] }))).toBeCloseTo(4 * 400);
+    // Solo en X: 3 × 3 teselas de 20 con 10 px → 10 × 20 cada una.
+    expect(area(run({ columns: 3, rows: 3, gutter: [10, 0] }))).toBeCloseTo(9 * 200);
+    // Más hueco que tesela: no queda nada.
+    expect(run({ columns: 2, rows: 2, gutter: [40, 40] }).shapes).toHaveLength(0);
   });
 
   it('triángulos y hexágonos cubren todo; los círculos, π/4', () => {
