@@ -640,3 +640,26 @@ describe('damage: growth continuo', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 });
+
+describe('trim', () => {
+  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 't', type: 'trim', params }] });
+  const length = (geo: ReturnType<typeof run>) =>
+    geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
+      let p0 = sp.start, l = 0;
+      for (const g of sp.segs) {
+        l += Math.hypot(g.p[0] - p0[0], g.p[1] - p0[1]);
+        p0 = g.p;
+      }
+      return sum + l;
+    }, 0);
+  it('deja la parte pedida de la longitud (cuadrado de 240: la mitad, 120)', () => {
+    expect(length(run({ start: 0, end: 0.5 }))).toBeCloseTo(120, 0);
+    expect(length(run({ start: 0.25, end: 0.5 }))).toBeCloseTo(60, 0);
+  });
+  it('en un cerrado, el offset da la vuelta sin perder longitud', () => {
+    expect(length(run({ start: 0, end: 0.5, offset: 0.75 }))).toBeCloseTo(120, 0);
+  });
+  it('end 0: no queda nada', () => {
+    expect(run({ start: 0, end: 0 }).shapes.flatMap((s) => s.subpaths)).toHaveLength(0);
+  });
+});

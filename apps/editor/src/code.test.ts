@@ -74,5 +74,6 @@ describe('código con animación', () => {
     const js = exportJS({ version: 2, objects: [], animation: { duration: 2, tracks: [{ id: 't', node: 'a', on: 'node', param: 'x', keys: [{ t: 0, value: 0 }] }] } }, '');
     expect(js).toContain('sampleScene');
     expect(js).toContain('live.update(sampleScene(scene');
+    expect(js).toContain('prefers-reduced-motion');
   });
 });
