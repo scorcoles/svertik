@@ -440,9 +440,16 @@
       const now = clientToDoc(ev.clientX, ev.clientY);
       if (!start || !now || !editor.scene) return;
       const r = (n: number) => Math.round(n * 100) / 100;
+      // ⇧: solo en el eje en que más se ha movido (horizontal o vertical, en el documento).
+      let mx = now[0] - start[0];
+      let my = now[1] - start[1];
+      if (ev.shiftKey) {
+        if (Math.abs(mx) >= Math.abs(my)) my = 0;
+        else mx = 0;
+      }
       for (const p of parts) {
-        let dx = now[0] - start[0];
-        let dy = now[1] - start[1];
+        let dx = mx;
+        let dy = my;
         if (p.toParent) [dx, dy] = [p.toParent[0] * dx + p.toParent[2] * dy, p.toParent[1] * dx + p.toParent[3] * dy];
         const n = locateNode(editor.scene.objects, p.id)?.node;
         if (n) n.transform = { ...n.transform, x: r(p.t0.x + dx), y: r(p.t0.y + dy) };
@@ -574,9 +581,16 @@
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     grabbing = h.name;
+    const v0 = $state.snapshot(editor.current?.params?.[h.name]) as [number, number] | undefined;
     const move = (ev: PointerEvent) => {
       const f = toFraction(ev.clientX, ev.clientY);
-      if (f) editor.setParam(h.name, f);
+      if (!f) return;
+      // ⇧: solo cambia el valor (X o Y del punto) que más se ha movido; el otro se queda como estaba.
+      if (ev.shiftKey && v0) {
+        if (Math.abs(f[0] - v0[0]) >= Math.abs(f[1] - v0[1])) f[1] = v0[1];
+        else f[0] = v0[0];
+      }
+      editor.setParam(h.name, f);
     };
     const up = () => { grabbing = null; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
     el.addEventListener('pointermove', move);

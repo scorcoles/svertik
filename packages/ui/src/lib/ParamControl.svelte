@@ -35,7 +35,16 @@
   const id = $derived(`param-${name}`);
   const label = $derived(spec.label ?? name.charAt(0).toUpperCase() + name.slice(1));
   // Iconos para opciones conocidas; el resto se muestra como texto.
-  const ICONS: Record<string, IconName> = { horizontal: 'axis-h', vertical: 'axis-v' };
+  const ICONS: Record<string, IconName> = {
+    horizontal: 'axis-h',
+    vertical: 'axis-v',
+    union: 'bool-union',
+    subtract: 'bool-subtract',
+    intersect: 'bool-intersect',
+    exclude: 'bool-exclude',
+  };
+  // Botones en vez de desplegable: con pocas opciones, o si todas tienen icono.
+  const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => ICONS[o])));
 </script>
 
 <ParamRow {label} for={id}>
@@ -50,7 +59,7 @@
     <NumberField {id} value={value as number} step={1} min={0} {onchange} />
   {:else if spec.type === 'point'}
     <PointField {id} {label} value={value as [number, number]} step={spec.step ?? 0.01} min={spec.min} linkable={spec.linkable} {onchange} />
-  {:else if spec.type === 'enum' && spec.options.length <= 3}
+  {:else if spec.type === 'enum' && segmented}
     <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
