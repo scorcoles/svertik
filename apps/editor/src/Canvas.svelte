@@ -5,7 +5,7 @@
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
   import { align, distribute, type Align, type Move } from './arrange';
-  import { gizmoFor, type Drag } from './gizmos';
+  import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
   import Tools from './Tools.svelte';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
 
@@ -477,9 +477,29 @@
     const info = ownerInfo();
     // Dentro de Step cada copia usa su propio centro; el actuador se dibuja sobre el objeto entero
     // y sirve igual para cambiar los valores (los de la primera copia; las demás los multiplican).
-    if (!m || !info) return null;
+    if (!m || !info || cornerTypes.has(m.type)) return null;
     return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, info.bounds);
   });
+  /** El actuador en el recuadro de la esquina (Rotate 3D), en sus propios píxeles. */
+  const cornerGizmo = $derived.by(() => {
+    const m = editor.current;
+    if (!m || !cornerTypes.has(m.type)) return null;
+    const g = gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, CORNER_BOX);
+    if (!g) return null;
+    const d = (pts: readonly (readonly [number, number])[], closed?: boolean) =>
+      pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (closed ? 'Z' : '');
+    return {
+      label: registry.get(m.type)?.label ?? m.type,
+      lines: g.lines.map((l) => ({ d: d(l.pts, l.closed), tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, drag: l.drag, label: l.label })),
+      handles: g.handles.map((h) => ({ x: h.at[0], y: h.at[1], label: h.label, drag: h.drag, tone: h.tone ?? 'accent' })),
+    };
+  });
+  let cornerEl = $state<HTMLDivElement>();
+  /** Del puntero a píxeles del recuadro de la esquina. */
+  const toCorner = (clientX: number, clientY: number): Vec2 | null => {
+    const r = cornerEl?.querySelector('svg')?.getBoundingClientRect();
+    return r ? [clientX - r.left, clientY - r.top] : null;
+  };
   /** El gizmo ya en píxeles del escenario (se recalcula tras pintar, como los tiradores). */
   let gizmoScreen = $state<{ lines: { d: string; tone: string; dashed: boolean; ribbon: boolean; drag?: Drag; label?: string }[]; handles: { x: number; y: number; label: string; drag: Drag; tone: string }[] } | null>(null);
   $effect(() => {
@@ -507,13 +527,13 @@
   let gizmoHover = $state(false);
 
   /** Del puntero a coordenadas locales del nodo dueño del efecto. */
-  const toLocal = (clientX: number, clientY: number): Vec2 | null => {
+  const toLocalNode = (clientX: number, clientY: number): Vec2 | null => {
     const info = ownerInfo();
     const d = clientToDoc(clientX, clientY);
     return info && d ? apply(invert(info.matrix), d) : null;
   };
 
-  function dragGizmo(e: PointerEvent, drag: Drag, label: string) {
+  function dragGizmo(e: PointerEvent, drag: Drag, label: string, toLocal = toLocalNode) {
     const m = editor.current;
     if (space || !m) return;
     e.preventDefault();
@@ -677,6 +697,41 @@
         ></button>
       {/each}
     </div>
+    {#if cornerGizmo && !editor.tool}
+      <div class="corner-gizmo" bind:this={cornerEl} data-active={gizmoActive || gizmoHover || editor.busy || undefined}>
+        <span class="corner-label">{cornerGizmo.label}</span>
+        <svg class="gizmo" width={CORNER_SIZE} height={CORNER_SIZE} viewBox="0 0 {CORNER_SIZE} {CORNER_SIZE}" aria-hidden="true">
+          {#each cornerGizmo.lines as l, i (i)}
+            <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
+            <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} data-ribbon={l.ribbon || undefined} />
+            {#if l.drag}
+              {@const drag = l.drag}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <path
+                class="hit"
+                data-ribbon={l.ribbon || undefined}
+                d={l.d}
+                onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '', toCorner)}
+                onpointerenter={() => (gizmoHover = true)}
+                onpointerleave={() => (gizmoHover = false)}
+              ><title>{l.label}</title></path>
+            {/if}
+          {/each}
+        </svg>
+        {#each cornerGizmo.handles as h (h.label)}
+          <button
+            type="button"
+            class="gizmo-handle"
+            data-tone={h.tone}
+            style:left="{h.x + 8}px"
+            style:top="{h.y + 24}px"
+            title={h.label}
+            aria-label={h.label}
+            onpointerdown={(e) => dragGizmo(e, h.drag, h.label, toCorner)}
+          ></button>
+        {/each}
+      </div>
+    {/if}
     {#if editor.selectedNodes.length && !editor.tool}
       {@const n = editor.selectedNodes.length}
       <div class="arrange" role="toolbar" aria-label="Arrange">
@@ -787,6 +842,18 @@
   .pivot::before { left: 50%; top: -4px; bottom: -4px; width: 1px; translate: -50% 0; }
   .pivot::after { top: 50%; left: -4px; right: -4px; height: 1px; translate: 0 -50%; }
   .stage[data-space] .pivot { pointer-events: none; }
+  /* Actuador en una esquina (Rotate 3D): recuadro fijo abajo a la derecha, sobre el pie del lienzo. */
+  .corner-gizmo {
+    position: absolute;
+    right: var(--sv-space-12);
+    bottom: 40px;
+    z-index: 2;
+    padding: 24px 8px 8px;
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+  }
+  .corner-gizmo .gizmo { position: static; display: block; width: auto; height: auto; opacity: 1; }
+  .corner-label { position: absolute; top: 6px; left: 8px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   /* Organizar: arriba, en el centro del lienzo, mientras haya algo seleccionado. */
   .arrange {
     position: absolute;
