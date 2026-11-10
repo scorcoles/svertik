@@ -100,8 +100,8 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const evaluate = (scene: Scene) => evaluateSteps(scene).at(-1)!;
 
   // Una pila aplicada a una geometría con su caja de referencia (para objetos y grupos de la v2).
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number): Geometry {
-    const ctx: ModifierContext = { bounds: ref, resolution: Math.max(ref.width, ref.height) * resolution || 1, children: [] };
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null): Geometry {
+    const ctx: ModifierContext = { bounds: ref, resolution: Math.max(ref.width, ref.height) * resolution || 1, children: [], target };
     for (const inst of stack) {
       if (inst.enabled === false) continue;
       const def = registry.get(inst.type);

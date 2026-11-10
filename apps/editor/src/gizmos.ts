@@ -409,6 +409,8 @@ Object.assign(builders, {
         ],
       };
     }
+    // Sobre otro objeto: ya se ve dónde caen las copias.
+    if (p.mode === 'object') return { lines: [], handles: [] };
     if (p.mode === 'linear') {
       const n = Math.max(1, Math.round(Number(p.count)));
       const [ox, oy] = (p.offset as Vec2) ?? [1.1, 0];

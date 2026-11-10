@@ -98,6 +98,7 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 - 2026-11-10: al dibujar una primitiva se ve la forma real (con su estilo y un contorno de acento), no un rectángulo; doble clic en la herramienta la pone en el centro de lo que se ve.
 - 2026-11-10: recuadro de selección con esquinas para escalar y zona exterior para rotar (⇧ = 15°) y rótulo junto al puntero. Actuadores de efecto (`apps/editor/src/gizmos.ts`): Spherize (esfera de alambre y radio), Twist (círculo, arco del ángulo y su punta), Rotate 3D (anillos X/Y/Z con los colores de C4D, arrastrables) y Wave (la onda y su amplitud). Tenues en reposo; encendidos al pasar, arrastrar o cambiar valores en el panel.
 - 2026-11-10: selección múltiple (⇧ + clic en lienzo o pila, ⌘ en la pila); arrastrar mueve toda la selección; ⌘G agrupa los seleccionados; Supr los borra. Barra «Arrange» arriba del lienzo: alinear (6), distribuir (2), voltear (2). Voltear también en Transform (flipX/flipY en la colocación del motor). Efecto Mirror (generador): eje, posición y «Original: keep/transform», con actuador. Unión y extremo del trazo en primitivas y en Paint.
+- 2026-11-10: Boolean (generador; con `polygon-clipping`): unir, restar («Minus Front»: al de atrás se le quitan los de delante), intersectar y excluir, entre los hijos de un grupo o las copias de un Clone; las curvas se aproximan con tramos rectos. Efectos que usan otro objeto: parámetro de tipo `node` (desplegable con los objetos de la escena) y `ctx.target(id)`, que da la geometría del otro objeto en las coordenadas de la pila; el documento se evalúa en dos pasadas si alguien lo pide (esos nodos no van a caché). Clone en modo `object` (contorno, vértices o interior con semilla) y Path Wrap (enrolla el dibujo en el trazado más largo de otro objeto, estirado o a su longitud). En el panel, con un `mode`, solo se ve el grupo del modo activo.
 - 2026-11-10: más actuadores: Bend (eje doblado y su extremo), Ripple (anillos y longitud de onda), Taper (contorno y cantidad), Shear (paralelogramo y dos tiradores), Perspective y Envelope (cuadrilátero y malla), Cylinder (cilindro y wrap), Transform (aro que se arrastra para mover; tirador que gira y escala) y Clone (radio y ángulo de inicio, separación, desplazamiento).
 
 ## Siguiente
@@ -108,7 +109,7 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 2. ~~**Primitivas:** al crearla, ver la forma real; doble clic en la herramienta = primitiva en el centro del lienzo.~~
 3. ~~**Recuadro de selección útil:** escalar y rotar desde él; actuadores y wire del efecto seleccionado.~~ Actuadores para todos los deformadores salvo Noise y Melt (no tienen forma que dibujar), y para Clone.
 4. ~~**Objetos:** alinear, distribuir, reflejar (horizontal/vertical).~~
-5. **Entre objetos** (librería de recorte): Boolean (unir, restar, intersectar, excluir), Clone sobre el contorno o el interior de otro objeto, deformador guiado por otro objeto.
+5. ~~**Entre objetos** (librería de recorte): Boolean, Clone sobre otro objeto, deformador guiado por otro objeto (Path Wrap).~~
 6. **Con esa librería:** Glitch, Mosaic, cara trasera de Cylinder y alineación del trazo (dentro/fuera).
 7. **Fase 2, animación:** línea de tiempo, fotogramas clave y easing. Después, composiciones y reescalado de tiempo.
 8. Publicar: repo en GitHub, Pages y página en vertik.net.

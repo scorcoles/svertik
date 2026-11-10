@@ -28,7 +28,9 @@ export type ParamSpec =
   | (ParamBase & { type: 'seed'; default: number })
   | (ParamBase & { type: 'boolean'; default: boolean })
   | (ParamBase & { type: 'color'; default: string })
-  | (ParamBase & { type: 'enum'; default: string; options: readonly string[] });
+  | (ParamBase & { type: 'enum'; default: string; options: readonly string[] })
+  /** Otro nodo de la escena (su id); vacío = ninguno. */
+  | (ParamBase & { type: 'node'; default: string });
 
 export type ParamSchema = Record<string, ParamSpec>;
 
@@ -49,6 +51,8 @@ export interface ModifierContext {
   resolution: number;
   /** Modificadores colgados de este (solo los usa Step). */
   children: ResolvedModifier[];
+  /** La geometría de otro nodo (parámetros `node`), en las coordenadas de esta pila; null si no la hay (aún). */
+  target?: (id: string) => Geometry | null;
 }
 
 export interface ModifierDef<P extends ParamSchema = ParamSchema> {
@@ -127,6 +131,7 @@ export function randomizeParams(schema: ParamSchema, current: Record<string, unk
         break;
       case 'boolean':
       case 'color':
+      case 'node':
         break;
     }
   }
