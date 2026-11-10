@@ -14,7 +14,7 @@
     onexportlottie: () => void;
     onexportanimsvg: () => void;
     oncopyjson: () => void;
-    ondemo: (which: 'intro' | 'shatter') => void;
+    ondemo: (which: 'intro' | 'shatter' | 'snake') => void;
   }
   let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportlottie, onexportanimsvg, oncopyjson, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
@@ -31,6 +31,7 @@
     'sep',
     { label: 'Demo: intro', icon: 'play', run: () => ondemo('intro') },
     { label: 'Demo: shatter', icon: 'play', run: () => ondemo('shatter') },
+    { label: 'Demo: snake (bones)', icon: 'play', run: () => ondemo('snake') },
   ]);
 </script>
 

@@ -16,7 +16,7 @@
     onimport: () => void;
     onfile: (file: File) => void;
     /** Abre una demo (la escena actual se cambia por ella, preguntando si hay cambios). */
-    ondemo: (which: 'intro' | 'shatter') => void;
+    ondemo: (which: 'intro' | 'shatter' | 'snake') => void;
   }
   let { editor, onimport, onfile, ondemo }: Props = $props();
 
@@ -890,6 +890,7 @@
             <DropdownMenu.Content class="sv-menu" sideOffset={4} collisionPadding={8}>
               <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('intro')}><Icon name="play" /> Intro: the logo</DropdownMenu.Item>
               <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /> Shatter: a triangle that explodes</DropdownMenu.Item>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('snake')}><Icon name="play" /> Snake: bones that slither</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
