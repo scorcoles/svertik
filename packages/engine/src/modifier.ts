@@ -70,9 +70,15 @@ export interface ModifierContext {
 export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   type: string;
   label: string;
-  kind: 'deformer' | 'generator' | 'effector' | 'style';
+  kind: 'deformer' | 'generator' | 'effector' | 'style' | 'filter';
   params: P;
   apply(geo: Geometry, params: ParamValues<P>, ctx: ModifierContext): Geometry;
+  /**
+   * Solo los de tipo `filter`: no cambian la geometría; dan primitivas de filtro de SVG que leen `input` y
+   * dejan su resultado en `out`, y cuánto se salen de la caja del objeto (`pad`, en unidades del documento).
+   * Se aplican al objeto entero, después de sus demás efectos, en el orden de la pila.
+   */
+  filter?(params: ParamValues<P>, io: { input: string; out: string; id: string }): { markup: string; pad: number };
 }
 
 /** Ayuda de tipos: infiere los parámetros a partir del esquema. */

@@ -9,6 +9,7 @@
     ['Generators', modifierTypes.filter((t) => registry.get(t)?.kind === 'generator')],
     ['Effectors', modifierTypes.filter((t) => registry.get(t)?.kind === 'effector')],
     ['Style', modifierTypes.filter((t) => registry.get(t)?.kind === 'style')],
+    ['Filters', modifierTypes.filter((t) => registry.get(t)?.kind === 'filter')],
   ] as const);
 </script>
 

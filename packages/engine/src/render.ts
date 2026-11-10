@@ -58,6 +58,16 @@ export function gradientDefs(geo: Geometry): string {
     .join('');
 }
 
+/** Los filtros de la geometría, como contenido de <defs> (con `prefix` delante de cada id). */
+export function filterDefs(geo: Geometry, prefix = ''): string {
+  return Object.entries(geo.filters ?? {})
+    .map(([id, f]) => {
+      const [x, y, w, h] = f.region.map((n) => Math.round(n * 100) / 100);
+      return `<filter id="${prefix}sv-f-${id}" filterUnits="userSpaceOnUse" x="${x}" y="${y}" width="${w}" height="${h}" color-interpolation-filters="sRGB">${f.markup}</filter>`;
+    })
+    .join('');
+}
+
 export interface ToSVGOptions {
   precision?: number;
 }
@@ -65,10 +75,21 @@ export interface ToSVGOptions {
 /** SVG plano, autocontenido. */
 export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): string {
   const [x, y, w, h] = geo.viewBox;
-  const paths = geo.shapes
-    .map((shape) => `  <path d="${toPathData(shape, precision)}"${styleAttrs(shape.style)}/>`)
-    .join('\n');
-  const defs = gradientDefs(geo);
+  // Las formas de un objeto con filtros, dentro de su <g filter> (anidados, si hace falta).
+  const lines: string[] = [];
+  let open: string[] = [];
+  for (const shape of geo.shapes) {
+    const wrap = shape.wrap ?? [];
+    let same = 0;
+    while (same < open.length && same < wrap.length && open[same] === wrap[same]) same++;
+    for (let i = open.length - 1; i >= same; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
+    for (let i = same; i < wrap.length; i++) lines.push(`${'  '.repeat(i + 1)}<g filter="url(#sv-f-${wrap[i]})">`);
+    open = wrap;
+    lines.push(`${'  '.repeat(wrap.length + 1)}<path d="${toPathData(shape, precision)}"${styleAttrs(shape.style)}/>`);
+  }
+  for (let i = open.length - 1; i >= 0; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
+  const paths = lines.join('\n');
+  const defs = gradientDefs(geo) + filterDefs(geo);
   return `<svg xmlns="${SVG_NS}" viewBox="${x} ${y} ${w} ${h}">\n${defs ? `  <defs>${defs}</defs>\n` : ''}${paths}\n</svg>\n`;
 }
 
@@ -78,8 +99,10 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
  */
 export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }: ToSVGOptions = {}): void {
   svg.setAttribute('viewBox', geo.viewBox.join(' '));
-  // Degradados: un <defs> propio, que solo se reescribe si cambia.
-  const defs = gradientDefs(geo);
+  // Ids de filtro propios de este <svg>: en la misma página puede haber otros con los mismos objetos.
+  const prefix = prefixOf(svg);
+  // Degradados y filtros: un <defs> propio, que solo se reescribe si cambia.
+  const defs = gradientDefs(geo) + filterDefs(geo, prefix);
   let defsEl = svg.querySelector(':scope > defs[data-svertik]');
   if (defs && !defsEl) {
     defsEl = svg.ownerDocument.createElementNS(SVG_NS, 'defs');
@@ -87,14 +110,43 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     svg.insertBefore(defsEl, svg.firstChild);
   }
   if (defsEl && defsEl.innerHTML !== defs) defsEl.innerHTML = defs;
-  const paths = Array.from(svg.querySelectorAll(':scope > path[data-svertik]'));
+  const paths = Array.from(svg.querySelectorAll('path[data-svertik]'));
+  const groups = new Map(Array.from(svg.querySelectorAll('g[data-svertik-fx]'), (g) => [g.getAttribute('data-svertik-fx')!, g]));
+  const used = new Set<Element>();
+  // Lo último que se ha colocado en cada contenedor: así solo se mueve lo que no está en su sitio.
+  const lastIn = new Map<Element, Element | null>();
+  const place = (parent: Element, el: Element) => {
+    const prev = lastIn.has(parent) ? lastIn.get(parent)! : parent === svg ? (svg.querySelector(':scope > defs[data-svertik]') as Element | null) : null;
+    if (el.parentNode !== parent || el.previousElementSibling !== prev) {
+      if (prev) prev.after(el);
+      else parent.prepend(el);
+    }
+    lastIn.set(parent, el);
+  };
   geo.shapes.forEach((shape, i) => {
     let path = paths[i];
     if (!path) {
       path = svg.ownerDocument.createElementNS(SVG_NS, 'path');
       path.setAttribute('data-svertik', '');
-      svg.appendChild(path);
     }
+    // Dentro de los grupos con filtro que le tocan (de fuera adentro).
+    let parent: Element = svg;
+    for (const id of shape.wrap ?? []) {
+      let g = groups.get(id);
+      if (!g) {
+        g = svg.ownerDocument.createElementNS(SVG_NS, 'g');
+        g.setAttribute('data-svertik-fx', id);
+        groups.set(id, g);
+      }
+      if (!used.has(g)) {
+        place(parent, g);
+        used.add(g);
+        const url = `url(#${prefix}sv-f-${id})`;
+        if (g.getAttribute('filter') !== url) g.setAttribute('filter', url);
+      }
+      parent = g;
+    }
+    place(parent, path);
     path.setAttribute('d', toPathData(shape, precision));
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
@@ -123,4 +175,13 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     }
   });
   for (const extra of paths.slice(geo.shapes.length)) extra.remove();
+  for (const g of groups.values()) if (!used.has(g)) g.remove();
 }
+
+const prefixes = new WeakMap<SVGSVGElement, string>();
+let svgCount = 0;
+const prefixOf = (svg: SVGSVGElement) => {
+  let p = prefixes.get(svg);
+  if (!p) prefixes.set(svg, (p = `s${++svgCount}-`));
+  return p;
+};

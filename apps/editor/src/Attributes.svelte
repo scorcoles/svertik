@@ -59,6 +59,8 @@
             ? 'Per element: where it starts (In) or ends (Out). Centers are each element’s own.'
           : 'Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).'}
       </p>
+    {:else if def.kind === 'filter'}
+      <p class="note">Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.</p>
     {:else if m.children}
       <p class="note">
         {m.type === 'step'

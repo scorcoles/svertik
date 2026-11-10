@@ -22,6 +22,7 @@
     { label: 'Generate', icon: 'clone', types: of('generator') },
     { label: 'Effect', icon: 'step', types: of('effector') },
     { label: 'Style', icon: 'color', types: of('style') },
+    { label: 'Filters', icon: 'shadow', types: of('filter') },
   ] as const;
 </script>
 

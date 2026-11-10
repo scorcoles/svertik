@@ -7,6 +7,12 @@ export const icons = {
   select: 'M3.5 1.5v11l3-2.75 2 4.25 1.75-.75-2-4.25h4.25z',
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
   ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
+  // Filtros: sombra (una forma con otra detrás), desenfoque, resplandor, grano y desplazamiento.
+  shadow: 'M2.5 2.5h8v8h-8z M5.5 13.5h8v-8',
+  blur: 'M8 2.5a5.5 5.5 0 1 0 0 11a5.5 5.5 0 1 0 0-11 M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M8 1v1 M8 14v1 M1 8h1 M14 8h1',
+  glow: 'M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M8 1v2 M8 13v2 M1 8h2 M13 8h2 M3 3l1.5 1.5 M11.5 11.5L13 13 M13 3l-1.5 1.5 M4.5 11.5L3 13',
+  grain: 'M3 3h1v1h-1z M7 2h1v1h-1z M12 3h1v1h-1z M5 6h1v1h-1z M10 6h1v1h-1z M2 9h1v1h-1z M7 9h1v1h-1z M13 9h1v1h-1z M4 12h1v1h-1z M9 12h1v1h-1z M12 13h1v1h-1z',
+  displace: 'M1.5 5c2-2 3 2 5 0s3 2 5 0 2 0 3 0 M1.5 11c2-2 3 2 5 0s3 2 5 0 2 0 3 0',
   // Documento: el lienzo, con sus marcas de corte (lo que se exporta).
   document: 'M4.5 4.5h7v7h-7z M4.5 1v2 M11.5 1v2 M4.5 13v2 M11.5 13v2 M1 4.5h2 M13 4.5h2 M1 11.5h2 M13 11.5h2',
   // Compartir: tres nodos unidos.

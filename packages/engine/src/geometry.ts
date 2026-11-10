@@ -29,6 +29,14 @@ export interface Shape {
   node?: string;
   /** Degradados que usa su estilo (`fill="url(#id)"`); el render los escribe en <defs>. */
   gradients?: Gradient[];
+  /** Grupos con filtro que la envuelven, de fuera adentro (ids de `Geometry.filters`). */
+  wrap?: string[];
+}
+
+/** Un filtro de SVG para un grupo de formas: sus primitivas y la zona que ocupa (en el documento). */
+export interface FilterDef {
+  markup: string;
+  region: [number, number, number, number];
 }
 
 /** Degradado relativo a la caja de cada forma (objectBoundingBox): sigue a la forma al moverla o escalarla. */
@@ -53,6 +61,8 @@ export interface Geometry {
   shapes: Shape[];
   /** viewBox del SVG de origen: [x, y, ancho, alto]. */
   viewBox: [number, number, number, number];
+  /** Filtros de SVG (sombra, desenfoque…) de los objetos que los llevan, por id. Ver `Shape.wrap`. */
+  filters?: Record<string, FilterDef>;
 }
 
 export interface Bounds {

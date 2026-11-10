@@ -86,7 +86,8 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         reusable = false;
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        if (inst.enabled !== false) geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, children: resolveChildren(inst.children) });
+        // Los filtros no cambian la geometría (se aplican al pintar el objeto).
+        if (inst.enabled !== false && def.kind !== 'filter') geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, children: resolveChildren(inst.children) });
         steps[i] = { key, geo };
       }
       out.push(geo);
@@ -128,14 +129,31 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       if (inst.enabled !== false) {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, target: look, children: resolveChildren(inst.children) });
+        if (def.kind !== 'filter') geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, target: look, children: resolveChildren(inst.children) });
       }
       if (memo) memo.steps[i] = { key, geo, dynamic };
     });
     if (memo) memo.steps.length = stack.length;
     return geo;
   }
-  const documents = createDocumentEvaluator(runStack);
+  /** Los filtros de una pila (los activos, en orden), encadenados: sus primitivas y cuánto se salen. */
+  function filtersOf(stack: ModifierInstance[], id: string): { markup: string; pad: number } | null {
+    let markup = '';
+    let pad = 0;
+    let input = 'SourceGraphic';
+    let n = 0;
+    for (const inst of stack) {
+      const def = registry.get(inst.type);
+      if (inst.enabled === false || def?.kind !== 'filter' || !def.filter) continue;
+      const out = `f${n++}`;
+      const r = def.filter(resolveParams(def.params, inst.params), { input, out, id: `${id}-${n}` });
+      markup += r.markup;
+      pad += r.pad;
+      input = out;
+    }
+    return n ? { markup, pad } : null;
+  }
+  const documents = createDocumentEvaluator(runStack, filtersOf);
   const evaluateDocument = (scene: SceneV2) => documents.evaluate(scene);
   const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;
 

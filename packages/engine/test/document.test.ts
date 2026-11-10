@@ -383,3 +383,53 @@ describe('caché por pasos', () => {
     expect(e.evaluateDocument(scene(20)).nodes.get('a')!.box.x).toBeCloseTo(15);
   });
 });
+
+describe('filtros', () => {
+  const scene = (stack: SceneV2['objects'][number]['stack'], extra: Partial<SceneV2> = {}): SceneV2 => ({
+    version: 2,
+    objects: [
+      { kind: 'object', id: 'a', name: 'a', source: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="10" height="10"/><rect x="10" width="10" height="10"/></svg>`, stack },
+      { kind: 'object', id: 'b', name: 'b', source: rect(10, 10), stack: [], transform: { x: 40 } },
+    ],
+    ...extra,
+  });
+
+  it('no tocan la geometría; agrupan las formas del objeto en un <g filter>', () => {
+    const e = engine();
+    const plain = e.evaluateDocument(scene([]));
+    const doc = e.evaluateDocument(scene([{ id: 's', type: 'shadow', params: { offset: [0, 30], blur: 0 } }]));
+    expect(doc.nodes.get('a')!.box).toEqual(plain.nodes.get('a')!.box);
+    expect(doc.geometry.shapes.filter((s) => s.wrap?.[0] === 'a')).toHaveLength(2);
+    expect(doc.geometry.shapes.find((s) => s.node === 'b')!.wrap).toBeUndefined();
+    const svg = e.toSVG(scene([{ id: 's', type: 'shadow', params: { offset: [0, 30], blur: 0 } }]));
+    expect(svg).toContain('<filter id="sv-f-a"');
+    expect(svg).toContain('<feDropShadow');
+    expect(svg.match(/<g filter="url\(#sv-f-a\)">/g)).toHaveLength(1);
+    // El encuadre automático cuenta la sombra (30 hacia abajo): no se corta.
+    expect(doc.geometry.viewBox[3]).toBeGreaterThan(plain.geometry.viewBox[3] + 25);
+  });
+
+  it('se encadenan en el orden de la pila; apagados no cuentan', () => {
+    const doc = engine().evaluateDocument(scene([
+      { id: 'b1', type: 'blur', params: { amount: 4 } },
+      { id: 'g1', type: 'glow', enabled: false },
+      { id: 'd1', type: 'displace' },
+    ]));
+    const f = doc.geometry.filters!.a!.markup;
+    expect(f.indexOf('feGaussianBlur')).toBeLessThan(f.indexOf('feDisplacementMap'));
+    expect(f).toContain('in="f0"');
+    expect(f).not.toContain('feFlood');
+  });
+
+  it('en el lienzo vivo: los grupos aparecen y desaparecen sin perder los trazados', () => {
+    const e = engine();
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as unknown as SVGSVGElement;
+    renderInto(svg, e.evaluateDocument(scene([{ id: 's', type: 'shadow' }])).geometry);
+    expect(svg.querySelectorAll('g[data-svertik-fx] > path')).toHaveLength(2);
+    expect(svg.querySelectorAll(':scope > path')).toHaveLength(1);
+    expect(svg.querySelector('g')!.getAttribute('filter')).toMatch(/^url\(#s\d+-sv-f-a\)$/);
+    renderInto(svg, e.evaluateDocument(scene([])).geometry);
+    expect(svg.querySelectorAll('g')).toHaveLength(0);
+    expect(svg.querySelectorAll(':scope > path')).toHaveLength(3);
+  });
+});

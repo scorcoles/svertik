@@ -1,6 +1,6 @@
 // Escena v2: varios objetos y grupos, cada uno con su pila de efectos y su posición.
 
-import { bounds, mapPoints, type Bounds, type Geometry, type Shape } from './geometry';
+import { bounds, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape } from './geometry';
 import { importSVG } from './import';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
@@ -192,6 +192,7 @@ export type TargetLookup = (id: string) => Geometry | null;
  */
 export function createDocumentEvaluator(
   runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo) => Geometry,
+  filtersOf: (stack: ModifierInstance[], id: string) => { markup: string; pad: number } | null = () => null,
 ): DocumentEvaluator {
   // El origen de cada nodo (SVG importado o primitiva), por su propia clave: no se rehace si solo
   // cambian sus efectos. Y lo que va dando su pila, paso a paso (ver runStack).
@@ -228,6 +229,7 @@ export function createDocumentEvaluator(
     let nodes = new Map<string, NodeInfo>();
     let shapes: Shape[] = [];
     let finalResults = new Map<string, Geometry>();
+    let fx = new Map<string, { markup: string; pad: number }>();
 
     for (let passNo = 0; passNo < 3; passNo++) {
       nodes = new Map<string, NodeInfo>();
@@ -244,6 +246,15 @@ export function createDocumentEvaluator(
         const owner = known.get(ownerId);
         const t = known.get(id);
         return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
+      };
+
+      // Filtros (sombra, desenfoque…): sus formas van dentro de un grupo con el filtro del nodo.
+      fx = new Map();
+      const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
+        const f = filtersOf(node.stack, node.id);
+        if (!f || !shapes.length) return shapes;
+        fx.set(node.id, f);
+        return shapes.map((s) => ({ ...s, wrap: [node.id, ...(s.wrap ?? [])] }));
       };
 
       // Devuelve la geometría del nodo en coordenadas de su padre.
@@ -285,7 +296,7 @@ export function createDocumentEvaluator(
           results.set(node.id, entry.result);
           nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
           if (node.visible === false) return [];
-          return withBlend(withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity), node.blend);
+          return withFilters(node, withBlend(withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity), node.blend));
         }
         // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
         // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
@@ -307,7 +318,7 @@ export function createDocumentEvaluator(
         results.set(node.id, result);
         nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, matrix: world, box: bounds(transformGeo(result, world)) });
         if (node.visible === false) return [];
-        return withBlend(withOpacity(transformGeo(result, m).shapes, node.opacity), node.blend);
+        return withFilters(node, withBlend(withOpacity(transformGeo(result, m).shapes, node.opacity), node.blend));
       };
 
       // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.
@@ -344,7 +355,15 @@ export function createDocumentEvaluator(
     for (const id of [...cache.keys()]) if (!seen.has(id)) cache.delete(id);
     for (const map of [sources, memos]) for (const id of [...map.keys()]) if (!seen.has(id)) map.delete(id);
 
-    const all = bounds({ viewBox: [0, 0, 0, 0], shapes });
+    // La zona de cada filtro: la caja del objeto en el documento, más lo que se salga el filtro.
+    let filters: Record<string, FilterDef> | undefined;
+    for (const [id, f] of fx) {
+      const b = nodes.get(id)?.box;
+      if (!b) continue;
+      (filters ??= {})[id] = { markup: f.markup, region: [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad] };
+    }
+    // Lo que ocupa todo, contando lo que se salen los filtros (una sombra larga no se corta).
+    const all = union([bounds({ viewBox: [0, 0, 0, 0], shapes }), ...Object.values(filters ?? {}).map(({ region: [x, y, width, height] }) => ({ x, y, width, height }))]);
     let viewBox: [number, number, number, number];
     if (scene.document) {
       const { width: w, height: h, x = 0, y = 0 } = scene.document;
@@ -358,7 +377,7 @@ export function createDocumentEvaluator(
       const info = nodes.get(id);
       return g && info ? transformGeo(g, info.matrix) : null;
     };
-    return { geometry: { viewBox, shapes }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf };
+    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf };
   }
 
   return { evaluate };
