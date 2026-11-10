@@ -1,7 +1,9 @@
 // Estado del editor: la escena (v2: varios objetos y grupos), la selección, el historial y la URL.
 import {
   builtins,
+  linearOf,
   migrateScene,
+  placementOf,
   shapeRegistry,
   randomizeParams,
   resolveParams,
@@ -9,6 +11,7 @@ import {
   walkNodes,
   type AnyScene,
   type GroupNode,
+  type NodeInfo,
   type ModifierDef,
   type ModifierInstance,
   type ObjectNode,
@@ -105,6 +108,8 @@ export class Editor {
   /** Objetos animados por el script mientras corre; no entran en el historial. */
   preview = $state<SceneNode[] | null>(null);
   codeOpen = $state(false);
+  /** Información de cada nodo tras evaluar (caja de referencia, matriz…): la deja el lienzo. */
+  infos = $state.raw<Map<string, NodeInfo>>(new Map());
   /** Herramienta de primitivas armada (se dibuja arrastrando en el lienzo). */
   tool = $state<string | null>(null);
   /** Punto que se está moviendo (fracción de la caja de origen); se borra al parar. */
@@ -339,6 +344,30 @@ export class Editor {
       if (!n || (dx === 0 && dy === 0)) continue;
       n.transform = { ...n.transform, x: r((n.transform?.x ?? 0) + dx), y: r((n.transform?.y ?? 0) + dy) };
     }
+    this.record(now);
+  }
+
+  /**
+   * Mueve el centro de transformación sin que el objeto salte: compensa la posición con
+   * (giro·escala·reflejo − identidad) por lo que se movió el pivote.
+   */
+  setPivot(id: string, pivot: [number, number], now = false) {
+    const n = this.scene ? locateNode(this.scene.objects, id)?.node : undefined;
+    const ref = this.infos.get(id)?.bounds;
+    if (!n || !ref) return;
+    const p = placementOf(n);
+    const [ox, oy] = p.pivot ?? [0.5, 0.5];
+    const d = [(pivot[0] - ox) * ref.width, (pivot[1] - oy) * ref.height] as const;
+    const L = linearOf(p);
+    // Más precisión que al mover: al arrastrar el pivote se compensa en cada paso y el redondeo se acumularía.
+    const r = (v: number) => Math.round(v * 10000) / 10000;
+    const k = (v: number) => Math.round(v * 1000) / 1000;
+    n.transform = {
+      ...n.transform,
+      x: r(p.x + (L[0] - 1) * d[0] + L[2] * d[1]),
+      y: r(p.y + L[1] * d[0] + (L[3] - 1) * d[1]),
+      pivot: [k(pivot[0]), k(pivot[1])],
+    };
     this.record(now);
   }
 

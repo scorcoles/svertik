@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { apply, builtins, buildShape, createEngine, invert, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
+  import { untrack } from 'svelte';
+  import { apply, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -57,10 +58,12 @@
         ghost.setAttribute('viewBox', viewBox.join(' '));
       }
       nodes = doc.nodes;
+      editor.infos = doc.nodes;
       renderError = null;
       // Tiempo de recálculo, suavizado (para el aviso de rendimiento).
       const ms = performance.now() - t0;
-      cost = cost === null ? ms : cost * 0.7 + ms * 0.3;
+      const prev = untrack(() => cost);
+      cost = prev === null ? ms : prev * 0.7 + ms * 0.3;
     } catch (e) {
       renderError = e instanceof Error ? e.message : String(e);
     }
@@ -275,8 +278,7 @@
     e.stopPropagation();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const b = info.bounds;
-    const pivot = docToStage(...apply(info.matrix, [b.x + b.width / 2, b.y + b.height / 2]));
+    const pivot = docToStage(...apply(info.matrix, pivotPoint(info.bounds, placementOf(node).pivot)));
     if (!pivot) return;
     const r = stage.getBoundingClientRect();
     const at = (ev: PointerEvent) => [ev.clientX - r.left - pivot[0], ev.clientY - r.top - pivot[1]] as const;
@@ -298,6 +300,50 @@
         editor.setNode(node.id, 'rotation', deg);
         gesture = { text: `${deg}°`, ...label };
       }
+    };
+    const up = () => {
+      gesture = null;
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  }
+
+  // ── Centro de transformación: una cruz con círculo que se arrastra (⇧ = esquinas, bordes y centro)
+
+  let pivotAt = $state<[number, number] | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const node = editor.currentNode;
+    const pv = node ? $state.snapshot(placementOf(node).pivot) : undefined;
+    const frame = requestAnimationFrame(() => {
+      const info = node ? nodes.get(node.id) : undefined;
+      pivotAt = info ? docToStage(...apply(info.matrix, pivotPoint(info.bounds, pv as [number, number] | undefined))) : null;
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function dragPivot(e: PointerEvent) {
+    const node = editor.currentNode;
+    const info = node ? nodes.get(node.id) : undefined;
+    if (!node || !info || space) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const b = info.bounds;
+    // La matriz del principio: mientras se arrastra, el objeto no se mueve.
+    const inv = invert(info.matrix);
+    const r = stage!.getBoundingClientRect();
+    const move = (ev: PointerEvent) => {
+      const d = clientToDoc(ev.clientX, ev.clientY);
+      if (!d || !b.width || !b.height) return;
+      const [lx, ly] = apply(inv, d);
+      let f: [number, number] = [(lx - b.x) / b.width, (ly - b.y) / b.height];
+      if (ev.shiftKey) f = [Math.round(f[0] * 2) / 2, Math.round(f[1] * 2) / 2];
+      editor.setPivot(node.id, f);
+      gesture = { text: `pivot ${f[0].toFixed(2)}, ${f[1].toFixed(2)}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
     };
     const up = () => {
       gesture = null;
@@ -564,6 +610,17 @@
           <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
         {/each}
       {/if}
+      {#if pivotAt && selection && !editor.tool && !editor.current}
+        <button
+          type="button"
+          class="pivot"
+          style:left="{pivotAt[0]}px"
+          style:top="{pivotAt[1]}px"
+          title="Transform center: drag to move it (⇧ snaps to corners, edges and center)"
+          aria-label="Transform center"
+          onpointerdown={dragPivot}
+        ></button>
+      {/if}
       {#each others as o, i (i)}
         <span class="selection other" style:left="{o.x}px" style:top="{o.y}px" style:width="{o.w}px" style:height="{o.h}px" aria-hidden="true"></span>
       {/each}
@@ -708,6 +765,24 @@
   /* Recuadro del objeto o grupo seleccionado. */
   .selection { position: absolute; pointer-events: none; outline: 1px solid var(--sv-accent-fill); }
   .selection.other { outline-style: dashed; }
+  /* Centro de transformación: círculo con cruz. */
+  .pivot {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    padding: 0;
+    translate: -50% -50%;
+    background: none;
+    border: 1px solid var(--sv-accent-fill);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4);
+    cursor: move;
+  }
+  .pivot::before,
+  .pivot::after { content: ''; position: absolute; background: var(--sv-accent-fill); }
+  .pivot::before { left: 50%; top: -4px; bottom: -4px; width: 1px; translate: -50% 0; }
+  .pivot::after { top: 50%; left: -4px; right: -4px; height: 1px; translate: 0 -50%; }
+  .stage[data-space] .pivot { pointer-events: none; }
   /* Organizar: arriba, en el centro del lienzo, mientras haya algo seleccionado. */
   .arrange {
     position: absolute;

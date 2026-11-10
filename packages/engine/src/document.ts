@@ -14,6 +14,8 @@ export interface Placement {
   /** Reflejo horizontal (espejo izquierda ↔ derecha) y vertical, alrededor del centro del nodo. */
   flipX?: boolean;
   flipY?: boolean;
+  /** Centro de transformación (giro, escala, reflejo), en fracciones de la caja del nodo. Por defecto, el centro. */
+  pivot?: [number, number];
 }
 
 interface NodeBase {
@@ -98,10 +100,22 @@ export interface DocumentResult {
 export const placementOf = (n: NodeBase): Placement => ({ ...DEFAULT_PLACEMENT, ...n.transform });
 
 /** Matriz de un nodo: mueve, gira y escala alrededor de `center`, que acaba en (x, y) + `anchor`. */
-function placementMatrix(p: Placement, center: [number, number], anchor: [number, number]): Mat {
-  const flip: Mat = [p.flipX ? -1 : 1, 0, 0, p.flipY ? -1 : 1, 0, 0];
-  return multiply(translate(anchor[0] + p.x, anchor[1] + p.y), multiply(rotateScale(p.rotation, p.scale), multiply(flip, translate(-center[0], -center[1]))));
+function placementMatrix(p: Placement, ref: Bounds, anchor: [number, number]): Mat {
+  // Con el pivote fuera del centro, el ancla se mueve lo mismo: sin giro ni escala, el nodo no cambia de sitio.
+  const c = centerOf(ref);
+  const pv = pivotPoint(ref, p.pivot);
+  const a: [number, number] = [anchor[0] + pv[0] - c[0], anchor[1] + pv[1] - c[1]];
+  return multiply(translate(a[0] + p.x, a[1] + p.y), multiply(linearOf(p), translate(-pv[0], -pv[1])));
 }
+
+/** La parte lineal de la colocación: giro, escala y reflejo. */
+export const linearOf = (p: Placement): Mat => multiply(rotateScale(p.rotation, p.scale), [p.flipX ? -1 : 1, 0, 0, p.flipY ? -1 : 1, 0, 0]);
+
+/** El pivote en coordenadas locales del nodo. */
+export const pivotPoint = (ref: Bounds, pivot: [number, number] | undefined): [number, number] => {
+  const [fx, fy] = pivot ?? [0.5, 0.5];
+  return [ref.x + fx * ref.width, ref.y + fy * ref.height];
+};
 
 const transformGeo = (geo: Geometry, m: Mat): Geometry => {
   if (m.every((v, i) => v === IDENTITY[i])) return geo;
@@ -183,7 +197,7 @@ export function createDocumentEvaluator(
           }
           const ref = bounds(entry.source);
           // Un objeto importado queda centrado en el origen.
-          const m = placementMatrix(p, centerOf(ref), [0, 0]);
+          const m = placementMatrix(p, ref, [0, 0]);
           const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
           results.set(node.id, entry.result);
@@ -204,7 +218,7 @@ export function createDocumentEvaluator(
         const result = node.stack.length ? runStack(inner, node.stack, ref, resolution, lookupFor(node.id)) : inner;
         const c = centerOf(ref);
         // Agrupar no mueve nada: el centro del grupo se queda donde está.
-        const m = placementMatrix(p, c, c);
+        const m = placementMatrix(p, ref, c);
         const world = multiply(parentMatrix, m);
         // Los hijos ya están en coordenadas del grupo: su matriz real es la del grupo por la suya.
         for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
