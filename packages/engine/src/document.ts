@@ -4,10 +4,10 @@ import { bounds, mapPoints, type Bounds, type FilterDef, type Geometry, type Sha
 import { importSVG } from './import';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
-import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
+import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { Animation, Track } from './animation';
 import type { Interaction } from './interactions';
-import type { ModifierInstance, StepMemo } from './engine';
+import type { FilterChain, ModifierInstance, StepMemo } from './engine';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
 export const BLEND_MODES = [
@@ -192,7 +192,7 @@ export type TargetLookup = (id: string) => Geometry | null;
  */
 export function createDocumentEvaluator(
   runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo) => Geometry,
-  filtersOf: (stack: ModifierInstance[], id: string) => { markup: string; pad: number } | null = () => null,
+  filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
 ): DocumentEvaluator {
   // El origen de cada nodo (SVG importado o primitiva), por su propia clave: no se rehace si solo
   // cambian sus efectos. Y lo que va dando su pila, paso a paso (ver runStack).
@@ -229,7 +229,7 @@ export function createDocumentEvaluator(
     let nodes = new Map<string, NodeInfo>();
     let shapes: Shape[] = [];
     let finalResults = new Map<string, Geometry>();
-    let fx = new Map<string, { markup: string; pad: number }>();
+    let fx = new Map<string, FilterChain>();
 
     for (let passNo = 0; passNo < 3; passNo++) {
       nodes = new Map<string, NodeInfo>();
@@ -251,7 +251,7 @@ export function createDocumentEvaluator(
       // Filtros (sombra, desenfoque…): sus formas van dentro de un grupo con el filtro del nodo.
       fx = new Map();
       const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
-        const f = filtersOf(node.stack, node.id);
+        const f = filtersOf(node.stack);
         if (!f || !shapes.length) return shapes;
         fx.set(node.id, f);
         return shapes.map((s) => ({ ...s, wrap: [node.id, ...(s.wrap ?? [])] }));
@@ -358,9 +358,20 @@ export function createDocumentEvaluator(
     // La zona de cada filtro: la caja del objeto en el documento, más lo que se salga el filtro.
     let filters: Record<string, FilterDef> | undefined;
     for (const [id, f] of fx) {
-      const b = nodes.get(id)?.box;
-      if (!b) continue;
-      (filters ??= {})[id] = { markup: f.markup, region: [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad] };
+      const info = nodes.get(id);
+      if (!info) continue;
+      const b = info.box;
+      const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
+      // Dónde está el objeto (su caja de referencia con su matriz): los filtros por zonas siguen al objeto.
+      const m = info.matrix, r = info.bounds;
+      const scale = Math.hypot(m[0], m[1]);
+      const place = {
+        point: (fx: number, fy: number) => apply(m, [r.x + fx * r.width, r.y + fy * r.height]),
+        size: Math.max(r.width, r.height) * scale,
+        rotation: (Math.atan2(m[1], m[0]) * 180) / Math.PI,
+        region,
+      };
+      (filters ??= {})[id] = { markup: f.markup(id, place), region };
     }
     // Lo que ocupa todo, contando lo que se salen los filtros (una sombra larga no se corta).
     const all = union([bounds({ viewBox: [0, 0, 0, 0], shapes }), ...Object.values(filters ?? {}).map(({ region: [x, y, width, height] }) => ({ x, y, width, height }))]);

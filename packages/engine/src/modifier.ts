@@ -75,10 +75,24 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   apply(geo: Geometry, params: ParamValues<P>, ctx: ModifierContext): Geometry;
   /**
    * Solo los de tipo `filter`: no cambian la geometría; dan primitivas de filtro de SVG que leen `input` y
-   * dejan su resultado en `out`, y cuánto se salen de la caja del objeto (`pad`, en unidades del documento).
+   * dejan su resultado en `out`. `place` dice dónde está el objeto en el documento (para filtros por zonas).
    * Se aplican al objeto entero, después de sus demás efectos, en el orden de la pila.
    */
-  filter?(params: ParamValues<P>, io: { input: string; out: string; id: string }): { markup: string; pad: number };
+  filter?(params: ParamValues<P>, io: { input: string; out: string; id: string }, place: FilterPlace): string;
+  /** Cuánto se sale el filtro de la caja del objeto, en unidades del documento (para no cortarlo). */
+  filterPad?(params: ParamValues<P>): number;
+}
+
+/** Dónde está el objeto al que se aplica un filtro, en el documento. */
+export interface FilterPlace {
+  /** Un punto del objeto en fracciones de su caja (0–1), ya en el documento (con su giro y escala). */
+  point(fx: number, fy: number): readonly [number, number];
+  /** El tamaño del objeto (su lado mayor), en el documento: para medidas relativas. */
+  size: number;
+  /** El giro del objeto, en grados. */
+  rotation: number;
+  /** La zona del filtro: [x, y, ancho, alto]. */
+  region: [number, number, number, number];
 }
 
 /** Ayuda de tipos: infiere los parámetros a partir del esquema. */

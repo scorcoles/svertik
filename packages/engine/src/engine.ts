@@ -3,7 +3,7 @@
 import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
 import { bounds, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './import';
-import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
+import { resolveParams, type FilterPlace, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 
 export interface ModifierInstance {
@@ -25,6 +25,12 @@ export interface StackInput {
   stack: ModifierInstance[];
   /** Longitud máxima de tramo al subdividir, como fracción del tamaño del dibujo. */
   resolution?: number;
+}
+
+/** Los filtros de un objeto, encadenados (ver `ModifierDef.filter`). */
+export interface FilterChain {
+  pad: number;
+  markup(id: string, place: FilterPlace): string;
 }
 
 export interface Engine {
@@ -136,22 +142,30 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     if (memo) memo.steps.length = stack.length;
     return geo;
   }
-  /** Los filtros de una pila (los activos, en orden), encadenados: sus primitivas y cuánto se salen. */
-  function filtersOf(stack: ModifierInstance[], id: string): { markup: string; pad: number } | null {
-    let markup = '';
-    let pad = 0;
-    let input = 'SourceGraphic';
-    let n = 0;
-    for (const inst of stack) {
+  /**
+   * Los filtros de una pila (los activos, en orden): cuánto se salen en total y cómo escribir sus
+   * primitivas encadenadas cuando se sepa dónde está el objeto.
+   */
+  function filtersOf(stack: ModifierInstance[]): FilterChain | null {
+    const list = stack.flatMap((inst) => {
       const def = registry.get(inst.type);
-      if (inst.enabled === false || def?.kind !== 'filter' || !def.filter) continue;
-      const out = `f${n++}`;
-      const r = def.filter(resolveParams(def.params, inst.params), { input, out, id: `${id}-${n}` });
-      markup += r.markup;
-      pad += r.pad;
-      input = out;
-    }
-    return n ? { markup, pad } : null;
+      return inst.enabled !== false && def?.kind === 'filter' && def.filter ? [{ def, params: resolveParams(def.params, inst.params) }] : [];
+    });
+    if (!list.length) return null;
+    return {
+      pad: list.reduce((sum, f) => sum + (f.def.filterPad?.(f.params) ?? 0), 0),
+      markup(id, place) {
+        let input = 'SourceGraphic';
+        return list
+          .map((f, n) => {
+            const out = `f${n}`;
+            const m = f.def.filter!(f.params, { input, out, id: `${id}-${n}` }, place);
+            input = out;
+            return m;
+          })
+          .join('');
+      },
+    };
   }
   const documents = createDocumentEvaluator(runStack, filtersOf);
   const evaluateDocument = (scene: SceneV2) => documents.evaluate(scene);

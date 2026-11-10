@@ -433,3 +433,25 @@ describe('filtros', () => {
     expect(svg.querySelectorAll(':scope > path')).toHaveLength(3);
   });
 });
+
+describe('filtros por zonas', () => {
+  const one = (params: Record<string, unknown>, transform = {}): SceneV2 => ({
+    version: 2,
+    objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(100, 50), stack: [{ id: 'b', type: 'blur', params }], transform }],
+  });
+  const markup = (s: SceneV2) => engine().evaluateDocument(s).geometry.filters!.a!.markup;
+
+  it('entero, sin máscara; con zona, una máscara con el degradado y el original fuera de ella', () => {
+    expect(markup(one({}))).not.toContain('feImage');
+    const m = markup(one({ area: 'radial', center: [0, 0.5], radius: 0.5 }));
+    expect(m).toContain('<feImage href="data:image/svg+xml');
+    expect(m).toContain('operator="out"');
+    // El centro, en el documento: el objeto (100 × 50) queda centrado en el origen → x = −50.
+    expect(decodeURIComponent(m)).toContain('cx="-50" cy="0" r="50"');
+  });
+
+  it('la zona sigue al objeto movido; la franja lleva un degradado lineal', () => {
+    expect(decodeURIComponent(markup(one({ area: 'radial', center: [0.5, 0.5] }, { x: 200 })))).toContain('cx="200"');
+    expect(decodeURIComponent(markup(one({ area: 'band', angle: 0, radius: 0.2 })))).toMatch(/linearGradient id="m"[^>]*y1="-20"[^>]*y2="20"/);
+  });
+});

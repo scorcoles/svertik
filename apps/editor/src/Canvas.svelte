@@ -205,8 +205,12 @@
     // Dentro de Step cada copia tiene su propio centro: no hay un único sitio que arrastrar.
     if (!m || editor.currentParent) return [];
     const def = registry.get(m.type);
-    return Object.entries(def?.params ?? {})
-      .filter(([, s]) => s.type === 'point' && s.handle !== false)
+    const params = def?.params ?? {};
+    // Sin los que no se ven (showIf): el centro de la zona de un filtro, solo con zona.
+    const shown = (s: (typeof params)[string]) =>
+      !s.showIf || Object.entries(s.showIf).every(([o, allowed]) => allowed.includes(String(m.params?.[o] ?? params[o]?.default)));
+    return Object.entries(params)
+      .filter(([, s]) => s.type === 'point' && s.handle !== false && shown(s))
       .map(([name, s]) => ({ name, label: s.label ?? name }));
   });
 
