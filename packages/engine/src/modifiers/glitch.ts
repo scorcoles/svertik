@@ -52,7 +52,7 @@ export const glitch = defineModifier({
     const dx = weights.map(() => (p.slices > 0 && rand() < p.chance ? (rand() * 2 - 1) * p.shift * size : 0));
 
     // Piezas: cada forma cortada en franjas y corrida. Cada pieza, su estilo y su franja.
-    type Piece = { shape: Shape; poly: MultiPolygon; band: number };
+    type Piece = { shape: Shape; poly: MultiPolygon; band: number; box: Box };
     let pieces: Piece[] = [];
     for (const s of geo.shapes) {
       if ((s.style.fill ?? 'black') === 'none') continue;
@@ -60,7 +60,10 @@ export const glitch = defineModifier({
       if (!r.length) continue;
       for (let i = 0; i < n; i++) {
         const cut = intersection(r, wide(cuts[i]!, cuts[i + 1]!));
-        if (cut.length) pieces.push({ shape: s, poly: dx[i] ? move(cut, dx[i]!, 0) : cut, band: i });
+        if (cut.length) {
+          const poly = dx[i] ? move(cut, dx[i]!, 0) : cut;
+          pieces.push({ shape: s, poly, band: i, box: boxOf(poly) });
+        }
       }
     }
     if (!pieces.length) return geo;
@@ -72,29 +75,44 @@ export const glitch = defineModifier({
       const B: Polygon = [rect(b.x + rand() * (b.width - bw), b.y + rand() * (b.height - bh), bw, bh)];
       const ox = (rand() * 2 - 1) * p.blockShift * size;
       const oy = (rand() * 2 - 1) * p.blockShift * size * 0.15;
+      const bb = boxOf([B]);
       const next: Piece[] = [];
       for (const pc of pieces) {
+        // Sin tocarse las cajas, no hay nada que recortar (evita miles de recortes inútiles).
+        if (!overlaps(pc.box, bb)) {
+          next.push(pc);
+          continue;
+        }
         const inside = intersection(pc.poly, B);
         if (!inside.length) {
           next.push(pc);
           continue;
         }
         const rest = difference(pc.poly, B);
-        if (rest.length) next.push({ ...pc, poly: rest });
-        next.push({ ...pc, poly: move(inside, ox, oy) });
+        if (rest.length) next.push({ ...pc, poly: rest, box: boxOf(rest) });
+        const moved = move(inside, ox, oy);
+        next.push({ ...pc, poly: moved, box: boxOf(moved) });
       }
       pieces = next;
     }
 
     // Barrido: rayitas horizontales recortadas en todas las piezas.
     if (p.scanlines > 0) {
-      const lines: MultiPolygon = [];
-      const m = Math.round(p.scanlines);
-      for (let i = 0; i < m; i++) {
-        const y = b.y + ((i + 0.5) / m) * b.height;
-        lines.push([rect(b.x - size, y - p.scanWidth / 2, b.width + 2 * size, p.scanWidth)]);
-      }
-      pieces = pieces.map((pc) => ({ ...pc, poly: difference(pc.poly, lines) })).filter((pc) => pc.poly.length);
+      // Tope: entre línea y línea queda al menos tanto material como hueco.
+      const m = Math.min(Math.round(p.scanlines), Math.floor(b.height / (2 * p.scanWidth)));
+      const gap = b.height / Math.max(1, m);
+      pieces = pieces
+        .map((pc) => {
+          // Solo las líneas que pasan por la altura de la pieza.
+          const lines: MultiPolygon = [];
+          const i0 = Math.max(0, Math.floor((pc.box.y - b.y) / gap - 1)), i1 = Math.min(m - 1, Math.ceil((pc.box.y + pc.box.h - b.y) / gap));
+          for (let i = i0; i <= i1; i++) {
+            const y = b.y + (i + 0.5) * gap;
+            lines.push([rect(pc.box.x - 1, y - p.scanWidth / 2, pc.box.w + 2, p.scanWidth)]);
+          }
+          return lines.length ? { ...pc, poly: difference(pc.poly, lines) } : pc;
+        })
+        .filter((pc) => pc.poly.length);
     }
 
     const toShape = (pc: Piece, poly: MultiPolygon, style?: Shape['style']): Shape | null => {
@@ -129,6 +147,19 @@ export const glitch = defineModifier({
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
+
+type Box = { x: number; y: number; w: number; h: number };
+function boxOf(m: MultiPolygon): Box {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const poly of m) for (const [x, y] of poly[0] ?? []) {
+    if (x < x0) x0 = x;
+    if (y < y0) y0 = y;
+    if (x > x1) x1 = x;
+    if (y > y1) y1 = y;
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+const overlaps = (a: Box, b: Box) => a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
 
 const rect = (x: number, y: number, w: number, h: number): Pair[] => [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]];
 const move = (m: MultiPolygon, dx: number, dy: number): MultiPolygon => m.map((poly) => poly.map((ring) => ring.map(([x, y]) => [x + dx, y + dy] as Pair)));
