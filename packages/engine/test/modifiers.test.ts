@@ -459,3 +459,25 @@ describe('mosaic girado', () => {
     expect(geo.shapes.some((s) => s.subpaths[0]!.segs.length === 3)).toBe(true);
   });
 });
+
+describe('damage', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params }] });
+  const holes = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).length;
+
+  it('recorta grietas, desconchones y motas; misma semilla, mismo resultado', () => {
+    const a = run({ seed: 7 });
+    expect(holes(a)).toBeGreaterThan(5);
+    expect(JSON.stringify(run({ seed: 7 }))).toBe(JSON.stringify(a));
+    expect(JSON.stringify(run({ seed: 8 }))).not.toBe(JSON.stringify(a));
+    // No se sale de la forma.
+    const b = bounds(a);
+    expect(b.x).toBeGreaterThanOrEqual(19.99);
+    expect(b.x + b.width).toBeLessThanOrEqual(80.01);
+  });
+
+  it('sin nada que recortar, deja la forma como estaba', () => {
+    const geo = run({ cracks: 0, chips: 0, specks: 0 });
+    expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  });
+});
