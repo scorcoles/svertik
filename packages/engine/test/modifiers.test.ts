@@ -505,3 +505,24 @@ describe('roughen y fractal', () => {
     expect(run([{ id: 'f', type: 'fractal', params: { preset: 'spiral', depth: 10 } }]).shapes).toHaveLength(11);
   });
 });
+
+describe('fractal fit y glitch', () => {
+  const run = (stack: Scene['stack']) => createEngine(builtins).evaluate({ version: 1, source: square, stack });
+
+  it('fit: el árbol cabe en la caja del cuadrado original', () => {
+    const b = bounds(run([{ id: 'f', type: 'fractal', params: { preset: 'tree', depth: 6 } }]));
+    expect(b.width).toBeLessThanOrEqual(60.01);
+    expect(b.height).toBeLessThanOrEqual(60.01);
+    expect(b.x).toBeGreaterThanOrEqual(19.99);
+    const free = bounds(run([{ id: 'f', type: 'fractal', params: { preset: 'tree', depth: 6, fit: false } }]));
+    expect(free.height).toBeGreaterThan(60);
+  });
+
+  it('glitch: franjas, separación detrás y rayas; mismo resultado con la misma semilla', () => {
+    const a = run([{ id: 'g', type: 'glitch', params: { seed: 3 } }]);
+    // Detrás, las copias de color; delante, las piezas con su estilo.
+    expect(a.shapes[0]!.style.fill).toBe('#00e5ff');
+    expect(a.shapes.length).toBeGreaterThan(10);
+    expect(JSON.stringify(run([{ id: 'g', type: 'glitch', params: { seed: 3 } }]))).toBe(JSON.stringify(a));
+  });
+});

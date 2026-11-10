@@ -106,6 +106,7 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 - 2026-11-10: Boolean con varios objetos seleccionados los agrupa y se aplica de una vez; modos de Boolean como botones con icono (iconos con relleno tenue opcional, `iconFills`, solo para estos cuatro: pendiente de pasar a Penpot); ⇧ durante un arrastre fija el eje (objetos: el del documento; tiradores de efecto: X o Y del punto).
 - 2026-11-10: barra Arrange con los cuatro modos de Boolean (agrupan y aplican; sobre un grupo, cambian el modo). Damage (generador; referencia: el triángulo de «Yomi no Tsugai»): grietas que entran desde el borde (rumbo recto con quiebros secos, más anchas al nacer), desconchones en el borde y motas cerca de bordes y grietas, todo recortado como agujeros; semilla y `growth`.
 - 2026-11-10: Damage con bordes orgánicos: cada agujero pasa por un desplazamiento fractal del punto medio (`Roughness`), así que a lo grande no quedan facetas rectas. Icono del peón rehecho (cabeza, collarín, flancos rectos y peana).
+- 2026-11-10: Glitch (generador, solo geometría): franjas desplazadas (cuántas, qué parte se corre y cuánto), bloques recortados que aparecen desplazados dejando su hueco, separación en dos colores detrás, rayas que se escapan y líneas de barrido; cada franja es un elemento. Fractal con `Fit` (por defecto): el resultado cabe en la caja del dibujo original.
 - 2026-11-10: Roughen (deformador): organic (rasgado fractal, con semilla) o koch (1–4 iteraciones; altura del pico, negativa = hacia dentro). Fractal (generador, IFS): sierpinski, carpet, tree (todos los niveles) y spiral; tope de 4 096 copias (baja la profundidad solo). El rasgado común está en `paths.ts` (`tearPolyline`).
 - 2026-11-10: primitiva Pawn (peón de ajedrez, 120 × 200, con curvas): la forma de prueba de svertik, como la tetera en 3D. Icono `pawn` (pendiente de Penpot, con los de booleanos).
 - 2026-11-10: más actuadores: Bend (eje doblado y su extremo), Ripple (anillos y longitud de onda), Taper (contorno y cantidad), Shear (paralelogramo y dos tiradores), Perspective y Envelope (cuadrilátero y malla), Cylinder (cilindro y wrap), Transform (aro que se arrastra para mover; tirador que gira y escala) y Clone (radio y ángulo de inicio, separación, desplazamiento).
@@ -148,6 +149,8 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 - **Composición:** objeto que anida primitivas, SVG y animaciones; se entra para editarlo y animarlo por dentro, y fuera se ve como un solo objeto con su propia pila.
 - Modificador de tiempo para composiciones (una de 10 s pasa a 5 o 20 s).
 - Huesos (rigging) para deformar un objeto.
+
+**Filtros SVG (más adelante):** Glow y otros efectos de render (`<filter>`: desenfoque, sombras…). Son estándar SVG, pero el usuario prefiere decidir antes cómo encajan; de momento, solo geometría.
 
 **Fase 3:** rejilla de fondo y ajuste a la rejilla (después de la animación).
 
