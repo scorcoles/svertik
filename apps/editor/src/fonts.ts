@@ -41,13 +41,15 @@ export function nearest(f: CatalogFont, weight: number, italic: boolean): { weig
   return { weight: w, italic: italic && f.italic };
 }
 
-// ── Vista previa: el nombre de cada familia escrito en su letra (como fuente web, solo para la lista)
+// ── Vista previa: la fuente como fuente web (el nombre de cada familia en su letra, y el texto que se
+// edita sobre el lienzo). Devuelve el nombre CSS de la familia; cada peso y estilo se carga una vez.
 const previewed = new Set<string>();
-export function previewFamily(family: string): string {
+export function previewFamily(family: string, weight = 400, italic = false): string {
   const css = `sv-preview-${fontsourceId(family)}`;
-  if (!previewed.has(family) && typeof FontFace !== 'undefined') {
-    previewed.add(family);
-    const face = new FontFace(css, `url(${fontsourceURL(family)})`);
+  const key = fontKey(family, weight, italic);
+  if (!previewed.has(key) && typeof FontFace !== 'undefined') {
+    previewed.add(key);
+    const face = new FontFace(css, `url(${fontsourceURL(family, weight, italic)})`, { weight: String(weight), style: italic ? 'italic' : 'normal' });
     face.load().then((f) => document.fonts.add(f)).catch(() => {});
   }
   return css;

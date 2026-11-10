@@ -342,6 +342,14 @@ export class Editor {
   }
 
   /** Un parámetro de una primitiva. */
+  /** Cambia un parámetro de una primitiva sin pasar por el historial (al escribir en el lienzo: luego, uno solo). */
+  previewShapeParam(id: string, name: string, value: unknown) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (at?.node.kind === 'shape') at.node.params[name] = value;
+  }
+  /** Texto que se está editando sobre el lienzo (id del nodo), o null. */
+  editingText = $state<string | null>(null);
+
   setShapeParam(id: string, name: string, value: unknown) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at || at.node.kind !== 'shape') return;

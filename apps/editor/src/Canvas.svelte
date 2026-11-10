@@ -8,6 +8,7 @@
   import { align, distribute, type Align, type Move } from './arrange';
   import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
   import Tools from './Tools.svelte';
+  import TextEdit from './TextEdit.svelte';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
 
   interface Props {
@@ -63,6 +64,9 @@
       }
       renderInto(result, doc.geometry);
       result.setAttribute('viewBox', viewBox.join(' '));
+      // Escribiendo en un texto: su resultado (con efectos), atenuado debajo del campo.
+      const editing = editor.editingText;
+      for (const p of result.querySelectorAll<SVGPathElement>('path[data-node]')) p.style.opacity = editing && p.getAttribute('data-node') === editing ? '0.25' : '';
       if (ghost) {
         renderInto(ghost, doc.sources);
         ghost.setAttribute('viewBox', viewBox.join(' '));
@@ -159,6 +163,17 @@
     else if (e.code === 'Space' && !e.repeat) { space = true; e.preventDefault(); }
     else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
     else if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); view = actualSize(view, fit, box[0], box[1]); }
+    // Intro, con un texto seleccionado: escribir en él.
+    else if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && isText(editor.currentNode)) { e.preventDefault(); editor.editingText = editor.currentNode!.id; }
+  }
+  const isText = (n: SceneNode | null | undefined): n is SceneNode & { kind: 'shape' } => n?.kind === 'shape' && n.shape === 'text';
+  /** Doble clic en un texto: escribir en él, sobre el lienzo. */
+  function dblclick(e: MouseEvent) {
+    const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
+    const n = id && editor.scene ? locateNode(editor.scene.objects, id)?.node : null;
+    if (!isText(n)) return;
+    editor.selected = n.id;
+    editor.editingText = n.id;
   }
   function keyup(e: KeyboardEvent) {
     if (e.code === 'Space') space = false;
@@ -661,7 +676,7 @@
   <Tools {editor} oncenter={placeAtCenter} />
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown}>
+    <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
       <div class="view" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
@@ -681,6 +696,13 @@
           </svg>
         {/if}
       </div>
+      {#if editor.editingText && editor.scene}
+        {@const tn = locateNode(editor.scene.objects, editor.editingText)?.node}
+        {@const ti = nodes.get(editor.editingText)}
+        {#if tn && tn.kind === 'shape' && ti}
+          {#key tn.id}<TextEdit {editor} node={tn} info={ti} {docToStage} onclose={() => (editor.editingText = null)} />{/key}
+        {/if}
+      {/if}
       {#if selection && !editor.tool}
         <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
         {#each corners as c (c)}
