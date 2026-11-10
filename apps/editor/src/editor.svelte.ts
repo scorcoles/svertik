@@ -1180,10 +1180,22 @@ export class Editor {
     history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
   }
 
+  /**
+   * Enlace para compartir: la escena en la URL, marcada para abrirse en el modo Play (#p=…).
+   * null si no cabe en un enlace (entonces, mejor el archivo .svrtk).
+   */
+  async shareURL(): Promise<string | null> {
+    if (!this.scene) return null;
+    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    if (encoded.length >= MAX_HASH) return null;
+    return `${location.origin}${location.pathname}${location.search}#p=${encoded}`;
+  }
+
   async loadFromURL() {
-    const m = location.hash.match(/^#s=(.+)$/);
+    // #s=…: la escena; #p=…: la escena, en el modo Play (un enlace compartido).
+    const m = location.hash.match(/^#([sp])=(.+)$/);
     if (!m) return false;
-    const state = await decodeState(m[1]!);
+    const state = await decodeState(m[2]!);
     if (!state) return false;
     const scene = migrateScene(state.scene, state.name.endsWith('.svg') ? state.name : `${state.name}.svg`);
     this.scene = scene;
@@ -1194,6 +1206,10 @@ export class Editor {
     this.#history = [];
     this.#index = -1;
     this.record(true);
+    if (m[1] === 'p') {
+      this.selected = null;
+      this.presenting = true;
+    }
     return true;
   }
 }
