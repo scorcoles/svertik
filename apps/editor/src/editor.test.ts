@@ -279,3 +279,19 @@ describe('copiar y pegar', () => {
     expect(e.paste('{"a":1}')).toBe(false);
   });
 });
+
+describe('atajo de Boolean', () => {
+  it('con varios seleccionados, los agrupa y le pone Boolean al grupo', () => {
+    const e = fresh();
+    e.addShape('star');
+    const ids = e.scene!.objects.map((n) => n.id);
+    e.selected = ids[0]!;
+    e.toggleSelect(ids[1]!);
+    e.add('boolean');
+    expect(e.scene!.objects).toHaveLength(1);
+    const g = e.scene!.objects[0]!;
+    expect(g.kind).toBe('group');
+    expect(g.stack.map((m) => m.type)).toEqual(['boolean']);
+    expect(e.current?.type).toBe('boolean');
+  });
+});

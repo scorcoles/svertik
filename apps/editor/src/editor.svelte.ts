@@ -486,6 +486,8 @@ export class Editor {
   // ── Pila del nodo activo
 
   add(type: string) {
+    // Boolean con varios objetos seleccionados: primero se agrupan (Boolean trabaja con los hijos de un grupo).
+    if (type === 'boolean' && this.selectedNodes.length > 1 && !this.current) this.group();
     const def = registry.get(type);
     const owner = this.activeNode;
     if (!this.scene || !def || !owner) return;

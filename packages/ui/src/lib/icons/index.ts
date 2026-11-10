@@ -51,6 +51,11 @@ export const icons = {
   'align-bottom': 'M1.5 14.5h13 M3.5 3.5h3v9h-3z M9.5 7.5h3v5h-3z',
   'distribute-h': 'M1.5 1.5v13 M14.5 1.5v13 M6.5 4.5h3v7h-3z',
   'distribute-v': 'M1.5 1.5h13 M1.5 14.5h13 M4.5 6.5h7v3h-7z',
+  // Booleanos: los dos cuadrados (atrás y delante); lo que queda, relleno (ver iconFills).
+  'bool-union': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
+  'bool-subtract': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
+  'bool-intersect': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
+  'bool-exclude': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
   // Interfaz
   center: 'M8 1.5v4 M8 10.5v4 M1.5 8h4 M10.5 8h4 M7 7h2v2h-2z',
   link: 'M6.5 9.5l3-3 M7.5 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M8.5 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1',
@@ -72,6 +77,17 @@ export const icons = {
 
 export type IconName = keyof typeof icons;
 
+/**
+ * Relleno tenue (40 % del color) para los pocos iconos que lo necesitan para entenderse:
+ * los booleanos, cuyo significado es la zona que queda. El resto, solo trazo.
+ */
+export const iconFills: Partial<Record<IconName, string>> = {
+  'bool-union': 'M1.5 1.5h9v4h4v9h-9v-4h-4z',
+  'bool-subtract': 'M1.5 1.5h9v4h-5v5h-4z',
+  'bool-intersect': 'M5.5 5.5h5v5h-5z',
+  'bool-exclude': 'M1.5 1.5h9v4h-5v5h-4z M10.5 5.5h4v9h-9v-4h5z',
+};
+
 /** El icono como SVG completo (para exportar o subir a Penpot). */
 export const iconSVG = (name: IconName, color = 'currentColor') =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1" stroke-linecap="square" stroke-linejoin="miter"><path d="${icons[name]}"/></svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1" stroke-linecap="square" stroke-linejoin="miter">${iconFills[name] ? `<path d="${iconFills[name]}" fill="${color}" fill-opacity="0.4" stroke="none"/>` : ''}<path d="${icons[name]}"/></svg>`;

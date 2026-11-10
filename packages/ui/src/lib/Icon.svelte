@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { icons, type IconName } from './icons';
+  import { iconFills, icons, type IconName } from './icons';
 
   interface Props {
     name: IconName;
@@ -19,6 +19,7 @@
   aria-label={label}
   aria-hidden={label ? undefined : true}
 >
+  {#if iconFills[name]}<path class="fill" d={iconFills[name]} />{/if}
   <path d={icons[name]} />
 </svg>
 
@@ -32,4 +33,5 @@
     stroke-linecap: square;
     stroke-linejoin: miter;
   }
+  .fill { fill: currentColor; fill-opacity: 0.4; stroke: none; }
 </style>
