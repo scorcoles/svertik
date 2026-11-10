@@ -280,6 +280,22 @@ describe('copiar y pegar', () => {
   });
 });
 
+describe('barra de booleanos', () => {
+  it('agrupa y aplica el modo; sobre el grupo, solo cambia el modo', () => {
+    const e = fresh();
+    e.addShape('star');
+    const ids = e.scene!.objects.map((n) => n.id);
+    e.selected = ids[0]!;
+    e.toggleSelect(ids[1]!);
+    e.booleanize('subtract');
+    const g = e.scene!.objects[0]!;
+    expect(g.stack.map((m) => [m.type, m.params?.mode])).toEqual([['boolean', 'subtract']]);
+    expect(e.selected).toBe(g.id);
+    e.booleanize('intersect');
+    expect(g.stack.map((m) => [m.type, m.params?.mode])).toEqual([['boolean', 'intersect']]);
+  });
+});
+
 describe('atajo de Boolean', () => {
   it('con varios seleccionados, los agrupa y le pone Boolean al grupo', () => {
     const e = fresh();

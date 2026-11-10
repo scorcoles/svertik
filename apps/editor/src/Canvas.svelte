@@ -249,6 +249,12 @@
     const info = nodes.get(n.id);
     return info ? [{ id: n.id, box: info.box }] : [];
   });
+  const booleans = [
+    { mode: 'union', icon: 'bool-union', label: 'union' },
+    { mode: 'subtract', icon: 'bool-subtract', label: 'subtract (back minus front)' },
+    { mode: 'intersect', icon: 'bool-intersect', label: 'intersect' },
+    { mode: 'exclude', icon: 'bool-exclude', label: 'exclude' },
+  ];
   const alignments: { how: Align; icon: string; label: string }[] = [
     { how: 'left', icon: 'align-left', label: 'Align left' },
     { how: 'hcenter', icon: 'align-hcenter', label: 'Align centers horizontally' },
@@ -755,6 +761,7 @@
     {/if}
     {#if editor.selectedNodes.length && !editor.tool}
       {@const n = editor.selectedNodes.length}
+      {@const canBool = n > 1 || editor.selectedNodes[0]?.kind === 'group'}
       <div class="arrange" role="toolbar" aria-label="Arrange">
         {#each alignments as a (a.how)}
           <IconButton icon={a.icon as IconName} label={`${a.label}${n < 2 ? ' (select 2+ with ⇧)' : ''}`} disabled={n < 2} onclick={() => arrange(align(items(), a.how))} />
@@ -765,6 +772,15 @@
         <span class="rule" aria-hidden="true"></span>
         <IconButton icon="flip-h" label="Flip horizontally" onclick={() => editor.flip('x')} />
         <IconButton icon="flip-v" label="Flip vertically" onclick={() => editor.flip('y')} />
+        <span class="rule" aria-hidden="true"></span>
+        {#each booleans as b (b.mode)}
+          <IconButton
+            icon={b.icon as IconName}
+            label={canBool ? `Boolean: ${b.label}` : `Boolean: ${b.label} (select 2+ objects or a group)`}
+            disabled={!canBool}
+            onclick={() => editor.booleanize(b.mode)}
+          />
+        {/each}
       </div>
     {/if}
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
