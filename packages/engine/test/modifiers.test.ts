@@ -806,3 +806,34 @@ describe('bones', () => {
     expect(Math.hypot(x - 60, y - 40)).toBeLessThan(6);
   });
 });
+
+describe('glitch sobre trazos (sin relleno)', () => {
+  const rings = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><g fill="none" stroke="#ededed" stroke-width="2"><circle cx="100" cy="100" r="40"/><circle cx="100" cy="100" r="80"/></g></svg>';
+  const vline = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><line x1="50" y1="0" x2="50" y2="100" stroke="#000"/><line x1="0" y1="50" x2="100" y2="50" stroke="#000" fill="none"/></svg>';
+  const run = (source: string, type: string, params: Record<string, unknown>) => createEngine(builtins).evaluateStack({ source, stack: [{ id: 'g', type, params }] });
+  const length = (geo: ReturnType<typeof run>) =>
+    geo.shapes.reduce((sum, s) => sum + s.subpaths.reduce((a, sp) => a + sp.segs.reduce((b, g, i) => b + Math.hypot(g.p[0] - (i ? sp.segs[i - 1]!.p[0] : sp.start[0]), g.p[1] - (i ? sp.segs[i - 1]!.p[1] : sp.start[1])), 0), 0), 0);
+  const points = (geo: ReturnType<typeof run>) => JSON.stringify(geo.shapes.map((s) => s.subpaths));
+
+  it('Blocks corta y desplaza los anillos (antes no hacía nada)', () => {
+    const before = run(rings, 'blocks', { count: 0 });
+    const after = run(rings, 'blocks', { count: 12, size: 0.15, shift: 0.1, seed: 3 });
+    expect(points(after)).not.toBe(points(before));
+    expect(before.shapes).toHaveLength(2);
+    // Mueve trozos, no los pierde: la longitud total es la de los dos anillos (2π · 120).
+    expect(length(after)).toBeCloseTo(2 * Math.PI * 120, 0);
+    expect(after.shapes.every((s) => s.style.fill === 'none' && s.style.stroke === '#ededed')).toBe(true);
+  });
+
+  it('Slices: cada franja, un elemento; la longitud se conserva', () => {
+    const geo = run(vline, 'slices', { count: 5, chance: 1, shift: 0.1 });
+    expect(length(geo)).toBeCloseTo(200, 0);
+    expect(new Set(geo.shapes.map((s) => s.clone)).size).toBe(5);
+  });
+
+  it('Scanlines quita los tramos que caen en las rayitas', () => {
+    const geo = run(vline, 'scanlines', { count: 10, width: 2 });
+    // La vertical pierde 10 × 2 px; la horizontal (y = 50) cae justo entre dos rayitas y no pierde nada.
+    expect(length(geo)).toBeCloseTo(180, 0);
+  });
+});

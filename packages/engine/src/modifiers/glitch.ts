@@ -4,10 +4,10 @@
 // - Scanlines: rayitas horizontales recortadas dentro;
 // - Streaks: rayas finas que se escapan por los lados;
 // - RGB Split (en filters.ts): copias de color desplazadas detrás, como filtro de SVG.
-// Solo superficies (como Boolean y Mosaic): las líneas abiertas se pierden.
+// Las formas con relleno se cortan como superficies; las de solo trazo (sin relleno), como líneas.
 import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
-import { bounds, type Geometry, type Shape } from '../geometry';
+import { bounds, flatten, line, type Geometry, type Shape, type Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 import { rng } from '../random';
 
@@ -15,12 +15,93 @@ import { rng } from '../random';
 function regions(geo: Geometry, resolution: number) {
   const step = Math.max(resolution, 1e-3);
   return geo.shapes
-    .filter((s) => (s.style.fill ?? 'black') !== 'none')
+    .filter((s) => (s.style.fill ?? 'black') !== 'none' && !isLine(s))
     .map((shape) => ({ shape, poly: regionOf([shape], step) }))
     .filter((x) => x.poly.length)
     .map((x) => ({ ...x, box: boxOf(x.poly) }));
 }
 type Piece = ReturnType<typeof regions>[number];
+
+// ── Trazos sin relleno: polilíneas que se recortan con rectángulos.
+
+/** Una línea: con trazo y, o sin relleno, o sin ningún trazado cerrado (un <line> no tiene superficie). */
+const isLine = (s: Shape) =>
+  !!s.style.stroke && s.style.stroke !== 'none' && ((s.style.fill ?? 'black') === 'none' || s.subpaths.every((sp) => !sp.closed));
+
+interface LinePiece {
+  shape: Shape;
+  lines: Vec2[][];
+  box: Box;
+  /** Aún sin cortar: se devuelve la forma original (con sus curvas). */
+  whole: boolean;
+}
+function linePieces(geo: Geometry): LinePiece[] {
+  return geo.shapes.filter(isLine).map((shape) => {
+    const lines = shape.subpaths.map((sp) => {
+      const pts = flatten(sp, 16);
+      if (sp.closed) pts.push(sp.start);
+      return pts;
+    }).filter((l) => l.length > 1);
+    return { shape, lines, box: boxOfLines(lines), whole: true };
+  }).filter((x) => x.lines.length);
+}
+function boxOfLines(lines: Vec2[][]): Box {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const l of lines) for (const [x, y] of l) {
+    if (x < x0) x0 = x;
+    if (y < y0) y0 = y;
+    if (x > x1) x1 = x;
+    if (y > y1) y1 = y;
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+/** Parte cada polilínea en los tramos dentro y fuera de una caja (Liang–Barsky, tramo a tramo). */
+function clipLines(lines: Vec2[][], r: Box): { inside: Vec2[][]; outside: Vec2[][] } {
+  const inside: Vec2[][] = [], outside: Vec2[][] = [];
+  const at = (a: Vec2, b: Vec2, t: number): Vec2 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  for (const pts of lines) {
+    let run: Vec2[] | null = null;
+    let runIn = false;
+    const push = (q: Vec2, isIn: boolean) => {
+      if (!run || runIn !== isIn) {
+        const last: Vec2 | undefined = run ? run[run.length - 1] : undefined;
+        if (run && run.length > 1) (runIn ? inside : outside).push(run);
+        run = last ? [last, q] : [q];
+        runIn = isIn;
+      } else run.push(q);
+    };
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i]!, b = pts[i + 1]!;
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      let t0 = 0, t1 = 1;
+      for (const [pp, q] of [[-dx, a[0] - r.x], [dx, r.x + r.w - a[0]], [-dy, a[1] - r.y], [dy, r.y + r.h - a[1]]] as const) {
+        if (pp === 0) {
+          if (q < 0) t0 = 1, t1 = 0;
+        } else {
+          const t = q / pp;
+          if (pp < 0) t0 = Math.max(t0, t);
+          else t1 = Math.min(t1, t);
+        }
+      }
+      if (i === 0) push(a, t0 <= 0 && t1 >= 0 && t0 <= t1);
+      if (t0 < t1) {
+        if (t0 > 0) push(at(a, b, t0), false), push(at(a, b, t0), true);
+        if (t1 < 1) push(at(a, b, t1), true), push(at(a, b, t1), false);
+        push(b, t1 >= 1);
+      } else push(b, false);
+    }
+    const last = run as Vec2[] | null;
+    if (last && last.length > 1) (runIn ? inside : outside).push(last);
+  }
+  const real = (l: Vec2[]) => l.some((q, i) => i > 0 && Math.hypot(q[0] - l[0]![0], q[1] - l[0]![1]) > 1e-9);
+  return { inside: inside.filter(real), outside: outside.filter(real) };
+}
+const moveLines = (lines: Vec2[][], dx: number, dy: number): Vec2[][] => lines.map((l) => l.map(([x, y]) => [x + dx, y + dy] as Vec2));
+function lineShape(lp: LinePiece, extra: Partial<Shape> = {}): Shape | null {
+  if (lp.whole) return { ...lp.shape, ...extra };
+  const subpaths = lp.lines.map((l) => ({ start: l[0]!, segs: l.slice(1).map((q, i) => line(l[i]!, q)), closed: false }));
+  return subpaths.length ? { ...lp.shape, subpaths, ...extra } : null;
+}
 const toShape = (pc: Piece, poly: MultiPolygon, extra: Partial<Shape> = {}): Shape | null => {
   const subpaths = poly.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
   return subpaths.length ? { ...pc.shape, subpaths, ...extra } : null;
@@ -60,6 +141,14 @@ export const slices = defineModifier({
         if (sh) out.push(sh);
       }
     }
+    for (const lp of linePieces(geo)) {
+      for (let i = 0; i < n; i++) {
+        if (cuts[i + 1]! < lp.box.y || cuts[i]! > lp.box.y + lp.box.h) continue;
+        const { inside } = clipLines(lp.lines, { x: b.x - size, y: cuts[i]!, w: b.width + 2 * size, h: cuts[i + 1]! - cuts[i]! });
+        const sh = inside.length && lineShape({ ...lp, lines: dx[i] ? moveLines(inside, dx[i]!, 0) : inside, whole: false }, { clone: i });
+        if (sh) out.push(sh);
+      }
+    }
     return out.length ? { viewBox: geo.viewBox, shapes: out } : geo;
   },
 });
@@ -81,7 +170,8 @@ export const blocks = defineModifier({
     const size = Math.max(b.width, b.height);
     const rand = rng(p.seed);
     let pieces = regions(geo, ctx.resolution);
-    if (!pieces.length) return geo;
+    let lines = linePieces(geo);
+    if (!pieces.length && !lines.length) return geo;
     // Lo que cae dentro de cada bloque sale desplazado; en su sitio queda el hueco.
     for (let k = 0; k < Math.round(p.count); k++) {
       const bw = p.size * size * (0.5 + rand() * 1.5);
@@ -99,8 +189,19 @@ export const blocks = defineModifier({
         const moved = move(inside, ox, oy);
         return [...(rest.length ? [{ ...pc, poly: rest, box: boxOf(rest) }] : []), { ...pc, poly: moved, box: boxOf(moved) }];
       });
+      const r = { x: bb.x, y: bb.y, w: bb.w, h: bb.h };
+      lines = lines.flatMap((lp) => {
+        if (!overlaps(lp.box, bb)) return [lp];
+        const { inside, outside } = clipLines(lp.lines, r);
+        if (!inside.length) return [lp];
+        const moved = moveLines(inside, ox, oy);
+        return [...(outside.length ? [{ ...lp, lines: outside, box: boxOfLines(outside), whole: false }] : []), { ...lp, lines: moved, box: boxOfLines(moved), whole: false }];
+      });
     }
-    const out = pieces.map((pc) => toShape(pc, pc.poly)).filter((s): s is Shape => !!s);
+    const out = [
+      ...pieces.map((pc) => toShape(pc, pc.poly)),
+      ...lines.map((lp) => lineShape(lp)),
+    ].filter((s): s is Shape => !!s);
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
@@ -129,6 +230,17 @@ export const scanlines = defineModifier({
       const sh = toShape(pc, lines.length ? difference(pc.poly, lines) : pc.poly);
       if (sh) out.push(sh);
     }
+    // Trazos: se quitan los tramos que caen en cada rayita.
+    for (const lp of linePieces(geo)) {
+      let rest = lp.lines;
+      for (let i = 0; i < m; i++) {
+        const y = b.y + (i + 0.5) * gap - p.width / 2;
+        if (y > lp.box.y + lp.box.h || y + p.width < lp.box.y) continue;
+        rest = clipLines(rest, { x: lp.box.x - 1, y, w: lp.box.w + 2, h: p.width }).outside;
+      }
+      const sh = rest.length && lineShape({ ...lp, lines: rest, whole: false });
+      if (sh) out.push(sh);
+    }
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
@@ -149,8 +261,8 @@ export const streaks = defineModifier({
     if (b.width <= 0 || b.height <= 0) return geo;
     const size = Math.max(b.width, b.height);
     const rand = rng(p.seed);
-    // Del color del dibujo (el de la primera forma con relleno); el dibujo se queda como estaba.
-    const fill = geo.shapes.find((s) => s.style.fill && s.style.fill !== 'none')?.style.fill ?? '#000000';
+    // Del color del dibujo (el de la primera forma con relleno o, si no hay, el de su trazo); el dibujo se queda como estaba.
+    const fill = geo.shapes.find((s) => s.style.fill && s.style.fill !== 'none')?.style.fill ?? geo.shapes.find(isLine)?.style.stroke ?? '#000000';
     const out: Shape[] = [...geo.shapes];
     for (let k = 0; k < Math.round(p.count); k++) {
       const y = b.y + rand() * b.height;
