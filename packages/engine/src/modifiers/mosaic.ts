@@ -1,11 +1,11 @@
 import { intersection, type MultiPolygon, type Pair } from 'polygon-clipping';
 import { regionOf, toSubPath } from '../clip';
-import { bounds, type Bounds, type Shape } from '../geometry';
+import { bounds, mapPoints, type Bounds, type Shape } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
  * Mosaico: recorta el dibujo en teselas (rectángulos, triángulos, hexágonos o círculos) sobre una rejilla
- * de columnas × filas, con separación en X e Y. Cada tesela es un elemento (como una copia de Clone),
+ * de columnas × filas, con separación en X e Y y la red girada `angle` grados. Cada tesela es un elemento (como una copia de Clone),
  * así que Step, Color o Boolean la tratan por separado. Solo las superficies: las líneas abiertas se pierden.
  */
 export const mosaic = defineModifier({
@@ -17,10 +17,21 @@ export const mosaic = defineModifier({
     rows: { type: 'number', default: 8, min: 1, max: 60, step: 1, ramp: false },
     tile: { type: 'enum', default: 'rect', options: ['rect', 'triangle', 'hexagon', 'circle'] as const, label: 'Tile', animatable: false },
     gutter: { type: 'point', default: [0.1, 0.1], unit: 'fraction', label: 'Gutter', handle: false, linkable: true, random: [0, 0.4] },
+    angle: { type: 'angle', default: 0, ramp: false, random: [-45, 45] },
   },
   apply(geo, p, ctx) {
-    const b = bounds(geo);
-    if (b.width <= 0 || b.height <= 0) return geo;
+    const b0 = bounds(geo);
+    if (b0.width <= 0 || b0.height <= 0) return geo;
+    // Red girada: se calcula en el marco de la red (el dibujo girado al revés alrededor de su centro)
+    // y cada tesela se gira de vuelta. Así columnas × filas cubren siempre el dibujo entero.
+    const c: Pair = [b0.x + b0.width / 2, b0.y + b0.height / 2];
+    const a = (p.angle * Math.PI) / 180;
+    const rot = (q: Pair, s: number): Pair => {
+      const [dx, dy] = [q[0] - c[0], q[1] - c[1]];
+      const [cs, sn] = [Math.cos(s * a), Math.sin(s * a)];
+      return [c[0] + dx * cs - dy * sn, c[1] + dx * sn + dy * cs];
+    };
+    const b = a ? bounds(mapPoints(geo, (q) => rot(q as Pair, -1))) : b0;
     const cols = Math.max(1, Math.round(p.columns));
     const rows = Math.max(1, Math.round(p.rows));
     const [gx, gy] = [clamp01(p.gutter[0]), clamp01(p.gutter[1])];
@@ -33,7 +44,7 @@ export const mosaic = defineModifier({
     const out: Shape[] = [];
     tiles(p.tile, b, cols, rows).forEach((poly, index) => {
       // La separación encoge cada tesela alrededor de su centro.
-      const t = shrink(poly, 1 - gx, 1 - gy);
+      const t = shrink(poly, 1 - gx, 1 - gy).map((q) => (a ? rot(q, 1) : q));
       const tb = boxOfRing(t);
       for (const { s, r, box } of regions) {
         if (box.x > tb.x + tb.width || box.x + box.width < tb.x || box.y > tb.y + tb.height || box.y + box.height < tb.y) continue;

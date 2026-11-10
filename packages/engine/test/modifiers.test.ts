@@ -445,3 +445,14 @@ describe('mosaic', () => {
     expect(area(run({ tile: 'circle', columns: 2, rows: 2, gutter: [0, 0] }) ) / 3600).toBeCloseTo(Math.PI / 4, 2);
   });
 });
+
+describe('mosaic girado', () => {
+  it('con la red a 45° sigue cubriendo todo el dibujo', () => {
+    const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0], angle: 45 } }] });
+    const b = bounds(geo);
+    expect(b.x).toBeCloseTo(20);
+    expect(b.width).toBeCloseTo(60);
+    // Las piezas de las esquinas son triángulos (la red va en diagonal).
+    expect(geo.shapes.some((s) => s.subpaths[0]!.segs.length === 3)).toBe(true);
+  });
+});
