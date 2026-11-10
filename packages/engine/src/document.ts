@@ -6,6 +6,13 @@ import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
 
+/** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
+export const BLEND_MODES = [
+  'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn',
+  'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity',
+] as const;
+export type BlendMode = (typeof BLEND_MODES)[number];
+
 export interface Placement {
   x: number;
   y: number;
@@ -25,6 +32,8 @@ interface NodeBase {
   stack: ModifierInstance[];
   transform?: Partial<Placement>;
   opacity?: number;
+  /** Modo de fusión con lo de detrás (`mix-blend-mode`); sin él, normal. En un grupo, se aplica a cada hijo. */
+  blend?: BlendMode;
   visible?: boolean;
 }
 
@@ -122,6 +131,10 @@ const transformGeo = (geo: Geometry, m: Mat): Geometry => {
   return mapPoints(geo, ([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
 };
 
+/** Fusión del nodo en sus formas; la que ya traiga una forma (de un hijo) manda. */
+const withBlend = (shapes: Shape[], blend: BlendMode | undefined): Shape[] =>
+  !blend || blend === 'normal' ? shapes : shapes.map((s) => (s.style['mix-blend-mode'] ? s : { ...s, style: { ...s.style, 'mix-blend-mode': blend } }));
+
 const withOpacity = (shapes: Shape[], opacity: number | undefined): Shape[] => {
   if (opacity === undefined || opacity >= 1) return shapes;
   return shapes.map((s) => ({ ...s, style: { ...s.style, opacity: String(Number(s.style.opacity ?? 1) * Math.max(0, opacity)) } }));
@@ -203,7 +216,7 @@ export function createDocumentEvaluator(
           results.set(node.id, entry.result);
           nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
           if (node.visible === false) return [];
-          return withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity);
+          return withBlend(withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity), node.blend);
         }
         // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
         // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
@@ -225,7 +238,7 @@ export function createDocumentEvaluator(
         results.set(node.id, result);
         nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, matrix: world, box: bounds(transformGeo(result, world)) });
         if (node.visible === false) return [];
-        return withOpacity(transformGeo(result, m).shapes, node.opacity);
+        return withBlend(withOpacity(transformGeo(result, m).shapes, node.opacity), node.blend);
       };
 
       // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.

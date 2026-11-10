@@ -24,10 +24,23 @@ export function toPathData(shape: Shape, precision = 2): string {
 
 const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-const styleAttrs = (style: Style) =>
+/** Propiedades que en SVG solo existen como CSS (no como atributo): van en `style`. */
+const CSS_ONLY = new Set(['mix-blend-mode', 'isolation']);
+const cssOf = (style: Style) =>
   Object.entries(style)
-    .map(([k, v]) => ` ${k}="${escapeAttr(v)}"`)
-    .join('');
+    .filter(([k]) => CSS_ONLY.has(k))
+    .map(([k, v]) => `${k}:${v}`)
+    .join(';');
+
+const styleAttrs = (style: Style) => {
+  const css = cssOf(style);
+  return (
+    Object.entries(style)
+      .filter(([k]) => !CSS_ONLY.has(k))
+      .map(([k, v]) => ` ${k}="${escapeAttr(v)}"`)
+      .join('') + (css ? ` style="${escapeAttr(css)}"` : '')
+  );
+};
 
 /** Los degradados de todas las formas, sin repetir, como contenido de <defs>. */
 export function gradientDefs(geo: Geometry): string {
@@ -86,7 +99,13 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
     for (const [k, v] of Object.entries(shape.style)) {
+      if (CSS_ONLY.has(k)) continue;
       if (path.getAttribute(k) !== v) path.setAttribute(k, v);
+    }
+    const css = cssOf(shape.style);
+    if ((path.getAttribute('style') ?? '') !== css) {
+      if (css) path.setAttribute('style', css);
+      else path.removeAttribute('style');
     }
   });
   for (const extra of paths.slice(geo.shapes.length)) extra.remove();

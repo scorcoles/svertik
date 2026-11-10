@@ -10,6 +10,7 @@ import {
   rng,
   walkNodes,
   type AnyScene,
+  type BlendMode,
   type GroupNode,
   type NodeInfo,
   type ModifierDef,
@@ -335,13 +336,17 @@ export class Editor {
   }
 
   /** Posición, escala, giro, opacidad, visibilidad o nombre de un nodo. */
-  setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'flipX' | 'flipY' | 'opacity' | 'visible' | 'name', value: unknown, now = false) {
+  setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'flipX' | 'flipY' | 'opacity' | 'visible' | 'name' | 'blend', value: unknown, now = false) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at) return;
     const n = at.node;
     if (key === 'opacity') n.opacity = value as number;
     else if (key === 'visible') n.visible = value as boolean;
     else if (key === 'name') n.name = String(value);
+    else if (key === 'blend') {
+      if (value === 'normal') delete n.blend;
+      else n.blend = value as BlendMode;
+    }
     else n.transform = { ...n.transform, [key]: value as number };
     this.record(now);
   }
