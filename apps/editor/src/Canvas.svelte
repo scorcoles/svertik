@@ -169,7 +169,10 @@
   const isText = (n: SceneNode | null | undefined): n is SceneNode & { kind: 'shape' } => n?.kind === 'shape' && n.shape === 'text';
   /** Doble clic en un texto: escribir en él, sobre el lienzo. */
   function dblclick(e: MouseEvent) {
-    const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
+    // Lo que hay bajo el puntero (no e.target: al pulsar, el escenario captura el puntero para arrastrar
+    // y el doble clic le llega a él, no a la letra).
+    const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('path[data-node]'));
+    const id = hit?.getAttribute('data-node');
     const n = id && editor.scene ? locateNode(editor.scene.objects, id)?.node : null;
     if (!isText(n)) return;
     editor.selected = n.id;
