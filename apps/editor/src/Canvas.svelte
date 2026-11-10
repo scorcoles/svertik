@@ -16,7 +16,12 @@
   }
   let { editor, onimport, onfile }: Props = $props();
 
-  const engine = createEngine(builtins);
+  // Motor del lienzo; «Redraw» lo cambia por uno nuevo (sin nada guardado de antes) y repinta todo.
+  let engine = $state.raw(createEngine(builtins));
+  function redraw() {
+    engine = createEngine(builtins);
+    editor.fontsTick++;
+  }
   let result = $state<SVGSVGElement>();
   let ghost = $state<SVGSVGElement>();
   let stage = $state<HTMLDivElement>();
@@ -136,6 +141,7 @@
   function keydown(e: KeyboardEvent) {
     if (typing(e) || !editor.scene) return;
     if (e.key === 'Escape' && editor.tool) { editor.tool = null; e.preventDefault(); }
+    else if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) { editor.tool = null; }
     else if (e.code === 'Space' && !e.repeat) { space = true; e.preventDefault(); }
     else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
     else if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); view = actualSize(view, fit, box[0], box[1]); }
@@ -794,6 +800,7 @@
       <span class="zoom">
         <button type="button" onclick={refit} title="Fit (⇧1)">Fit</button>
         <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
+        <button type="button" class="redraw" onclick={redraw} title="Redraw everything (if something looks stale)" aria-label="Redraw">↻</button>
       </span>
       <span class="muted">{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</span>
       {#if cost !== null}
@@ -843,21 +850,24 @@
   .view { position: absolute; inset: 48px 48px 56px; transform-origin: 0 0; }
   .view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   /* Tirador: cuadradito en reposo; con la cruz al pasar, al arrastrar o al cambiar el punto desde el campo. */
+  /* Tirador de punto de un efecto (centro, pivote…): anillo blanco con punto turquesa, bien visible. */
   .handle {
     position: absolute;
-    width: 7px;
-    height: 7px;
+    width: 13px;
+    height: 13px;
     padding: 0;
     translate: -50% -50%;
-    background: var(--sv-surface-field);
-    border: 1px solid var(--sv-signal-error);
-    border-radius: 0;
+    background: radial-gradient(circle, var(--sv-accent-fill) 0 2.5px, transparent 3px);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(0 0 0 / 0.35);
     cursor: move;
   }
+  .handle:hover { scale: 1.15; }
   .handle::before,
   .handle::after { content: ''; position: absolute; display: none; background: var(--sv-signal-error); pointer-events: none; }
-  .handle::before { left: 50%; top: -5px; width: 1px; height: 15px; translate: -50% 0; }
-  .handle::after { top: 50%; left: -5px; height: 1px; width: 15px; translate: 0 -50%; }
+  .handle::before { left: 50%; top: -9px; width: 1px; height: 27px; translate: -50% 0; }
+  .handle::after { top: 50%; left: -9px; height: 1px; width: 27px; translate: 0 -50%; }
   .handle[data-active]::before,
   .handle[data-active]::after { display: block; }
   .handle:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }

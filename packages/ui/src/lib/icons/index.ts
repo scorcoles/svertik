@@ -4,6 +4,7 @@
 
 export const icons = {
   // Objetos
+  select: 'M3.5 1.5v11l3-2.75 2 4.25 1.75-.75-2-4.25h4.25z',
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
   ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
   rectangle: 'M2.5 3.5h11v9h-11z',
