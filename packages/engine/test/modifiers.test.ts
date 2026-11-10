@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { covers, simplify } from '../src/clip';
 import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, type Scene } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
@@ -704,5 +705,26 @@ describe('trim', () => {
   });
   it('end 0: no queda nada', () => {
     expect(run({ start: 0, end: 0 }).shapes.flatMap((s) => s.subpaths)).toHaveLength(0);
+  });
+});
+
+describe('recortes rápidos', () => {
+  it('simplify quita los puntos que sobran y conserva la forma', () => {
+    // Un cuadrado con 100 puntos por lado: con tolerancia, quedan sus 4 esquinas.
+    const side = (i: number): [number, number][] => Array.from({ length: 100 }, (_, k) => {
+      const t = k / 100;
+      return ([[t * 10, 0], [10, t * 10], [10 - t * 10, 10], [0, 10 - t * 10]] as [number, number][])[i]!;
+    });
+    const ring = [...side(0), ...side(1), ...side(2), ...side(3)];
+    const out = simplify([[[...ring, ring[0]!]]], 0.01);
+    expect(out[0]![0]!.length).toBe(5);
+  });
+
+  it('covers: la caja, entera dentro de la superficie o no', () => {
+    const sq = [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]] as [number, number][][][];
+    expect(covers(sq, { x: 2, y: 2, width: 3, height: 3 })).toBe(true);
+    // Un borde la cruza (aunque las esquinas del cuadrado queden lejos).
+    expect(covers(sq, { x: 8, y: 2, width: 4, height: 3 })).toBe(false);
+    expect(covers(sq, { x: 20, y: 20, width: 3, height: 3 })).toBe(false);
   });
 });

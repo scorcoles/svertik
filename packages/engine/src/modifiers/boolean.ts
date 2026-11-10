@@ -1,5 +1,5 @@
 import { difference, intersection, union, xor, type MultiPolygon, type Pair } from '../polygon';
-import { regionOf, ring, toSubPath } from '../clip';
+import { inside, regionOf, ring, toSubPath } from '../clip';
 import { line, type Shape, type SubPath, type Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 
@@ -83,18 +83,4 @@ function clipLine(sp: SubPath, region: MultiPolygon, step: number): SubPath[] {
   }
   flush();
   return out;
-}
-
-/** Dentro de alguna de las superficies: en su contorno y fuera de sus agujeros. */
-function inside(q: Pair, region: MultiPolygon): boolean {
-  return region.some(([outer, ...holes]) => !!outer && inRing(q, outer) && !holes.some((h) => inRing(q, h)));
-}
-
-function inRing([x, y]: Pair, r: Pair[]): boolean {
-  let hit = false;
-  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
-    const [xi, yi] = r[i]!, [xj, yj] = r[j]!;
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
-  }
-  return hit;
 }

@@ -1,5 +1,5 @@
 import { intersection, type MultiPolygon, type Pair } from '../polygon';
-import { regionOf, toSubPath } from '../clip';
+import { covers, regionOf, simplify, toSubPath } from '../clip';
 import { bounds, mapPoints, type Bounds, type Shape } from '../geometry';
 import { defineModifier } from '../modifier';
 
@@ -49,6 +49,10 @@ export const mosaic = defineModifier({
       const g = p.source ? ctx.target?.(p.source) : null;
       custom = g ? regionOf(g.shapes, step) : null;
       if (!custom?.length) return geo;
+      // Va a verse del tamaño de una celda: con el detalle de la escena a ese tamaño basta.
+      const cb = boxOf(custom);
+      const k = Math.min(b.width / cols / (cb.width || 1), b.height / rows / (cb.height || 1));
+      if (k > 0 && k < 1) custom = simplify(custom, (step * 0.1) / k);
     }
     // Cada forma, como superficie (con su caja, para no recortar contra teselas que no toca).
     const regions = geo.shapes
@@ -65,16 +69,19 @@ export const mosaic = defineModifier({
       const t = shrink(poly, pb, 1 - gx / pb.width, 1 - gy / pb.height, a ? (q) => rot(q, 1) : null);
       const tb = boxOf(t);
       const near = regions.filter(({ box }) => !(box.x > tb.x + tb.width || box.x + box.width < tb.x || box.y > tb.y + tb.height || box.y + box.height < tb.y));
+      // Lo normal: la tesela cae entera dentro de una forma. Entonces no hace falta recortar.
+      const fits = (r: MultiPolygon) => covers(r, tb);
+      const tileShape = () => t.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
       if (whole) {
         // Entera, con el estilo de la forma de más arriba que la cubre al menos a medias.
         const full = areaOf(t);
-        const owner = [...near].reverse().find(({ r }) => areaOf(intersection(r, t)) >= full * 0.5);
-        const subpaths = t.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
+        const owner = [...near].reverse().find(({ r }) => fits(r) || areaOf(intersection(r, t)) >= full * 0.5);
+        const subpaths = tileShape();
         if (owner && subpaths.length) out.push({ ...owner.s, subpaths, clone: index });
         return;
       }
       for (const { s, r } of near) {
-        const cut = intersection(r, t);
+        const cut = fits(r) ? t : intersection(r, t);
         const subpaths = cut.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
         if (subpaths.length) out.push({ ...s, subpaths, clone: index });
       }
