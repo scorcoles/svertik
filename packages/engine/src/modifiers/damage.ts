@@ -16,6 +16,7 @@ export const damage = defineModifier({
   params: {
     seed: { type: 'seed', default: 1 },
     growth: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Growth' },
+    roughness: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Roughness', ramp: false },
     cracks: { type: 'number', default: 3, min: 0, max: 12, step: 1, ramp: false, group: 'Cracks', label: 'Count' },
     length: { type: 'number', default: 0.55, min: 0.05, max: 1.5, step: 0.01, unit: 'fraction', group: 'Cracks', label: 'Length' },
     width: { type: 'number', default: 0.012, min: 0.001, max: 0.06, step: 0.001, unit: 'fraction', group: 'Cracks', label: 'Width' },
@@ -103,6 +104,11 @@ export const damage = defineModifier({
       i++;
     }
     if (!holes.length) return geo;
+    // Bordes orgánicos: cada agujero, rasgado (los lados largos se parten y se desplazan al azar).
+    if (p.roughness > 0) {
+      const detail = size * 0.006;
+      for (const h of holes) h[0] = roughen(h[0]!, detail, p.roughness, rand);
+    }
 
     // Cada forma conserva su estilo: se le restan los agujeros.
     const out: Shape[] = [];
@@ -166,6 +172,31 @@ function band(pts: Vec2[], w: number, taper: number, rand: () => number): Pair[]
   }
   const ring = [...left, ...right.reverse()];
   return [...ring, ring[0]!];
+}
+
+/**
+ * Desplazamiento fractal del punto medio: mientras un lado mida más que `detail`, se parte en dos
+ * y el punto nuevo se aparta en perpendicular (hasta `amount` × la mitad de su longitud). Borde rasgado.
+ */
+function roughen(ring: Pair[], detail: number, amount: number, rand: () => number): Pair[] {
+  let pts = ring.slice(0, -1);
+  for (let pass = 0; pass < 6; pass++) {
+    const next: Pair[] = [];
+    let split = false;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i]!, b = pts[(i + 1) % pts.length]!;
+      next.push(a);
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy);
+      if (len <= detail) continue;
+      split = true;
+      const off = (rand() - 0.5) * len * 0.5 * amount;
+      next.push([(a[0] + b[0]) / 2 - (dy / len) * off, (a[1] + b[1]) / 2 + (dx / len) * off]);
+    }
+    pts = next;
+    if (!split || pts.length > 4000) break;
+  }
+  return [...pts, pts[0]!];
 }
 
 /** Mancha irregular de radio aproximado `r`. */
