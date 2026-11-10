@@ -27,25 +27,25 @@ describe('pack', () => {
     const e = createEngine(builtins);
     const s = scene();
     const before = e.evaluateDocument(s);
-    const r = packNode(s, 'star', before, 'pack-1', 'k1');
+    const r = packNode(s, 'star', before, 'k1');
     expect(r?.animated).toBe(true);
     const after = e.evaluateDocument(s);
     expect(round(strip(after.geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
     // Su animación y sus interacciones se van dentro; las de otros, no.
     expect(s.animation!.tracks).toHaveLength(0);
     expect(s.interactions).toHaveLength(1);
-    expect(s.objects[0]!.kind === 'group' && s.objects[0]!.children[0]!.id).toBe('pack-1');
+    expect(s.objects[0]!.kind === 'group' && s.objects[0]!.children[0]!.id).toBe('star');
   });
 
   it('desempaquetar devuelve el original, con lo que se haya movido el paquete', () => {
     const e = createEngine(builtins);
     const s = scene();
-    packNode(s, 'star', e.evaluateDocument(s), 'pack-1', 'k1');
+    packNode(s, 'star', e.evaluateDocument(s), 'k1');
     const g = s.objects[0]!;
     if (g.kind !== 'group') throw new Error();
     g.children[0]!.transform = { ...g.children[0]!.transform, x: (g.children[0]!.transform?.x ?? 0) + 5 };
     g.children[0]!.stack.push({ id: 'w', type: 'wave', params: {} });
-    expect(unpackNode(s, 'pack-1', (x) => `${x}-2`)).toBe('star');
+    expect(unpackNode(s, 'star', (x) => `${x}-2`)).toBe('star');
     const back = g.children[0]!;
     expect(back.transform?.x).toBeCloseTo(35);
     expect(back.opacity).toBe(0.8);
@@ -53,14 +53,29 @@ describe('pack', () => {
     expect(s.animation!.tracks.map((t) => t.id)).toEqual(['tr']);
   });
 
+  it('lo que lo usaba de referencia lo sigue encontrando', () => {
+    const e = createEngine(builtins);
+    const s: SceneV2 = {
+      version: 2,
+      objects: [
+        { kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape', source: 'star', columns: 2, rows: 2, fit: 'whole', gutter: [0, 0] } }] },
+        { kind: 'shape', id: 'star', name: 'Star', shape: 'star', params: {}, stack: [{ id: 'tw', type: 'twist', params: { angle: 90 } }], visible: false },
+      ],
+    };
+    const before = e.evaluateDocument(s);
+    packNode(s, 'star', before, 'k1');
+    const after = e.evaluateDocument(s);
+    expect(round(strip(after.geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
+  });
+
   it('un paquete duplicado: al desempaquetar los dos, el segundo recibe ids nuevos', () => {
     const e = createEngine(builtins);
     const s = scene();
-    packNode(s, 'star', e.evaluateDocument(s), 'pack-1', 'k1');
+    packNode(s, 'star', e.evaluateDocument(s), 'k1');
     const g = s.objects[0]!;
     if (g.kind !== 'group') throw new Error();
     g.children.push({ ...JSON.parse(JSON.stringify(g.children[0])), id: 'pack-2' });
-    unpackNode(s, 'pack-1', (x) => `${x}-a`);
+    unpackNode(s, 'star', (x) => `${x}-a`);
     expect(unpackNode(s, 'pack-2', (x) => `${x}-b`)).toBe('star-b');
     const copy = g.children.at(-1)!;
     expect(copy.stack[0]!.id).toBe('tw-b');

@@ -13,10 +13,13 @@
     onchange?: (value: [number, number]) => void;
     /** Con candado: X e Y se enlazan y cambian en proporción. */
     linkable?: boolean;
+    /** Con candado: empieza enlazado. */
+    startLinked?: boolean;
     min?: number;
   }
-  let { value = $bindable(), step = 0.01, label = 'Point', id, width = '64px', onchange, linkable = false, min }: Props = $props();
-  let linked = $state(false);
+  let { value = $bindable(), step = 0.01, label = 'Point', id, width = '64px', onchange, linkable = false, startLinked = false, min }: Props = $props();
+  // svelte-ignore state_referenced_locally
+  let linked = $state(linkable && startLinked);
 
   const set = (i: 0 | 1, v: number) => {
     let next: [number, number] = i === 0 ? [v, value[1]] : [value[0], v];

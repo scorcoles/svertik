@@ -366,7 +366,7 @@ export class Editor {
     this.flush();
     const engine = (this.#packEngine ??= createEngine(builtins));
     const doc = engine.evaluateDocument($state.snapshot(this.scene) as SceneV2);
-    const r = packNode(this.scene, id, doc, `pack-${uid()}`, uid());
+    const r = packNode(this.scene, id, doc, uid());
     if (!r) return;
     this.selected = r.node.id;
     this.also = [];

@@ -9,6 +9,8 @@ interface ParamBase {
   pair?: string;
   /** Para puntos: X e Y se pueden enlazar (en proporción). */
   linkable?: boolean;
+  /** Para puntos enlazables: empiezan enlazados (lo normal es el mismo valor en X e Y). */
+  linked?: boolean;
   /** Se podrá animar en la línea de tiempo (fase 2). Por defecto, sí. */
   animatable?: boolean;
   /** Sección del panel de atributos donde aparece. Sin grupo: la sección principal. */
@@ -169,7 +171,9 @@ export function randomizeParams(schema: ParamSchema, current: Record<string, unk
         if (spec.handle === false && !spec.random) break;
         const [a, b] = spec.random ?? [0.2, 0.8];
         const base: [number, number] = spec.randomRelative ? spec.default : [0, 0];
-        out[name] = [round(base[0] + between(a, b)), round(base[1] + between(a, b))];
+        const x = round(base[0] + between(a, b));
+        // Enlazados: el mismo cambio en los dos.
+        out[name] = spec.linked ? [x, round(base[1] + (x - base[0]))] : [x, round(base[1] + between(a, b))];
         break;
       }
       case 'seed':

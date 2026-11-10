@@ -65,7 +65,7 @@
   {:else if spec.type === 'seed'}
     <NumberField {id} value={value as number} step={1} min={0} {onchange} />
   {:else if spec.type === 'point'}
-    <PointField {id} {label} value={value as [number, number]} step={spec.step ?? 0.01} min={spec.min} linkable={spec.linkable} {onchange} />
+    <PointField {id} {label} value={value as [number, number]} step={spec.step ?? 0.01} min={spec.min} linkable={spec.linkable} startLinked={spec.linked} {onchange} />
     {#if spec.unit === 'fraction' && spec.handle !== false}
       {@const at = value as [number, number]}
       <!-- Un lugar del dibujo (centro, pivote…): vuelve a donde estaba al principio. -->

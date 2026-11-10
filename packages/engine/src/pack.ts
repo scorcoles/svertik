@@ -35,10 +35,11 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 /**
  * Empaqueta el nodo `id` con el resultado que da `doc` (la evaluación de esta misma escena).
- * Cambia la escena: el nodo pasa a ser un paquete en su mismo sitio. Devuelve el paquete y si
+ * Cambia la escena: el nodo pasa a ser un paquete en su mismo sitio y con su mismo id (así lo que lo
+ * usaba de referencia, como Mosaic o Clone, lo sigue encontrando). Devuelve el paquete y si
  * estaba animado (su animación queda dentro y no se ve hasta desempaquetarlo), o null si no se puede.
  */
-export function packNode(scene: SceneV2, id: string, doc: DocumentResult, newId: string, key: string): { node: ObjectNode; animated: boolean } | null {
+export function packNode(scene: SceneV2, id: string, doc: DocumentResult, key: string): { node: ObjectNode; animated: boolean } | null {
   const at = locate(scene.objects, id);
   const world = doc.geometryOf(id);
   if (!at || !world) return null;
@@ -67,7 +68,7 @@ export function packNode(scene: SceneV2, id: string, doc: DocumentResult, newId:
 
   const pack: ObjectNode = {
     kind: 'object',
-    id: newId,
+    id: node.id,
     name: node.name,
     source: '',
     stack: [],
@@ -103,7 +104,12 @@ export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) =>
 
   // Ids que ya están en la escena (sin contar el paquete): los de dentro, nuevos.
   const taken = new Set<string>();
-  for (const { node: n } of walkNodes(scene.objects)) if (n !== pack) idsOf(n).forEach((x) => taken.add(x));
+  const mods = (list: ModifierInstance[]) => list.forEach((m) => (taken.add(m.id), mods(m.children ?? [])));
+  for (const { node: n } of walkNodes(scene.objects)) {
+    if (n === pack) continue;
+    taken.add(n.id);
+    mods(n.stack);
+  }
   const map = new Map<string, string>();
   for (const x of idsOf(node)) if (taken.has(x)) map.set(x, freshId(x));
   if (map.size) {

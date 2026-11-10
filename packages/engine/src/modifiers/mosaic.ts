@@ -23,7 +23,7 @@ export const mosaic = defineModifier({
     source: { type: 'node', default: '', label: 'Shape', showIf: { tile: ['shape'] } },
     fit: { type: 'enum', default: 'cut', options: ['cut', 'whole'] as const, label: 'Fit', animatable: false },
     // Separación entre teselas, en las unidades del dibujo (px), en X y en Y.
-    gutter: { type: 'point', default: [4, 4], unit: 'px', step: 0.5, min: 0, label: 'Gutter', handle: false, linkable: true, random: [0, 16] },
+    gutter: { type: 'point', default: [4, 4], unit: 'px', step: 0.5, min: 0, label: 'Gutter', handle: false, linkable: true, linked: true, random: [0, 16] },
     angle: { type: 'angle', default: 0, ramp: false, random: [-45, 45] },
   },
   apply(geo, p, ctx) {
