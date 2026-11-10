@@ -13,7 +13,7 @@ const union = (items: Item[]): Bounds => {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 };
 
-/** Alinea con la caja que los contiene a todos (como Illustrator con «alinear a la selección»). */
+/** Alinea con la caja que los contiene a todos («alinear a la selección»). */
 export function align(items: Item[], how: Align): Move[] {
   if (items.length < 2) return [];
   const u = union(items);

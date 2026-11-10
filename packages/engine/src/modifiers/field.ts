@@ -3,7 +3,7 @@ import { defineModifier, fromFraction } from '../modifier';
 import { applyWeighted, keyFor, smooth } from './weighted';
 
 /**
- * Campo (como los falloff/Fields de MoGraph): los efectos colgados actúan más o menos sobre cada elemento
+ * Campo: los efectos colgados actúan más o menos sobre cada elemento
  * según dónde está su centro respecto a una forma (círculo, plano o caja). Mover el campo recorre el dibujo.
  * Softness: cuánto del borde es transición (0, corte seco; 1, todo degradado).
  */

@@ -3,7 +3,7 @@ import { rng } from '../random';
 import { applyWeighted, keyFor, smooth } from './weighted';
 
 /**
- * Selector por rango (como el Range Selector de After Effects): elige qué elementos (letras, palabras,
+ * Selector por rango: elige qué elementos (letras, palabras,
  * líneas, copias, teselas, trozos…) reciben los efectos colgados y cuánto, según su orden.
  * Start y End marcan el tramo (0–1 del total) y Offset lo desplaza: animar Offset recorre el texto.
  * La forma dice cómo se reparte el peso dentro del tramo.

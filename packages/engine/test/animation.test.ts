@@ -54,7 +54,7 @@ describe('animación', () => {
   });
 });
 
-describe('curvas tipo GSAP', () => {
+describe('curvas expo, back, elastic y bounce', () => {
   it('back y elastic se pasan del destino y vuelven; bounce y expo acaban en 1', () => {
     const keys = (e: string) => [{ t: 0, value: 0, ease: e as never }, { t: 1, value: 1 }];
     const max = (e: string) => Math.max(...Array.from({ length: 50 }, (_, i) => valueAt(keys(e), i / 50) as number));

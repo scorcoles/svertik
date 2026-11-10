@@ -3,7 +3,7 @@ import { defineModifier } from '../modifier';
 import { pointAt, polylines } from '../paths';
 
 /**
- * Enrolla el dibujo a lo largo del trazado de otro objeto (como Spline Wrap de C4D).
+ * Enrolla el dibujo a lo largo del trazado de otro objeto.
  * El eje del dibujo (horizontal o vertical) sigue el trazado; lo perpendicular se aparta de él.
  * `stretch`: el dibujo ocupa todo el trazado; `keep`: conserva su longitud y empieza en `offset`.
  */

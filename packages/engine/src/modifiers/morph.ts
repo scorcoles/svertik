@@ -7,7 +7,7 @@ import { defineModifier } from '../modifier';
  * con el más grande…), se reparten en el mismo número de puntos por su longitud y se interpolan.
  * Si uno tiene más trazados que el otro, los que sobran nacen (o se apagan) en un punto. El relleno
  * también pasa de un color al otro. `amount` de 0 a 1: para animarlo.
- * Con `steps` (como Fusión en Illustrator): el original, `steps` formas intermedias y el destino, cada una
+ * Con `steps`: el original, `steps` formas intermedias y el destino, cada una
  * un elemento (Step, Color, Explosion…). Amount, entonces, dice hasta dónde llega la secuencia.
  */
 export const morph = defineModifier({

@@ -44,7 +44,7 @@ const EASE: Record<Ease, (x: number) => number> = {
   'ease-in': (x) => x * x * x,
   'ease-out': (x) => 1 - (1 - x) ** 3,
   'ease-in-out': (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2),
-  // Como los de GSAP: expo (arranque muy rápido), back (se pasa un poco y vuelve), elastic (muelle)
+  // expo (arranque muy rápido), back (se pasa un poco y vuelve), elastic (muelle)
   // y bounce (rebota contra el final). back y elastic salen de 0–1 a propósito.
   'expo-out': (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x)),
   'back-out': (x) => {

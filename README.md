@@ -1,6 +1,6 @@
 # svertik
 
-**Alpha 0.0.1.** Editor no destructivo de SVG, al modo de Cinema 4D: un SVG (o una primitiva, o un texto) y una pila de efectos que un motor en JS recalcula en vivo. Lo original nunca se toca. Se anima con una línea de tiempo y se lleva a cualquier web tal cual: SVG plano, el proyecto en JSON o código que reproduce los efectos y la animación.
+**Alpha 0.0.1.** Editor no destructivo de SVG: un SVG (o una primitiva, o un texto) y una pila de efectos que un motor en JS recalcula en vivo. Lo original nunca se toca. Se anima con una línea de tiempo y se lleva a cualquier web tal cual: SVG plano, el proyecto en JSON o código que reproduce los efectos y la animación.
 
 Un experimento de [VERTIK](https://www.vertik.net). Contexto: [docs/recap.md](docs/recap.md) · Plan y estado: [docs/PLAN.md](docs/PLAN.md).
 
@@ -9,7 +9,7 @@ Un experimento de [VERTIK](https://www.vertik.net). Contexto: [docs/recap.md](do
 - **Efectos** (más de 30), en cuatro familias:
   - **Deform:** Transform, Rotate 3D, Spherize, Twist, Bend, Taper, Shear, Wave, Ripple, Noise, Roughen, Melt, Cylinder, Perspective, Envelope, Path Wrap, Morph, Trim.
   - **Generate:** Crack, Damage, Clone, Mirror, Mosaic, Fractal, Glitch, Boolean.
-  - **Effect** (por elementos, como MoGraph): Step, Stagger, Range, Field, Explosion.
+  - **Effect** (por elementos): Step, Stagger, Range, Field, Explosion.
   - **Style:** Color, Tint, Paint, Gradient, Opacity.
 - **Primitivas** (rectángulo, elipse, polígono, estrella, línea, espiral, peón) y **texto** convertido en trazados (una pieza por letra).
 - **Animación:** fotogramas clave en cualquier valor, curvas (también back, elastic, bounce) y presets de entrada de letras.

@@ -60,7 +60,7 @@ export type SceneNode = ObjectNode | ShapeNode | GroupNode;
 
 export interface SceneV2 {
   version: 2;
-  /** Como en las capas de Illustrator o Figma: el primero de la lista está delante. */
+  /** Como en las capas de los editores: el primero de la lista está delante. */
   objects: SceneNode[];
   /** Longitud máxima de tramo al subdividir, como fracción del tamaño de cada objeto. */
   resolution?: number;

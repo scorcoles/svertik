@@ -4,7 +4,7 @@ import { rng } from '../random';
 import { applyWeighted, keyFor } from './weighted';
 
 /**
- * Escalonado (como el stagger de GSAP): cada elemento hace su propia transición, con su curva, un poco
+ * Escalonado: cada elemento hace su propia transición, con su curva, un poco
  * después del anterior. Progress (0–1) es la animación entera: anímalo con dos claves.
  * - in: los elementos empiezan con los efectos colgados puestos y acaban en su sitio (entradas);
  * - out: empiezan en su sitio y acaban con los efectos (salidas).
