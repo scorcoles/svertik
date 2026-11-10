@@ -406,6 +406,26 @@ export class Editor {
     this.record(true);
   }
 
+  /**
+   * Barra rápida de booleanos: con varios seleccionados, los agrupa y les pone Boolean en ese modo.
+   * Con un grupo que ya tiene Boolean, solo le cambia el modo (no apila otro). El grupo queda seleccionado.
+   */
+  booleanize(mode: string) {
+    if (!this.scene) return;
+    if (this.selectedNodes.length > 1) this.group();
+    const g = this.currentNode;
+    if (!g || g.kind !== 'group') return;
+    const existing = g.stack.find((m) => m.type === 'boolean');
+    if (existing) existing.params = { ...existing.params, mode };
+    else {
+      this.add('boolean');
+      if (this.current?.type === 'boolean') this.current.params = { ...this.current.params, mode };
+    }
+    // El grupo queda seleccionado: la barra sigue a mano para probar otro modo.
+    this.selected = g.id;
+    this.record(true);
+  }
+
   // ── Copiar y pegar (el portapapeles lleva JSON con la marca `svertik`)
 
   /** Lo seleccionado, listo para el portapapeles: nodos (con sus pilas) o un efecto. */
