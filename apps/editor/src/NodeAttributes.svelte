@@ -1,6 +1,6 @@
 <script lang="ts">
   import { placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
-  import { Button, Checkbox, NumberField, ParamList, ParamRow, PointField, Section, Slider } from '@svertik/ui';
+  import { Button, Checkbox, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Slider } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
   interface Props {
@@ -47,6 +47,10 @@
     </ParamRow>
     <ParamRow label="Rotation" for="node-rot">
       <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />
+    </ParamRow>
+    <ParamRow label="Flip">
+      <IconButton icon="flip-h" label="Flip horizontally" active={!!p.flipX} onclick={() => editor.setNode(node.id, 'flipX', !p.flipX, true)} />
+      <IconButton icon="flip-v" label="Flip vertically" active={!!p.flipY} onclick={() => editor.setNode(node.id, 'flipY', !p.flipY, true)} />
     </ParamRow>
   </Section>
   <Section title="Display">

@@ -84,8 +84,17 @@ export class Editor {
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
   canvas = $state('');
-  /** Lo seleccionado: un nodo (objeto o grupo) o un modificador. */
-  selected = $state<string | null>(null);
+  /** Lo seleccionado: un nodo (objeto o grupo) o un modificador. Asignarlo deja la selección en uno solo. */
+  #selected = $state<string | null>(null);
+  get selected() {
+    return this.#selected;
+  }
+  set selected(id: string | null) {
+    this.#selected = id;
+    this.also = [];
+  }
+  /** Más nodos seleccionados (⇧ + clic), además del principal: para alinear, distribuir, mover juntos… */
+  also = $state<string[]>([]);
   /** Nodos plegados en la pila. */
   collapsed = $state<string[]>([]);
   showOriginal = $state(false);
@@ -127,6 +136,27 @@ export class Editor {
   currentNode = $derived(this.scene ? (locateNode(this.scene.objects, this.selected)?.node ?? null) : null);
   /** El nodo con el que se trabaja: el seleccionado o el dueño del efecto seleccionado. */
   activeNode = $derived(this.currentNode ?? this.#mod?.owner ?? null);
+  /** Todos los nodos seleccionados (el principal primero), sin los que ya no existen. */
+  selectedNodes = $derived.by(() => {
+    if (!this.scene) return [] as SceneNode[];
+    const ids = [this.currentNode?.id, ...this.also].filter((x): x is string => !!x);
+    return [...new Set(ids)].map((id) => locateNode(this.scene!.objects, id)?.node).filter((n): n is SceneNode => !!n);
+  });
+  isSelected = (id: string) => this.#selected === id || this.also.includes(id);
+
+  /** ⇧ + clic: añade o quita un nodo de la selección; el último añadido pasa a ser el principal. */
+  toggleSelect(id: string) {
+    const nodes = this.selectedNodes.map((n) => n.id);
+    if (nodes.includes(id)) {
+      const rest = nodes.filter((x) => x !== id);
+      this.#selected = rest[0] ?? null;
+      this.also = rest.slice(1);
+    } else {
+      this.#selected = id;
+      this.also = nodes;
+    }
+  }
+
   objectCount = $derived(this.scene ? [...walkNodes(this.scene.objects)].filter((x) => x.node.kind !== 'group').length : 0);
 
   // ── Origen
@@ -221,6 +251,22 @@ export class Editor {
 
   /** Mete el nodo seleccionado en un grupo nuevo, en su mismo sitio. */
   group(id = this.activeNode?.id ?? null) {
+    const many = this.selectedNodes;
+    if (this.scene && many.length > 1 && id === this.currentNode?.id) {
+      const locs = many.map((n) => locateNode(this.scene!.objects, n.id)!).filter(Boolean);
+      // Solo los que comparten lista con el principal; en el orden de la lista.
+      const same = locs.filter((l) => l.list === locs[0]!.list).sort((a, b) => a.index - b.index);
+      if (same.length > 1) {
+        const g: GroupNode = { kind: 'group', id: `group-${uid()}`, name: 'Group', stack: [], children: same.map((l) => l.node) };
+        const list = same[0]!.list;
+        const first = same[0]!.index;
+        for (const l of [...same].reverse()) list.splice(l.index, 1);
+        list.splice(first, 0, g);
+        this.selected = g.id;
+        this.record(true);
+        return;
+      }
+    }
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at) return;
     const g: GroupNode = { kind: 'group', id: `group-${uid()}`, name: 'Group', stack: [], children: [at.node] };
@@ -255,7 +301,7 @@ export class Editor {
   }
 
   /** Posición, escala, giro, opacidad, visibilidad o nombre de un nodo. */
-  setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'opacity' | 'visible' | 'name', value: unknown, now = false) {
+  setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'flipX' | 'flipY' | 'opacity' | 'visible' | 'name', value: unknown, now = false) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at) return;
     const n = at.node;
@@ -264,6 +310,42 @@ export class Editor {
     else if (key === 'name') n.name = String(value);
     else n.transform = { ...n.transform, [key]: value as number };
     this.record(now);
+  }
+
+  /** Mueve varios nodos a la vez (alinear, distribuir, arrastrar una selección): un solo paso de historial. */
+  moveNodes(moves: { id: string; dx: number; dy: number }[], now = true) {
+    if (!this.scene) return;
+    const r = (n: number) => Math.round(n * 100) / 100;
+    for (const { id, dx, dy } of moves) {
+      const n = locateNode(this.scene.objects, id)?.node;
+      if (!n || (dx === 0 && dy === 0)) continue;
+      n.transform = { ...n.transform, x: r((n.transform?.x ?? 0) + dx), y: r((n.transform?.y ?? 0) + dy) };
+    }
+    this.record(now);
+  }
+
+  /** Voltea los nodos seleccionados (cada uno alrededor de su centro). */
+  flip(axis: 'x' | 'y') {
+    if (!this.scene || !this.selectedNodes.length) return;
+    const key = axis === 'x' ? 'flipX' : 'flipY';
+    for (const n of this.selectedNodes) n.transform = { ...n.transform, [key]: !n.transform?.[key] };
+    this.record(true);
+  }
+
+  /** Quita todos los nodos seleccionados (o el modificador seleccionado). */
+  removeSelection() {
+    const nodes = this.selectedNodes;
+    if (nodes.length < 2) return this.remove();
+    for (const n of nodes) {
+      const at = this.scene ? locateNode(this.scene.objects, n.id) : null;
+      at?.list.splice(at.index, 1);
+    }
+    this.selected = this.scene?.objects[0]?.id ?? null;
+    if (this.objectCount === 0) {
+      this.scene = null;
+      this.selected = null;
+    }
+    this.record(true);
   }
 
   // ── Pila del nodo activo

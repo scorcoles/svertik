@@ -15,7 +15,8 @@
     expanded?: boolean;
     selected?: boolean;
     enabled?: boolean;
-    onselect?: () => void;
+    /** Recibe el evento: con ⇧ o ⌘ se puede sumar a la selección. */
+    onselect?: (e: MouseEvent | KeyboardEvent) => void;
     ontoggle?: (enabled: boolean) => void;
     onexpand?: (expanded: boolean) => void;
     /** Si se pasa, aparece una papelera al pasar por la fila (o con foco). */
@@ -76,7 +77,7 @@
   tabindex="0"
   onclick={onselect}
   onkeydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onselect?.(); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onselect?.(e); }
     else if (expanded !== undefined && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); onexpand?.(e.key === 'ArrowRight'); }
   }}
 >

@@ -11,6 +11,9 @@ export interface Placement {
   y: number;
   scale: number;
   rotation: number;
+  /** Reflejo horizontal (espejo izquierda ↔ derecha) y vertical, alrededor del centro del nodo. */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 interface NodeBase {
@@ -96,7 +99,8 @@ export const placementOf = (n: NodeBase): Placement => ({ ...DEFAULT_PLACEMENT, 
 
 /** Matriz de un nodo: mueve, gira y escala alrededor de `center`, que acaba en (x, y) + `anchor`. */
 function placementMatrix(p: Placement, center: [number, number], anchor: [number, number]): Mat {
-  return multiply(translate(anchor[0] + p.x, anchor[1] + p.y), multiply(rotateScale(p.rotation, p.scale), translate(-center[0], -center[1])));
+  const flip: Mat = [p.flipX ? -1 : 1, 0, 0, p.flipY ? -1 : 1, 0, 0];
+  return multiply(translate(anchor[0] + p.x, anchor[1] + p.y), multiply(rotateScale(p.rotation, p.scale), multiply(flip, translate(-center[0], -center[1]))));
 }
 
 const transformGeo = (geo: Geometry, m: Mat): Geometry => {

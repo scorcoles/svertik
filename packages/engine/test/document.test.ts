@@ -132,3 +132,16 @@ describe('primitivas', () => {
     expect(doc.nodes.get('s')!.box.width).toBeCloseTo(200);
   });
 });
+
+describe('reflejo de nodos', () => {
+  it('flipX refleja alrededor del centro del nodo sin moverlo', () => {
+    const tri = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L10 0L0 10Z"/></svg>';
+    const scene: SceneV2 = { version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: tri, stack: [], transform: { flipX: true } }] };
+    const doc = engine().evaluateDocument(scene);
+    expect(doc.nodes.get('a')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
+    // El vértice del ángulo recto pasa de la izquierda (−5, −5) a la derecha (5, −5).
+    const pts = doc.geometry.shapes[0]!.subpaths[0]!.segs.map((s) => s.p.map((v) => Math.round(v)));
+    expect(pts).toContainEqual([5, 5]);
+    expect(pts).not.toContainEqual([-5, 5]);
+  });
+});
