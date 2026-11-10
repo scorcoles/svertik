@@ -176,7 +176,7 @@ export function shatterProject() {
 }
 
 // Tercera demo: una serpiente que repta. Cuerpo, escamas, cabeza, ojos y lengua, en un grupo con Bones
-// (4 huesos, con la raíz en la cabeza): cada hueso oscila con un cuarto de vuelta de desfase respecto al
+// (6 huesos, con la raíz en la cabeza): cada hueso oscila con un cuarto de vuelta de desfase respecto al
 // anterior, así que la onda recorre el cuerpo hacia la cola. La lengua sale y entra. 4 s en bucle.
 export function snakeProject() {
   // Oscilación de un hueso: claves cada medio segundo (0, +A, 0, −A…) con curva suave: casi un seno.
@@ -213,7 +213,7 @@ export function snakeProject() {
           name: 'Snake',
           stack: [
             // La raíz de la cadena, en la cabeza (que apenas se mueve); la onda crece hacia la cola.
-            { id: 'snake-bones', type: 'bones', params: { segments: 4, angle1: 0, angle2: 0, angle3: 0, angle4: 0, smooth: 0.9, start: [1, 0.5], end: [0, 0.5] } },
+            { id: 'snake-bones', type: 'bones', params: { segments: 6, angle1: 0, angle2: 0, angle3: 0, angle4: 0, angle5: 0, angle6: 0, smooth: 1, start: [1, 0.5], end: [0, 0.5] } },
             { id: 'snake-shadow', type: 'shadow', params: { offset: [0, 22], blur: 22, color: '#000000', opacity: 0.55 } },
           ],
           children: [
@@ -228,10 +228,10 @@ export function snakeProject() {
               id: 'scales',
               name: 'Scales',
               shape: 'polygon',
-              params: { radius: 15, sides: 4, rotation: 45, fillColor: '#127a45' },
+              params: { radius: 12, sides: 4, rotation: 45, fillColor: '#127a45' },
               // Clone reparte la fila centrada en la pieza: centrada en el cuerpo, sin llegar a la cola.
-              stack: [{ id: 'scales-clone', type: 'clone', params: { mode: 'linear', count: 13, offset: [1.6, 0] } }],
-              transform: { x: 10 },
+              stack: [{ id: 'scales-clone', type: 'clone', params: { mode: 'linear', count: 17, offset: [1.6, 0] } }],
+              transform: { x: -40 },
             },
             // Cabeza, con un degradado como el cuerpo.
             {
@@ -249,9 +249,9 @@ export function snakeProject() {
               id: 'body',
               name: 'Body',
               shape: 'rectangle',
-              params: { width: 720, height: 78, radius: 39, fillColor: '#2bd67b' },
+              params: { width: 880, height: 64, radius: 32, fillColor: '#2bd67b' },
               stack: [{ id: 'body-grad', type: 'gradient', params: { from: '#1fa463', to: '#7cf2a8', angle: 90 } }],
-              transform: { x: 0 },
+              transform: { x: -60 },
             },
             // Lengua (detrás de la cabeza): sale y entra.
             { kind: 'object', id: 'tongue', name: 'Tongue', source: tongue, stack: [], transform: { x: 440 } },
@@ -263,10 +263,13 @@ export function snakeProject() {
         fps: 30,
         loop: true,
         tracks: [
-          bone(1, 6),
-          bone(2, 22),
-          bone(3, 30),
-          bone(4, 34),
+          // Onda y media a lo largo del cuerpo: la cabeza casi quieta, la cola, lo que más se mueve.
+          bone(1, 8),
+          bone(2, 34),
+          bone(3, 44),
+          bone(4, 46),
+          bone(5, 46),
+          bone(6, 42),
           {
             id: 't-tongue',
             node: 'tongue',

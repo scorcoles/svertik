@@ -2,7 +2,7 @@ import { mapPoints, subdivide, type Vec2 } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /**
- * Huesos: una cadena de 2 a 4 huesos iguales que recorre el dibujo de Start a End. Cada hueso gira sobre su
+ * Huesos: una cadena de 2 a 6 huesos iguales que recorre el dibujo de Start a End. Cada hueso gira sobre su
  * articulación (su ángulo, relativo al anterior) y arrastra lo que tiene alrededor; en cada articulación, el
  * paso de un hueso al otro es suave (Smooth). Cada punto pertenece al hueso que tiene a su altura de la
  * cadena, así que no hay pesos que pintar.
@@ -14,11 +14,13 @@ export const bones = defineModifier({
   label: 'Bones',
   kind: 'deformer',
   params: {
-    segments: { type: 'number', default: 3, min: 2, max: 4, step: 1, ramp: false, label: 'Segments', random: false },
+    segments: { type: 'number', default: 3, min: 2, max: 6, step: 1, ramp: false, label: 'Segments', random: false },
     angle1: { type: 'angle', default: 12, label: 'Bone 1', showIf: { ik: ['false'] } },
     angle2: { type: 'angle', default: 12, label: 'Bone 2', showIf: { ik: ['false'] } },
-    angle3: { type: 'angle', default: 12, label: 'Bone 3', showIf: { ik: ['false'], segments: ['3', '4'] } },
-    angle4: { type: 'angle', default: 12, label: 'Bone 4', showIf: { ik: ['false'], segments: ['4'] } },
+    angle3: { type: 'angle', default: 12, label: 'Bone 3', showIf: { ik: ['false'], segments: ['3', '4', '5', '6'] } },
+    angle4: { type: 'angle', default: 12, label: 'Bone 4', showIf: { ik: ['false'], segments: ['4', '5', '6'] } },
+    angle5: { type: 'angle', default: 12, label: 'Bone 5', showIf: { ik: ['false'], segments: ['5', '6'] } },
+    angle6: { type: 'angle', default: 12, label: 'Bone 6', showIf: { ik: ['false'], segments: ['6'] } },
     smooth: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Smooth', ramp: false },
     ik: { type: 'boolean', default: false, label: 'IK', animatable: false },
     target: { type: 'point', default: [0.8, 0.1], unit: 'fraction', label: 'Target', showIf: { ik: ['true'] } },
@@ -31,13 +33,13 @@ export const bones = defineModifier({
     const B = fromFraction(b, p.end);
     const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
     if (L < 1e-9) return geo;
-    const n = Math.max(2, Math.min(4, Math.round(p.segments)));
+    const n = Math.max(2, Math.min(6, Math.round(p.segments)));
     const seg = L / n;
     const base = Math.atan2(B[1] - A[1], B[0] - A[0]);
     const [ux, uy] = [Math.cos(base), Math.sin(base)];
 
     // Ángulos de cada hueso (relativos al anterior): los del panel, o los que llevan la punta al objetivo.
-    let rel = [p.angle1, p.angle2, p.angle3, p.angle4].slice(0, n).map(deg);
+    let rel = [p.angle1, p.angle2, p.angle3, p.angle4, p.angle5, p.angle6].slice(0, n).map(deg);
     if (p.ik) rel = solveIK(A, base, seg, rel, fromFraction(b, p.target));
     if (rel.every((a) => Math.abs(a) < 1e-9)) return geo;
 
