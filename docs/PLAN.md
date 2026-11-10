@@ -118,6 +118,8 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 - Icono de enlazar/desenlazar en los pares de valores (escala X/Y, tamaño, etc.).
 - Aviso de rendimiento cuando el recálculo vaya lento (ms por fotograma en el pie; aviso pasado un umbral).
 - Plegar Step (y en general, los efectos con hijos).
+- Selector de color con muestras rápidas: blanco, negro, varios grises y los colores que ya se usan en el documento.
+- Más adelante: paletas de color (guardar, cargar y aplicar paletas).
 
 **Efectos**
 - Degradado (lineal/radial) como efecto de Style.
