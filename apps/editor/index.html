@@ -6,8 +6,29 @@
     <meta name="description" content="svertik: non-destructive SVG editing with a live modifier stack." />
     <title>svertik</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <style>
+      /* Pantalla de carga: mientras llega el editor (algo más de 1 MB). La quita main.ts al arrancar. */
+      html, body { margin: 0; background: #0b0b0b; }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 14px;
+        color: #ededed;
+        font: 600 13px/1 ui-monospace, 'JetBrains Mono', monospace;
+        letter-spacing: 0.04em;
+        transition: opacity 200ms;
+      }
+      #boot .bar { position: relative; width: 120px; height: 2px; overflow: hidden; background: #262626; }
+      #boot .bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 40%; background: #09fdd1; animation: boot 1s ease-in-out infinite; }
+      @keyframes boot { from { translate: -100% 0; } to { translate: 250% 0; } }
+      @media (prefers-reduced-motion: reduce) { #boot .bar::after { animation: none; width: 100%; } }
+    </style>
   </head>
   <body>
+    <div id="boot" role="status" aria-label="Loading svertik">svertik<span class="bar"></span></div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

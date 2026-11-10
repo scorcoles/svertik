@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { builtins, createEngine, hasFont, walkNodes, type SceneV2 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
+  // La versión, de un solo sitio: el package.json del editor.
+  import { version } from '../package.json';
   import { Checkbox, ColorField } from '@svertik/ui';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
@@ -40,7 +42,21 @@
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
 
   async function openFile(file: File) {
-    editor.load(await file.text(), file.name);
+    const text = await file.text();
+    // Un proyecto (.svrtk, o el JSON de una escena): se abre entero. Si no, es un SVG que se añade.
+    if (/\.(svrtk|json)$/i.test(file.name) || /^\s*\{/.test(text)) {
+      if (editor.openProject(text)) say(`Opened ${file.name}`);
+      else editor.error = 'That file is not a svertik project.';
+      return;
+    }
+    editor.load(text, file.name);
+  }
+  function saveProject() {
+    const text = editor.projectFile();
+    if (!text) return;
+    const name = `${editor.name}.svrtk`;
+    download(name, text, 'application/json');
+    say(`Saved ${name}`);
   }
   // Sustituir el SVG del objeto seleccionado (desde sus atributos).
   let replaceInput: HTMLInputElement;
@@ -71,6 +87,9 @@
       e.preventDefault();
       if (e.shiftKey) editor.redo();
       else editor.undo();
+    } else if (mod && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveProject();
     } else if (mod && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       fileInput.click();
@@ -153,6 +172,7 @@
   <Toolbar
     {editor}
     onimport={() => fileInput.click()}
+    onsave={saveProject}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
     oncopycode={() => (editor.codeOpen = !editor.codeOpen)}
     onexport={exportSVG}
@@ -190,7 +210,7 @@
         {/if}
       </div>
       <footer>
-        <span>svertik 0.0.0</span>
+        <span>svertik {version} alpha</span>
         <span>engine · {builtins.length} modifiers</span>
       </footer>
     </aside>
@@ -198,7 +218,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    accept=".svg,image/svg+xml"
+    accept=".svg,image/svg+xml,.svrtk,.json,application/json"
     multiple
     hidden
     onchange={async (e) => {
