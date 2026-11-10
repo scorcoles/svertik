@@ -101,6 +101,9 @@ export class Editor {
   /** Punto que se está moviendo (fracción de la caja de origen); se borra al parar. */
   marker = $state<[number, number] | null>(null);
   #markerTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Se está cambiando un parámetro del efecto (desde el panel o el lienzo): su wire se ve encendido. */
+  busy = $state(false);
+  #busyTimer: ReturnType<typeof setTimeout> | undefined;
 
   #history: string[] = [];
   #index = $state(-1);
@@ -347,6 +350,9 @@ export class Editor {
     if (!this.current?.params) return;
     this.current.params[name] = value;
     if (registry.get(this.current.type)?.params[name]?.type === 'point') this.showMarker(value as [number, number]);
+    this.busy = true;
+    clearTimeout(this.#busyTimer);
+    this.#busyTimer = setTimeout(() => (this.busy = false), 400);
     this.record();
   }
 

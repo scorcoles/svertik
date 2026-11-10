@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { apply, builtins, buildShape, createEngine, invert, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { apply, builtins, buildShape, createEngine, invert, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { Button, Icon } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
+  import { gizmoFor, type Drag } from './gizmos';
   import Tools from './Tools.svelte';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
 
@@ -371,6 +372,76 @@
     return () => cancelAnimationFrame(frame);
   });
 
+  // ── Actuadores del efecto seleccionado: su wire y sus tiradores (ver gizmos.ts)
+
+  const gizmo = $derived.by(() => {
+    const m = editor.current;
+    const info = ownerInfo();
+    if (!m || editor.currentParent || !info) return null;
+    return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, info.bounds);
+  });
+  /** El gizmo ya en píxeles del escenario (se recalcula tras pintar, como los tiradores). */
+  let gizmoScreen = $state<{ lines: { d: string; tone: string; dashed: boolean; drag?: Drag; label?: string }[]; handles: { x: number; y: number; label: string; drag: Drag }[] } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox;
+    const g = gizmo;
+    const frame = requestAnimationFrame(() => {
+      const info = ownerInfo();
+      if (!g || !info) return (gizmoScreen = null);
+      const s = (pt: Vec2) => docToStage(...apply(info.matrix, pt));
+      gizmoScreen = {
+        lines: g.lines.map((l) => {
+          const pts = l.pts.map(s).filter((q): q is [number, number] => !!q);
+          const d = pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (l.closed ? 'Z' : '');
+          return { d, tone: l.tone ?? 'accent', dashed: !!l.dashed, drag: l.drag, label: l.label };
+        }),
+        handles: g.handles.flatMap((h) => {
+          const q = s(h.at);
+          return q ? [{ x: q[0], y: q[1], label: h.label, drag: h.drag }] : [];
+        }),
+      };
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+  let gizmoActive = $state(false);
+  let gizmoHover = $state(false);
+
+  /** Del puntero a coordenadas locales del nodo dueño del efecto. */
+  const toLocal = (clientX: number, clientY: number): Vec2 | null => {
+    const info = ownerInfo();
+    const d = clientToDoc(clientX, clientY);
+    return info && d ? apply(invert(info.matrix), d) : null;
+  };
+
+  function dragGizmo(e: PointerEvent, drag: Drag, label: string) {
+    const m = editor.current;
+    if (space || !m) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = e.currentTarget as Element;
+    el.setPointerCapture(e.pointerId);
+    const from = toLocal(e.clientX, e.clientY);
+    const p0 = $state.snapshot(m.params ?? {}) as Record<string, unknown>;
+    const r = stage!.getBoundingClientRect();
+    gizmoActive = true;
+    const move = (ev: PointerEvent) => {
+      const to = toLocal(ev.clientX, ev.clientY);
+      if (!from || !to) return;
+      const changed = drag(p0, from, to, ev.shiftKey);
+      for (const [k, v] of Object.entries(changed)) editor.setParam(k, v);
+      const v = Object.values(changed)[0];
+      gesture = { text: `${label} ${typeof v === 'number' ? v : ''}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+    };
+    const up = () => {
+      gizmoActive = false;
+      gesture = null;
+      el.removeEventListener('pointermove', move as EventListener);
+      el.removeEventListener('pointerup', up);
+    };
+    el.addEventListener('pointermove', move as EventListener);
+    el.addEventListener('pointerup', up);
+  }
+
   function grab(e: PointerEvent, h: Handle) {
     if (space) return;
     e.preventDefault();
@@ -442,6 +513,38 @@
         {/each}
       {/if}
       {#if gesture}<span class="gesture" style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
+      {#if gizmoScreen && !editor.tool}
+        <svg class="gizmo" data-active={gizmoActive || gizmoHover || editor.busy || undefined} aria-hidden="true">
+          {#each gizmoScreen.lines as l, i (i)}
+            <path class="halo" d={l.d} />
+            <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} />
+            {#if l.drag}
+              {@const drag = l.drag}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <path
+                class="hit"
+                d={l.d}
+                onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '')}
+                onpointerenter={() => (gizmoHover = true)}
+                onpointerleave={() => (gizmoHover = false)}
+              ><title>{l.label} (⇧ snaps to 15°)</title></path>
+            {/if}
+          {/each}
+        </svg>
+        {#each gizmoScreen.handles as h (h.label)}
+          <button
+            type="button"
+            class="gizmo-handle"
+            style:left="{h.x}px"
+            style:top="{h.y}px"
+            title={h.label}
+            aria-label={h.label}
+            onpointerdown={(e) => dragGizmo(e, h.drag, h.label)}
+            onpointerenter={() => (gizmoHover = true)}
+            onpointerleave={() => (gizmoHover = false)}
+          ></button>
+        {/each}
+      {/if}
       {#each handles as h (h.name)}
         <button
           type="button"
@@ -559,6 +662,31 @@
     font-size: var(--sv-font-size-10);
     white-space: nowrap;
   }
+  /* Wire del efecto: tenue en reposo; encendido al pasar, al arrastrar o al cambiar sus valores. */
+  .gizmo { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0.45; transition: opacity 120ms; }
+  .gizmo[data-active] { opacity: 1; }
+  .gizmo .halo { fill: none; stroke: rgb(0 0 0 / 0.35); stroke-width: 3; }
+  .gizmo .line { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1; }
+  .gizmo .line[data-dashed] { stroke-dasharray: 4 3; }
+  .gizmo .line[data-tone='x'] { stroke: #ff5c5c; }
+  .gizmo .line[data-tone='y'] { stroke: #6bdc6b; }
+  .gizmo .line[data-tone='z'] { stroke: #5c8cff; }
+  .gizmo .hit { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: grab; }
+  .gizmo-handle {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    translate: -50% -50%;
+    background: var(--sv-accent-fill);
+    border: 0;
+    border-radius: 0;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+    cursor: move;
+  }
+  .gizmo-handle::before { content: ''; position: absolute; inset: -4px; }
+  .stage[data-space] .gizmo-handle,
+  .stage[data-space] .gizmo .hit { pointer-events: none; }
   .ghost { opacity: 0.2; }
   .wire :global(path) {
     fill: none !important;
