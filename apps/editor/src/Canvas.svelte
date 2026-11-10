@@ -527,7 +527,7 @@
                 onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '')}
                 onpointerenter={() => (gizmoHover = true)}
                 onpointerleave={() => (gizmoHover = false)}
-              ><title>{l.label} (⇧ snaps to 15°)</title></path>
+              ><title>{l.label}</title></path>
             {/if}
           {/each}
         </svg>
