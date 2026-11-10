@@ -243,6 +243,18 @@ describe('copiar y pegar', () => {
     expect(e.scene!.objects[0]!.transform).toMatchObject({ x: 32, y: 32 });
   });
 
+  it('pegar en el mismo sitio (⌘⇧V): sin desplazamiento, aunque se pegue varias veces', () => {
+    const e = fresh();
+    const original = e.scene!.objects[0]!;
+    original.transform = { x: 40, y: -10 };
+    e.selected = original.id;
+    const text = e.copySelection()!;
+    e.paste(text, 0);
+    e.paste(text, 0);
+    expect(e.scene!.objects[0]!.transform).toMatchObject({ x: 40, y: -10 });
+    expect(e.scene!.objects[0]!.id).not.toBe(original.id);
+  });
+
   it('un efecto copiado se pega en el objeto activo, debajo del seleccionado', () => {
     const e = fresh();
     e.add('wave');

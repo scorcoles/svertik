@@ -264,17 +264,49 @@ export const streaks = defineModifier({
     // Del color del dibujo (el de la primera forma con relleno o, si no hay, el de su trazo); el dibujo se queda como estaba.
     const fill = geo.shapes.find((s) => s.style.fill && s.style.fill !== 'none')?.style.fill ?? geo.shapes.find(isLine)?.style.stroke ?? '#000000';
     const out: Shape[] = [...geo.shapes];
+    // El contorno de lo que se ve, como polilíneas: cada raya sale del borde real de la forma a su altura
+    // (no de la caja, que en una forma redonda o en un anillo queda lejos).
+    const outline = geo.shapes
+      .filter((s) => (s.style.fill ?? 'black') !== 'none' || isLine(s))
+      .flatMap((s) => s.subpaths.map((sp) => {
+        const pts = flatten(sp, 16);
+        if (sp.closed) pts.push(sp.start);
+        return pts;
+      }));
     for (let k = 0; k < Math.round(p.count); k++) {
-      const y = b.y + rand() * b.height;
+      // Una altura por la que pase la forma (unos cuantos intentos; un anillo tiene huecos).
+      let y = 0, span: [number, number] | null = null;
+      for (let tries = 0; tries < 12 && !span; tries++) {
+        y = b.y + rand() * b.height;
+        span = spanAt(outline, y + p.width / 2);
+      }
       const len = p.length * size * (0.4 + rand());
       const left = rand() < 0.5;
-      const x0 = left ? b.x - len * 0.7 : b.x + b.width - len * 0.3;
+      if (!span) continue;
+      const x0 = left ? span[0] - len * 0.7 : span[1] - len * 0.3;
       const sp = toSubPath(rect(x0, y, len, p.width));
       if (sp) out.push({ subpaths: [sp], style: { fill } });
     }
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
+
+/** Dónde corta la horizontal `y` al contorno: el primer y el último punto, o null si no lo toca. */
+function spanAt(lines: Vec2[][], y: number): [number, number] | null {
+  let x0 = Infinity, x1 = -Infinity;
+  for (const pts of lines) {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i]!, [bx, by] = pts[i + 1]!;
+      if ((ay <= y && by >= y) || (by <= y && ay >= y)) {
+        const x = ay === by ? Math.min(ax, bx) : ax + ((y - ay) / (by - ay)) * (bx - ax);
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (ay === by) x1 = Math.max(x1, ax, bx);
+      }
+    }
+  }
+  return x0 <= x1 ? [x0, x1] : null;
+}
 
 type Box = { x: number; y: number; w: number; h: number };
 function boxOf(m: MultiPolygon): Box {

@@ -159,6 +159,8 @@
     // En el modo Play, el editor está detrás: sus atajos no actúan.
     if (editor.presenting || pending || report) return;
     const mod = e.metaKey || e.ctrlKey;
+    // ⌘⇧V: pegar en el mismo sitio. El evento de pegar no lleva las teclas: se anota aquí.
+    if (mod && e.key.toLowerCase() === 'v') pasteInPlace = e.shiftKey;
     if (mod && e.key.toLowerCase() === 'z' && !typing(e)) {
       e.preventDefault();
       if (e.shiftKey) editor.redo();
@@ -202,10 +204,14 @@
     if (cut) editor.removeSelection();
     say(cut ? 'Cut' : 'Copied');
   }
+  /** ⌘⇧V: lo pegado queda donde estaba el original, sin desplazarlo. */
+  let pasteInPlace = false;
   function paste(e: ClipboardEvent) {
+    const inPlace = pasteInPlace;
+    pasteInPlace = false;
     if (typing(e) || editor.presenting) return;
     const text = e.clipboardData?.getData('text/plain') ?? '';
-    if (editor.paste(text)) {
+    if (editor.paste(text, inPlace ? 0 : 16)) {
       e.preventDefault();
       return;
     }

@@ -893,7 +893,7 @@ export class Editor {
     return JSON.stringify({ svertik: 1, kind: 'nodes', items: sorted.map((n) => $state.snapshot(n)) });
   }
 
-  /** Pega lo copiado. Devuelve false si el texto no es del portapapeles de svertik. */
+  /** Pega lo copiado (`offset`: cuánto se desplaza; 0, en el mismo sitio). Devuelve false si el texto no es del portapapeles de svertik. */
   paste(text: string, offset = 16): boolean {
     let data: { svertik?: number; kind?: string; items?: unknown[] };
     try {

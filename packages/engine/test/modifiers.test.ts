@@ -837,3 +837,21 @@ describe('glitch sobre trazos (sin relleno)', () => {
     expect(length(geo)).toBeCloseTo(180, 0);
   });
 });
+
+describe('streaks', () => {
+  it('cada raya sale del contorno real (en un círculo, no de su caja)', () => {
+    const circle = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="#777"/></svg>';
+    const geo = createEngine(builtins).evaluateStack({ source: circle, stack: [{ id: 's', type: 'streaks', params: { count: 40, length: 0.1, width: 1, seed: 3 } }] });
+    const streaks = geo.shapes.slice(1);
+    expect(streaks).toHaveLength(40);
+    for (const s of streaks) {
+      const pts = [s.subpaths[0]!.start, ...s.subpaths[0]!.segs.map((g) => g.p)];
+      const xs = pts.map((q) => q[0]), y = (Math.min(...pts.map((q) => q[1])) + Math.max(...pts.map((q) => q[1]))) / 2;
+      // El borde del círculo a esa altura.
+      const half = Math.sqrt(Math.max(0, 100 ** 2 - (y - 100) ** 2));
+      const [e0, e1] = [100 - half, 100 + half];
+      const touches = (x: number) => Math.min(...xs) - 1 <= x && x <= Math.max(...xs) + 1;
+      expect(touches(e0) || touches(e1)).toBe(true);
+    }
+  });
+});
