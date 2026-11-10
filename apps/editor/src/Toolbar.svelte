@@ -15,13 +15,16 @@
     onnew: () => void;
   }
   let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, ondemo, onnew }: Props = $props();
-  const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);
+  // Por tipo, sin los de una familia (Glitch), que van en su propio menú.
+  const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind && !registry.get(t)?.family);
+  const family = (name: string) => modifierTypes.filter((t) => registry.get(t)?.family === name);
   // Los efectos, por grupos: la barra no crece aunque crezca el catálogo.
   const groups = [
     { label: 'Deform', icon: 'spherize', types: of('deformer') },
     { label: 'Generate', icon: 'clone', types: of('generator') },
     { label: 'Effect', icon: 'step', types: of('effector') },
     { label: 'Style', icon: 'color', types: of('style') },
+    { label: 'Glitch', icon: 'glitch', types: family('glitch') },
     { label: 'Filters', icon: 'shadow', types: of('filter') },
   ] as const;
 </script>

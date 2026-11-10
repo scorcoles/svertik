@@ -43,7 +43,7 @@ describe('interacciones', () => {
 describe('interacciones: acciones', () => {
   const base = (interactions: SceneV2['interactions']): SceneV2 => ({
     version: 2,
-    objects: [{ kind: 'shape', id: 'b', name: 'b', shape: 'star', params: {}, stack: [{ id: 'g', type: 'glitch', params: { seed: 1 } }, { id: 'w', type: 'wave', params: {} }] }],
+    objects: [{ kind: 'shape', id: 'b', name: 'b', shape: 'star', params: {}, stack: [{ id: 'g', type: 'slices', params: { seed: 1 } }, { id: 'w', type: 'wave', params: {} }] }],
     animation: { duration: 2, autoplay: false, tracks: [] },
     interactions,
   });

@@ -566,12 +566,26 @@ describe('fractal fit y glitch', () => {
     expect(free.height).toBeGreaterThan(60);
   });
 
-  it('glitch: franjas, separación detrás y rayas; mismo resultado con la misma semilla', () => {
-    const a = run([{ id: 'g', type: 'glitch', params: { seed: 3 } }]);
-    // Detrás, las copias de color; delante, las piezas con su estilo.
-    expect(a.shapes[0]!.style.fill).toBe('#00e5ff');
-    expect(a.shapes.length).toBeGreaterThan(10);
-    expect(JSON.stringify(run([{ id: 'g', type: 'glitch', params: { seed: 3 } }]))).toBe(JSON.stringify(a));
+  it('glitch, por piezas: cada una hace lo suyo y se combinan; misma semilla, mismo resultado', () => {
+    // Slices: franjas, cada una un elemento.
+    const sl = run([{ id: 's', type: 'slices', params: { count: 6, chance: 1, seed: 3 } }]);
+    expect(new Set(sl.shapes.map((s) => s.clone)).size).toBe(6);
+    expect(JSON.stringify(run([{ id: 's', type: 'slices', params: { count: 6, chance: 1, seed: 3 } }]))).toBe(JSON.stringify(sl));
+    // Blocks: más piezas (lo de dentro de cada bloque, aparte) y la misma superficie movida.
+    expect(run([{ id: 'b', type: 'blocks', params: { count: 4, size: 0.2, seed: 2 } }]).shapes.length).toBeGreaterThan(1);
+    // Scanlines: el cuadrado sigue siendo uno, con huecos.
+    const sc = run([{ id: 'l', type: 'scanlines', params: { count: 10 } }]);
+    expect(sc.shapes).toHaveLength(1);
+    expect(sc.shapes[0]!.subpaths.length).toBeGreaterThan(5);
+    // Streaks: el dibujo, más las rayas del color del dibujo.
+    const st = run([{ id: 'r', type: 'streaks', params: { count: 5 } }]);
+    expect(st.shapes).toHaveLength(6);
+    // Encadenados: las franjas pasan por los bloques.
+    expect(run([{ id: 's', type: 'slices', params: { seed: 1 } }, { id: 'b', type: 'blocks', params: { seed: 1 } }]).shapes.length).toBeGreaterThan(sl.shapes.length);
+  });
+
+  it('RGB Split es un filtro: no toca la geometría', () => {
+    expect(run([{ id: 'x', type: 'rgbsplit', params: { distance: 5 } }])).toEqual(run([]));
   });
 });
 

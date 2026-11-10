@@ -50,6 +50,12 @@ export const icons = {
   roughen: 'M1.5 12.5l1.5-2 1 1.5 1.5-3 1 1 1.5-3.5 1 2 1.5-2.5 1 1.5 1.5-2.5 1 1 M1.5 14.5h13',
   fractal: 'M8 1.5l6.5 12h-13z M4.75 7.75h6.5 M8 13.5l-3.25-5.75 M8 13.5l3.25-5.75',
   glitch: 'M2.5 2.5h9v3h-9z M4.5 6.5h9v3h-9z M1.5 10.5h9v3h-9z M12.5 12h2',
+  // Las piezas de Glitch: franjas corridas, bloques, líneas de barrido, rayas y separación de color.
+  slices: 'M2.5 2.5h9v3h-9z M4.5 6.5h9v3h-9z M1.5 10.5h9v3h-9z',
+  blocks: 'M2.5 2.5h11v11h-11z M5 5h3v2.5h-3z M9.5 9h3v2.5h-3z',
+  scanlines: 'M2.5 3.5h11 M2.5 6.5h11 M2.5 9.5h11 M2.5 12.5h11',
+  streaks: 'M1 4.5h6 M9 8h6 M3 11.5h7',
+  rgbsplit: 'M6 3.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9 M10 3.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9',
   trim: 'M2.5 12.5c1-6 4-9 9-9 M11.5 3.5l2 0 M11.5 3.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
   morph: 'M2.5 3.5h5v5h-5z M10.5 10.5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M7.5 6l2 2 M9.5 6v2h-2',
   explosion: 'M8 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M8 1.5v3 M8 11.5v3 M1.5 8h3 M11.5 8h3 M3.5 3.5l2 2 M10.5 10.5l2 2 M12.5 3.5l-2 2 M5.5 10.5l-2 2',

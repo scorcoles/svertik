@@ -71,6 +71,8 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   type: string;
   label: string;
   kind: 'deformer' | 'generator' | 'effector' | 'style' | 'filter';
+  /** Familia (para agruparlos en los menús aunque sean de tipos distintos): 'glitch'. */
+  family?: string;
   params: P;
   apply(geo: Geometry, params: ParamValues<P>, ctx: ModifierContext): Geometry;
   /**

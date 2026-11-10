@@ -4,12 +4,15 @@
   import { modifierTypes, registry, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
+  // Por tipo; los de una familia (Glitch), juntos en su sección.
+  const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind && !registry.get(t)?.family);
   const groups = $derived([
-    ['Deformers', modifierTypes.filter((t) => registry.get(t)?.kind === 'deformer')],
-    ['Generators', modifierTypes.filter((t) => registry.get(t)?.kind === 'generator')],
-    ['Effectors', modifierTypes.filter((t) => registry.get(t)?.kind === 'effector')],
-    ['Style', modifierTypes.filter((t) => registry.get(t)?.kind === 'style')],
-    ['Filters', modifierTypes.filter((t) => registry.get(t)?.kind === 'filter')],
+    ['Deformers', of('deformer')],
+    ['Generators', of('generator')],
+    ['Glitch', modifierTypes.filter((t) => registry.get(t)?.family === 'glitch')],
+    ['Effectors', of('effector')],
+    ['Style', of('style')],
+    ['Filters', of('filter')],
   ] as const);
 </script>
 
