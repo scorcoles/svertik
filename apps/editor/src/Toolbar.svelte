@@ -25,7 +25,20 @@
   <div class="doc">
     <strong>svertik</strong>
     {#if editor.scene}
-      <span class="slash">/</span><span class="name" title={editor.name}>{editor.name}</span>
+      <span class="slash">/</span>
+      <input
+        class="name"
+        value={editor.name}
+        aria-label="Document name"
+        title="Rename document"
+        spellcheck="false"
+        size={Math.max(4, editor.name.length)}
+        onchange={(e) => { editor.setName(e.currentTarget.value); e.currentTarget.value = editor.name; }}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          else if (e.key === 'Escape') { e.currentTarget.value = editor.name; e.currentTarget.blur(); }
+        }}
+      />
       {#if editor.objectCount > 1}<span class="slash">·</span><span class="count">{editor.objectCount} objects</span>{/if}
     {/if}
   </div>
@@ -59,7 +72,19 @@
   .doc { display: flex; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: 0; }
   .doc strong { font-size: var(--sv-font-size-12); }
   .slash { color: var(--sv-text-disabled); }
-  .name { color: var(--sv-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+  .name {
+    max-width: 240px;
+    padding: 0;
+    font: inherit;
+    color: var(--sv-text-secondary);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    outline: none;
+    text-overflow: ellipsis;
+  }
+  .name:hover { color: var(--sv-text-primary); border-bottom-color: var(--sv-rule-strong); }
+  .name:focus { color: var(--sv-text-primary); border-bottom-color: var(--sv-accent-fill); }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .effects { display: flex; gap: var(--sv-space-4); }

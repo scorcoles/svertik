@@ -7,6 +7,7 @@ export { icons, iconSVG, type IconName } from './icons';
 export { default as NumberField } from './NumberField.svelte';
 export { default as Panel } from './Panel.svelte';
 export { default as ParamControl } from './ParamControl.svelte';
+export { default as ParamList } from './ParamList.svelte';
 export { default as ParamRow } from './ParamRow.svelte';
 export { default as PointField } from './PointField.svelte';
 export { default as Section } from './Section.svelte';

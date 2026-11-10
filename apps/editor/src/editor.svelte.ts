@@ -82,6 +82,8 @@ export class Editor {
   scene = $state<SceneV2 | null>(null);
   /** Nombre del documento (el del primer SVG, mientras no haya otro). */
   name = $state('untitled');
+  /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
+  canvas = $state('');
   /** Lo seleccionado: un nodo (objeto o grupo) o un modificador. */
   selected = $state<string | null>(null);
   /** Nodos plegados en la pila. */
@@ -195,6 +197,18 @@ export class Editor {
     this.record(true);
   }
 
+  setName(name: string) {
+    const n = name.trim();
+    if (!n || n === this.name) return;
+    this.name = n;
+    this.record(true);
+  }
+
+  setCanvas(color: string) {
+    this.canvas = color;
+    this.record();
+  }
+
   // ── Nodos
 
   isCollapsed = (id: string) => this.collapsed.includes(id);
@@ -271,7 +285,9 @@ export class Editor {
       stack.splice(top < 0 ? stack.length : top + 1, 0, inst);
     }
     this.selected = inst.id;
-    this.collapsed = this.collapsed.filter((x) => x !== owner.id);
+    // Que se vea lo añadido: el nodo y el Step que lo recibe, desplegados.
+    const host = at && containers.has(at.inst.type) ? at.inst.id : at?.parent?.id;
+    this.collapsed = this.collapsed.filter((x) => x !== owner.id && x !== host);
     this.record(true);
   }
 
@@ -388,7 +404,7 @@ export class Editor {
     clearTimeout(this.#timer);
     const push = () => {
       this.#pending = false;
-      const snap = JSON.stringify({ scene: this.scene, name: this.name, script: this.script });
+      const snap = JSON.stringify({ scene: this.scene, name: this.name, script: this.script, canvas: this.canvas });
       if (snap === this.#history[this.#index]) return;
       this.#history = this.#history.slice(0, this.#index + 1);
       this.#history.push(snap);
@@ -412,9 +428,10 @@ export class Editor {
   #restore(i: number) {
     const snap = this.#history[i];
     if (!snap) return;
-    const { scene, name, script } = JSON.parse(snap) as { scene: SceneV2 | null; name: string; script?: string };
+    const { scene, name, script, canvas } = JSON.parse(snap) as { scene: SceneV2 | null; name: string; script?: string; canvas?: string };
     this.scene = scene;
     this.name = name;
+    this.canvas = canvas ?? '';
     this.script = script ?? DEFAULT_SCRIPT;
     this.#index = i;
     if (this.selected && scene && !locateNode(scene.objects, this.selected) && !locateModifier(scene, this.selected)) {
@@ -439,7 +456,7 @@ export class Editor {
       history.replaceState(null, '', `${location.pathname}${location.search}`);
       return;
     }
-    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script });
+    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     const hash = encoded.length < MAX_HASH ? `#s=${encoded}` : '';
     history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
   }
@@ -453,6 +470,7 @@ export class Editor {
     this.scene = scene;
     this.name = state.name.replace(/\.svg$/i, '');
     if (state.script) this.script = state.script;
+    this.canvas = state.canvas ?? '';
     this.selected = scene.objects[0]?.id ?? null;
     this.#history = [];
     this.#index = -1;

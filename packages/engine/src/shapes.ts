@@ -16,7 +16,7 @@ const defineShape = <P extends ParamSchema>(d: ShapeDef<P>): ShapeDef<P> => d;
 // Estilo común a todas las primitivas.
 const style: ParamSchema = {
   fill: { type: 'boolean', default: true, group: 'Style', label: 'Fill', animatable: false },
-  fillColor: { type: 'color', default: '#09fdd1', group: 'Style', label: 'Fill color' },
+  fillColor: { type: 'color', default: '#d9d9d9', group: 'Style', label: 'Fill color' },
   stroke: { type: 'boolean', default: false, group: 'Style', label: 'Stroke', animatable: false },
   strokeColor: { type: 'color', default: '#ededed', group: 'Style', label: 'Stroke color' },
   strokeWidth: { type: 'number', default: 2, min: 0, max: 40, step: 0.5, unit: 'px', group: 'Style', label: 'Stroke width' },

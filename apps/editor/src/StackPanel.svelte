@@ -62,6 +62,7 @@
 
 {#snippet modifiers(list: ModifierInstance[], depth: number)}
   {#each list as m (m.id)}
+    {@const open = !editor.isCollapsed(m.id)}
     <div
       class="drag"
       draggable="true"
@@ -77,6 +78,8 @@
         kind={registry.get(m.type)?.kind}
         icon={m.type as IconName}
         {depth}
+        expanded={m.children ? open : undefined}
+        onexpand={(v) => editor.toggleCollapsed(m.id, v)}
         selected={editor.selected === m.id}
         enabled={m.enabled !== false}
         onselect={() => (editor.selected = m.id)}
@@ -84,7 +87,7 @@
         onremove={() => editor.remove(m.id)}
       />
     </div>
-    {#if m.children}
+    {#if m.children && open}
       {@render modifiers(m.children, depth + 1)}
       {#if m.children.length === 0}
         <p class="empty" style:--depth={depth + 1}>Drop or add a modifier here</p>

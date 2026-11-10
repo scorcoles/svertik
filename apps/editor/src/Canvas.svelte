@@ -343,6 +343,7 @@
 <section
   class="canvas"
   aria-label="Canvas"
+  style:--canvas={editor.canvas || undefined}
   data-dragging={dropping || undefined}
   ondragover={(e) => { e.preventDefault(); dropping = true; }}
   ondragleave={() => (dropping = false)}
@@ -413,7 +414,7 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--sv-surface-field);
+    background: var(--canvas, var(--sv-surface-field));
   }
   .canvas[data-dragging] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -8px; }
   .stage { position: absolute; inset: 0; overflow: hidden; }
@@ -480,7 +481,7 @@
     left: 0;
     bottom: 0;
     z-index: 1;
-    background: var(--sv-surface-field);
+    background: var(--canvas, var(--sv-surface-field));
     display: flex;
     align-items: center;
     gap: var(--sv-space-16);

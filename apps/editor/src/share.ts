@@ -20,6 +20,8 @@ export interface SharedState {
   scene: AnyScene;
   name: string;
   script?: string;
+  /** Color del lienzo del editor. */
+  canvas?: string;
 }
 
 export async function encodeState(state: SharedState): Promise<string> {
