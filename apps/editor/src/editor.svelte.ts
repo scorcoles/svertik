@@ -400,6 +400,20 @@ export class Editor {
   // ── Nodos
 
   isCollapsed = (id: string) => this.collapsed.includes(id);
+  /** Plegar o desplegar todo el panel Stack: objetos, grupos y contenedores (Step…). */
+  setAllCollapsed(collapse: boolean) {
+    if (!collapse || !this.scene) {
+      this.collapsed = [];
+      return;
+    }
+    const ids: string[] = [];
+    const mods = (list: ModifierInstance[]) => list.forEach((m) => m.children && (ids.push(m.id), mods(m.children)));
+    for (const { node } of walkNodes(this.scene.objects)) {
+      if (node.stack.length || node.kind === 'group') ids.push(node.id);
+      mods(node.stack);
+    }
+    this.collapsed = ids;
+  }
   toggleCollapsed(id: string, expanded: boolean) {
     this.collapsed = expanded ? this.collapsed.filter((x) => x !== id) : [...this.collapsed, id];
   }

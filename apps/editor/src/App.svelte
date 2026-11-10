@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { builtins, createEngine, hasFont, sceneFonts, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, hasFont, sceneFonts, toLottie, type SceneV2 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
@@ -15,6 +15,7 @@
   import Presenter from './Presenter.svelte';
   import Timeline from './Timeline.svelte';
   import UnsavedDialog from './UnsavedDialog.svelte';
+  import ExportReport from './ExportReport.svelte';
   import Toolbar from './Toolbar.svelte';
 
   const editor = new Editor();
@@ -126,6 +127,16 @@
       editor.playing = true;
     }
   }
+  // Lottie: la animación para apps y webs; lo que no se puede llevar, en un informe al terminar.
+  let report = $state<{ title: string; summary: string; warnings: string[] } | null>(null);
+  function exportLottie() {
+    const { data, warnings, frames } = toLottie(engine, snapshot(), { name: editor.name });
+    const text = JSON.stringify(data);
+    const name = `${editor.name}.lottie.json`;
+    download(name, text, 'application/json');
+    const kb = Math.max(1, Math.round(new Blob([text]).size / 1024));
+    report = { title: `Saved ${name}`, summary: `${frames} frame${frames === 1 ? '' : 's'}, ${kb} KB.${warnings.length ? ' Some things could not go into Lottie:' : ' Everything went in.'}`, warnings };
+  }
   function exportSVG() {
     const name = `${editor.name}.svertik.svg`;
     download(name, engine.toSVG(snapshot()), 'image/svg+xml');
@@ -138,7 +149,7 @@
   };
   function keydown(e: KeyboardEvent) {
     // En el modo Play, el editor está detrás: sus atajos no actúan.
-    if (editor.presenting || pending) return;
+    if (editor.presenting || pending || report) return;
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z' && !typing(e)) {
       e.preventDefault();
@@ -233,6 +244,7 @@
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
+    onexportlottie={exportLottie}
     ondemo={openDemo}
     onnew={() => guard(() => editor.newFile())}
   />
@@ -292,6 +304,7 @@
     }}
   />
   {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
+  {#if report}<ExportReport {...report} onclose={() => (report = null)} />{/if}
   {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
 </div>

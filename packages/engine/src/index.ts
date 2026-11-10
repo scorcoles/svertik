@@ -6,6 +6,7 @@ export * from './modifier';
 export { createEngine, type Engine, type StackInput, type ModifierInstance } from './engine';
 export * from './document';
 export { outlineNode, packNode, unpackNode } from './pack';
+export { toLottie, type LottieExport } from './lottie';
 export * from './matrix';
 export * from './shapes';
 export * from './fonts';

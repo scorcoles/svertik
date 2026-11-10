@@ -171,7 +171,13 @@
   </header>
   <div class="body">
     <div class="labels">
-      <div class="ruler-gap"></div>
+      <!-- Encima de las capas: desplegar y plegar todas. -->
+      <div class="ruler-gap">
+        {#if groups.length}
+          <IconButton icon="expand-all" label="Expand all tracks" onclick={() => (folded = [])} />
+          <IconButton icon="collapse-all" label="Collapse all tracks" onclick={() => (folded = groups.map((g) => g.id))} />
+        {/if}
+      </div>
       {#each groups as g (g.id)}
         <div class="label group" data-selected={editor.activeNode?.id === g.id || undefined}>
           <button type="button" class="fold" aria-expanded={g.open} aria-label={g.open ? `Fold ${g.name}` : `Unfold ${g.name}`} onclick={() => toggleFold(g.id)}>{g.open ? '▾' : '▸'}</button>
@@ -282,6 +288,9 @@
   .body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; overflow-y: auto; }
   .labels { border-right: var(--sv-border-1) solid var(--sv-rule-default); }
   .ruler-gap, .ruler { height: 20px; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
+  .ruler-gap { display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 var(--sv-space-4); }
+  .ruler-gap :global(.sv-icon-button) { width: 16px; height: 16px; }
+  .ruler-gap :global(.sv-icon) { width: 12px; height: 12px; }
   .label, .lane { height: 22px; border-bottom: var(--sv-border-1) solid var(--sv-rule-subtle, var(--sv-rule-default)); }
   .label { position: relative; display: flex; align-items: center; padding: 0 var(--sv-space-8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--sv-font-size-10); }
   .label.group { gap: var(--sv-space-4); padding-left: var(--sv-space-4); background: var(--sv-surface-raised); }

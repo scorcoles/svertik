@@ -152,6 +152,8 @@
   <header>
     <h2>Stack</h2>
     {#if editor.scene}<span class="count" title="Objects">{editor.objectCount}</span>{/if}
+    <IconButton icon="expand-all" label="Expand all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
+    <IconButton icon="collapse-all" label="Collapse all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
     <IconButton
       icon={editor.packed ? 'unpack' : 'pack'}
       label={editor.packed ? 'Unpack' : 'Pack (freeze the result)'}
