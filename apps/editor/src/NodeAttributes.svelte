@@ -1,6 +1,6 @@
 <script lang="ts">
   import { placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
-  import { Button, Checkbox, NumberField, ParamControl, ParamRow, PointField, Section, Slider } from '@svertik/ui';
+  import { Button, Checkbox, NumberField, ParamList, ParamRow, PointField, Section, Slider } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
   interface Props {
@@ -31,14 +31,10 @@
 <div class="params">
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
-      {#each shapeMain as [name, spec] (name)}
-        <ParamControl {name} {spec} value={node.params[name]} onchange={(v) => editor.setShapeParam(node.id, name, v)} />
-      {/each}
+      <ParamList params={shapeMain} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
     </Section>
     <Section title="Style">
-      {#each shapeStyle as [name, spec] (name)}
-        <ParamControl {name} {spec} value={node.params[name]} onchange={(v) => editor.setShapeParam(node.id, name, v)} />
-      {/each}
+      <ParamList params={shapeStyle} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
     </Section>
   {/if}
   <Section title="Transform">

@@ -128,6 +128,15 @@
         <strong>View</strong>
         <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>
         <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
+        <label class="bg" title="Canvas color (view only, not exported)">
+          <span class="swatch" style:background={editor.canvas || 'var(--sv-surface-field)'}>
+            <input type="color" value={editor.canvas || '#0b0b0b'} disabled={!editor.scene} aria-label="Canvas color" oninput={(e) => editor.setCanvas(e.currentTarget.value)} />
+          </span>
+          Canvas
+        </label>
+        {#if editor.canvas}
+          <button type="button" class="reset" title="Default canvas color" aria-label="Default canvas color" onclick={() => editor.setCanvas('')}>×</button>
+        {/if}
       </div>
       <footer>
         <span>svertik 0.0.0</span>
@@ -190,6 +199,11 @@
   .view strong { color: var(--sv-text-secondary); }
   .view label { display: flex; align-items: center; gap: var(--sv-space-6); cursor: pointer; }
   .view.off { opacity: 0.35; }
+  .bg { margin-left: auto; }
+  .swatch { position: relative; flex: none; width: 12px; height: 12px; box-shadow: inset 0 0 0 1px var(--sv-rule-strong); }
+  .swatch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .reset { margin-left: calc(var(--sv-space-12) * -1); padding: 0 var(--sv-space-2); font: inherit; color: var(--sv-text-muted); background: none; border: 0; cursor: pointer; }
+  .reset:hover { color: var(--sv-text-primary); }
   .inspector footer {
     display: flex;
     justify-content: space-between;

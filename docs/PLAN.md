@@ -94,12 +94,14 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 - 2026-11-09: iconos de 16 px (Penpot y código), crack, pantallas del editor en Penpot (default, menú «+», vacío) y `apps/editor`: barra con efectos, lienzo (Original/Wire), pila con árbol y arrastre, atributos por esquema, deshacer/rehacer, escena en la URL, exportar SVG/JSON/código.
 - 2026-11-10: escena v2 (varios objetos y grupos con pila propia; el primero de la lista, delante), primitivas (barra vertical, dibujar arrastrando), 19 efectos en 4 grupos (Deform, Generate, Effect, Style) con dado (R), Step con efectos colgados, panel de código (JSON, JS con `onFrame` en un worker, SVG), zoom y tiradores en el lienzo con encuadre fijo, ojo, lápiz y desagrupar en la pila.
 
+- 2026-11-10: nombre del documento editable en la barra (con deshacer); casilla y color en la misma fila (Fill, Stroke: `ParamList` en `packages/ui`); primitivas en gris neutro (#d9d9d9) en vez del turquesa del acento; color del lienzo en la fila View (solo para ver: no entra en el SVG, sí en la URL y el historial); Step se pliega.
+
 ## Siguiente
 
 Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Ideas apuntadas»):
 
-1. **Arreglos rápidos de interfaz:** nombre del documento editable (ahora siempre «untitled»), muestras de color de Style alineadas, color de las primitivas distinto del acento y del recuadro de selección, color del lienzo, plegar Step.
-2. **Primitivas:** previsualizar la forma real mientras se arrastra (en vez del rectángulo); clic sin arrastrar = primitiva en el centro del lienzo, lista para editar.
+1. ~~**Arreglos rápidos de interfaz:** nombre del documento editable, muestras de color de Style alineadas, color de las primitivas distinto del acento, color del lienzo, plegar Step.~~
+2. **Primitivas:** al crearla (arrastrando con la herramienta), ver la forma real en vez del rectángulo discontinuo; clic sin arrastrar = primitiva en el centro del lienzo, lista para editar.
 3. **Recuadro de selección útil:** mover, escalar y rotar el objeto desde él; actuadores en el lienzo según el efecto seleccionado (p. ej. eje y ángulo de Rotate 3D) y wire del efecto mientras se mueve (Spherize dibuja una esfera de pocas líneas).
 4. **Objetos:** alinear, distribuir, reflejar (horizontal/vertical).
 5. **Entre objetos** (librería de recorte): Boolean (unir, restar, intersectar, excluir), Clone sobre el contorno o el interior de otro objeto, deformador guiado por otro objeto.

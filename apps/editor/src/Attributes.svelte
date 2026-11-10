@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Button, IconButton, ParamControl, Section, Tabs } from '@svertik/ui';
+  import { Button, IconButton, ParamList, Section, Tabs } from '@svertik/ui';
+  import type { ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
 
@@ -8,10 +9,10 @@
   const m = $derived(editor.current);
   const def = $derived(m ? registry.get(m.type) : undefined);
   // Sin grupo: arriba. Con grupo: secciones plegables, en el orden del esquema.
-  const main = $derived(Object.entries(def?.params ?? {}).filter(([, s]) => !s.group).map(([n]) => n));
+  const main = $derived(Object.entries(def?.params ?? {}).filter(([, s]) => !s.group));
   const groups = $derived.by(() => {
-    const out = new Map<string, string[]>();
-    for (const [name, spec] of Object.entries(def?.params ?? {})) if (spec.group) out.set(spec.group, [...(out.get(spec.group) ?? []), name]);
+    const out = new Map<string, [string, ParamSpec][]>();
+    for (const [name, spec] of Object.entries(def?.params ?? {})) if (spec.group) out.set(spec.group, [...(out.get(spec.group) ?? []), [name, spec]]);
     return [...out];
   });
 </script>
@@ -32,14 +33,10 @@
       {#snippet children(t)}
         {#if t === 'Params'}
           <div class="params">
-            {#each main as name (name)}
-              <ParamControl {name} spec={def.params[name]!} value={m.params?.[name]} onchange={(v) => editor.setParam(name, v)} />
-            {/each}
-            {#each groups as [group, names] (group)}
+            <ParamList params={main} values={m.params} onchange={(n, v) => editor.setParam(n, v)} />
+            {#each groups as [group, entries] (group)}
               <Section title={group}>
-                {#each names as name (name)}
-                  <ParamControl {name} spec={def.params[name]!} value={m.params?.[name]} onchange={(v) => editor.setParam(name, v)} />
-                {/each}
+                <ParamList params={entries} values={m.params} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
           </div>
