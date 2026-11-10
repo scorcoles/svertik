@@ -22,8 +22,10 @@
     swatches?: string[];
     /** Para los parámetros `font`: las fuentes que se pueden elegir. */
     fonts?: string[];
+    keyState?: 'none' | 'animated' | 'key';
+    onkey?: () => void;
   }
-  let { name, spec, value, onchange, nodes = [], swatches, fonts = [] }: Props = $props();
+  let { name, spec, value, onchange, nodes = [], swatches, fonts = [], keyState, onkey }: Props = $props();
   // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
   const NONE = '— none —';
   const nodeLabels = $derived.by(() => {
@@ -49,7 +51,7 @@
   const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => ICONS[o])));
 </script>
 
-<ParamRow {label} for={id} tall={spec.type === 'text'}>
+<ParamRow {label} for={id} tall={spec.type === 'text'} {keyState} onkey={spec.animatable === false ? undefined : onkey}>
   {#if spec.type === 'number'}
     <NumberField {id} value={value as number} step={spec.step ?? 0.01} min={spec.min} max={spec.max} unit={spec.unit === 'fraction' ? '' : spec.unit} {onchange} />
     {#if spec.min !== undefined && spec.max !== undefined}

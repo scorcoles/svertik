@@ -348,3 +348,23 @@ describe('orden de los objetos', () => {
     expect(names()[2]).toBe(grid.name);
   });
 });
+
+describe('animación en el editor', () => {
+  it('el rombo crea la pista; cambiar el valor en otro instante añade una clave; quitarla todas deja de animar', () => {
+    const e = fresh();
+    const id = e.scene!.objects[0]!.id;
+    e.toggleKey({ node: id, on: 'node', param: 'rotation' });
+    expect(e.keyState({ node: id, on: 'node', param: 'rotation' })).toBe('key');
+    e.setTime(2);
+    expect(e.keyState({ node: id, on: 'node', param: 'rotation' })).toBe('animated');
+    e.setNode(id, 'rotation', 90, true);
+    expect(e.animation!.tracks[0]!.keys.map((k) => [k.t, k.value])).toEqual([[0, 0], [2, 90]]);
+    e.setTime(1);
+    expect(e.scene!.objects[0]!.transform?.rotation).toBeCloseTo(45);
+    e.setTime(2);
+    e.toggleKey({ node: id, on: 'node', param: 'rotation' });
+    e.setTime(0);
+    e.toggleKey({ node: id, on: 'node', param: 'rotation' });
+    expect(e.animation!.tracks).toHaveLength(0);
+  });
+});

@@ -19,8 +19,12 @@
     swatches?: string[];
     /** Fuentes disponibles (parámetros `font`). */
     fonts?: string[];
+    /** Animación: estado del rombo de cada parámetro y qué hacer al pulsarlo. */
+    keyOf?: (name: string) => 'none' | 'animated' | 'key';
+    onkey?: (name: string) => void;
   }
-  let { params, values, onchange, nodes, swatches, fonts }: Props = $props();
+  let { params, values, onchange, nodes, swatches, fonts, keyOf, onkey }: Props = $props();
+  const k = (name: string, spec: ParamSpec) => (onkey && spec.animatable !== false ? { keyState: keyOf?.(name), onkey: () => onkey(name) } : {});
 
   type Item = { name: string; spec: ParamSpec; color?: string; pair?: { name: string; spec: ParamSpec } };
   // Parejas enlazadas (ancho ↔ alto), por nombre del primero.
@@ -57,7 +61,7 @@
 {#each items as it (it.name)}
   {#if it.color}
     {@const on = values?.[it.name] as boolean}
-    <ParamRow label={labelOf(it.name, it.spec)} for={`param-${it.name}`}>
+    <ParamRow label={labelOf(it.name, it.spec)} for={`param-${it.name}`} {...k(it.color!, params.find(([n]) => n === it.color)![1])}>
       <Checkbox id={`param-${it.name}`} checked={on} onchange={(v) => onchange(it.name, v)} />
       <span class="color" data-off={!on || undefined}>
         <ColorField value={values?.[it.color] as string} label={`${labelOf(it.name, it.spec)} color`} {swatches} onchange={(v) => onchange(it.color!, v)} />
@@ -66,8 +70,8 @@
   {:else if it.pair}
     {@const pair = it.pair}
     <div class="pair">
-      <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} onchange={(v) => changePair(it.name, pair.name, 0, v as number)} />
-      <ParamControl name={pair.name} spec={pair.spec} value={values?.[pair.name]} onchange={(v) => changePair(it.name, pair.name, 1, v as number)} />
+      <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {...k(it.name, it.spec)} onchange={(v) => changePair(it.name, pair.name, 0, v as number)} />
+      <ParamControl name={pair.name} spec={pair.spec} value={values?.[pair.name]} {...k(pair.name, pair.spec)} onchange={(v) => changePair(it.name, pair.name, 1, v as number)} />
       <span class="link" data-on={linked[it.name] || undefined}>
         <IconButton
           icon={linked[it.name] ? 'link' : 'unlink'}
@@ -78,7 +82,7 @@
       </span>
     </div>
   {:else}
-    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {swatches} {fonts} onchange={(v) => onchange(it.name, v)} />
+    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {swatches} {fonts} {...k(it.name, it.spec)} onchange={(v) => onchange(it.name, v)} />
   {/if}
 {/each}
 

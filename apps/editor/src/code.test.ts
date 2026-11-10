@@ -68,3 +68,11 @@ describe('JS del panel', () => {
     expect(syntaxErrorLine('const a = 1;\n')).toBeNull();
   });
 });
+
+describe('código con animación', () => {
+  it('importa sampleScene y reproduce la línea de tiempo', () => {
+    const js = exportJS({ version: 2, objects: [], animation: { duration: 2, tracks: [{ id: 't', node: 'a', on: 'node', param: 'x', keys: [{ t: 0, value: 0 }] }] } }, '');
+    expect(js).toContain('sampleScene');
+    expect(js).toContain('live.update(sampleScene(scene');
+  });
+});

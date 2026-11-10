@@ -18,6 +18,10 @@
     if (panel) panel.scrollTop = 0;
   });
   const m = $derived(editor.current);
+  // Animación: el rombo de cada parámetro del efecto (pista sobre este efecto de este objeto).
+  const target = (param: string) => ({ node: editor.activeNode?.id ?? '', on: 'modifier' as const, modifier: m?.id, param });
+  const keyOf = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState(target(param)));
+  const onkey = (param: string) => editor.toggleKey(target(param));
   // Para los efectos que usan otro objeto: todos menos el dueño del efecto.
   const others = $derived(
     editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id).map((n) => ({ id: n.id, label: n.name })) : [],

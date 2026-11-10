@@ -70,6 +70,11 @@ export const icons = {
   'order-forward': 'M8 13.5v-9 M5 7.5l3-3 3 3',
   'order-backward': 'M8 2.5v9 M5 8.5l3 3 3-3',
   'order-back': 'M3.5 13.5h9 M8 1.5v9 M5 7.5l3 3 3-3',
+  // Reproducción
+  play: 'M4.5 2.5v11l9-5.5z',
+  pause: 'M4.5 2.5v11 M11.5 2.5v11',
+  'to-start': 'M3.5 2.5v11 M13.5 2.5v11l-8-5.5z',
+  timeline: 'M1.5 4.5h13 M1.5 8h13 M1.5 11.5h13 M5.5 2.5v11 M10 6.5l1.5 1.5-1.5 1.5-1.5-1.5z',
   // Interfaz
   center: 'M8 1.5v4 M8 10.5v4 M1.5 8h4 M10.5 8h4 M7 7h2v2h-2z',
   link: 'M6.5 9.5l3-3 M7.5 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M8.5 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1',
