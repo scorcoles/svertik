@@ -1,6 +1,7 @@
 // Primitivas: formas generadas por parámetros (como los objetos primitivos de C4D), no SVG importados.
 
 import { line, type Cubic, type Geometry, type Style, type SubPath, type Vec2 } from './geometry';
+import { fontFor } from './fonts';
 import { parsePathData } from './import';
 import { resolveParams, type ParamSchema, type ParamValues } from './modifier';
 
@@ -10,6 +11,8 @@ export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   params: P;
   /** Geometría centrada en el origen. */
   build(p: ParamValues<P>): SubPath[];
+  /** Si la forma tiene varios elementos (Text: una por letra), cada uno por separado (para Step, Color…). */
+  buildParts?(p: ParamValues<P>): SubPath[][];
 }
 
 const defineShape = <P extends ParamSchema>(d: ShapeDef<P>): ShapeDef<P> => d;
@@ -177,7 +180,86 @@ export const pawn = defineShape({
   },
 });
 
-export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, pawn];
+/** Contorno de un glifo (comandos M L Q C Z de opentype.js) como subtrazados de cúbicas. */
+function glyphSubpaths(commands: { type: string; x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number }[]): SubPath[] {
+  const out: SubPath[] = [];
+  let cur: SubPath | null = null;
+  let p0: Vec2 = [0, 0];
+  for (const c of commands) {
+    if (c.type === 'M') {
+      cur = { start: [c.x!, c.y!], segs: [], closed: false };
+      out.push(cur);
+      p0 = [c.x!, c.y!];
+    } else if (c.type === 'L' && cur) {
+      cur.segs.push(line(p0, [c.x!, c.y!]));
+      p0 = [c.x!, c.y!];
+    } else if (c.type === 'Q' && cur) {
+      // Cuadrática → cúbica: los controles, a 2/3 del control cuadrático desde cada extremo.
+      const q: Vec2 = [c.x1!, c.y1!], e: Vec2 = [c.x!, c.y!];
+      cur.segs.push({ c1: [p0[0] + (2 / 3) * (q[0] - p0[0]), p0[1] + (2 / 3) * (q[1] - p0[1])], c2: [e[0] + (2 / 3) * (q[0] - e[0]), e[1] + (2 / 3) * (q[1] - e[1])], p: e });
+      p0 = e;
+    } else if (c.type === 'C' && cur) {
+      cur.segs.push({ c1: [c.x1!, c.y1!], c2: [c.x2!, c.y2!], p: [c.x!, c.y!] });
+      p0 = [c.x!, c.y!];
+    } else if (c.type === 'Z' && cur) {
+      if (cur.segs.length && (p0[0] !== cur.start[0] || p0[1] !== cur.start[1])) cur.segs.push(line(p0, cur.start));
+      cur.closed = true;
+      p0 = cur.start;
+    }
+  }
+  return out.filter((sp) => sp.segs.length);
+}
+
+export const text = defineShape({
+  type: 'text',
+  label: 'Text',
+  params: {
+    text: { type: 'text', default: 'svertik', label: 'Text' },
+    font: { type: 'font', default: 'JetBrains Mono', label: 'Font' },
+    size: { type: 'number', default: 72, min: 1, step: 1, unit: 'px' },
+    tracking: { type: 'number', default: 0, min: -500, max: 2000, step: 5, label: 'Tracking', ramp: false },
+    lineHeight: { type: 'number', default: 1.2, min: 0.5, max: 4, step: 0.05, label: 'Line height', ramp: false },
+    align: { type: 'enum', default: 'center', options: ['left', 'center', 'right'], animatable: false },
+    ...style,
+  },
+  build(p): SubPath[] {
+    return textParts(p).flat();
+  },
+  buildParts: (p) => textParts(p),
+});
+
+/** Una pieza por letra (los espacios no cuentan), con kerning; varias líneas con su alineación. */
+function textParts(p: Record<string, unknown>): SubPath[][] {
+  const found = fontFor(String(p.font));
+  if (!found) return [];
+  const { font } = found;
+  const size = Number(p.size);
+  const lines = String(p.text).split('\n');
+  const opts = { kerning: true, tracking: Number(p.tracking) };
+  const widths = lines.map((l) => font.forEachGlyph(l, 0, 0, size, opts, () => {}));
+  const maxW = Math.max(0, ...widths);
+  const parts: SubPath[][] = [];
+  lines.forEach((l, i) => {
+    const w = widths[i]!;
+    const x0 = p.align === 'left' ? -maxW / 2 : p.align === 'right' ? maxW / 2 - w : -w / 2;
+    const y = i * size * Number(p.lineHeight);
+    font.forEachGlyph(l, x0, y, size, opts, (glyph, gx, gy) => {
+      const sps = glyphSubpaths(glyph.getPath(gx, gy, size).commands as never);
+      if (sps.length) parts.push(sps);
+    });
+  });
+  // Centrado en el origen (por la tinta), como las demás primitivas.
+  const all = parts.flat();
+  if (!all.length) return parts;
+  const pts = all.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]);
+  const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const f = (q: Vec2): Vec2 => [q[0] - cx, q[1] - cy];
+  return parts.map((sps) => sps.map((sp) => ({ start: f(sp.start), segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })), closed: sp.closed })));
+}
+
+// El peón, siempre el último (es la forma de pruebas).
+export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, text, pawn];
 export const shapeRegistry = new Map<string, ShapeDef>(shapes.map((s) => [s.type, s as ShapeDef]));
 
 /** Geometría de una primitiva, con su estilo. */
@@ -185,10 +267,10 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
   const def = shapeRegistry.get(type);
   if (!def) throw new Error(`svertik: primitiva desconocida «${type}»`);
   const p = resolveParams(def.params, given) as Record<string, unknown>;
-  const subpaths = def.build(p as never);
+  const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
   const st: Style = {
     fill: p.fill ? String(p.fillColor) : 'none',
     ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round') } : {}),
   };
-  return { viewBox: [0, 0, 0, 0], shapes: [{ subpaths, style: st }] };
+  return { viewBox: [0, 0, 0, 0], shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}) })) };
 }

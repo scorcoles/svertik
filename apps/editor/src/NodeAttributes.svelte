@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { BLEND_MODES, placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
+  import { BLEND_MODES, hasFont, placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
+  import { canUseSystemFonts, listSystemFonts } from './fonts';
   import { Button, Checkbox, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Select, Slider } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
@@ -15,6 +16,17 @@
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
   const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
   const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => s.group === 'Style'));
+  // Fuentes del sistema (Chrome/Edge): se piden una vez; se suman a la lista del campo Font.
+  let systemListed = $state(false);
+  async function addSystemFonts() {
+    try {
+      const names = await listSystemFonts();
+      editor.fonts = [...new Set([...editor.fonts, ...names])];
+      systemListed = true;
+    } catch {
+      editor.notice = 'The browser didn’t allow reading system fonts.';
+    }
+  }
 </script>
 
 <header>
@@ -31,7 +43,16 @@
 <div class="params">
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
-      <ParamList swatches={editor.docColors} params={shapeMain} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      <ParamList swatches={editor.docColors} fonts={editor.fonts} params={shapeMain} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      {#if node.kind === 'shape' && node.shape === 'text'}
+        {@const font = String(node.params.font ?? 'JetBrains Mono')}
+        {#if editor.fontsTick >= 0 && !hasFont(font)}
+          <p class="warn">“{font}” isn’t available here: drawn with JetBrains Mono.</p>
+        {/if}
+        {#if canUseSystemFonts() && !systemListed}
+          <div class="actions"><Button label="System fonts…" onclick={addSystemFonts} /></div>
+        {/if}
+      {/if}
     </Section>
     <Section title="Style">
       <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
@@ -113,5 +134,6 @@
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
+  .warn { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-4) 100px; color: var(--sv-signal-error); font-size: var(--sv-font-size-10); }
   .note { margin: 0; padding: var(--sv-space-8) var(--sv-space-8) 0 100px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

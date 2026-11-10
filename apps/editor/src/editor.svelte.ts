@@ -118,6 +118,12 @@ export class Editor {
   /** Objetos animados por el script mientras corre; no entran en el historial. */
   preview = $state<SceneNode[] | null>(null);
   codeOpen = $state(false);
+  /** Fuentes que se pueden elegir en Text (las incluidas y, si se pidieron, las del sistema). */
+  fonts = $state<string[]>([]);
+  /** Sube cada vez que llega una fuente: el lienzo vuelve a dibujar el texto. */
+  fontsTick = $state(0);
+  /** Aviso para el usuario (lo muestra la app un momento). */
+  notice = $state<string | null>(null);
   /** Información de cada nodo tras evaluar (caja de referencia, matriz…): la deja el lienzo. */
   infos = $state.raw<Map<string, NodeInfo>>(new Map());
   /** Herramienta de primitivas armada (se dibuja arrastrando en el lienzo). */
@@ -203,6 +209,8 @@ export class Editor {
       this.error = 'That is not an SVG.';
       return;
     }
+    // El texto de un SVG no se puede deformar (no tiene contorno hasta que se dibuja con su fuente).
+    if (/<text[\s>]/i.test(source)) this.notice = 'This SVG has text: convert it to outlines (paths) before importing, or it won’t be deformed.';
     const node: ObjectNode = { kind: 'object', id: `object-${uid()}`, name, source, stack: [] };
     if (!this.scene) {
       this.scene = { version: 2, objects: [node] };

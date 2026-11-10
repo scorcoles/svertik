@@ -20,8 +20,10 @@
     nodes?: { id: string; label: string }[];
     /** Colores del documento, para las muestras del selector de color. */
     swatches?: string[];
+    /** Para los parámetros `font`: las fuentes que se pueden elegir. */
+    fonts?: string[];
   }
-  let { name, spec, value, onchange, nodes = [], swatches }: Props = $props();
+  let { name, spec, value, onchange, nodes = [], swatches, fonts = [] }: Props = $props();
   // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
   const NONE = '— none —';
   const nodeLabels = $derived.by(() => {
@@ -72,7 +74,49 @@
       {label}
       onchange={(v) => onchange(nodeLabels.find((n) => n.label === v)?.id ?? '')}
     />
+  {:else if spec.type === 'text'}
+    <!-- Se aplica al dejar de escribir un momento (cada pulsación rehace las letras). -->
+    <textarea
+      {id}
+      class="sv-text"
+      rows="2"
+      spellcheck="false"
+      value={value as string}
+      aria-label={label}
+      oninput={(e) => onchange(e.currentTarget.value)}
+      onkeydown={(e) => e.stopPropagation()}
+    ></textarea>
+  {:else if spec.type === 'font'}
+    <input
+      {id}
+      class="sv-font"
+      list={`${id}-list`}
+      spellcheck="false"
+      value={value as string}
+      aria-label={label}
+      onchange={(e) => onchange(e.currentTarget.value)}
+      onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') e.currentTarget.blur(); }}
+    />
+    <datalist id={`${id}-list`}>
+      {#each fonts as f (f)}<option value={f}></option>{/each}
+    </datalist>
   {:else if spec.type === 'boolean'}
     <Checkbox {id} checked={value as boolean} {onchange} />
   {/if}
 </ParamRow>
+
+<style>
+  .sv-text, .sv-font {
+    flex: 1;
+    min-width: 0;
+    padding: var(--sv-space-2) var(--sv-space-6);
+    font: inherit;
+    color: var(--sv-text-primary);
+    background: var(--sv-surface-field);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    outline: none;
+  }
+  .sv-font { height: 20px; }
+  .sv-text { resize: vertical; min-height: 36px; }
+  .sv-text:focus, .sv-font:focus { border-color: var(--sv-accent-fill); }
+</style>

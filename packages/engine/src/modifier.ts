@@ -34,7 +34,11 @@ export type ParamSpec =
   | (ParamBase & { type: 'color'; default: string })
   | (ParamBase & { type: 'enum'; default: string; options: readonly string[] })
   /** Otro nodo de la escena (su id); vacío = ninguno. */
-  | (ParamBase & { type: 'node'; default: string });
+  | (ParamBase & { type: 'node'; default: string })
+  /** Texto libre (varias líneas). */
+  | (ParamBase & { type: 'text'; default: string })
+  /** Nombre de una fuente registrada (ver fonts.ts). */
+  | (ParamBase & { type: 'font'; default: string });
 
 export type ParamSchema = Record<string, ParamSpec>;
 
@@ -136,6 +140,8 @@ export function randomizeParams(schema: ParamSchema, current: Record<string, unk
       case 'boolean':
       case 'color':
       case 'node':
+      case 'text':
+      case 'font':
         break;
     }
   }
