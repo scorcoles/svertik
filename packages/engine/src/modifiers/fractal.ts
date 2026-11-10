@@ -13,6 +13,7 @@ export const FRACTAL_MAX_COPIES = 4096;
  * - tree: dos ramas giradas ±`angle` y escaladas `ratio` sobre la cima de cada una; todos los niveles;
  * - spiral: cada copia girada `angle` y escalada `ratio` alrededor de un punto a su derecha; todas.
  * Cada copia es un elemento (Step, Color…), en orden de generación. Si se pasaría del tope, baja la profundidad.
+ * Con `fit`, el resultado se encoge hasta caber en la caja del dibujo original (no se sale del lienzo).
  */
 export const fractal = defineModifier({
   type: 'fractal',
@@ -23,6 +24,7 @@ export const fractal = defineModifier({
     depth: { type: 'number', default: 4, min: 1, max: 12, step: 1, ramp: false, label: 'Depth' },
     ratio: { type: 'number', default: 0.7, min: 0.2, max: 0.95, step: 0.01, label: 'Scale', ramp: false },
     angle: { type: 'angle', default: 25, ramp: false },
+    fit: { type: 'boolean', default: true, label: 'Fit', animatable: false },
   },
   apply(geo, p) {
     const b = bounds(geo);
@@ -72,7 +74,14 @@ export const fractal = defineModifier({
       const moved = mapPoints(geo, (q) => applyMat(m, q));
       shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index })));
     });
-    const out: Geometry = { viewBox: geo.viewBox, shapes };
+    let out: Geometry = { viewBox: geo.viewBox, shapes };
+    // Fit: todo el fractal, encogido (sin deformar) y centrado en la caja del dibujo original.
+    if (p.fit) {
+      const r = bounds(out);
+      const k = Math.min(1, w / (r.width || 1), h / (r.height || 1));
+      const rc: [number, number] = [r.x + r.width / 2, r.y + r.height / 2];
+      out = mapPoints(out, ([x, y]) => [c[0] + (x - rc[0]) * k, c[1] + (y - rc[1]) * k]);
+    }
     return { ...out, viewBox: fitViewBox(geo.viewBox, bounds(out)) };
   },
 });
