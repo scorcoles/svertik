@@ -561,3 +561,12 @@ describe('a cero y dado', () => {
     }
   });
 });
+
+describe('gradient radial y con paso', () => {
+  it('radial con centro, radio y foco; color de paso', () => {
+    const svg = createEngine(builtins).toSVG({ version: 1, source: square, stack: [{ id: 'g', type: 'gradient', params: { kind: 'radial', center: [0.3, 0.4], radius: 0.8, focus: [0.2, 0.2], via: true, viaColor: '#ff0000' } }] });
+    expect(svg).toContain('<radialGradient');
+    expect(svg).toContain('cx="0.3" cy="0.4" r="0.8" fx="0.2" fy="0.2"');
+    expect(svg).toContain('stop-color="#ff0000"');
+  });
+});

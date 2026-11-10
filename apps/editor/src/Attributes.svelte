@@ -29,9 +29,9 @@
     const out = new Map<string, [string, ParamSpec][]>();
     for (const [name, spec] of Object.entries(def?.params ?? {})) if (spec.group) out.set(spec.group, [...(out.get(spec.group) ?? []), [name, spec]]);
     // Con un `mode`, los grupos que se llaman como otro modo no se ven (Clone: Grid, Radial, Linear, Object).
-    const mode = def?.params.mode;
+    const mode = def?.params.mode ?? def?.params.kind;
     if (mode?.type === 'enum') {
-      const current = String(m?.params?.mode ?? mode.default);
+      const current = String(m?.params?.mode ?? m?.params?.kind ?? mode.default);
       for (const g of [...out.keys()]) if (mode.options.includes(g.toLowerCase()) && g.toLowerCase() !== current) out.delete(g);
     }
     return [...out];

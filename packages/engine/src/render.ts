@@ -52,7 +52,7 @@ export function gradientDefs(geo: Geometry): string {
         .map((st) => `<stop offset="${st.offset}" stop-color="${escapeAttr(st.color)}"${st.opacity !== undefined && st.opacity < 1 ? ` stop-opacity="${st.opacity}"` : ''}/>`)
         .join('');
       return g.kind === 'radial'
-        ? `<radialGradient id="${g.id}">${stops}</radialGradient>`
+        ? `<radialGradient id="${g.id}" cx="${g.cx ?? 0.5}" cy="${g.cy ?? 0.5}" r="${g.r ?? 0.5}" fx="${g.fx ?? g.cx ?? 0.5}" fy="${g.fy ?? g.cy ?? 0.5}">${stops}</radialGradient>`
         : `<linearGradient id="${g.id}" x1="${g.x1 ?? 0}" y1="${g.y1 ?? 0}" x2="${g.x2 ?? 1}" y2="${g.y2 ?? 0}">${stops}</linearGradient>`;
     })
     .join('');
