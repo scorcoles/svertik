@@ -51,3 +51,31 @@ const unit = ([x, y]: Vec2): Vec2 => {
   const l = Math.hypot(x, y) || 1;
   return [x / l, y / l];
 };
+
+/**
+ * Desplazamiento fractal del punto medio: mientras un lado mida más que `detail`, se parte en dos y el
+ * punto nuevo se aparta en perpendicular (hasta `amount` × la mitad de su longitud). Borde rasgado.
+ * Con `closed`, el último punto enlaza con el primero; si no, los extremos no se mueven.
+ */
+export function tearPolyline(pts: Vec2[], closed: boolean, detail: number, amount: number, rand: () => number, maxPoints = 4000): Vec2[] {
+  let cur = pts;
+  for (let pass = 0; pass < 8; pass++) {
+    const next: Vec2[] = [];
+    let split = false;
+    const n = closed ? cur.length : cur.length - 1;
+    for (let i = 0; i < n; i++) {
+      const a = cur[i]!, b = cur[(i + 1) % cur.length]!;
+      next.push(a);
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy);
+      if (len <= detail) continue;
+      split = true;
+      const off = (rand() - 0.5) * len * 0.5 * amount;
+      next.push([(a[0] + b[0]) / 2 - (dy / len) * off, (a[1] + b[1]) / 2 + (dx / len) * off]);
+    }
+    if (!closed) next.push(cur[cur.length - 1]!);
+    cur = next;
+    if (!split || cur.length > maxPoints) break;
+  }
+  return cur;
+}
