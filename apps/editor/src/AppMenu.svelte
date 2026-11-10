@@ -28,11 +28,13 @@
     { label: 'Export animated SVG', icon: 'export', run: onexportanimsvg, needs: true },
     { label: 'Export Lottie (.json)', icon: 'export', run: onexportlottie, needs: true },
     { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
-    'sep',
-    { label: 'Demo: intro', icon: 'play', run: () => ondemo('intro') },
-    { label: 'Demo: shatter', icon: 'play', run: () => ondemo('shatter') },
-    { label: 'Demo: snake (bones)', icon: 'play', run: () => ondemo('snake') },
   ]);
+  // Las demos, en su submenú.
+  const demos: { label: string; which: 'intro' | 'shatter' | 'snake' }[] = [
+    { label: 'Intro: the logo', which: 'intro' },
+    { label: 'Shatter: a triangle that explodes', which: 'shatter' },
+    { label: 'Snake: bones that slither', which: 'snake' },
+  ];
 </script>
 
 <DropdownMenu.Root>
@@ -52,6 +54,22 @@
           </DropdownMenu.Item>
         {/if}
       {/each}
+      <DropdownMenu.Separator class="sv-menu-sep" />
+      <DropdownMenu.Sub>
+        <DropdownMenu.SubTrigger class="sv-menu-item">
+          <Icon name="play" />
+          <span class="label">Demos</span>
+          <span class="key" aria-hidden="true">▸</span>
+        </DropdownMenu.SubTrigger>
+        <DropdownMenu.SubContent class="sv-menu sv-demos" sideOffset={4}>
+          {#each demos as d (d.which)}
+            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo(d.which)}>
+              <Icon name="play" />
+              <span class="label">{d.label}</span>
+            </DropdownMenu.Item>
+          {/each}
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Sub>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
@@ -76,7 +94,8 @@
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); font-weight: normal; }
   .label { flex: 1; }
   .key { margin-left: var(--sv-space-16); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  :global(.sv-app-trigger + * .sv-menu), :global(.sv-menu:has(.key)) { min-width: 260px; }
+  :global(.sv-app-trigger + * .sv-menu), :global(.sv-menu:has(.key)) { min-width: 300px; }
+  :global(.sv-menu.sv-demos) { width: 280px; }
   :global(.sv-menu-sep) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
   :global(.sv-menu-item[data-disabled]) { opacity: 0.35; }
 </style>
