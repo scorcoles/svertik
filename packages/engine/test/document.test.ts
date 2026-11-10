@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, migrateScene, type SceneV2 } from '../src';
+import { bounds, builtins, createEngine, migrateScene, type Geometry, type SceneV2 } from '../src';
 
 const rect = (w: number, h: number, fill = '#000') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`;
@@ -143,5 +143,32 @@ describe('reflejo de nodos', () => {
     const pts = doc.geometry.shapes[0]!.subpaths[0]!.segs.map((s) => s.p.map((v) => Math.round(v)));
     expect(pts).toContainEqual([5, 5]);
     expect(pts).not.toContainEqual([-5, 5]);
+  });
+});
+
+describe('boolean', () => {
+  const at = (id: string, x: number, size = 10) => ({ kind: 'object' as const, id, name: id, source: rect(size, size), stack: [], transform: { x } });
+  const area = (geo: Geometry) =>
+    geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
+      const pts = [sp.start, ...sp.segs.map((g) => g.p)];
+      let a = 0;
+      for (let i = 0; i < pts.length - 1; i++) a += pts[i]![0] * pts[i + 1]![1] - pts[i + 1]![0] * pts[i]![1];
+      return sum + Math.abs(a) / 2;
+    }, 0);
+  const run = (mode: string) =>
+    engine().evaluateDocument({
+      version: 2,
+      // Dos cuadrados de 10 solapados a la mitad: el primero de la lista, delante.
+      objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'b', type: 'boolean', params: { mode } }], children: [at('front', 5), at('back', 0)] }],
+    }).geometry;
+
+  it('une, resta, intersecta y excluye', () => {
+    expect(area(run('union'))).toBeCloseTo(150);
+    expect(area(run('intersect'))).toBeCloseTo(50);
+    expect(area(run('exclude'))).toBeCloseTo(100);
+    // Al de atrás se le quita lo que tiene delante: queda su mitad izquierda.
+    const sub = run('subtract');
+    expect(area(sub)).toBeCloseTo(50);
+    expect(bounds(sub).x).toBeCloseTo(-5);
   });
 });
