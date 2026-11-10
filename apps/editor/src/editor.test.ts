@@ -502,3 +502,16 @@ describe('Pack', () => {
     expect(e.packed).toBe(true);
   });
 });
+
+describe('Código y línea de tiempo', () => {
+  it('abrir uno cierra el otro; cerrar la línea de tiempo la para', () => {
+    const e = fresh();
+    e.codeOpen = true;
+    e.timelineOpen = true;
+    e.playing = true;
+    expect(e.codeOpen).toBe(false);
+    e.codeOpen = true;
+    expect(e.timelineOpen).toBe(false);
+    expect(e.playing).toBe(false);
+  });
+});

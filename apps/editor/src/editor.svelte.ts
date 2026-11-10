@@ -167,9 +167,26 @@ export class Editor {
   script = $state(DEFAULT_SCRIPT);
   /** Objetos animados por el script mientras corre; no entran en el historial. */
   preview = $state<SceneNode[] | null>(null);
-  codeOpen = $state(false);
+  // Código y línea de tiempo, uno u otro: reproduciendo, la escena cambia cada fotograma y el código
+  // no se podría tocar. Abrir uno cierra el otro (y cerrar la línea de tiempo la para).
+  #codeOpen = $state(false);
+  #timelineOpen = $state(false);
+  get codeOpen() {
+    return this.#codeOpen;
+  }
+  set codeOpen(open: boolean) {
+    this.#codeOpen = open;
+    if (open) this.timelineOpen = false;
+  }
   /** Línea de tiempo: abierta, instante actual (s) y reproducción. */
-  timelineOpen = $state(false);
+  get timelineOpen() {
+    return this.#timelineOpen;
+  }
+  set timelineOpen(open: boolean) {
+    this.#timelineOpen = open;
+    if (open) this.#codeOpen = false;
+    else this.playing = false;
+  }
   /** Modo Play: la escena a pantalla completa, sin herramientas, con el reproductor del código exportado. */
   presenting = $state(false);
   time = $state(0);
