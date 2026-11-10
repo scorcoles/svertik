@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
-  import { Button, Checkbox, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Slider } from '@svertik/ui';
+  import { BLEND_MODES, placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
+  import { Button, Checkbox, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Select, Slider } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
   interface Props {
@@ -69,6 +69,9 @@
       <NumberField id="node-op" value={node.opacity ?? 1} step={0.01} min={0} max={1} onchange={(v) => editor.setNode(node.id, 'opacity', v)} />
       <Slider value={node.opacity ?? 1} min={0} max={1} step={0.01} label="Opacity" onchange={(v) => editor.setNode(node.id, 'opacity', v)} />
     </ParamRow>
+    <ParamRow label="Blend" for="node-blend">
+      <Select value={node.blend ?? 'normal'} options={BLEND_MODES} label="Blend mode" onchange={(v) => editor.setNode(node.id, 'blend', v, true)} />
+    </ParamRow>
     <ParamRow label="Visible" for="node-vis">
       <Checkbox id="node-vis" checked={node.visible !== false} onchange={(v) => editor.setNode(node.id, 'visible', v, true)} />
     </ParamRow>
@@ -84,7 +87,7 @@
   </div>
   <p class="note">
     {node.kind === 'group'
-      ? 'Effects on a group apply to all its children together; Step treats each child as an element.'
+      ? 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
       : 'Effects below apply only to it. Drag it on the canvas to move it.'}
   </p>
 </div>

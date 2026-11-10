@@ -215,3 +215,25 @@ describe('pivote', () => {
     expect(b.y).toBeCloseTo(-15);
   });
 });
+
+describe('modos de fusión', () => {
+  it('el modo va en style (es CSS, no un atributo de SVG); el del hijo manda sobre el del grupo', () => {
+    const e = engine();
+    const scene: SceneV2 = {
+      version: 2,
+      objects: [
+        {
+          kind: 'group', id: 'g', name: 'g', stack: [], blend: 'screen',
+          children: [
+            { kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [], blend: 'multiply' },
+            { kind: 'object', id: 'b', name: 'b', source: rect(10, 10), stack: [] },
+          ],
+        },
+      ],
+    };
+    const svg = e.toSVG(scene);
+    expect(svg).toContain('style="mix-blend-mode:multiply"');
+    expect(svg).toContain('style="mix-blend-mode:screen"');
+    expect(svg).not.toContain(' mix-blend-mode="');
+  });
+});
