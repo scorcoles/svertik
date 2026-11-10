@@ -268,7 +268,7 @@
     y: c === 'nw' || c === 'ne' ? b.y : b.y + b.h,
   });
   /** Lo que se está haciendo con el recuadro, para el rótulo junto al puntero. */
-  let gesture = $state<{ text: string; x: number; y: number } | null>(null);
+  let gesture = $state<{ text: string; x: number; y: number; left?: boolean } | null>(null);
 
   function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate') {
     const node = editor.currentNode;
@@ -489,7 +489,6 @@
     const d = (pts: readonly (readonly [number, number])[], closed?: boolean) =>
       pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (closed ? 'Z' : '');
     return {
-      label: registry.get(m.type)?.label ?? m.type,
       lines: g.lines.map((l) => ({ d: d(l.pts, l.closed), tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, drag: l.drag, label: l.label })),
       handles: g.handles.map((h) => ({ x: h.at[0], y: h.at[1], label: h.label, drag: h.drag, tone: h.tone ?? 'accent' })),
     };
@@ -550,7 +549,12 @@
       const changed = drag(p0, from, to, ev.shiftKey);
       for (const [k, v] of Object.entries(changed)) editor.setParam(k, v);
       const v = Object.values(changed)[0];
-      gesture = { text: `${label} ${typeof v === 'number' ? v : ''}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+      // En el recuadro de la esquina, el valor va a su izquierda (junto al puntero taparía los anillos).
+      const box = toLocal === toCorner ? cornerEl?.getBoundingClientRect() : undefined;
+      const text = `${label} ${typeof v === 'number' ? v : ''}`;
+      gesture = box
+        ? { text, x: box.left - r.left - 8, y: box.top - r.top + box.height / 2 - 8, left: true }
+        : { text, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
     };
     const up = () => {
       gizmoActive = false;
@@ -646,7 +650,7 @@
       {#each others as o, i (i)}
         <span class="selection other" style:left="{o.x}px" style:top="{o.y}px" style:width="{o.w}px" style:height="{o.h}px" aria-hidden="true"></span>
       {/each}
-      {#if gesture}<span class="gesture" style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
+      {#if gesture}<span class="gesture" data-left={gesture.left || undefined} style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
       {#if gizmoScreen && !editor.tool}
         <svg class="gizmo" data-active={gizmoActive || gizmoHover || editor.busy || undefined} aria-hidden="true">
           {#each gizmoScreen.lines as l, i (i)}
@@ -699,7 +703,6 @@
     </div>
     {#if cornerGizmo && !editor.tool}
       <div class="corner-gizmo" bind:this={cornerEl} data-active={gizmoActive || gizmoHover || editor.busy || undefined}>
-        <span class="corner-label">{cornerGizmo.label}</span>
         <svg class="gizmo" width={CORNER_SIZE} height={CORNER_SIZE} viewBox="0 0 {CORNER_SIZE} {CORNER_SIZE}" aria-hidden="true">
           {#each cornerGizmo.lines as l, i (i)}
             <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
@@ -723,8 +726,8 @@
             type="button"
             class="gizmo-handle"
             data-tone={h.tone}
-            style:left="{h.x + 8}px"
-            style:top="{h.y + 24}px"
+            style:left="{h.x}px"
+            style:top="{h.y}px"
             title={h.label}
             aria-label={h.label}
             onpointerdown={(e) => dragGizmo(e, h.drag, h.label, toCorner)}
@@ -845,15 +848,11 @@
   /* Actuador en una esquina (Rotate 3D): recuadro fijo abajo a la derecha, sobre el pie del lienzo. */
   .corner-gizmo {
     position: absolute;
-    right: var(--sv-space-12);
+    right: var(--sv-space-16);
     bottom: 40px;
     z-index: 2;
-    padding: 24px 8px 8px;
-    background: var(--sv-surface-panel);
-    border: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .corner-gizmo .gizmo { position: static; display: block; width: auto; height: auto; opacity: 1; }
-  .corner-label { position: absolute; top: 6px; left: 8px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   /* Organizar: arriba, en el centro del lienzo, mientras haya algo seleccionado. */
   .arrange {
     position: absolute;
@@ -890,9 +889,10 @@
   .rotate[data-corner='sw'] { translate: -80% -20%; }
   .stage[data-space] .corner,
   .stage[data-space] .rotate { pointer-events: none; }
+  .gesture[data-left] { translate: -100% 0; }
   .gesture {
     position: absolute;
-    z-index: 2;
+    z-index: 5;
     padding: 1px var(--sv-space-4);
     pointer-events: none;
     background: var(--sv-surface-panel);
