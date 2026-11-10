@@ -1,18 +1,28 @@
 <script lang="ts">
   import { Button, IconButton, ParamList, Section, Tabs } from '@svertik/ui';
-  import type { ParamSpec } from '@svertik/engine';
+  import { walkNodes, type ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
 
   let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
   let tab = $state('Params');
   const m = $derived(editor.current);
+  // Para los efectos que usan otro objeto: todos menos el dueño del efecto.
+  const others = $derived(
+    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id).map((n) => ({ id: n.id, label: n.name })) : [],
+  );
   const def = $derived(m ? registry.get(m.type) : undefined);
   // Sin grupo: arriba. Con grupo: secciones plegables, en el orden del esquema.
   const main = $derived(Object.entries(def?.params ?? {}).filter(([, s]) => !s.group));
   const groups = $derived.by(() => {
     const out = new Map<string, [string, ParamSpec][]>();
     for (const [name, spec] of Object.entries(def?.params ?? {})) if (spec.group) out.set(spec.group, [...(out.get(spec.group) ?? []), [name, spec]]);
+    // Con un `mode`, los grupos que se llaman como otro modo no se ven (Clone: Grid, Radial, Linear, Object).
+    const mode = def?.params.mode;
+    if (mode?.type === 'enum') {
+      const current = String(m?.params?.mode ?? mode.default);
+      for (const g of [...out.keys()]) if (mode.options.includes(g.toLowerCase()) && g.toLowerCase() !== current) out.delete(g);
+    }
     return [...out];
   });
 </script>
@@ -33,10 +43,10 @@
       {#snippet children(t)}
         {#if t === 'Params'}
           <div class="params">
-            <ParamList params={main} values={m.params} onchange={(n, v) => editor.setParam(n, v)} />
+            <ParamList params={main} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
-                <ParamList params={entries} values={m.params} onchange={(n, v) => editor.setParam(n, v)} />
+                <ParamList params={entries} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
           </div>

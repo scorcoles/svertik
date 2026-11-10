@@ -3,7 +3,7 @@
 import { bounds, mapPoints, type Bounds, type Geometry, type Shape } from './geometry';
 import { importSVG } from './import';
 import { buildShape } from './shapes';
-import { IDENTITY, multiply, rotateScale, translate, type Mat } from './matrix';
+import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
 
 export interface Placement {
@@ -129,74 +129,106 @@ export interface DocumentEvaluator {
   evaluate(scene: SceneV2): DocumentResult;
 }
 
+/** Geometría de otro nodo, ya en las coordenadas de la pila que la pide (o null si aún no se sabe). */
+export type TargetLookup = (id: string) => Geometry | null;
+
 /**
  * Evalúa el árbol. `runStack` aplica una pila a una geometría con su caja de referencia;
  * los objetos guardan en caché su origen importado y el resultado de su pila.
+ *
+ * Efectos que usan otro objeto (Clone sobre un objeto, Path wrap…): una primera pasada sin ellos
+ * y, si alguno lo pidió, otra con lo que salió de la primera. Esos nodos no se guardan en caché.
  */
 export function createDocumentEvaluator(
-  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number) => Geometry,
+  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup) => Geometry,
 ): DocumentEvaluator {
-  const cache = new Map<string, { key: string; source: Geometry; result: Geometry }>();
+  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean }>();
 
   function evaluate(scene: SceneV2): DocumentResult {
     const resolution = scene.resolution ?? 0.01;
-    const nodes = new Map<string, NodeInfo>();
     const seen = new Set<string>();
+    /** Lo de la pasada anterior: matriz y resultado (en el documento) de cada nodo. */
+    let known = new Map<string, { world: Mat; geo: Geometry }>();
+    let nodes = new Map<string, NodeInfo>();
+    let shapes: Shape[] = [];
 
-    // Devuelve la geometría del nodo en coordenadas de su padre.
-    function evalNode(node: SceneNode, parentMatrix: Mat): Shape[] {
-      seen.add(node.id);
-      const p = placementOf(node);
-      if (node.kind === 'object' || node.kind === 'shape') {
-        const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params]);
-        let entry = cache.get(node.id);
-        if (!entry || entry.key !== key) {
-          const source = node.kind === 'object' ? importSVG(node.source) : buildShape(node.shape, node.params);
-          const ref = bounds(source);
-          entry = { key, source, result: runStack(source, node.stack, ref, resolution) };
-          cache.set(node.id, entry);
+    for (let passNo = 0; passNo < 3; passNo++) {
+      nodes = new Map<string, NodeInfo>();
+      const results = new Map<string, Geometry>();
+      let asked = false;
+      const lookupFor = (ownerId: string): TargetLookup => (id) => {
+        if (!id || id === ownerId) return null;
+        asked = true;
+        const owner = known.get(ownerId);
+        const t = known.get(id);
+        return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
+      };
+
+      // Devuelve la geometría del nodo en coordenadas de su padre.
+      const evalNode = (node: SceneNode, parentMatrix: Mat): Shape[] => {
+        seen.add(node.id);
+        const p = placementOf(node);
+        if (node.kind === 'object' || node.kind === 'shape') {
+          const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params]);
+          let entry = cache.get(node.id);
+          if (!entry || entry.key !== key || entry.dynamic) {
+            const source = entry && entry.key === key ? entry.source : node.kind === 'object' ? importSVG(node.source) : buildShape(node.shape, node.params);
+            const ref = bounds(source);
+            const before = asked;
+            asked = false;
+            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id));
+            entry = { key, source, result, dynamic: asked };
+            asked = asked || before;
+            cache.set(node.id, entry);
+          }
+          const ref = bounds(entry.source);
+          // Un objeto importado queda centrado en el origen.
+          const m = placementMatrix(p, centerOf(ref), [0, 0]);
+          const world = multiply(parentMatrix, m);
+          const placed = transformGeo(entry.result, m);
+          results.set(node.id, entry.result);
+          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
+          if (node.visible === false) return [];
+          return withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity);
         }
-        const ref = bounds(entry.source);
-        // Un objeto importado queda centrado en el origen.
-        const m = placementMatrix(p, centerOf(ref), [0, 0]);
+        // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
+        // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
+        // cada hijo es un elemento numerado en el orden de la lista (respetando sus copias).
+        const childShapes: Shape[] = [];
+        for (let i = node.children.length - 1; i >= 0; i--) {
+          const out = evalNode(node.children[i]!, IDENTITY);
+          childShapes.push(...out.map((s) => ({ ...s, clone: i * 10000 + (s.clone ?? 0) })));
+        }
+        const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
+        const ref = bounds(inner);
+        const result = node.stack.length ? runStack(inner, node.stack, ref, resolution, lookupFor(node.id)) : inner;
+        const c = centerOf(ref);
+        // Agrupar no mueve nada: el centro del grupo se queda donde está.
+        const m = placementMatrix(p, c, c);
         const world = multiply(parentMatrix, m);
-        const placed = transformGeo(entry.result, m);
-        nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
+        // Los hijos ya están en coordenadas del grupo: su matriz real es la del grupo por la suya.
+        for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
+        results.set(node.id, result);
+        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, matrix: world, box: bounds(transformGeo(result, world)) });
         if (node.visible === false) return [];
-        return withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity);
-      }
-      // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
-      // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
-      // cada hijo es un elemento numerado en el orden de la lista (respetando sus copias).
-      const childShapes: Shape[] = [];
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        const shapes = evalNode(node.children[i]!, IDENTITY);
-        childShapes.push(...shapes.map((s) => ({ ...s, clone: i * 10000 + (s.clone ?? 0) })));
-      }
-      const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
-      const ref = bounds(inner);
-      const result = node.stack.length ? runStack(inner, node.stack, ref, resolution) : inner;
-      const c = centerOf(ref);
-      // Agrupar no mueve nada: el centro del grupo se queda donde está.
-      const m = placementMatrix(p, c, c);
-      const world = multiply(parentMatrix, m);
-      // Los hijos ya están en coordenadas del grupo: su matriz real es la del grupo por la suya.
-      for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
-      nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, matrix: world, box: bounds(transformGeo(result, world)) });
-      if (node.visible === false) return [];
-      return withOpacity(transformGeo(result, m).shapes, node.opacity);
+        return withOpacity(transformGeo(result, m).shapes, node.opacity);
+      };
+
+      // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.
+      const reparent = (node: SceneNode, groupWorld: Mat) => {
+        const info = nodes.get(node.id)!;
+        info.matrix = multiply(groupWorld, info.matrix);
+        info.box = transformBox(info.box, groupWorld);
+        if (node.kind === 'group') for (const c of node.children) reparent(c, groupWorld);
+      };
+
+      // El primero de la lista se pinta el último: queda delante.
+      shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
+      // Nadie pidió otro objeto: no hace falta otra pasada.
+      if (!asked) break;
+      known = new Map([...nodes].map(([id, info]) => [id, { world: info.matrix, geo: transformGeo(results.get(id)!, info.matrix) }]));
     }
 
-    // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.
-    function reparent(node: SceneNode, groupWorld: Mat) {
-      const info = nodes.get(node.id)!;
-      info.matrix = multiply(groupWorld, info.matrix);
-      info.box = transformBox(info.box, groupWorld);
-      if (node.kind === 'group') for (const c of node.children) reparent(c, groupWorld);
-    }
-
-    // El primero de la lista se pinta el último: queda delante.
-    const shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
     // El origen de cada objeto, con su matriz final (la de sus grupos incluida).
     const placedSources: Shape[] = [];
     for (const { node } of walkNodes(scene.objects)) {

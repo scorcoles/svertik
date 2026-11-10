@@ -16,8 +16,20 @@
     spec: ParamSpec;
     value: unknown;
     onchange: (value: unknown) => void;
+    /** Para los parámetros `node`: los objetos que se pueden elegir. */
+    nodes?: { id: string; label: string }[];
   }
-  let { name, spec, value, onchange }: Props = $props();
+  let { name, spec, value, onchange, nodes = [] }: Props = $props();
+  // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
+  const NONE = '— none —';
+  const nodeLabels = $derived.by(() => {
+    const seen = new Map<string, number>();
+    return nodes.map((n) => {
+      const k = (seen.get(n.label) ?? 0) + 1;
+      seen.set(n.label, k);
+      return { id: n.id, label: k > 1 ? `${n.label} (${k})` : n.label };
+    });
+  });
   const id = $derived(`param-${name}`);
   const label = $derived(spec.label ?? name.charAt(0).toUpperCase() + name.slice(1));
   // Iconos para opciones conocidas; el resto se muestra como texto.
@@ -42,6 +54,13 @@
     <Select value={value as string} options={spec.options} {label} {onchange} />
   {:else if spec.type === 'color'}
     <ColorField {id} value={value as string} {label} {onchange} />
+  {:else if spec.type === 'node'}
+    <Select
+      value={nodeLabels.find((n) => n.id === value)?.label ?? NONE}
+      options={[NONE, ...nodeLabels.map((n) => n.label)]}
+      {label}
+      onchange={(v) => onchange(nodeLabels.find((n) => n.label === v)?.id ?? '')}
+    />
   {:else if spec.type === 'boolean'}
     <Checkbox {id} checked={value as boolean} {onchange} />
   {/if}

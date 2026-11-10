@@ -172,3 +172,34 @@ describe('boolean', () => {
     expect(bounds(sub).x).toBeCloseTo(-5);
   });
 });
+
+describe('efectos que usan otro objeto', () => {
+  const dot = (id: string, stack: SceneV2['objects'][number]['stack']) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
+  const path = { kind: 'shape' as const, id: 'p', name: 'p', shape: 'line', params: { length: 200, angle: 0 }, stack: [], transform: { x: 50, y: 30 } };
+
+  it('Clone sobre el contorno: las copias, repartidas por el trazado del otro objeto', () => {
+    const doc = engine().evaluateDocument({
+      version: 2,
+      objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'p', count: 5, align: false } }]), path],
+    });
+    const box = doc.nodes.get('d')!.box;
+    // La línea va de x = −50 a 150 en y = 30: copias de 10 × 10 centradas en sus extremos y entre medias.
+    expect(box.x).toBeCloseTo(-55);
+    expect(box.width).toBeCloseTo(210);
+    expect(box.y).toBeCloseTo(25);
+    expect(doc.geometry.shapes.filter((s) => s.node === 'd')).toHaveLength(5);
+  });
+
+  it('Clone sin objeto (o con uno que no existe) deja el dibujo como estaba', () => {
+    const doc = engine().evaluateDocument({ version: 2, objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'nope' } }])] });
+    expect(doc.nodes.get('d')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
+  });
+
+  it('Path Wrap estira el dibujo a lo largo del trazado', () => {
+    const doc = engine().evaluateDocument({ version: 2, objects: [dot('d', [{ id: 'w', type: 'pathwrap', params: { target: 'p' } }]), path] });
+    const box = doc.nodes.get('d')!.box;
+    expect(box.x).toBeCloseTo(-50);
+    expect(box.width).toBeCloseTo(200);
+    expect(box.y).toBeCloseTo(25);
+  });
+});

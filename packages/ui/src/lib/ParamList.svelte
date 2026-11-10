@@ -11,8 +11,10 @@
     params: [string, ParamSpec][];
     values: Record<string, unknown> | undefined;
     onchange: (name: string, value: unknown) => void;
+    /** Objetos que se pueden elegir en los parámetros `node`. */
+    nodes?: { id: string; label: string }[];
   }
-  let { params, values, onchange }: Props = $props();
+  let { params, values, onchange, nodes }: Props = $props();
 
   type Item = { name: string; spec: ParamSpec; color?: string };
   const items = $derived.by(() => {
@@ -43,7 +45,7 @@
       </span>
     </ParamRow>
   {:else}
-    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} onchange={(v) => onchange(it.name, v)} />
+    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} onchange={(v) => onchange(it.name, v)} />
   {/if}
 {/each}
 

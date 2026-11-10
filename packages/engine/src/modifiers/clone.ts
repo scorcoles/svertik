@@ -1,26 +1,32 @@
-import { bounds, mapPoints, type Geometry, type Shape } from '../geometry';
+import { bounds, flatten, insidePolygons, mapPoints, type Geometry, type Shape, type Vec2 } from '../geometry';
+import { pointAt, polylines } from '../paths';
+import { rng } from '../random';
 import { defineModifier, deg } from '../modifier';
 
 /**
  * Duplica el dibujo: en rejilla, en círculo o en línea (como el Cloner de C4D).
  * Las copias se reparten alrededor del original y el viewBox crece para que quepan.
+ * En modo `object`, sobre otro objeto: por su contorno, en sus vértices o dentro (al azar, con semilla).
  */
 export const clone = defineModifier({
   type: 'clone',
   label: 'Clone',
   kind: 'generator',
   params: {
-    mode: { type: 'enum', default: 'grid', options: ['grid', 'radial', 'linear'] as const, animatable: false },
+    mode: { type: 'enum', default: 'grid', options: ['grid', 'radial', 'linear', 'object'] as const, animatable: false },
     count: { type: 'number', default: 6, min: 1, max: 64, step: 1, label: 'Count', ramp: false },
     columns: { type: 'number', default: 3, min: 1, max: 16, step: 1, group: 'Grid', ramp: false },
     rows: { type: 'number', default: 3, min: 1, max: 16, step: 1, group: 'Grid', ramp: false },
     spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false },
     radius: { type: 'number', default: 1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', ramp: false },
-    align: { type: 'boolean', default: true, group: 'Radial', label: 'Align' },
+    align: { type: 'boolean', default: true, label: 'Align' },
     startAngle: { type: 'angle', default: 0, group: 'Radial', label: 'Start' },
     offset: { type: 'point', default: [1.1, 0], unit: 'fraction', group: 'Linear', label: 'Offset', handle: false },
     scaleStep: { type: 'number', default: 1, min: 0, max: 2, step: 0.01, group: 'Linear', label: 'Scale step' },
     rotateStep: { type: 'angle', default: 0, group: 'Linear', label: 'Rotate step' },
+    target: { type: 'node', default: '', group: 'Object', label: 'Object' },
+    place: { type: 'enum', default: 'contour', options: ['contour', 'vertices', 'inside'] as const, group: 'Object', label: 'Place', animatable: false },
+    seed: { type: 'seed', default: 1, group: 'Object' },
   },
   apply(geo, p, ctx) {
     const b = bounds(geo);
@@ -46,6 +52,39 @@ export const clone = defineModifier({
       for (let i = 0; i < n; i++) {
         const a = deg(p.startAngle) + (i / n) * Math.PI * 2;
         copies.push({ dx: Math.cos(a) * R, dy: Math.sin(a) * R, rot: p.align ? a + Math.PI / 2 : 0, scale: 1 });
+      }
+    } else if (p.mode === 'object') {
+      const target = p.target ? ctx.target?.(p.target) : null;
+      if (!target) return geo;
+      const n = Math.max(1, Math.round(p.count));
+      // Las copias van centradas en cada punto (el centro del dibujo pasa al punto).
+      const at = (q: Vec2, rot = 0) => copies.push({ dx: q[0] - cx, dy: q[1] - cy, rot, scale: 1 });
+      if (p.place === 'vertices') {
+        for (const s of target.shapes) for (const sp of s.subpaths) {
+          at(sp.start);
+          // En los cerrados, el último vértice repite el primero.
+          sp.segs.forEach((g, i) => (!sp.closed || i < sp.segs.length - 1) && at(g.p));
+        }
+      } else if (p.place === 'inside') {
+        const polys = target.shapes.flatMap((s) => s.subpaths.filter((sp) => sp.closed).map((sp) => flatten(sp, 8)));
+        const tb = bounds(target);
+        const rand = rng(p.seed);
+        for (let tries = 0; copies.length < n && tries < n * 200; tries++) {
+          const q: Vec2 = [tb.x + rand() * tb.width, tb.y + rand() * tb.height];
+          if (insidePolygons(polys, q)) at(q);
+        }
+      } else {
+        // Contorno: repartidas a distancias iguales por todos sus trazados, como si fueran uno.
+        const lines = polylines(target);
+        const total = lines.reduce((sum, l) => sum + l.length, 0);
+        const open = lines.length === 1 && !lines[0]!.closed;
+        const gap = total / Math.max(1, open ? n - 1 : n);
+        for (let i = 0; i < n; i++) {
+          let d = i * gap;
+          const l = lines.find((x) => (d <= x.length ? true : ((d -= x.length), false))) ?? lines[lines.length - 1]!;
+          const { p: q, t } = pointAt(l, Math.min(d, l.length));
+          at(q, p.align ? Math.atan2(t[1], t[0]) : 0);
+        }
       }
     } else {
       const n = Math.max(1, Math.round(p.count));

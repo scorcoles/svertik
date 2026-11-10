@@ -1,4 +1,5 @@
 export * from './geometry';
+export * from './paths';
 export { importSVG, parsePathData } from './import';
 export { toSVG, toPathData, renderInto, type ToSVGOptions } from './render';
 export * from './modifier';
