@@ -1,6 +1,9 @@
 // Estado del editor: la escena (v2: varios objetos y grupos), la selección, el historial y la URL.
 import {
   builtins,
+  createEngine,
+  packNode,
+  unpackNode,
   linearOf,
   readTarget,
   sampleScene,
@@ -349,6 +352,39 @@ export class Editor {
   }
 
   /** Mete el nodo seleccionado en un grupo nuevo, en su mismo sitio. */
+  // ── Pack: congelar un nodo en su resultado (y desempaquetarlo)
+
+  /** El nodo activo es un paquete. */
+  get packed() {
+    const n = this.activeNode;
+    return n?.kind === 'object' && !!n.packed;
+  }
+  #packEngine: ReturnType<typeof createEngine> | null = null;
+  /** Empaqueta el nodo activo: se queda su resultado, sin calcular nada más; el original va dentro. */
+  pack(id = this.activeNode?.id ?? null) {
+    if (!this.scene || !id) return;
+    this.flush();
+    const engine = (this.#packEngine ??= createEngine(builtins));
+    const doc = engine.evaluateDocument($state.snapshot(this.scene) as SceneV2);
+    const r = packNode(this.scene, id, doc, `pack-${uid()}`, uid());
+    if (!r) return;
+    this.selected = r.node.id;
+    this.also = [];
+    if (r.animated) this.notice = 'Packed at this frame: its animation stays inside and plays again when you unpack it.';
+    this.#applyTime();
+    this.record(true);
+  }
+  /** Desempaqueta: vuelve el original, con lo que se haya movido el paquete y sus efectos encima. */
+  unpack(id = this.activeNode?.id ?? null) {
+    if (!this.scene || !id) return;
+    const back = unpackNode(this.scene, id, (old) => `${old.replace(/-[a-z0-9]{6}$/, '')}-${uid()}`);
+    if (!back) return;
+    this.selected = back;
+    this.also = [];
+    this.#applyTime();
+    this.record(true);
+  }
+
   group(id = this.activeNode?.id ?? null) {
     const many = this.selectedNodes;
     if (this.scene && many.length > 1 && id === this.currentNode?.id) {

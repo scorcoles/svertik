@@ -484,3 +484,21 @@ describe('Archivo y pistas', () => {
     expect(e.dirty).toBe(false);
   });
 });
+
+describe('Pack', () => {
+  it('empaqueta el activo, se deshace y se desempaqueta', () => {
+    const e = fresh();
+    e.add('wave');
+    const node = e.scene!.objects.at(-1)!;
+    e.selected = node.id;
+    e.pack();
+    expect(e.packed).toBe(true);
+    const pack = e.scene!.objects.at(-1)!;
+    expect(pack.kind === 'object' && pack.packed?.original?.id).toBe(node.id);
+    e.unpack();
+    expect(e.scene!.objects.at(-1)!.id).toBe(node.id);
+    expect(e.scene!.objects.at(-1)!.stack.map((m) => m.type)).toEqual(['wave']);
+    e.undo();
+    expect(e.packed).toBe(true);
+  });
+});

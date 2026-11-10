@@ -11,7 +11,7 @@
   }
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
-  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : 'object');
+  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.packed ? 'pack' : 'object');
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
   const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
@@ -193,7 +193,12 @@
     <p class="note">Letters, copies, tiles or pieces arrive one after another (Fall: they leave). Adds a Stagger with two keyframes; tweak it like anything else.</p>
   </Section>
   <div class="actions">
-    {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
+    {#if node.kind === 'object' && node.packed}
+      <Button label="Unpack" onclick={() => editor.unpack(node.id)} />
+    {:else}
+      {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
+      <Button label="Pack" onclick={() => editor.pack(node.id)} />
+    {/if}
     {#if node.kind === 'group'}
       <Button label="Ungroup" onclick={() => editor.ungroup(node.id)} />
     {:else}
@@ -202,7 +207,9 @@
     <Button label="Remove" onclick={() => editor.remove(node.id)} />
   </div>
   <p class="note">
-    {node.kind === 'group'
+    {node.kind === 'object' && node.packed
+      ? 'Packed: the result is frozen and nothing inside is computed. Effects you add go on top. Unpack to get the original back, with its effects and animation.'
+      : node.kind === 'group'
       ? 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
       : 'Effects below apply only to it. Drag it on the canvas to move it.'}
   </p>

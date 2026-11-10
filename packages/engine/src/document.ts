@@ -5,7 +5,7 @@ import { importSVG } from './import';
 import { fontsVersion } from './fonts';
 import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
-import type { Animation } from './animation';
+import type { Animation, Track } from './animation';
 import type { Interaction } from './interactions';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
 
@@ -43,6 +43,23 @@ interface NodeBase {
 export interface ObjectNode extends NodeBase {
   kind: 'object';
   source: string;
+  /** Paquete: el resultado congelado de otro nodo. Se dibuja `geometry` y no se calcula nada más. */
+  packed?: Pack;
+}
+
+/**
+ * Lo que guarda un paquete. `geometry` es el resultado del nodo original, ya colocado (en las coordenadas
+ * de su padre); `original`, el nodo tal cual, con lo que lo animaba o lo hacía reaccionar, para desempaquetarlo.
+ * `at`: la colocación del paquete al crearlo (al desempaquetar, lo que se haya movido se suma al original).
+ */
+export interface Pack {
+  key: string;
+  geometry: Geometry;
+  /** Sin él (en el código exportado, por ejemplo), el paquete no se puede desempaquetar. */
+  original?: SceneNode;
+  at: { x: number; y: number };
+  tracks?: Track[];
+  interactions?: Interaction[];
 }
 
 /** Primitiva: forma generada por parámetros (rectángulo, estrella…), con su propia pila. */
@@ -108,6 +125,8 @@ export interface NodeInfo {
 
 export interface DocumentResult {
   geometry: Geometry;
+  /** El resultado de un nodo (con sus efectos), en el documento; sin su opacidad ni su fusión. */
+  geometryOf(id: string): Geometry | null;
   /** El origen de cada objeto, colocado en el documento (para verlo en fantasma). */
   sources: Geometry;
   nodes: Map<string, NodeInfo>;
@@ -201,6 +220,7 @@ export function createDocumentEvaluator(
     };
     let nodes = new Map<string, NodeInfo>();
     let shapes: Shape[] = [];
+    let finalResults = new Map<string, Geometry>();
 
     for (let passNo = 0; passNo < 3; passNo++) {
       nodes = new Map<string, NodeInfo>();
@@ -225,7 +245,7 @@ export function createDocumentEvaluator(
         const p = placementOf(node);
         if (node.kind === 'object' || node.kind === 'shape') {
           // El texto depende de las fuentes registradas: si llega una nueva, se vuelve a dibujar.
-          const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + node.source : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+          const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
           // Uno que usa otro objeto vale si lo que ve de él no ha cambiado.
           const fresh = entry && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
@@ -234,7 +254,7 @@ export function createDocumentEvaluator(
             for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
           }
           if (!entry || !fresh) {
-            const source = entry && entry.key === key ? entry.source : node.kind === 'object' ? importSVG(node.source) : buildShape(node.shape, node.params);
+            const source = entry && entry.key === key ? entry.source : node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params);
             const ref = bounds(source);
             const before = asked;
             asked = false;
@@ -287,6 +307,7 @@ export function createDocumentEvaluator(
 
       // El primero de la lista se pinta el último: queda delante.
       shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
+      finalResults = results;
       // Nadie pidió otro objeto: no hace falta otra pasada.
       if (!asked) {
         last = new Map();
@@ -318,7 +339,12 @@ export function createDocumentEvaluator(
       const m = Math.max(all.width, all.height) * 0.05 || 1;
       viewBox = [all.x - m, all.y - m, all.width + 2 * m, all.height + 2 * m].map((n) => Math.round(n * 100) / 100) as [number, number, number, number];
     }
-    return { geometry: { viewBox, shapes }, sources: { viewBox, shapes: placedSources }, nodes };
+    const geometryOf = (id: string) => {
+      const g = finalResults.get(id);
+      const info = nodes.get(id);
+      return g && info ? transformGeo(g, info.matrix) : null;
+    };
+    return { geometry: { viewBox, shapes }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf };
   }
 
   return { evaluate };

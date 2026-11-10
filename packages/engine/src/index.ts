@@ -5,6 +5,7 @@ export { toSVG, toPathData, renderInto, gradientDefs, type ToSVGOptions } from '
 export * from './modifier';
 export { createEngine, type Engine, type Scene, type ModifierInstance } from './engine';
 export * from './document';
+export { packNode, unpackNode } from './pack';
 export * from './matrix';
 export * from './shapes';
 export * from './fonts';

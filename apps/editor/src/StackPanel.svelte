@@ -127,7 +127,7 @@
       <StackItem
         label={n.name}
         kind="object"
-        icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : 'object') as IconName}
+        icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : n.packed ? 'pack' : 'object') as IconName}
         {depth}
         expanded={n.stack.length || n.kind === 'group' ? open : undefined}
         selected={editor.isSelected(n.id)}
@@ -151,6 +151,12 @@
   <header>
     <h2>Stack</h2>
     {#if editor.scene}<span class="count" title="Objects">{editor.objectCount}</span>{/if}
+    <IconButton
+      icon={editor.packed ? 'unpack' : 'pack'}
+      label={editor.packed ? 'Unpack' : 'Pack (freeze the result)'}
+      disabled={!editor.activeNode}
+      onclick={() => (editor.packed ? editor.unpack() : editor.pack())}
+    />
     <IconButton icon="group" label="Group (⌘G)" disabled={!editor.activeNode} onclick={() => editor.group()} />
     <AddMenu {editor} />
   </header>

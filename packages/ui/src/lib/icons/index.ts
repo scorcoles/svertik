@@ -7,6 +7,9 @@ export const icons = {
   select: 'M3.5 1.5v11l3-2.75 2 4.25 1.75-.75-2-4.25h4.25z',
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
   ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
+  // Pack: una caja cerrada; Unpack: la caja, con una flecha que sale.
+  pack: 'M2.5 5L8 2l5.5 3v6L8 14l-5.5-3z M2.5 5L8 8l5.5-3 M8 8v6',
+  unpack: 'M2.5 8v3L8 14l5.5-3V8 M2.5 8L8 11l5.5-3 M8 11v3 M8 7.5v-6 M5.5 4l2.5-2.5L10.5 4',
   rectangle: 'M2.5 3.5h11v9h-11z',
   ellipse: 'M8 3.5a6 4.5 0 1 0 0 9a6 4.5 0 1 0 0-9',
   polygon: 'M8 1.5l5.6 3.25v6.5L8 14.5l-5.6-3.25v-6.5z',

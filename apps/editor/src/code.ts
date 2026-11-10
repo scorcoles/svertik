@@ -73,9 +73,11 @@ function variableNames(scene: SceneV2): Map<string, string> {
 function writeNode(node: SceneNode, vars: Map<string, string>, indent: string): string {
   const { stack, ...rest } = node;
   const head = Object.entries(rest)
-    .filter(([k]) => k !== 'children' && k !== 'source')
+    .filter(([k]) => k !== 'children' && k !== 'source' && k !== 'packed')
     .map(([k, v]) => `${k}: ${inlineLiteral(v)}`);
-  if (node.kind === 'object') head.push(`source: ${vars.get(node.id)}`);
+  // Un paquete, solo con lo que se dibuja: el original no hace falta para reproducirlo.
+  if (node.kind === 'object' && node.packed) head.push(`source: ''`, `packed: ${inlineLiteral({ key: node.packed.key, geometry: node.packed.geometry, at: node.packed.at })}`);
+  else if (node.kind === 'object') head.push(`source: ${vars.get(node.id)}`);
   const inner = indent + '  ';
   const list = (items: string[]) => (items.length ? `[\n${items.map((x) => `${inner}  ${x},`).join('\n')}\n${inner}]` : '[]');
   const parts = [...head, `stack: ${list(stack.map((m) => inlineLiteral(m)))}`];
@@ -88,7 +90,7 @@ export function generatedPart(scene: AnyScene): string {
   const v2 = migrateScene(scene);
   const vars = variableNames(v2);
   const consts: string[] = [];
-  for (const { node } of walkNodes(v2.objects)) if (node.kind === 'object') consts.push(`const ${vars.get(node.id)} = ${sourceLiteral(node.source)};`);
+  for (const { node } of walkNodes(v2.objects)) if (node.kind === 'object' && !node.packed) consts.push(`const ${vars.get(node.id)} = ${sourceLiteral(node.source)};`);
   const { objects, ...rest } = v2;
   const head = Object.entries(rest).map(([k, v]) => `  ${k}: ${inlineLiteral(v)},`);
   const sceneText = ['{', ...head, '  objects: [', ...objects.map((n) => `    ${writeNode(n, vars, '    ')},`), '  ],', '}'].join('\n');
