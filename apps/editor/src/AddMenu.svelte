@@ -19,7 +19,7 @@
     {/snippet}
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
-    <DropdownMenu.Content class="sv-menu" align="end" sideOffset={4}>
+    <DropdownMenu.Content class="sv-menu" align="end" sideOffset={4} collisionPadding={8}>
       {#each groups as [title, types], i (title)}
         {#if i > 0}<DropdownMenu.Separator class="sv-menu-rule" />{/if}
         <DropdownMenu.Group>
@@ -39,6 +39,10 @@
 <style>
   :global(.sv-menu) {
     z-index: 50;
+    /* Si no cabe en la pantalla, se desplaza (la altura que queda la da Bits UI). */
+    max-height: var(--bits-dropdown-menu-content-available-height, calc(100vh - 16px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     width: 220px;
     padding: var(--sv-space-4) 0;
     font-family: var(--sv-font-mono);

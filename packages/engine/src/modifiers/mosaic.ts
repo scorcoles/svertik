@@ -4,9 +4,12 @@ import { bounds, mapPoints, type Bounds, type Shape } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Mosaico: recorta el dibujo en teselas (rectángulos, triángulos, hexágonos o círculos) sobre una rejilla
- * de columnas × filas, con separación en X e Y y la red girada `angle` grados. Cada tesela es un elemento (como una copia de Clone),
- * así que Step, Color o Boolean la tratan por separado. Solo las superficies: las líneas abiertas se pierden.
+ * Mosaico: recorta el dibujo en teselas sobre una rejilla de columnas × filas, con separación en X e Y
+ * y la red girada `angle` grados. Las teselas son rectángulos, triángulos o hexágonos (encajan sin huecos),
+ * o una forma por celda: círculo, polígono, estrella u otro objeto de la escena (`shape`).
+ * `fit`: `cut` recorta el dibujo con cada tesela (en los bordes quedan trozos); `whole` pone la tesela
+ * entera donde el dibujo cubre al menos la mitad, con su estilo. Cada tesela es un elemento (como una copia
+ * de Clone), así que Step, Color o Boolean la tratan por separado. Solo las superficies: las líneas abiertas se pierden.
  */
 export const mosaic = defineModifier({
   type: 'mosaic',
@@ -15,7 +18,10 @@ export const mosaic = defineModifier({
   params: {
     columns: { type: 'number', default: 8, min: 1, max: 60, step: 1, ramp: false, pair: 'rows' },
     rows: { type: 'number', default: 8, min: 1, max: 60, step: 1, ramp: false },
-    tile: { type: 'enum', default: 'rect', options: ['rect', 'triangle', 'hexagon', 'circle'] as const, label: 'Tile', animatable: false },
+    tile: { type: 'enum', default: 'rect', options: ['rect', 'triangle', 'hexagon', 'circle', 'polygon', 'star', 'shape'] as const, label: 'Tile', animatable: false },
+    sides: { type: 'number', default: 5, min: 3, max: 12, step: 1, ramp: false, label: 'Sides', showIf: { tile: ['polygon', 'star'] } },
+    source: { type: 'node', default: '', label: 'Shape', showIf: { tile: ['shape'] } },
+    fit: { type: 'enum', default: 'cut', options: ['cut', 'whole'] as const, label: 'Fit', animatable: false },
     // Separación entre teselas, en las unidades del dibujo (px), en X y en Y.
     gutter: { type: 'point', default: [4, 4], unit: 'px', step: 0.5, min: 0, label: 'Gutter', handle: false, linkable: true, random: [0, 16] },
     angle: { type: 'angle', default: 0, ramp: false, random: [-45, 45] },
@@ -37,22 +43,38 @@ export const mosaic = defineModifier({
     const rows = Math.max(1, Math.round(p.rows));
     const [gx, gy] = [Math.max(0, p.gutter[0]), Math.max(0, p.gutter[1])];
     const step = Math.max(ctx.resolution, 1e-3);
+    // La forma de otro objeto, como superficie: es la que se pone en cada celda.
+    let custom: MultiPolygon | null = null;
+    if (p.tile === 'shape') {
+      const g = p.source ? ctx.target?.(p.source) : null;
+      custom = g ? regionOf(g.shapes, step) : null;
+      if (!custom?.length) return geo;
+    }
     // Cada forma, como superficie (con su caja, para no recortar contra teselas que no toca).
     const regions = geo.shapes
       .map((s) => ({ s, r: regionOf([s], step) }))
       .filter((x) => x.r.length)
       .map((x) => ({ ...x, box: boxOf(x.r) }));
+    const whole = p.fit === 'whole';
     const out: Shape[] = [];
-    tiles(p.tile, b, cols, rows).forEach((poly, index) => {
+    tiles(p.tile, b, cols, rows, Math.round(p.sides), custom).forEach((poly, index) => {
       // La separación encoge cada tesela alrededor de su centro: la mitad por cada lado, así entre dos
-      // teselas queda el hueco entero. En triángulos y hexágonos es aproximada (se mide en su caja).
-      const pb = boxOfRing(poly);
+      // teselas queda el hueco entero. En las que no son rectángulos es aproximada (se mide en su caja).
+      const pb = boxOf(poly);
       if (pb.width <= gx || pb.height <= gy) return;
-      const t = shrink(poly, 1 - gx / pb.width, 1 - gy / pb.height).map((q) => (a ? rot(q, 1) : q));
-      const tb = boxOfRing(t);
-      for (const { s, r, box } of regions) {
-        if (box.x > tb.x + tb.width || box.x + box.width < tb.x || box.y > tb.y + tb.height || box.y + box.height < tb.y) continue;
-        const cut = intersection(r, [[t]]);
+      const t = shrink(poly, pb, 1 - gx / pb.width, 1 - gy / pb.height, a ? (q) => rot(q, 1) : null);
+      const tb = boxOf(t);
+      const near = regions.filter(({ box }) => !(box.x > tb.x + tb.width || box.x + box.width < tb.x || box.y > tb.y + tb.height || box.y + box.height < tb.y));
+      if (whole) {
+        // Entera, con el estilo de la forma de más arriba que la cubre al menos a medias.
+        const full = areaOf(t);
+        const owner = [...near].reverse().find(({ r }) => areaOf(intersection(r, t)) >= full * 0.5);
+        const subpaths = t.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
+        if (owner && subpaths.length) out.push({ ...owner.s, subpaths, clone: index });
+        return;
+      }
+      for (const { s, r } of near) {
+        const cut = intersection(r, t);
         const subpaths = cut.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
         if (subpaths.length) out.push({ ...s, subpaths, clone: index });
       }
@@ -61,18 +83,18 @@ export const mosaic = defineModifier({
   },
 });
 
-
 /** Las teselas, en orden de lectura (filas de arriba abajo, de izquierda a derecha). */
-function tiles(kind: string, b: Bounds, cols: number, rows: number): Pair[][] {
+function tiles(kind: string, b: Bounds, cols: number, rows: number, sides: number, custom: MultiPolygon | null): MultiPolygon[] {
   const cw = b.width / cols, ch = b.height / rows;
-  const out: Pair[][] = [];
+  const out: MultiPolygon[] = [];
+  const push = (ring: Pair[]) => out.push([[[...ring, ring[0]!]]]);
   if (kind === 'triangle') {
     // Triángulos alternos (hacia arriba y hacia abajo), dos por celda más los de los bordes.
     for (let r = 0; r < rows; r++) {
       const y0 = b.y + r * ch, y1 = y0 + ch;
       for (let i = 0; i <= cols * 2; i++) {
         const x = b.x + ((i - 1) * cw) / 2;
-        out.push((i + r) % 2 === 0 ? [[x, y1], [x + cw, y1], [x + cw / 2, y0]] : [[x, y0], [x + cw, y0], [x + cw / 2, y1]]);
+        push((i + r) % 2 === 0 ? [[x, y1], [x + cw, y1], [x + cw / 2, y0]] : [[x, y0], [x + cw, y0], [x + cw / 2, y1]]);
       }
     }
     return out;
@@ -86,7 +108,7 @@ function tiles(kind: string, b: Bounds, cols: number, rows: number): Pair[][] {
       const shift = r % 2 ? cw / 2 : 0;
       for (let c = -1; c <= cols; c++) {
         const cx = b.x + c * cw + cw / 2 + shift;
-        out.push(Array.from({ length: 6 }, (_, k) => {
+        push(Array.from({ length: 6 }, (_, k) => {
           const a = ((60 * k - 90) * Math.PI) / 180;
           return [cx + Math.cos(a) * sx, cy + Math.sin(a) * sy] as Pair;
         }));
@@ -94,28 +116,51 @@ function tiles(kind: string, b: Bounds, cols: number, rows: number): Pair[][] {
     }
     return out;
   }
+  // Una forma por celda, inscrita en ella (estirada si la celda no es cuadrada).
+  const cb = custom ? boxOf(custom) : null;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const x0 = b.x + c * cw, y0 = b.y + r * ch;
-      if (kind === 'circle') {
-        // Círculo (o elipse, si la celda no es cuadrada) inscrito en la celda.
-        const cx = x0 + cw / 2, cy = y0 + ch / 2;
-        out.push(Array.from({ length: 48 }, (_, k) => {
-          const a = (k / 48) * Math.PI * 2;
-          return [cx + (Math.cos(a) * cw) / 2, cy + (Math.sin(a) * ch) / 2] as Pair;
-        }));
-      } else out.push([[x0, y0], [x0 + cw, y0], [x0 + cw, y0 + ch], [x0, y0 + ch]]);
+      const cx = x0 + cw / 2, cy = y0 + ch / 2;
+      const around = (n: number, radius: (k: number) => number, start = -Math.PI / 2) =>
+        Array.from({ length: n }, (_, k) => {
+          const t = start + (k / n) * Math.PI * 2;
+          return [cx + (Math.cos(t) * cw * radius(k)) / 2, cy + (Math.sin(t) * ch * radius(k)) / 2] as Pair;
+        });
+      if (kind === 'circle') push(around(48, () => 1, 0));
+      else if (kind === 'polygon') push(around(Math.max(3, sides), () => 1));
+      else if (kind === 'star') push(around(Math.max(3, sides) * 2, (k) => (k % 2 ? 0.45 : 1)));
+      else if (custom && cb && cb.width > 0 && cb.height > 0) {
+        // La forma del objeto, encajada en la celda sin deformarla.
+        const k = Math.min(cw / cb.width, ch / cb.height);
+        const ox = cx - (cb.x + cb.width / 2) * k, oy = cy - (cb.y + cb.height / 2) * k;
+        out.push(custom.map((poly) => poly.map((ring) => ring.map(([x, y]) => [ox + x * k, oy + y * k] as Pair))));
+      } else push([[x0, y0], [x0 + cw, y0], [x0 + cw, y0 + ch], [x0, y0 + ch]]);
     }
   }
   return out;
 }
 
-/** Escala un polígono alrededor de su centro (la media de sus vértices) y lo cierra. */
-function shrink(poly: Pair[], kx: number, ky: number): Pair[] {
-  const cx = poly.reduce((s, q) => s + q[0], 0) / poly.length;
-  const cy = poly.reduce((s, q) => s + q[1], 0) / poly.length;
-  const pts = poly.map(([x, y]) => [cx + (x - cx) * kx, cy + (y - cy) * ky] as Pair);
-  return [...pts, pts[0]!];
+/** Escala una tesela alrededor del centro de su caja (y la gira de vuelta, si hace falta). */
+function shrink(m: MultiPolygon, b: Bounds, kx: number, ky: number, turn: ((q: Pair) => Pair) | null): MultiPolygon {
+  const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+  return m.map((poly) => poly.map((ring) => ring.map(([x, y]) => {
+    const q: Pair = [cx + (x - cx) * kx, cy + (y - cy) * ky];
+    return turn ? turn(q) : q;
+  })));
+}
+
+/** Área de una superficie (los agujeros restan: van en sentido contrario). */
+function areaOf(m: MultiPolygon): number {
+  let sum = 0;
+  for (const poly of m) {
+    poly.forEach((ring, i) => {
+      let a = 0;
+      for (let j = 0; j + 1 < ring.length; j++) a += ring[j]![0] * ring[j + 1]![1] - ring[j + 1]![0] * ring[j]![1];
+      sum += (i === 0 ? 1 : -1) * Math.abs(a / 2);
+    });
+  }
+  return sum;
 }
 
 function boxOfRing(r: Pair[]): Bounds {

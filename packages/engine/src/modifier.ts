@@ -23,6 +23,8 @@ interface ParamBase {
   random?: [number, number] | false;
   /** Para puntos: el rango aleatorio se suma al valor por defecto (mover un poco), no lo sustituye. */
   randomRelative?: boolean;
+  /** Solo se ve (y solo cuenta) cuando otro parámetro tiene uno de estos valores: `{ tile: ['polygon'] }`. */
+  showIf?: Record<string, readonly string[]>;
 }
 
 export type ParamSpec =
@@ -128,6 +130,10 @@ export function zeroParams(schema: ParamSchema, current: Record<string, unknown>
       const v = spec.neutral ?? 0;
       out[name] = Math.min(spec.max ?? Infinity, Math.max(spec.min ?? -Infinity, v));
     }
+    // Un lugar del dibujo (centro, pivote, esquina…) no va a 0,0 (la esquina): vuelve a su sitio.
+    else if (spec.type === 'point' && spec.unit === 'fraction' && spec.handle !== false) out[name] = [...spec.default];
+    // Los demás puntos son distancias (separación, desplazamiento): a cero, o a su mínimo.
+    else if (spec.type === 'point') out[name] = [Math.max(spec.min ?? -Infinity, 0), Math.max(spec.min ?? -Infinity, 0)];
   }
   return out;
 }

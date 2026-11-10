@@ -171,6 +171,27 @@ describe('boolean', () => {
     expect(area(sub)).toBeCloseTo(50);
     expect(bounds(sub).x).toBeCloseTo(-5);
   });
+  it('las líneas no se pierden: enteras al unir, recortadas al intersectar', () => {
+    // Una línea que atraviesa los dos cuadrados, de −20 a 20 en y = 0, dentro del de atrás.
+    const lined = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -5 10 10"><rect x="-5" y="-5" width="10" height="10"/><path d="M-20 0 L20 0" fill="none" stroke="#000"/></svg>`;
+    const go = (mode: string) =>
+      engine().evaluateDocument({
+        version: 2,
+        objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'b', type: 'boolean', params: { mode } }], children: [at('front', 5), { kind: 'object', id: 'back', name: 'back', source: lined, stack: [] }] }],
+      }).geometry;
+    const lineOf = (geo: Geometry) => geo.shapes.find((s) => s.subpaths.some((sp) => !sp.closed));
+    expect(bounds({ viewBox: [0, 0, 1, 1], shapes: [lineOf(go('union'))!] }).width).toBeCloseTo(40);
+    // Lo común es x de 0 a 5: la línea, recortada a eso.
+    const cut = bounds({ viewBox: [0, 0, 1, 1], shapes: [lineOf(go('intersect'))!] });
+    expect(cut.x).toBeCloseTo(0, 0);
+    expect(cut.width).toBeCloseTo(5, 0);
+  });
+
+  it('sin elementos marcados, cada forma es uno', () => {
+    const two = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="10" height="10"/><rect x="5" width="10" height="10"/></svg>`;
+    const geo = engine().evaluateDocument({ version: 2, objects: [{ kind: 'object', id: 'o', name: 'o', source: two, stack: [{ id: 'b', type: 'boolean', params: { mode: 'intersect' } }] }] }).geometry;
+    expect(area(geo)).toBeCloseTo(50);
+  });
 });
 
 describe('efectos que usan otro objeto', () => {

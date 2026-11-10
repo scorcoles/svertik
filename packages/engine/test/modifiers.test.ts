@@ -458,6 +458,43 @@ describe('mosaic', () => {
     expect(area(run({ tile: 'hexagon', columns: 3, rows: 3, gutter: [0, 0] }))).toBeCloseTo(3600, 0);
     expect(area(run({ tile: 'circle', columns: 2, rows: 2, gutter: [0, 0] }) ) / 3600).toBeCloseTo(Math.PI / 4, 2);
   });
+
+  it('polígonos y estrellas, una por celda', () => {
+    const hex = run({ tile: 'polygon', sides: 6, columns: 2, rows: 2, gutter: [0, 0] });
+    expect(hex.shapes.map((s) => s.clone)).toEqual([0, 1, 2, 3]);
+    // Hexágono inscrito en una celda de 30 (radio 15): 3√3/2 · r².
+    expect(area(hex) / 4).toBeCloseTo((3 * Math.sqrt(3) / 2) * 15 * 15, 0);
+    expect(area(run({ tile: 'star', sides: 5, columns: 2, rows: 2, gutter: [0, 0] }))).toBeLessThan(area(run({ tile: 'polygon', sides: 5, columns: 2, rows: 2, gutter: [0, 0] })));
+  });
+
+  it('whole: teselas enteras donde el dibujo cubre al menos la mitad', () => {
+    // 4 × 4 celdas de 25 sobre el lienzo de 100, pero el dibujo es el cuadrado de 60: la red se ajusta
+    // a él, así que todas caen dentro y salen enteras (círculos completos, no recortados).
+    const geo = run({ tile: 'circle', fit: 'whole', columns: 3, rows: 3, gutter: [0, 0] });
+    expect(geo.shapes).toHaveLength(9);
+    expect(area(geo) / 3600).toBeCloseTo(Math.PI / 4, 2);
+  });
+});
+
+describe('mosaic con la forma de otro objeto', () => {
+  it('cada celda lleva la forma del objeto, encajada sin deformarla', () => {
+    const doc = createEngine(builtins).evaluateDocument({
+      version: 2,
+      objects: [
+        { kind: 'object', id: 'd', name: 'd', source: square, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape', source: 'tri', columns: 2, rows: 2, gutter: [0, 0], fit: 'whole' } }] },
+        { kind: 'shape', id: 'tri', name: 'tri', shape: 'polygon', params: { sides: 3 }, stack: [], transform: { x: 500 } },
+      ],
+    });
+    const tiles = doc.geometry.shapes.filter((s) => s.node === 'd');
+    expect(tiles).toHaveLength(4);
+    // Cada tesela, un triángulo (3 vértices).
+    expect(tiles.every((s) => s.subpaths[0]!.segs.length === 3)).toBe(true);
+  });
+
+  it('sin objeto, el dibujo como estaba', () => {
+    const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape' } }] });
+    expect(bounds(geo)).toMatchObject({ x: 20, width: 60 });
+  });
 });
 
 describe('mosaic girado', () => {
@@ -552,6 +589,12 @@ describe('a cero y dado', () => {
     expect(zeroParams(t.params, resolveParams(t.params, { x: 5, rotation: 30, scale: 2 }))).toMatchObject({ x: 0, rotation: 0, scale: 1 });
     const c = builtins.find((m) => m.type === 'clone')!;
     expect(zeroParams(c.params, resolveParams(c.params)).count).toBe(1);
+    // Los lugares del dibujo (el centro de Explosion) vuelven a su sitio, no a la esquina.
+    const ex = builtins.find((d) => d.type === 'explosion')!;
+    expect(zeroParams(ex.params, resolveParams(ex.params, { center: [0.1, 0.9], amount: 1 }))).toMatchObject({ center: [0.5, 0.5], amount: 0 });
+    // Las distancias, a cero: la separación de Mosaic.
+    const mo = builtins.find((d) => d.type === 'mosaic')!;
+    expect(zeroParams(mo.params, resolveParams(mo.params)).gutter).toEqual([0, 0]);
   });
   it('el dado se queda cerca de los valores de partida (no de punta a punta)', () => {
     const c = builtins.find((m) => m.type === 'clone')!;

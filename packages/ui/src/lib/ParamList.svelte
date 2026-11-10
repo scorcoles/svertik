@@ -36,12 +36,19 @@
     onchange(a, x);
     onchange(b, y);
   }
+  // Los que dependen de otro parámetro (`showIf`) solo salen cuando este tiene uno de sus valores.
+  const shown = (spec: ParamSpec) =>
+    !spec.showIf ||
+    Object.entries(spec.showIf).every(([other, allowed]) => {
+      const v = values?.[other] ?? params.find(([n]) => n === other)?.[1].default;
+      return allowed.includes(String(v));
+    });
   const items = $derived.by(() => {
     const names = new Set(params.map(([n]) => n));
     const out: Item[] = [];
     const paired = new Set<string>();
     for (const [name, spec] of params) {
-      if (paired.has(name)) continue;
+      if (paired.has(name) || !shown(spec)) continue;
       const color = `${name}Color`;
       const cs = params.find(([n]) => n === color)?.[1];
       const ps = spec.pair ? params.find(([n]) => n === spec.pair)?.[1] : undefined;

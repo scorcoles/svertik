@@ -2,6 +2,7 @@
   // Un parámetro del esquema del motor → su control. Así el esquema dibuja el panel de atributos.
   import type { ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
+  import IconButton from './IconButton.svelte';
   import ColorField from './ColorField.svelte';
   import type { IconName } from './icons';
   import NumberField from './NumberField.svelte';
@@ -65,6 +66,18 @@
     <NumberField {id} value={value as number} step={1} min={0} {onchange} />
   {:else if spec.type === 'point'}
     <PointField {id} {label} value={value as [number, number]} step={spec.step ?? 0.01} min={spec.min} linkable={spec.linkable} {onchange} />
+    {#if spec.unit === 'fraction' && spec.handle !== false}
+      {@const at = value as [number, number]}
+      <!-- Un lugar del dibujo (centro, pivote…): vuelve a donde estaba al principio. -->
+      <span class="reset">
+        <IconButton
+          icon="center"
+          label={`Reset ${label}`}
+          disabled={at[0] === spec.default[0] && at[1] === spec.default[1]}
+          onclick={() => onchange([...spec.default])}
+        />
+      </span>
+    {/if}
   {:else if spec.type === 'enum' && segmented}
     <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
@@ -110,6 +123,8 @@
 </ParamRow>
 
 <style>
+  .reset { display: flex; }
+  .reset :global(.sv-icon-button) { width: 18px; height: 18px; }
   .sv-text, .sv-font {
     flex: 1;
     min-width: 0;
