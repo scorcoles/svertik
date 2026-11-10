@@ -32,7 +32,8 @@ const cssOf = (style: Style) =>
     .map(([k, v]) => `${k}:${v}`)
     .join(';');
 
-const styleAttrs = (style: Style) => {
+/** Los atributos de estilo de una forma, como texto (` fill="…" stroke="…"`). */
+export const styleAttrs = (style: Style) => {
   const css = cssOf(style);
   return (
     Object.entries(style)

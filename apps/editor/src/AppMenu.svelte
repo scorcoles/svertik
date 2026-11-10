@@ -12,10 +12,11 @@
     onexportsvg: () => void;
     onexportpng: () => void;
     onexportlottie: () => void;
+    onexportanimsvg: () => void;
     oncopyjson: () => void;
     ondemo: (which: 'intro' | 'shatter') => void;
   }
-  let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportlottie, oncopyjson, ondemo }: Props = $props();
+  let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportlottie, onexportanimsvg, oncopyjson, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: 'New', icon: 'plus', run: onnew, needs: true },
@@ -24,6 +25,7 @@
     'sep',
     { label: 'Export SVG', icon: 'export', run: onexportsvg, needs: true },
     { label: 'Export PNG', icon: 'export', run: onexportpng, needs: true },
+    { label: 'Export animated SVG', icon: 'export', run: onexportanimsvg, needs: true },
     { label: 'Export Lottie (.json)', icon: 'export', run: onexportlottie, needs: true },
     { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
     'sep',

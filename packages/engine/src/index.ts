@@ -7,6 +7,8 @@ export { createEngine, type Engine, type StackInput, type ModifierInstance } fro
 export * from './document';
 export { outlineNode, packNode, unpackNode } from './pack';
 export { toLottie, type LottieExport } from './lottie';
+export { toAnimatedSVG, type AnimatedSVGExport } from './animsvg';
+export { analyzeMotion, type MotionAnalysis, type MotionLayer } from './motion';
 export * from './matrix';
 export * from './shapes';
 export * from './fonts';

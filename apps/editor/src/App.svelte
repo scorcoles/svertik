@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { builtins, createEngine, hasFont, sceneFonts, toLottie, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, hasFont, sceneFonts, toAnimatedSVG, toLottie, type SceneV2 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
@@ -137,6 +137,14 @@
     const kb = Math.max(1, Math.round(new Blob([text]).size / 1024));
     report = { title: `Saved ${name}`, summary: `${frames} frame${frames === 1 ? '' : 's'}, ${kb} KB.${warnings.length ? ' Some things could not go into Lottie:' : ' Everything went in.'}`, warnings };
   }
+  // SVG animado: un solo .svg que se anima solo (CSS dentro), sin JavaScript.
+  function exportAnimatedSVG() {
+    const { svg, warnings, frames } = toAnimatedSVG(engine, snapshot());
+    const name = `${editor.name}.animated.svg`;
+    download(name, svg, 'image/svg+xml');
+    const kb = Math.max(1, Math.round(new Blob([svg]).size / 1024));
+    report = { title: `Saved ${name}`, summary: `${frames} frame${frames === 1 ? '' : 's'}, ${kb} KB. Plays on its own in any browser (also as an <img>).${warnings.length ? ' Notes:' : ''}`, warnings };
+  }
   function exportSVG() {
     const name = `${editor.name}.svertik.svg`;
     download(name, engine.toSVG(snapshot()), 'image/svg+xml');
@@ -245,6 +253,7 @@
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
     onexportlottie={exportLottie}
+    onexportanimsvg={exportAnimatedSVG}
     ondemo={openDemo}
     onnew={() => guard(() => editor.newFile())}
   />

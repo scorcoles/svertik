@@ -12,10 +12,11 @@
     onexport: () => void;
     onexportpng: () => void;
     onexportlottie: () => void;
+    onexportanimsvg: () => void;
     ondemo: (which: 'intro' | 'shatter') => void;
     onnew: () => void;
   }
-  let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportlottie, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
   // Por tipo, sin los de una familia (Glitch), que van en su propio menú.
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind && !registry.get(t)?.family);
   const family = (name: string) => modifierTypes.filter((t) => registry.get(t)?.family === name);
@@ -32,7 +33,7 @@
 
 <header class="toolbar">
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {onexportlottie} {oncopyjson} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {onexportlottie} {onexportanimsvg} {oncopyjson} {ondemo} />
     <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
