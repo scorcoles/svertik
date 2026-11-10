@@ -1,10 +1,12 @@
 import { cylinder } from './cylinder';
 import { envelope } from './envelope';
+import { explosion } from './explosion';
 import { fractal } from './fractal';
 import { glitch } from './glitch';
 import { gradient } from './gradient';
 import { melt } from './melt';
 import { mirror } from './mirror';
+import { morph } from './morph';
 import { mosaic } from './mosaic';
 import { paint } from './paint';
 import { pathwrap } from './pathwrap';
@@ -28,7 +30,7 @@ import { transform } from './transform';
 import { twist } from './twist';
 import { wave } from './wave';
 
-export { bend, boolean, clone, color, crack, cylinder, damage, envelope, fractal, glitch, gradient, melt, mirror, mosaic, noise, paint, pathwrap, perspective, ripple, rotate3d, roughen, shear, spherize, step, taper, tint, transform, twist, wave };
+export { bend, boolean, clone, color, crack, cylinder, damage, envelope, explosion, fractal, glitch, gradient, melt, mirror, morph, mosaic, noise, paint, pathwrap, perspective, ripple, rotate3d, roughen, shear, spherize, step, taper, tint, transform, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -48,6 +50,7 @@ export const builtins = [
   perspective,
   envelope,
   pathwrap,
+  morph,
   crack,
   damage,
   clone,
@@ -57,6 +60,7 @@ export const builtins = [
   glitch,
   boolean,
   step,
+  explosion,
   color,
   tint,
   paint,

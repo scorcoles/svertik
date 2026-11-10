@@ -237,3 +237,32 @@ describe('modos de fusión', () => {
     expect(svg).not.toContain(' mix-blend-mode="');
   });
 });
+
+describe('morph y explosion', () => {
+  const area = (geo: Geometry) =>
+    geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
+      const pts = [sp.start, ...sp.segs.map((g) => g.p)];
+      let a = 0;
+      for (let i = 0; i < pts.length - 1; i++) a += pts[i]![0] * pts[i + 1]![1] - pts[i + 1]![0] * pts[i]![1];
+      return sum + Math.abs(a) / 2;
+    }, 0);
+  const scene = (amount: number): SceneV2 => ({
+    version: 2,
+    objects: [
+      { kind: 'shape', id: 'sq', name: 'sq', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'morph', params: { target: 'c', amount } }] },
+      { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 50, height: 50 }, stack: [], visible: false },
+    ],
+  });
+  it('morph: de cuadrado (amount 0) a círculo (amount 1)', () => {
+    expect(area(engine().evaluateDocument(scene(0)).geometry)).toBeCloseTo(10000, -2);
+    expect(area(engine().evaluateDocument(scene(1)).geometry)).toBeCloseTo(Math.PI * 25 * 25, -2);
+  });
+  it('explosion: los trozos se alejan del centro', () => {
+    const e = engine();
+    const base: SceneV2 = { version: 2, objects: [{ kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'mo', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0] } }] }] };
+    const before = e.evaluateDocument(base).nodes.get('r')!.box;
+    base.objects[0]!.stack.push({ id: 'x', type: 'explosion', params: { amount: 1, force: 0.5 } });
+    const after = e.evaluateDocument(base).nodes.get('r')!.box;
+    expect(after.width).toBeGreaterThan(before.width * 1.3);
+  });
+});
