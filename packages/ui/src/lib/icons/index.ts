@@ -7,8 +7,8 @@ export const icons = {
   select: 'M3.5 1.5v11l3-2.75 2 4.25 1.75-.75-2-4.25h4.25z',
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
   ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
-  // Documento: una hoja con la esquina doblada.
-  document: 'M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3',
+  // Documento: el lienzo, con sus marcas de corte (lo que se exporta).
+  document: 'M4.5 4.5h7v7h-7z M4.5 1v2 M11.5 1v2 M4.5 13v2 M11.5 13v2 M1 4.5h2 M13 4.5h2 M1 11.5h2 M13 11.5h2',
   // Compartir: tres nodos unidos.
   share: 'M11.5 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M4.5 6a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M11.5 9.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M6.3 7.1l3.4-1.7 M6.3 8.9l3.4 1.7',
   // Pack: una caja cerrada; Unpack: la caja, con una flecha que sale.
