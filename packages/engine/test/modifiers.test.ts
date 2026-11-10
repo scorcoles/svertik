@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bend, bounds, builtins, createEngine, noise, resolveParams, spherize, transform, twist, wave, type Scene } from '../src';
+import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, type Scene } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
 const scene = (stack: Scene['stack']): Scene => ({ version: 1, source: square, stack });
@@ -543,5 +543,21 @@ describe('damage: trozos', () => {
     const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params: { cracks: 0, chips: 0, specks: 0, through: 1, roughness: 0 } }] });
     expect(geo.shapes.length).toBeGreaterThanOrEqual(2);
     expect(geo.shapes.map((s) => s.clone)).toEqual(geo.shapes.map((_, i) => i));
+  });
+});
+
+describe('a cero y dado', () => {
+  it('a cero: números y ángulos a 0, la escala a 1, los conteos a su mínimo', () => {
+    const t = builtins.find((m) => m.type === 'transform')!;
+    expect(zeroParams(t.params, resolveParams(t.params, { x: 5, rotation: 30, scale: 2 }))).toMatchObject({ x: 0, rotation: 0, scale: 1 });
+    const c = builtins.find((m) => m.type === 'clone')!;
+    expect(zeroParams(c.params, resolveParams(c.params)).count).toBe(1);
+  });
+  it('el dado se queda cerca de los valores de partida (no de punta a punta)', () => {
+    const c = builtins.find((m) => m.type === 'clone')!;
+    for (let i = 0; i < 50; i++) {
+      const v = randomizeParams(c.params, resolveParams(c.params), rng(i)).count as number;
+      expect(v).toBeLessThanOrEqual(6 + 64 * 0.15 + 1);
+    }
   });
 });

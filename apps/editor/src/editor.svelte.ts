@@ -6,6 +6,7 @@ import {
   placementOf,
   shapeRegistry,
   randomizeParams,
+  zeroParams,
   resolveParams,
   rng,
   walkNodes,
@@ -645,6 +646,15 @@ export class Editor {
     const def = m && registry.get(m.type);
     if (!m || !def) return;
     m.params = randomizeParams(def.params, resolveParams(def.params, m.params), rng(seed));
+    this.record(true);
+  }
+
+  /** A cero: números y ángulos a 0 (o a su neutro / mínimo). */
+  zero(id = this.selected) {
+    const m = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
+    const def = m && registry.get(m.type);
+    if (!m || !def) return;
+    m.params = zeroParams(def.params, resolveParams(def.params, m.params));
     this.record(true);
   }
 
