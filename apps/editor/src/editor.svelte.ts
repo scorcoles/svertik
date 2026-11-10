@@ -603,18 +603,32 @@ export class Editor {
   }
 
   /** Mueve un modificador a cualquier sitio de la pila de su nodo: dentro de `parentId` (un Step) o arriba. */
-  moveTo(id: string, parentId: string | null, index: number) {
+  /**
+   * Mueve un modificador a cualquier sitio: dentro de `parentId` (un Step) o arriba, en la pila de
+   * `ownerId` (por defecto, la de su nodo; puede ser otro objeto). Con `copy`, deja el original y pone
+   * una copia (ids nuevos) en el destino.
+   */
+  moveTo(id: string, parentId: string | null, index: number, ownerId?: string, copy = false) {
     if (!this.scene) return;
     const at = locateModifier(this.scene, id);
     if (!at || id === parentId) return;
     if (parentId && containers.has(at.inst.type)) return;
-    const stack = at.owner.stack;
+    const owner = ownerId ? locateNode(this.scene.objects, ownerId)?.node : at.owner;
+    if (!owner) return;
+    const stack = owner.stack;
     const target = parentId ? locate(stack, parentId)?.inst : null;
     if (parentId && (!target || !containers.has(target.type))) return;
     const list = target ? (target.children ??= []) : stack;
-    const [m] = at.list.splice(at.index, 1);
-    const i = list === at.list && index > at.index ? index - 1 : index;
-    list.splice(Math.max(0, Math.min(list.length, i)), 0, m!);
+    let m: ModifierInstance;
+    let i = index;
+    if (copy) m = freshModifier($state.snapshot(at.inst) as ModifierInstance);
+    else {
+      [m] = at.list.splice(at.index, 1) as [ModifierInstance];
+      if (list === at.list && index > at.index) i = index - 1;
+    }
+    list.splice(Math.max(0, Math.min(list.length, i)), 0, m);
+    this.selected = m.id;
+    this.collapsed = this.collapsed.filter((x) => x !== owner.id);
     this.record(true);
   }
 

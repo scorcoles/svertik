@@ -311,3 +311,21 @@ describe('atajo de Boolean', () => {
     expect(e.current?.type).toBe('boolean');
   });
 });
+
+describe('arrastrar efectos entre objetos', () => {
+  it('mueve un efecto a la pila de otro objeto; con copia, deja el original', () => {
+    const e = fresh();
+    e.addShape('star');
+    const [star, grid] = e.scene!.objects;
+    e.selected = grid!.id;
+    e.add('wave');
+    const wave = grid!.stack[0]!.id;
+    e.moveTo(wave, null, 0, star!.id, true);
+    expect(star!.stack.map((m) => m.type)).toEqual(['wave']);
+    expect(grid!.stack.map((m) => m.type)).toEqual(['wave']);
+    expect(star!.stack[0]!.id).not.toBe(wave);
+    e.moveTo(wave, null, 1, star!.id);
+    expect(grid!.stack).toHaveLength(0);
+    expect(star!.stack.map((m) => m.type)).toEqual(['wave', 'wave']);
+  });
+});

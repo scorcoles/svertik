@@ -19,29 +19,43 @@
 
   function overModifier(e: DragEvent, m: ModifierInstance) {
     if (!drag || drag.kind !== 'modifier' || drag.id === m.id || !editor.scene) return;
-    // Los efectos se mueven dentro de la pila de su nodo.
+    // Los efectos se mueven a cualquier pila, también la de otro objeto; con ⇧, se copian.
     const from = locateModifier(editor.scene, drag.id);
     const to = locateModifier(editor.scene, m.id);
-    if (!from || !to || from.owner.id !== to.owner.id) return;
+    if (!from || !to) return;
     e.preventDefault();
     e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = e.shiftKey ? 'copy' : 'move';
     drop = { id: m.id, where: zone(e, containers.has(m.type) && !containers.has(from.inst.type)) };
   }
 
   function overNode(e: DragEvent, n: SceneNode) {
+    // Un efecto soltado sobre un objeto va al final de su pila.
+    if (drag?.kind === 'modifier') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = e.shiftKey ? 'copy' : 'move';
+      drop = { id: n.id, where: 'inside' };
+      return;
+    }
     if (!drag || drag.kind !== 'node' || drag.id === n.id) return;
     e.preventDefault();
     e.stopPropagation();
     drop = { id: n.id, where: zone(e, n.kind === 'group') };
   }
 
-  function dropHere() {
+  function dropHere(e?: DragEvent) {
     if (!editor.scene || !drag || !drop) return;
+    const copy = !!e?.shiftKey;
     if (drag.kind === 'modifier') {
       const target = locateModifier(editor.scene, drop.id);
       if (target) {
-        if (drop.where === 'inside') editor.moveTo(drag.id, target.inst.id, target.inst.children?.length ?? 0);
-        else editor.moveTo(drag.id, target.parent?.id ?? null, target.index + (drop.where === 'after' ? 1 : 0));
+        if (drop.where === 'inside') editor.moveTo(drag.id, target.inst.id, target.inst.children?.length ?? 0, target.owner.id, copy);
+        else editor.moveTo(drag.id, target.parent?.id ?? null, target.index + (drop.where === 'after' ? 1 : 0), target.owner.id, copy);
+      } else {
+        // Sobre un objeto: al final de su pila.
+        const node = locateNode(editor.scene.objects, drop.id)?.node;
+        if (node) editor.moveTo(drag.id, null, node.stack.length, node.id, copy);
       }
     } else {
       const target = locateNode(editor.scene.objects, drop.id);
@@ -67,9 +81,9 @@
       class="drag"
       draggable="true"
       data-drop={drop?.id === m.id ? drop.where : undefined}
-      ondragstart={(e) => { e.stopPropagation(); drag = { id: m.id, kind: 'modifier' }; e.dataTransfer?.setData('text/plain', m.id); }}
+      ondragstart={(e) => { e.stopPropagation(); drag = { id: m.id, kind: 'modifier' }; e.dataTransfer?.setData('text/plain', m.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove'; }}
       ondragover={(e) => overModifier(e, m)}
-      ondrop={(e) => { e.stopPropagation(); dropHere(); }}
+      ondrop={(e) => { e.stopPropagation(); dropHere(e); }}
       ondragend={end}
       role="none"
     >
@@ -106,7 +120,7 @@
       data-drop={drop?.id === n.id ? drop.where : undefined}
       ondragstart={(e) => { e.stopPropagation(); drag = { id: n.id, kind: 'node' }; e.dataTransfer?.setData('text/plain', n.id); }}
       ondragover={(e) => overNode(e, n)}
-      ondrop={(e) => { e.stopPropagation(); dropHere(); }}
+      ondrop={(e) => { e.stopPropagation(); dropHere(e); }}
       ondragend={end}
       role="none"
     >
