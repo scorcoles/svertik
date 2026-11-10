@@ -43,10 +43,10 @@
       {#snippet children(t)}
         {#if t === 'Params'}
           <div class="params">
-            <ParamList params={main} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
+            <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
-                <ParamList params={entries} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
+                <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
           </div>

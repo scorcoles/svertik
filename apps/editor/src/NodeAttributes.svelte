@@ -31,10 +31,10 @@
 <div class="params">
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
-      <ParamList params={shapeMain} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      <ParamList swatches={editor.docColors} params={shapeMain} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
     </Section>
     <Section title="Style">
-      <ParamList params={shapeStyle} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
     </Section>
   {/if}
   <Section title="Transform">
