@@ -42,6 +42,13 @@ export interface Engine {
 
 const DEFAULT_RESOLUTION = 0.01;
 
+/** Lo que guarda `runStack` de un nodo entre evaluaciones: de qué geometría partió y el resultado de cada paso. */
+export interface StepMemo {
+  base?: Geometry;
+  resolution?: number;
+  steps: { key: string; geo: Geometry; dynamic: boolean }[];
+}
+
 export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 
@@ -99,15 +106,34 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
 
   const evaluate = (scene: Scene) => evaluateSteps(scene).at(-1)!;
 
-  // Una pila aplicada a una geometría con su caja de referencia (para objetos y grupos de la v2).
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null): Geometry {
-    const ctx: ModifierContext = { bounds: ref, resolution: Math.max(ref.width, ref.height) * resolution || 1, children: [], target };
-    for (const inst of stack) {
-      if (inst.enabled === false) continue;
-      const def = registry.get(inst.type);
-      if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-      geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, children: resolveChildren(inst.children) });
-    }
+  /**
+   * Una pila aplicada a una geometría con su caja de referencia (para objetos y grupos de la v2).
+   * Con `memo`, guarda el resultado de cada paso: si la geometría de partida es la misma y los primeros
+   * efectos no han cambiado, se reutilizan (animar el último de la pila no rehace los de debajo).
+   * Un paso que mira otro objeto no se reutiliza (puede haber cambiado el otro).
+   */
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo): Geometry {
+    const ctx: ModifierContext = { bounds: ref, resolution: Math.max(ref.width, ref.height) * resolution || 1, children: [] };
+    let reuse = !!memo && memo.base === geo && memo.resolution === resolution;
+    if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
+    stack.forEach((inst, i) => {
+      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
+      const cached = memo?.steps[i];
+      if (reuse && cached && cached.key === key && !cached.dynamic) {
+        geo = cached.geo;
+        return;
+      }
+      reuse = false;
+      let dynamic = false;
+      const look = target && ((id: string) => ((dynamic = true), target(id)));
+      if (inst.enabled !== false) {
+        const def = registry.get(inst.type);
+        if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
+        geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, target: look, children: resolveChildren(inst.children) });
+      }
+      if (memo) memo.steps[i] = { key, geo, dynamic };
+    });
+    if (memo) memo.steps.length = stack.length;
     return geo;
   }
   const documents = createDocumentEvaluator(runStack);

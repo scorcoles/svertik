@@ -7,7 +7,7 @@ import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { Animation, Track } from './animation';
 import type { Interaction } from './interactions';
-import type { ModifierInstance, Scene as SceneV1 } from './engine';
+import type { ModifierInstance, Scene as SceneV1, StepMemo } from './engine';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
 export const BLEND_MODES = [
@@ -193,8 +193,17 @@ export type TargetLookup = (id: string) => Geometry | null;
  * y, si alguno lo pidió, otra con lo que salió de la primera. Esos nodos no se guardan en caché.
  */
 export function createDocumentEvaluator(
-  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup) => Geometry,
+  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo) => Geometry,
 ): DocumentEvaluator {
+  // El origen de cada nodo (SVG importado o primitiva), por su propia clave: no se rehace si solo
+  // cambian sus efectos. Y lo que va dando su pila, paso a paso (ver runStack).
+  const sources = new Map<string, { key: string; geo: Geometry }>();
+  const memos = new Map<string, StepMemo>();
+  const memoOf = (id: string) => {
+    let m = memos.get(id);
+    if (!m) memos.set(id, (m = { steps: [] }));
+    return m;
+  };
   // `deps`: en los que usan otro objeto, la huella de lo que vieron de cada uno (su geometría y dónde
   // estaban los dos). Mientras no cambie, el resultado vale: no se rehace al tocar otra cosa.
   const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][] }>();
@@ -254,12 +263,18 @@ export function createDocumentEvaluator(
             for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
           }
           if (!entry || !fresh) {
-            const source = entry && entry.key === key ? entry.source : node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params);
+            const sk = node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+            let src = sources.get(node.id);
+            if (!src || src.key !== sk) {
+              src = { key: sk, geo: node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params) };
+              sources.set(node.id, src);
+            }
+            const source = src.geo;
             const ref = bounds(source);
             const before = asked;
             asked = false;
             const deps: [string, number][] = [];
-            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id, deps));
+            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id));
             entry = { key, source, result, dynamic: asked, deps };
             asked = asked || before;
             cache.set(node.id, entry);
@@ -329,6 +344,7 @@ export function createDocumentEvaluator(
       if (entry && info) placedSources.push(...transformGeo(entry.source, info.matrix).shapes.map((s) => ({ ...s, node: node.id })));
     }
     for (const id of [...cache.keys()]) if (!seen.has(id)) cache.delete(id);
+    for (const map of [sources, memos]) for (const id of [...map.keys()]) if (!seen.has(id)) map.delete(id);
 
     const all = bounds({ viewBox: [0, 0, 0, 0], shapes });
     let viewBox: [number, number, number, number];

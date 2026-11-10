@@ -200,8 +200,14 @@ const nodeOf = (e: Event) => nodeOfEl(e.target);
 /**
  * Reproduce una escena en un <svg>: su línea de tiempo (en bucle o una vez; o solo con interacciones «play»
  * si no tiene autoplay) y sus interacciones. Con «reducir movimiento», sin transiciones: todo salta a su final.
+ * La línea de tiempo avanza a los fps de la escena (por defecto, 30): en una pantalla de 120 Hz no se
+ * calcula cuatro veces el mismo fotograma. `onFrame` recibe lo que tardó cada fotograma calculado (para medir).
  */
-export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2) {
+export interface PlayerOptions {
+  onFrame?: (info: { ms: number; t: number }) => void;
+}
+
+export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2, options: PlayerOptions = {}) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const inter = createInteractions(() => scene);
   const anim = scene.animation?.tracks.length ? scene.animation : null;
@@ -210,6 +216,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2)
   const t0 = performance.now();
   let last = t0;
   let frame = 0;
+  const fps = anim?.fps ?? 30;
+  let shown: number | null = null;
   const draw = (now: number) => {
     const dt = (now - last) / 1000;
     last = now;
@@ -222,7 +230,14 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2)
     // Las interacciones «play» mandan sobre el cabezal mientras tengan uno.
     const head = inter.playhead();
     if (anim && head !== null) t = head;
-    live.update(inter.apply(anim ? sampleScene(scene, t) : scene));
+    // Al ritmo de la escena: el instante cae en su fotograma; si es el mismo y nada más se mueve, no se pinta.
+    if (anim) t = Math.min(anim.duration, Math.floor(t * fps + 1e-6) / fps);
+    if (t !== shown || moving) {
+      const c0 = performance.now();
+      live.update(inter.apply(anim ? sampleScene(scene, t) : scene));
+      shown = t;
+      options.onFrame?.({ ms: performance.now() - c0, t });
+    }
     const keepGoing = (autoplay && !reduce && (anim!.loop !== false || t < anim!.duration)) || moving;
     frame = keepGoing ? requestAnimationFrame(draw) : 0;
   };

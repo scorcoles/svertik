@@ -6,18 +6,22 @@
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
+  import { createFpsMeter, type FpsMeter } from './fpsmeter';
 
   let { editor }: { editor: Editor } = $props();
   let svg = $state<SVGSVGElement>();
   let hint = $state(true);
+  let meter: FpsMeter | null = null;
 
   onMount(() => {
     const scene = $state.snapshot(editor.scene) as SceneV2;
-    const player = svg ? createPlayer(createEngine(builtins), svg, scene) : null;
+    meter = createFpsMeter(document.body);
+    const player = svg ? createPlayer(createEngine(builtins), svg, scene, { onFrame: ({ ms }) => meter?.frame(ms) }) : null;
     const t = setTimeout(() => (hint = false), 2200);
     return () => {
       clearTimeout(t);
       player?.stop();
+      meter?.stop();
     };
   });
   const close = () => (editor.presenting = false);
@@ -51,7 +55,13 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape') close();
+    // D: el medidor de rendimiento.
+    else if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) meter?.toggle();
+  }}
+/>
 
 <div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || '#0b0b0b'}>
   <svg bind:this={svg} class="stage" aria-label="svertik scene"></svg>
@@ -61,7 +71,7 @@
     </button>
     <button type="button" onclick={close} aria-label="Back to the editor (Esc)" title="Back to the editor (Esc)">×</button>
   </div>
-  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor'}</p>
+  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for performance'}</p>
 </div>
 
 <style>

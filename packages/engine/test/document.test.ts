@@ -356,3 +356,30 @@ describe('caché de los que usan otro objeto', () => {
     expect(first.nodes.get('a')!.box.width).toBeCloseTo(20);
   });
 });
+
+describe('caché por pasos', () => {
+  it('cambiar el último efecto de la pila no rehace los de debajo', () => {
+    let calls = 0;
+    const heavy = {
+      type: 'heavy',
+      label: 'Heavy',
+      kind: 'deformer' as const,
+      params: {},
+      apply(geo: Geometry) {
+        calls++;
+        return geo;
+      },
+    };
+    const e = createEngine([...builtins, heavy]);
+    const scene = (dx: number): SceneV2 => ({
+      version: 2,
+      objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [{ id: 'h', type: 'heavy' }, { id: 't', type: 'transform', params: { x: dx } }] }],
+    });
+    e.evaluateDocument(scene(0));
+    expect(calls).toBe(1);
+    e.evaluateDocument(scene(5));
+    e.evaluateDocument(scene(10));
+    expect(calls).toBe(1);
+    expect(e.evaluateDocument(scene(20)).nodes.get('a')!.box.x).toBeCloseTo(15);
+  });
+});

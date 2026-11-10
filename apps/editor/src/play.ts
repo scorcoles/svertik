@@ -2,6 +2,7 @@
 // mismo reproductor que el código exportado. Solo carga el motor: sin el editor ni su interfaz.
 import { builtins, createEngine, createPlayer, migrateScene, walkNodes } from '@svertik/engine';
 import { loadBundled } from './fonts';
+import { createFpsMeter } from './fpsmeter';
 import { decodeState } from './share';
 
 const stage = document.getElementById('stage') as unknown as SVGSVGElement;
@@ -26,7 +27,10 @@ async function start() {
   edit.href = `./#s=${m![1]}`;
   // Las fuentes incluidas, solo si hay textos.
   if ([...walkNodes(scene.objects)].some(({ node }) => node.kind === 'shape' && node.shape === 'text')) await loadBundled();
-  createPlayer(createEngine(builtins), stage, scene);
+  // Rendimiento: D o ?debug en la URL.
+  const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
+  addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
+  createPlayer(createEngine(builtins), stage, scene, { onFrame: ({ ms }) => meter.frame(ms) });
 }
 
 document.getElementById('share')!.addEventListener('click', async () => {
