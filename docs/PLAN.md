@@ -96,9 +96,42 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 
 ## Siguiente
 
-1. Efectos entre objetos: Clone sobre el contorno o el interior de otro objeto; Boolean (unir, restar, intersectar) con librería de recorte de polígonos.
-2. Con esa librería: Glitch y Mosaic (el usuario pasará imágenes de referencia) y la cara trasera de Cylinder.
-3. Publicar: repo en GitHub, Pages y página en vertik.net.
-4. Fase 2: línea de tiempo con fotogramas clave y easing.
-5. Penpot va por detrás: falta la barra de primitivas y el lápiz en las pantallas del editor.
-6. Al final: pantallas estrechas.
+Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Ideas apuntadas»):
+
+1. **Arreglos rápidos de interfaz:** nombre del documento editable (ahora siempre «untitled»), muestras de color de Style alineadas, color de las primitivas distinto del acento y del recuadro de selección, color del lienzo, plegar Step.
+2. **Primitivas:** previsualizar la forma real mientras se arrastra (en vez del rectángulo); clic sin arrastrar = primitiva en el centro del lienzo, lista para editar.
+3. **Recuadro de selección útil:** mover, escalar y rotar el objeto desde él; actuadores en el lienzo según el efecto seleccionado (p. ej. eje y ángulo de Rotate 3D) y wire del efecto mientras se mueve (Spherize dibuja una esfera de pocas líneas).
+4. **Objetos:** alinear, distribuir, reflejar (horizontal/vertical).
+5. **Entre objetos** (librería de recorte): Boolean (unir, restar, intersectar, excluir), Clone sobre el contorno o el interior de otro objeto, deformador guiado por otro objeto.
+6. **Con esa librería:** Glitch, Mosaic, cara trasera de Cylinder y alineación del trazo (dentro/fuera).
+7. **Fase 2, animación:** línea de tiempo, fotogramas clave y easing. Después, composiciones y reescalado de tiempo.
+8. Publicar: repo en GitHub, Pages y página en vertik.net.
+9. Penpot va por detrás: barra de primitivas y lápiz en las pantallas del editor.
+10. Al final: pantallas estrechas.
+
+## Ideas apuntadas
+
+**Interfaz**
+- Icono de enlazar/desenlazar en los pares de valores (escala X/Y, tamaño, etc.).
+- Aviso de rendimiento cuando el recálculo vaya lento (ms por fotograma en el pie; aviso pasado un umbral).
+- Plegar Step (y en general, los efectos con hijos).
+
+**Efectos**
+- Degradado (lineal/radial) como efecto de Style.
+- Reflejo horizontal/vertical.
+- Repetición lineal con escala: botón para repartir los huecos de forma uniforme según el tamaño de cada copia, no por sus centros.
+- Trazo: SVG no tiene posición del trazo (dentro/fuera/centro) en ningún navegador. Se emula: *dentro* = doble de grosor recortado por la propia forma; *fuera* = doble de grosor con máscara que quita el interior; o, mejor para exportar, desplazar el contorno (offset) con la librería de recorte. Esquinas y extremos sí existen: `stroke-linejoin` (miter, round, bevel), `stroke-miterlimit` y `stroke-linecap` (butt, round, square); el importador ya los conserva, falta exponerlos en el panel.
+
+**Objetos y escena**
+- Alinear y distribuir objetos.
+- Booleanos.
+- Deformador basado en objetos (un trazado que guía la deformación).
+- **Composición:** objeto que anida primitivas, SVG y animaciones; se entra para editarlo y animarlo por dentro, y fuera se ve como un solo objeto con su propia pila.
+- Modificador de tiempo para composiciones (una de 10 s pasa a 5 o 20 s).
+- Huesos (rigging) para deformar un objeto.
+
+**Fase 3:** rejilla de fondo y ajuste a la rejilla (después de la animación).
+
+**Fase mil:** plugins; un lenguaje tipo p5.js como alternativa a los objetos.
+
+**Al final del todo:** web de documentación.
