@@ -14,6 +14,7 @@ export * from './shapes';
 export * from './fonts';
 export * from './animation';
 export * from './interactions';
+export { validateScene, type SceneReport } from './validate';
 export * from './modifiers';
 export { rng, noise2D } from './random';
-export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor } from './color';
+export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor, rgbToOklab, oklchToRgb } from './color';

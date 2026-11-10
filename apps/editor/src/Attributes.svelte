@@ -1,6 +1,6 @@
 <script lang="ts">
   import DocumentAttributes from './DocumentAttributes.svelte';
-  import { Button, IconButton, ParamList, Section, Tabs } from '@svertik/ui';
+  import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
   import { walkNodes, type ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
@@ -76,6 +76,10 @@
       {#snippet children(t)}
         {#if t === 'Params'}
           <div class="params">
+            <!-- Encendido: lo mismo que el ojo de su fila, pero con rombo para animarlo (salta en cada clave). -->
+            <ParamRow label="On" for="mod-on" keyState={keyOf('enabled')} onkey={() => onkey('enabled')}>
+              <Checkbox id="mod-on" checked={m.enabled !== false} label="On" onchange={(v) => editor.setEnabled(m.id, v)} />
+            </ParamRow>
             <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>

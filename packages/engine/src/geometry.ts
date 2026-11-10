@@ -63,6 +63,11 @@ export interface Geometry {
   viewBox: [number, number, number, number];
   /** Filtros de SVG (sombra, desenfoque…) de los objetos que los llevan, por id. Ver `Shape.wrap`. */
   filters?: Record<string, FilterDef>;
+  /**
+   * Solo en el origen de un nodo: el punto que se coloca en su posición (x, y). Sin él, el centro de su
+   * caja. Un texto anclado a la izquierda no se mueve al cambiar de palabra.
+   */
+  origin?: Vec2;
 }
 
 export interface Bounds {

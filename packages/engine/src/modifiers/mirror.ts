@@ -11,6 +11,7 @@ export const mirror = defineModifier({
   type: 'mirror',
   label: 'Mirror',
   kind: 'generator',
+  reframe: true,
   params: {
     axis: { type: 'enum', default: 'horizontal', options: ['horizontal', 'vertical'] as const, animatable: false },
     position: { type: 'number', default: 1, min: -1, max: 2, step: 0.01, unit: 'fraction', label: 'Axis at' },

@@ -325,7 +325,7 @@ describe('color', () => {
   it('gradient reparte de un color a otro entre los elementos', () => {
     const geo = run({ mode: 'gradient', from: '#000000', to: '#ffffff' });
     expect(geo.shapes[0]!.style.fill).toBe('#000000');
-    expect(geo.shapes[1]!.style.fill).toBe('#808080');
+    expect(geo.shapes[1]!.style.fill).toBe('#636363');
   });
 
   it('random es determinista y cambia con la semilla', () => {
@@ -361,7 +361,7 @@ describe('paint', () => {
 
   it('cantidad 1 sustituye el relleno; 0.5 mezcla; las líneas sin relleno no se rellenan', () => {
     expect(run({ fillColor: '#0000ff' }).shapes[0]!.style.fill).toBe('#0000ff');
-    expect(run({ fillColor: '#0000ff', fillAmount: 0.5 }).shapes[0]!.style.fill).toBe('#800080');
+    expect(run({ fillColor: '#0000ff', fillAmount: 0.5 }).shapes[0]!.style.fill).toBe('#b200b8');
     expect(run({ fillColor: '#0000ff' }).shapes[1]!.style.fill).toBe('none');
     expect(run({ fillColor: '#0000ff', fillEmpty: true }).shapes[1]!.style.fill).toBe('#0000ff');
   });
@@ -381,7 +381,7 @@ describe('tint', () => {
         { id: 's', type: 'step', children: [{ id: 't', type: 'tint', params: { color: '#ffffff', amount: 0.25 } }] },
       ],
     });
-    expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#404040', '#808080', '#bfbfbf']);
+    expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#222222', '#636363', '#aeaeae']);
   });
 });
 
@@ -644,11 +644,47 @@ describe('range, field y opacity', () => {
   });
 
   it('field: más efecto cerca del centro, nada fuera del radio', () => {
-    const geo = grid([{ id: 'f', type: 'field', params: { center: [0.5, 0.5], radius: 1.5, softness: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    const geo = grid([{ id: 'f', type: 'field', params: { center: [0.5, 0.5], radius: 0.35, softness: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
     const o = op(geo);
     // La copia de la izquierda del todo está lejos: casi intacta; las del centro, casi invisibles.
     expect(Math.max(...o)).toBeGreaterThan(0.9);
     expect(Math.min(...o)).toBeLessThan(0.5);
+  });
+
+  it('tras un Clone, las fracciones se miden sobre todas las copias, no sobre una', () => {
+    // Centro en el borde izquierdo del conjunto y radio pequeño: solo la primera copia.
+    const geo = grid([{ id: 'f', type: 'field', params: { center: [0, 0.5], radius: 0.2, softness: 0 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    expect(op(geo)).toEqual([0, 1, 1, 1]);
+  });
+
+  it('en la escena, cada efecto dice sobre qué caja mide (refs)', () => {
+    const engine = createEngine(builtins);
+    const doc = engine.evaluateDocument({
+      version: 2,
+      objects: [{ kind: 'shape', id: 'n', name: 'n', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [
+        { id: 'before', type: 'spherize' },
+        { id: 'c', type: 'clone', params: { mode: 'linear', count: 3, offset: [2, 0] } },
+        { id: 'after', type: 'field' },
+      ] }],
+    });
+    const info = doc.nodes.get('n')!;
+    expect(info.refs!.before!.width).toBeCloseTo(10);
+    expect(info.refs!.c!.width).toBeCloseTo(10);
+    expect(info.refs!.after!.width).toBeCloseTo(50);
+    expect(info.refs!['']!.width).toBeCloseTo(50);
+  });
+});
+
+describe('trim con peso', () => {
+  it('dentro de Stagger, los trazos se dibujan uno detrás de otro', () => {
+    const lines = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><line x1="0" y1="0" x2="100" y2="0" stroke="#000"/><line x1="0" y1="20" x2="100" y2="20" stroke="#000"/><line x1="0" y1="40" x2="100" y2="40" stroke="#000"/></svg>';
+    const len = (progress: number) =>
+      createEngine(builtins)
+        .evaluateStack({ source: lines, stack: [{ id: 's', type: 'stagger', params: { progress, stagger: 1, ease: 'linear' }, children: [{ id: 't', type: 'trim', params: { end: 0 } }] }] })
+        .shapes.map((sh) => Math.round(sh.subpaths.reduce((sum, sp) => sum + sp.segs.reduce((a, g, i) => a + Math.hypot(g.p[0] - (i ? sp.segs[i - 1]!.p[0] : sp.start[0]), g.p[1] - (i ? sp.segs[i - 1]!.p[1] : sp.start[1])), 0), 0)));
+    expect(len(0)).toEqual([0, 0, 0]);
+    expect(len(0.5)).toEqual([100, 50, 0]);
+    expect(len(1)).toEqual([100, 100, 100]);
   });
 });
 

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { builtins, createEngine, shapeRegistry, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, validateScene, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, IconButton, Tabs } from '@svertik/ui';
   import CodeEditor from './CodeEditor.svelte';
   import { exportJS, extractScript, jsDocument, sourceRanges, syntaxErrorLine } from './code';
-  import { registry, type Editor } from './editor.svelte';
+  import type { Editor } from './editor.svelte';
   import { sceneJSON } from './exporters';
   import { Runner } from './runner';
 
@@ -45,34 +45,13 @@
 
   // ── Validación de lo que llega del código
 
+  // Errores: no se aplica. Avisos (parámetros mal escritos, pistas que no apuntan a nada): se aplica y se dice.
+  let warnings = $state<string[]>([]);
   function validate(s: unknown): SceneV2 {
-    const raw = s as Partial<SceneV2> | null;
-    if (!raw || typeof raw !== 'object') throw new Error('Expected an object');
-    if (raw.version !== 2) throw new Error('version must be 2');
-    if (!Array.isArray(raw.objects)) throw new Error('objects must be an array');
-    const scene = raw as SceneV2;
-    const checkStack = (list: unknown) => {
-      if (!Array.isArray(list)) throw new Error('stack and children must be arrays');
-      for (const m of list) {
-        if (!m || typeof m.id !== 'string') throw new Error('Every modifier needs a string id');
-        if (!registry.has(m.type)) throw new Error(`Unknown modifier "${m.type}"`);
-        if (m.children !== undefined) checkStack(m.children);
-      }
-    };
-    const checkNodes = (nodes: SceneNode[]) => {
-      for (const n of nodes) {
-        if (!n || typeof n.id !== 'string') throw new Error('Every object needs a string id');
-        if (n.kind === 'object' && typeof n.source !== 'string') throw new Error(`Object "${n.name}" needs a source SVG`);
-        if (n.kind === 'shape' && !shapeRegistry.has(n.shape)) throw new Error(`Unknown shape "${n.shape}"`);
-        if (n.kind === 'shape') n.params ??= {};
-        if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape') throw new Error('kind must be "object", "shape" or "group"');
-        checkStack(n.stack ?? []);
-        n.stack ??= [];
-        if (n.kind === 'group') checkNodes(n.children ?? []);
-      }
-    };
-    checkNodes(scene.objects);
-    return scene;
+    const report = validateScene(s, builtins);
+    if (report.errors.length) throw new Error(report.errors[0]);
+    warnings = report.warnings;
+    return s as SceneV2;
   }
 
   // ── JSON editable
@@ -181,6 +160,8 @@
   <footer class:error={!!error}>
     {#if error}
       <span>{error.line ? `Line ${error.line}: ` : ''}{error.message}</span>
+    {:else if warnings.length}
+      <span class="warning" title={warnings.join('\n')}>⚠ {warnings[0]}{warnings.length > 1 ? ` (+${warnings.length - 1} more)` : ''}</span>
     {:else if playing}
       <span class="running">● Running · {fps} fps</span>
       <span class="muted">Edits apply live. Code runs sandboxed.</span>
@@ -243,6 +224,7 @@
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
   }
   footer.error { color: var(--sv-signal-error); }
+  .warning { color: var(--sv-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .running { color: var(--sv-accent-fill); }
   .muted { color: var(--sv-text-muted); }
 </style>

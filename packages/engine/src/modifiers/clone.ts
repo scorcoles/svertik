@@ -12,6 +12,7 @@ export const clone = defineModifier({
   type: 'clone',
   label: 'Clone',
   kind: 'generator',
+  reframe: true,
   params: {
     mode: { type: 'enum', default: 'grid', options: ['grid', 'radial', 'linear', 'object'] as const, animatable: false },
     count: { type: 'number', default: 6, min: 1, max: 64, step: 1, label: 'Count', ramp: false },

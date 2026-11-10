@@ -30,6 +30,7 @@ import {
   type SceneNode,
   type SceneV2,
   type ShapeNode,
+  validateScene,
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
@@ -110,7 +111,8 @@ function writeTrackTarget(scene: SceneV2, tr: TrackTarget, value: unknown) {
     if (n.kind === 'shape') n.params[tr.param] = value;
   } else {
     const m = tr.modifier ? locate(n.stack, tr.modifier)?.inst : undefined;
-    if (m) m.params = { ...m.params, [tr.param]: value };
+    if (m && tr.param === 'enabled') m.enabled = !!value;
+    else if (m) m.params = { ...m.params, [tr.param]: value };
   }
 }
 
@@ -712,6 +714,22 @@ export class Editor {
     this.#ensureAnimation().loop = loop;
     this.record(true);
   }
+  /** Repeticiones de una pista: cuántas veces (1, sin repetir; 0, sin parar) y cada cuánto (sin él, seguidas). */
+  setRepeat(trackId: string, repeat: number, every?: number) {
+    const tr = this.animation?.tracks.find((x) => x.id === trackId);
+    if (!tr) return;
+    const n = Math.max(0, Math.round(repeat));
+    if (n === 1) {
+      delete tr.repeat;
+      delete tr.every;
+    } else {
+      tr.repeat = n;
+      if (every && every > 0) tr.every = every;
+      else delete tr.every;
+    }
+    this.#applyTime();
+    this.record(true);
+  }
   /** Mueve una clave a otro instante (arrastrándola en la línea de tiempo). */
   /** Devuelve el instante en que queda (redondeado), que es por el que se la vuelve a buscar. */
   moveKey(trackId: string, from: number, to: number): number {
@@ -1072,9 +1090,11 @@ export class Editor {
   }
 
   setEnabled(id: string, enabled: boolean) {
-    const m = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
-    if (!m) return;
-    m.enabled = enabled;
+    const at = this.scene ? locateModifier(this.scene, id) : null;
+    if (!at) return;
+    at.inst.enabled = enabled;
+    // Si está animado, el cambio es una clave en este instante.
+    this.#autoKey({ node: at.owner.id, on: 'modifier', modifier: id, param: 'enabled' }, enabled);
     this.record(true);
   }
 
@@ -1225,6 +1245,12 @@ export class Editor {
     // También vale el JSON de la escena a secas («Copy JSON»).
     const scene = data?.svertik === 'project' ? data.scene : data;
     if (!isScene(scene)) return false;
+    const report = validateScene(scene, builtins);
+    if (report.errors.length) {
+      console.error('svertik: the project cannot be opened:', report.errors);
+      return false;
+    }
+    if (report.warnings.length) console.warn(`svertik: ${report.warnings.length} problem(s) in the project:\n${report.warnings.join('\n')}`);
     this.scene = scene;
     // Las primitivas, con todos sus parámetros (los que falten, por defecto): el panel los necesita.
     for (const { node } of walkNodes(this.scene.objects)) {

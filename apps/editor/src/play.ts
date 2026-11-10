@@ -1,6 +1,6 @@
 // Página de Play (play.html#p=…): la escena de un enlace compartido, a pantalla completa, con el
 // mismo reproductor que el código exportado. Solo carga el motor: sin el editor ni su interfaz.
-import { builtins, createEngine, createPlayer, loadFonts } from '@svertik/engine';
+import { builtins, createEngine, createPlayer, loadFonts, validateScene } from '@svertik/engine';
 import { createFpsMeter } from './fpsmeter';
 import { decodeState } from './share';
 
@@ -20,6 +20,9 @@ async function start() {
   const state = m ? await decodeState(m[1]!) : null;
   if (!state) return say('No scene in this link.', 0);
   const scene = state.scene;
+  const report = validateScene(scene, builtins);
+  if (report.errors.length) return say(`This scene cannot be played: ${report.errors[0]}`, 0);
+  if (report.warnings.length) console.warn(`svertik: ${report.warnings.length} problem(s) in the scene:\n${report.warnings.join('\n')}`);
   document.title = `${state.name} · svertik`;
   if (state.canvas) document.body.style.background = state.canvas;
   // El editor abre la misma escena (#s=…).

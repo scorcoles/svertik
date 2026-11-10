@@ -1,13 +1,13 @@
 // Escena v2: varios objetos y grupos, cada uno con su pila de efectos y su posición.
 
-import { bounds, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape } from './geometry';
+import { bounds, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
 import { importSVG } from './import';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { Animation, Track } from './animation';
 import type { Interaction } from './interactions';
-import type { FilterChain, ModifierInstance, StepMemo } from './engine';
+import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
 export const BLEND_MODES = [
@@ -115,6 +115,11 @@ export interface NodeInfo {
   kind: 'object' | 'shape' | 'group';
   /** Caja de referencia de los efectos del nodo (fracciones), en sus coordenadas locales. */
   bounds: Bounds;
+  /**
+   * La caja sobre la que mide cada efecto de su pila (por id), si no es `bounds`: tras un Clone o un
+   * Mirror, los de debajo miden sobre lo que estos generan.
+   */
+  refs?: StackRefs;
   /** De coordenadas locales del nodo a coordenadas del documento. */
   matrix: Mat;
   /** Caja del resultado del nodo, ya en el documento (para seleccionarlo). */
@@ -132,10 +137,13 @@ export interface DocumentResult {
 
 export const placementOf = (n: NodeBase): Placement => ({ ...DEFAULT_PLACEMENT, ...n.transform });
 
-/** Matriz de un nodo: mueve, gira y escala alrededor de `center`, que acaba en (x, y) + `anchor`. */
-function placementMatrix(p: Placement, ref: Bounds, anchor: [number, number]): Mat {
+/**
+ * Matriz de un nodo: gira y escala alrededor de su pivote, y su origen (por defecto, el centro de su caja)
+ * acaba en (x, y) + `anchor`.
+ */
+function placementMatrix(p: Placement, ref: Bounds, anchor: [number, number], origin: Vec2 = centerOf(ref)): Mat {
   // Con el pivote fuera del centro, el ancla se mueve lo mismo: sin giro ni escala, el nodo no cambia de sitio.
-  const c = centerOf(ref);
+  const c = origin;
   const pv = pivotPoint(ref, p.pivot);
   const a: [number, number] = [anchor[0] + pv[0] - c[0], anchor[1] + pv[1] - c[1]];
   return multiply(translate(a[0] + p.x, a[1] + p.y), multiply(linearOf(p), translate(-pv[0], -pv[1])));
@@ -191,7 +199,7 @@ export type TargetLookup = (id: string) => Geometry | null;
  * y, si alguno lo pidió, otra con lo que salió de la primera. Esos nodos no se guardan en caché.
  */
 export function createDocumentEvaluator(
-  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo) => Geometry,
+  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs) => Geometry,
   filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
 ): DocumentEvaluator {
   // El origen de cada nodo (SVG importado o primitiva), por su propia clave: no se rehace si solo
@@ -205,7 +213,7 @@ export function createDocumentEvaluator(
   };
   // `deps`: en los que usan otro objeto, la huella de lo que vieron de cada uno (su geometría y dónde
   // estaban los dos). Mientras no cambie, el resultado vale: no se rehace al tocar otra cosa.
-  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][] }>();
+  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs }>();
   /** Lo que salió la última vez (matriz y geometría de cada nodo): la primera pasada parte de ahí. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
 
@@ -283,18 +291,19 @@ export function createDocumentEvaluator(
             const before = asked;
             asked = false;
             const deps: [string, number][] = [];
-            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id));
-            entry = { key, source, result, dynamic: asked, deps };
+            const refs: StackRefs = {};
+            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs);
+            entry = { key, source, result, dynamic: asked, deps, refs };
             asked = asked || before;
             cache.set(node.id, entry);
           }
           const ref = bounds(entry.source);
-          // Un objeto importado queda centrado en el origen.
-          const m = placementMatrix(p, ref, [0, 0]);
+          // Un objeto importado queda centrado en el origen (o, si lo trae, en su punto de origen: Text con ancla).
+          const m = placementMatrix(p, ref, [0, 0], entry.source.origin);
           const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
           results.set(node.id, entry.result);
-          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, matrix: world, box: bounds(transformGeo(entry.result, world)) });
+          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: bounds(transformGeo(entry.result, world)) });
           if (node.visible === false) return [];
           return withFilters(node, withBlend(withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity), node.blend));
         }
@@ -308,7 +317,8 @@ export function createDocumentEvaluator(
         }
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
         const ref = bounds(inner);
-        const result = node.stack.length ? runStack(inner, node.stack, ref, resolution, lookupFor(node.id)) : inner;
+        const refs: StackRefs = {};
+        const result = node.stack.length ? runStack(inner, node.stack, ref, resolution, lookupFor(node.id), undefined, refs) : inner;
         const c = centerOf(ref);
         // Agrupar no mueve nada: el centro del grupo se queda donde está.
         const m = placementMatrix(p, ref, c);
@@ -316,7 +326,7 @@ export function createDocumentEvaluator(
         // Los hijos ya están en coordenadas del grupo: su matriz real es la del grupo por la suya.
         for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
         results.set(node.id, result);
-        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, matrix: world, box: bounds(transformGeo(result, world)) });
+        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: bounds(transformGeo(result, world)) });
         if (node.visible === false) return [];
         return withFilters(node, withBlend(withOpacity(transformGeo(result, m).shapes, node.opacity), node.blend));
       };
@@ -363,7 +373,7 @@ export function createDocumentEvaluator(
       const b = info.box;
       const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
       // Dónde está el objeto (su caja de referencia con su matriz): los filtros por zonas siguen al objeto.
-      const m = info.matrix, r = info.bounds;
+      const m = info.matrix, r = info.refs?.[''] ?? info.bounds;
       const scale = Math.hypot(m[0], m[1]);
       const place = {
         point: (fx: number, fy: number) => apply(m, [r.x + fx * r.width, r.y + fy * r.height]),

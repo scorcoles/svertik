@@ -95,7 +95,10 @@
   .label { flex: 1; }
   .key { margin-left: var(--sv-space-16); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   :global(.sv-app-trigger + * .sv-menu), :global(.sv-menu:has(.key)) { min-width: 300px; }
+  /* Demos (aquí y en el lienzo vacío): nombres largos, con aire entre una y otra. */
   :global(.sv-menu.sv-demos) { width: 280px; }
+  /* Si un nombre pasa a dos líneas, la fila crece y el icono se queda arriba, a la altura de la primera. */
+  :global(.sv-demos .sv-menu-item) { height: auto; min-height: 28px; align-items: flex-start; padding-block: 6px; line-height: 16px; }
   :global(.sv-menu-sep) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
   :global(.sv-menu-item[data-disabled]) { opacity: 0.35; }
 </style>

@@ -222,6 +222,15 @@
       editor.fontsTick++;
       await editor.loadFromURL();
     })();
+    // Cerrar o recargar la pestaña con cambios sin guardar: el navegador pregunta antes (con su propio
+    // mensaje; no se puede cambiar). Sin cambios, no molesta.
+    const leave = (e: BeforeUnloadEvent) => {
+      if (!editor.dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    addEventListener('beforeunload', leave);
+    return () => removeEventListener('beforeunload', leave);
   });
 
   // Las fuentes que usan los textos de la escena: la incluida, o se bajan de Fontsource.

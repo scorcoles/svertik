@@ -141,6 +141,24 @@
     }
   }
 
+  // ── Repeticiones: lo que duran las claves de una pista y dónde caen sus copias (rombos tenues).
+  const span = (tr: Track) => (tr.keys.length ? Math.max(...tr.keys.map((k) => k.t)) - Math.min(...tr.keys.map((k) => k.t)) : 0);
+  function ghosts(tr: Track): number[] {
+    const repeat = tr.repeat ?? 1;
+    const s = span(tr);
+    if (repeat === 1 || !(s > 0)) return [];
+    const period = Math.max(s, tr.every ?? s, 1e-3);
+    const first = Math.min(...tr.keys.map((k) => k.t));
+    const out: number[] = [];
+    for (let n = 1; (repeat === 0 || n < repeat) && first + n * period <= duration && out.length < 500; n++) {
+      for (const k of tr.keys) {
+        const t = k.t + n * period;
+        if (t <= duration) out.push(t);
+      }
+    }
+    return out;
+  }
+
   // ── Nombres de las pistas: «Objeto · Efecto · parámetro»
   function labelOf(tr: { node: string; on: string; modifier?: string; param: string }) {
     const n = editor.scene ? locateNode(editor.scene.objects, tr.node)?.node : undefined;
@@ -152,7 +170,7 @@
     }
     const m = editor.scene && tr.modifier ? locateModifier(editor.scene, tr.modifier)?.inst : undefined;
     const def = m ? registry.get(m.type) : undefined;
-    return { node, what: def?.label ?? '?', param: def?.params[tr.param]?.label ?? tr.param };
+    return { node, what: def?.label ?? '?', param: tr.param === 'enabled' ? 'On' : (def?.params[tr.param]?.label ?? tr.param) };
   }
   // ── Pistas agrupadas por objeto, en el orden del panel Stack; cada grupo se pliega.
   let folded = $state<string[]>([]);
@@ -195,6 +213,16 @@
         <Select value={selectedKey.key.ease ?? 'ease-in-out'} options={EASES} label="Ease" width="104px" onchange={(v) => editor.setEase(selectedKey.tr.id, selectedKey.key.t, v as Ease)} />
       </span>
       <IconButton icon="trash" label="Delete keyframe (Del)" onclick={() => { editor.removeKey(selectedKey.tr.id, selectedKey.key.t); selected = null; }} />
+      <span class="rule" aria-hidden="true"></span>
+      <!-- Repetir la pista entera: cuántas veces (0, sin parar) y cada cuánto (vacío: una detrás de otra). -->
+      <label class="field" title="How many times this track plays its keys. 0: until the end">Repeat
+        <NumberField value={selectedKey.tr.repeat ?? 1} min={0} step={1} unit="×" width="52px" onchange={(v) => editor.setRepeat(selectedKey.tr.id, v, selectedKey.tr.every)} />
+      </label>
+      {#if (selectedKey.tr.repeat ?? 1) !== 1}
+        <label class="field" title="Seconds from the start of one repeat to the next. Shorter than the keys: back to back">every
+          <NumberField value={selectedKey.tr.every ?? span(selectedKey.tr)} min={0} step={0.1} unit="s" width="60px" onchange={(v) => editor.setRepeat(selectedKey.tr.id, selectedKey.tr.repeat ?? 1, v)} />
+        </label>
+      {/if}
     {/if}
     <span class="spacer"></span>
     <!-- Zoom de la línea de tiempo (también ⌘ + rueda, o pellizcar, sobre las pistas). -->
@@ -225,7 +253,7 @@
           {#each g.tracks as tr (tr.id)}
             {@const l = labelOf(tr)}
             <div class="label track" title={`${l.node}${l.what ? ` · ${l.what}` : ''} · ${l.param}`}>
-              {#if l.what}<span class="dim">{l.what} · </span>{/if}<span class="param">{l.param}</span>
+              {#if l.what}<span class="dim">{l.what} · </span>{/if}<span class="param">{l.param}</span>{#if (tr.repeat ?? 1) !== 1}<span class="dim" title="Repeats">&nbsp;↻{tr.repeat === 0 ? '' : tr.repeat}</span>{/if}
               <button type="button" class="x" title="Stop animating this" aria-label="Remove track" onclick={() => editor.removeTrack(tr.id)}>×</button>
             </div>
           {/each}
@@ -291,6 +319,9 @@
               </Popover.Portal>
             </Popover.Root>
           {/each}
+          {#each ghosts(tr) as t, i (i)}
+            <span class="key ghost" style:left="{x(t)}px" aria-hidden="true"></span>
+          {/each}
           {#each tr.keys as k (k.t)}
             <button
               type="button"
@@ -344,6 +375,7 @@
   .label .param { color: var(--sv-text-primary); }
   .label .x { position: absolute; right: 4px; padding: 0 4px; font: inherit; color: var(--sv-text-muted); background: var(--sv-surface-panel); border: 0; cursor: pointer; visibility: hidden; }
   .label:hover .x { visibility: visible; }
+  .key.ghost { opacity: 0.3; pointer-events: none; }
   .label .x:hover { color: var(--sv-signal-error); }
   .lanes { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
   .inner { position: relative; margin: 0 12px; }

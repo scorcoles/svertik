@@ -371,6 +371,34 @@ describe('animación en el editor', () => {
   });
 });
 
+describe('animar el encendido y repetir', () => {
+  it('con «enabled» animado, el ojo pone una clave; la pista lo apaga y enciende al mover el cabezal', () => {
+    const e = fresh();
+    e.applyPreset('rise');
+    const node = e.scene!.objects[0]!;
+    const m = node.stack.at(-1)!;
+    const t = { node: node.id, on: 'modifier' as const, modifier: m.id, param: 'enabled' };
+    e.setTime(0);
+    e.toggleKey(t);
+    e.setTime(1);
+    e.setEnabled(m.id, false);
+    expect(e.track(t)!.keys.map((k) => [k.t, k.value])).toEqual([[0, true], [1, false]]);
+    e.setTime(0);
+    expect(m.enabled).not.toBe(false);
+    e.setTime(1);
+    expect(m.enabled).toBe(false);
+  });
+  it('setRepeat guarda las vueltas y cada cuánto; 1 lo quita', () => {
+    const e = fresh();
+    e.applyPreset('rise');
+    const tr = e.animation!.tracks[0]!;
+    e.setRepeat(tr.id, 3, 2);
+    expect([tr.repeat, tr.every]).toEqual([3, 2]);
+    e.setRepeat(tr.id, 1);
+    expect([tr.repeat, tr.every]).toEqual([undefined, undefined]);
+  });
+});
+
 describe('presets de animación', () => {
   it('Rise añade un Stagger con sus efectos y dos claves de Progress', () => {
     const e = fresh();

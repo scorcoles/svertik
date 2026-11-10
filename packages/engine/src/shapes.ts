@@ -16,6 +16,8 @@ export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   buildParts?(p: ParamValues<P>): SubPath[][];
   /** Marcas de cada pieza (Text: su palabra y su línea), para Range por palabras o líneas. */
   partTags?(p: ParamValues<P>): { word?: number; line?: number }[];
+  /** El punto que va en la posición del nodo, si no es el centro de su caja (Text con ancla). */
+  origin?(p: ParamValues<P>): Vec2 | null;
 }
 
 const defineShape = <P extends ParamSchema>(d: ShapeDef<P>): ShapeDef<P> => d;
@@ -232,6 +234,9 @@ export const text = defineShape({
     tracking: { type: 'number', default: 0, min: -500, max: 2000, step: 5, label: 'Tracking', ramp: false },
     lineHeight: { type: 'number', default: 1.2, min: 0.5, max: 4, step: 0.05, label: 'Line height', ramp: false },
     align: { type: 'enum', default: 'center', options: ['left', 'center', 'right'], animatable: false },
+    // Qué punto va en la posición del objeto. ink: el centro de lo que se ve (cambia con cada palabra);
+    // left, center y right: el borde o el centro de la línea según la fuente (no se mueve al cambiar el texto).
+    anchor: { type: 'enum', default: 'ink', options: ['ink', 'left', 'center', 'right'], label: 'Anchor', animatable: false },
     ...style,
   },
   build(p): SubPath[] {
@@ -239,6 +244,7 @@ export const text = defineShape({
   },
   buildParts: (p) => textParts(p),
   partTags: (p) => textTags(p),
+  origin: (p) => (p.anchor === 'ink' ? null : textLayout(p).origin),
 });
 
 /**
@@ -285,9 +291,15 @@ function textTags(p: Record<string, unknown>): { word: number; line: number }[] 
 }
 
 /** Una pieza por letra (los espacios no cuentan), con kerning; varias líneas con su alineación. */
-function textParts(p: Record<string, unknown>): SubPath[][] {
+const textParts = (p: Record<string, unknown>): SubPath[][] => textLayout(p).parts;
+
+/**
+ * Las letras, centradas en el origen por su tinta, y el ancla: el borde izquierdo, el centro o el derecho
+ * del bloque (por el avance de las letras) a media altura de sus líneas (por la fuente, no por la tinta).
+ */
+function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: Vec2 } {
   const found = fontFor(fontKey(String(p.font), Number(p.weight ?? 400), !!p.italic), String(p.font));
-  if (!found) return [];
+  if (!found) return { parts: [], origin: [0, 0] };
   const { font } = found;
   const size = Number(p.size);
   const lines = String(p.text).split('\n');
@@ -304,14 +316,24 @@ function textParts(p: Record<string, unknown>): SubPath[][] {
       if (sps.length) parts.push(sps);
     });
   });
+  // El ancla, antes de centrar: en horizontal, el bloque va de -maxW/2 a maxW/2; en vertical, de lo alto
+  // de la primera línea a lo bajo de la última (ascendente y descendente de la fuente).
+  const k = size / font.unitsPerEm;
+  const top = -font.ascender * k;
+  const bottom = (lines.length - 1) * size * Number(p.lineHeight) - font.descender * k;
+  const ax = p.anchor === 'left' ? -maxW / 2 : p.anchor === 'right' ? maxW / 2 : 0;
+  const anchor: Vec2 = [ax, (top + bottom) / 2];
   // Centrado en el origen (por la tinta), como las demás primitivas.
   const all = parts.flat();
-  if (!all.length) return parts;
+  if (!all.length) return { parts, origin: anchor };
   const pts = all.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]);
   const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
   const f = (q: Vec2): Vec2 => [q[0] - cx, q[1] - cy];
-  return parts.map((sps) => sps.map((sp) => ({ start: f(sp.start), segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })), closed: sp.closed })));
+  return {
+    parts: parts.map((sps) => sps.map((sp) => ({ start: f(sp.start), segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })), closed: sp.closed }))),
+    origin: f(anchor),
+  };
 }
 
 // El peón, siempre el último (es la forma de pruebas).
@@ -329,5 +351,10 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
     ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round') } : {}),
   };
   const tags = def.partTags?.(p as never) ?? [];
-  return { viewBox: [0, 0, 0, 0], shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}), ...(tags[i] ?? {}) })) };
+  const origin = def.origin?.(p as never);
+  return {
+    viewBox: [0, 0, 0, 0],
+    shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}), ...(tags[i] ?? {}) })),
+    ...(origin ? { origin } : {}),
+  };
 }

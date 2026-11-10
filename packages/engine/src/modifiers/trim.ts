@@ -11,12 +11,16 @@ export const trim = defineModifier({
   label: 'Trim',
   kind: 'deformer',
   params: {
-    start: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Start', ramp: false },
-    end: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'End', ramp: false },
-    offset: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, label: 'Offset', ramp: false },
+    // Neutros: el trazo entero (start 0, end 1). Dentro de Stagger, Range o Field, cada elemento va de su
+    // trazo entero a estos valores según su peso: con End a 0, las líneas se dibujan una detrás de otra.
+    start: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Start' },
+    end: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'End', neutral: 1 },
+    offset: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, label: 'Offset' },
   },
   apply(geo, p) {
-    const a = Math.min(p.start, p.end), b = Math.max(p.start, p.end);
+    // Las curvas back y elastic de Stagger pueden pasarse de 0–1: el tramo, dentro.
+    const clamp = (v: number) => Math.max(0, Math.min(1, v));
+    const a = clamp(Math.min(p.start, p.end)), b = clamp(Math.max(p.start, p.end));
     if (a <= 0 && b >= 1 && p.offset === 0) return geo;
     const out = mapSubPaths(geo, (sp) => cut(sp, a + p.offset, b + p.offset) ?? empty(sp));
     return { ...out, shapes: out.shapes.map((s) => ({ ...s, subpaths: s.subpaths.filter((x) => x.segs.length) })) };

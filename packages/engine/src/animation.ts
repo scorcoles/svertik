@@ -5,8 +5,15 @@ import type { SceneNode, SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
 
 /** Curva desde una clave hasta la siguiente. `hold`: se mantiene hasta la siguiente (salto). */
-export type Ease = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'expo-out' | 'back-out' | 'elastic-out' | 'bounce-out' | 'hold';
-export const EASES: Ease[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'expo-out', 'back-out', 'elastic-out', 'bounce-out', 'hold'];
+export type Ease =
+  | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
+  | 'expo-in' | 'expo-out' | 'back-in' | 'back-out' | 'elastic-in' | 'elastic-out' | 'bounce-in' | 'bounce-out'
+  | 'hold';
+export const EASES: Ease[] = [
+  'linear', 'ease-in', 'ease-out', 'ease-in-out',
+  'expo-in', 'expo-out', 'back-in', 'back-out', 'elastic-in', 'elastic-out', 'bounce-in', 'bounce-out',
+  'hold',
+];
 
 export interface Keyframe {
   /** Instante, en segundos. */
@@ -26,8 +33,15 @@ export interface Track {
   node: string;
   on: 'node' | 'shape' | 'modifier';
   modifier?: string;
+  /** En `modifier`, también `enabled`: encender y apagar el efecto (true / false, salta en cada clave). */
   param: string;
   keys: Keyframe[];
+  /**
+   * Cuántas veces se reproducen sus claves, una detrás de otra (por defecto, 1). 0: sin parar.
+   * Cada vuelta empieza `every` segundos después de la anterior (por defecto, lo que duran las claves).
+   */
+  repeat?: number;
+  every?: number;
 }
 
 export interface Animation {
@@ -41,13 +55,13 @@ export interface Animation {
   tracks: Track[];
 }
 
-const EASE: Record<Ease, (x: number) => number> = {
+const EASE_OUT: Record<'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'expo-out' | 'back-out' | 'elastic-out' | 'bounce-out', (x: number) => number> = {
   linear: (x) => x,
   'ease-in': (x) => x * x * x,
   'ease-out': (x) => 1 - (1 - x) ** 3,
   'ease-in-out': (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2),
   // expo (arranque muy rápido), back (se pasa un poco y vuelve), elastic (muelle)
-  // y bounce (rebota contra el final). back y elastic salen de 0–1 a propósito.
+  // y bounce (rebota contra el final). back y elastic salen de 0–1 a propósito. Sus «in», más abajo.
   'expo-out': (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x)),
   'back-out': (x) => {
     const c = 1.8;
@@ -61,6 +75,15 @@ const EASE: Record<Ease, (x: number) => number> = {
     if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
     return n * (x -= 2.625 / d) * x + 0.984375;
   },
+};
+/** La versión «in» de una curva «out»: la misma, al revés (arranca despacio y acaba de golpe). */
+const inOf = (out: (x: number) => number) => (x: number) => 1 - out(1 - x);
+const EASE: Record<Ease, (x: number) => number> = {
+  ...EASE_OUT,
+  'expo-in': inOf(EASE_OUT['expo-out']),
+  'back-in': inOf(EASE_OUT['back-out']),
+  'elastic-in': inOf(EASE_OUT['elastic-out']),
+  'bounce-in': inOf(EASE_OUT['bounce-out']),
   hold: () => 0,
 };
 export const ease = (name: Ease | undefined, x: number) => (EASE[name ?? 'ease-in-out'] ?? EASE.linear)(Math.max(0, Math.min(1, x)));
@@ -94,6 +117,25 @@ export function valueAt(keys: Keyframe[], t: number): unknown {
   return lerpValue(a.value, b.value, k);
 }
 
+/**
+ * El instante de las claves de una pista que toca en `t`, con sus repeticiones: dentro de cada vuelta,
+ * lo que corresponde de la primera; entre vueltas (si `every` es más largo que las claves), el último valor.
+ */
+export function trackTime(tr: Pick<Track, 'keys' | 'repeat' | 'every'>, t: number): number {
+  const times = tr.keys.map((k) => k.t);
+  const first = Math.min(...times), last = Math.max(...times);
+  const span = last - first;
+  const repeat = tr.repeat ?? 1;
+  if (repeat === 1 || !(span > 0) || t <= first) return t;
+  const period = Math.max(span, tr.every ?? span, 1e-3);
+  const n = Math.floor((t - first) / period);
+  if (repeat > 0 && n >= repeat) return t;
+  return Math.min(last, first + (t - first - n * period));
+}
+
+/** Valor de una pista en el instante `t` (con sus repeticiones). */
+export const trackValue = (tr: Track, t: number): unknown => valueAt(tr.keys, trackTime(tr, t));
+
 /** Busca un efecto por id en una pila (también dentro de Step). */
 function findModifier(stack: ModifierInstance[], id: string): ModifierInstance | null {
   for (const m of stack) {
@@ -121,6 +163,7 @@ export function readTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'modi
   if (tr.on === 'node') return tr.param === 'opacity' ? (n.opacity ?? 1) : ((n.transform as Record<string, unknown> | undefined)?.[tr.param] ?? (tr.param === 'scale' ? 1 : 0));
   if (tr.on === 'shape') return n.kind === 'shape' ? n.params[tr.param] : undefined;
   const m = tr.modifier ? findModifier(n.stack, tr.modifier) : null;
+  if (m && tr.param === 'enabled') return m.enabled !== false;
   return m?.params?.[tr.param];
 }
 
@@ -134,7 +177,8 @@ export function writeTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'mod
     if (n.kind === 'shape') n.params = { ...n.params, [tr.param]: value };
   } else {
     const m = tr.modifier ? findModifier(n.stack, tr.modifier) : null;
-    if (m) m.params = { ...m.params, [tr.param]: value };
+    if (m && tr.param === 'enabled') m.enabled = !!value;
+    else if (m) m.params = { ...m.params, [tr.param]: value };
   }
 }
 
@@ -143,7 +187,7 @@ export function sampleScene(scene: SceneV2, t: number): SceneV2 {
   const anim = scene.animation;
   if (!anim?.tracks.length) return scene;
   const out = structuredClone(scene) as SceneV2;
-  for (const tr of anim.tracks) writeTarget(out, tr, valueAt(tr.keys, t));
+  for (const tr of anim.tracks) writeTarget(out, tr, trackValue(tr, t));
   return out;
 }
 

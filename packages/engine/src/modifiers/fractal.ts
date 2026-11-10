@@ -19,6 +19,7 @@ export const fractal = defineModifier({
   type: 'fractal',
   label: 'Fractal',
   kind: 'generator',
+  reframe: true,
   params: {
     preset: { type: 'enum', default: 'sierpinski', options: ['sierpinski', 'carpet', 'tree', 'spiral'] as const, animatable: false },
     depth: { type: 'number', default: 4, min: 1, max: 12, step: 1, ramp: false, label: 'Depth' },

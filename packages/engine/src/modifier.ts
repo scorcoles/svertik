@@ -71,6 +71,11 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   type: string;
   label: string;
   kind: 'deformer' | 'generator' | 'effector' | 'style' | 'filter';
+  /**
+   * El resultado ocupa otra zona (copias, reflejo…): los efectos de debajo miden sus fracciones (centro,
+   * radio, fuerza…) sobre la caja de lo que sale de este, no sobre la del origen.
+   */
+  reframe?: boolean;
   /** Familia (para agruparlos en los menús aunque sean de tipos distintos): 'glitch'. */
   family?: string;
   params: P;

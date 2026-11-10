@@ -216,6 +216,14 @@
 
   /** El nodo dueño del efecto seleccionado: su caja de referencia y su matriz al documento. */
   const ownerInfo = () => (editor.activeNode ? nodes.get(editor.activeNode.id) : undefined);
+  /**
+   * La caja sobre la que mide el efecto seleccionado (sus fracciones): la del nodo o, si va detrás de un
+   * Clone o un Mirror, la de lo que estos generan. Dentro de Step o Range, la de su padre.
+   */
+  const refBox = (info: NodeInfo) => {
+    const id = editor.currentParent?.id ?? editor.current?.id;
+    return (id && info.refs?.[id]) || info.bounds;
+  };
 
   /** Documento → píxeles del escenario (con el zoom y el encaje que haya). */
   const docToStage = (x: number, y: number): [number, number] | null => {
@@ -235,16 +243,16 @@
   const toScreen = (fx: number, fy: number): [number, number] | null => {
     const info = ownerInfo();
     if (!info) return null;
-    const b = info.bounds;
+    const b = refBox(info);
     const [x, y] = apply(info.matrix, [b.x + fx * b.width, b.y + fy * b.height]);
     return docToStage(x, y);
   };
   const toFraction = (clientX: number, clientY: number): [number, number] | null => {
     const info = ownerInfo();
     const d = clientToDoc(clientX, clientY);
-    if (!info || !d || info.bounds.width === 0 || info.bounds.height === 0) return null;
+    const b = info && refBox(info);
+    if (!info || !b || !d || b.width === 0 || b.height === 0) return null;
     const [x, y] = apply(invert(info.matrix), d);
-    const b = info.bounds;
     const r = (n: number) => Math.round(n * 1000) / 1000;
     return [r((x - b.x) / b.width), r((y - b.y) / b.height)];
   };
@@ -540,7 +548,7 @@
     const frame = requestAnimationFrame(() => {
       const info = ownerInfo();
       if (!def?.guides || !params || !info) return (guides = null);
-      const g = def.guides(params as never, info.bounds);
+      const g = def.guides(params as never, refBox(info));
       const at = (q: readonly [number, number]) => docToStage(...apply(info.matrix, q));
       guides = {
         lines: g.lines.map((l) => l.map(at).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')),
@@ -558,7 +566,7 @@
     // Dentro de Step cada copia usa su propio centro; el actuador se dibuja sobre el objeto entero
     // y sirve igual para cambiar los valores (los de la primera copia; las demás los multiplican).
     if (!m || !info || cornerTypes.has(m.type)) return null;
-    return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, info.bounds);
+    return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, refBox(info));
   });
   /** El actuador en el recuadro de la esquina (Rotate 3D), en sus propios píxeles. */
   const cornerGizmo = $derived.by(() => {
@@ -915,10 +923,10 @@
             {#snippet child({ props })}<Button {...props} label="Demos ▾" />{/snippet}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content class="sv-menu" sideOffset={4} collisionPadding={8}>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('intro')}><Icon name="play" /> Intro: the logo</DropdownMenu.Item>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /> Shatter: a triangle that explodes</DropdownMenu.Item>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('reel')}><Icon name="play" /> Reel: motion graphics in three acts</DropdownMenu.Item>
+            <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('intro')}><Icon name="play" /><span class="label">Intro: the logo</span></DropdownMenu.Item>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /><span class="label">Shatter: a triangle that explodes</span></DropdownMenu.Item>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('reel')}><Icon name="play" /><span class="label">Reel: motion graphics in three acts</span></DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

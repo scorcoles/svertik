@@ -72,7 +72,7 @@
     cursor: pointer;
     outline: none;
   }
-  :global(.sv-menu-item .sv-icon) { color: var(--sv-text-secondary); }
+  :global(.sv-menu-item .sv-icon) { flex: none; color: var(--sv-text-secondary); }
   :global(.sv-menu-item[data-highlighted]) { background: var(--sv-surface-hover); }
   :global(.sv-menu-item[data-highlighted] .sv-icon) { color: var(--sv-accent-fill); }
   :global(.sv-menu-rule) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }

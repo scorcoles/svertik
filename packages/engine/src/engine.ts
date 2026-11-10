@@ -51,8 +51,14 @@ const DEFAULT_RESOLUTION = 0.01;
 export interface StepMemo {
   base?: Geometry;
   resolution?: number;
-  steps: { key: string; geo: Geometry; dynamic: boolean }[];
+  steps: { key: string; geo: Geometry; dynamic: boolean; ref: Bounds }[];
 }
+
+/**
+ * La caja sobre la que mide cada efecto de una pila (por su id): la del origen o la del último que la cambió.
+ * La clave vacía ('') guarda la del final de la pila: la de los filtros, que se aplican después de todo.
+ */
+export type StackRefs = Record<string, Bounds>;
 
 export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const registry = new Map(modifiers.map((m) => [m.type, m]));
@@ -60,7 +66,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   // Caché: el origen importado y el resultado de cada paso, con la clave que lo produjo.
   let sourceKey: string | null = null;
   let sourceGeo: Geometry | null = null;
-  let steps: { key: string; geo: Geometry }[] = [];
+  let steps: { key: string; geo: Geometry; ref: Bounds }[] = [];
 
   function load(scene: StackInput): Geometry {
     const key = `${scene.resolution ?? DEFAULT_RESOLUTION}\n${scene.source}`;
@@ -82,19 +88,27 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     };
     const out: Geometry[] = [source];
     let geo = source;
+    let ref = b;
     let reusable = true;
     scene.stack.forEach((inst, i) => {
       const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
       const cached = steps[i];
       if (reusable && cached && cached.key === key) {
         geo = cached.geo;
+        ref = cached.ref;
       } else {
         reusable = false;
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
         // Los filtros no cambian la geometría (se aplican al pintar el objeto).
-        if (inst.enabled !== false && def.kind !== 'filter') geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, children: resolveChildren(inst.children) });
-        steps[i] = { key, geo };
+        if (inst.enabled !== false && def.kind !== 'filter') {
+          geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, bounds: ref, children: resolveChildren(inst.children) });
+          if (def.reframe) {
+            const nb = bounds(geo);
+            if (nb.width > 0 || nb.height > 0) ref = nb;
+          }
+        }
+        steps[i] = { key, geo, ref };
       }
       out.push(geo);
     });
@@ -118,15 +132,18 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * efectos no han cambiado, se reutilizan (animar el último de la pila no rehace los de debajo).
    * Un paso que mira otro objeto no se reutiliza (puede haber cambiado el otro).
    */
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo): Geometry {
-    const ctx: ModifierContext = { bounds: ref, resolution: Math.max(ref.width, ref.height) * resolution || 1, children: [] };
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs): Geometry {
+    // La subdivisión sigue el tamaño del origen; la caja de referencia cambia tras un efecto que reencuadra.
+    const res = Math.max(ref.width, ref.height) * resolution || 1;
     let reuse = !!memo && memo.base === geo && memo.resolution === resolution;
     if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
     stack.forEach((inst, i) => {
+      if (refs) refs[inst.id] = ref;
       const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
       const cached = memo?.steps[i];
       if (reuse && cached && cached.key === key && !cached.dynamic) {
         geo = cached.geo;
+        ref = cached.ref;
         return;
       }
       reuse = false;
@@ -135,11 +152,18 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       if (inst.enabled !== false) {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        if (def.kind !== 'filter') geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, target: look, children: resolveChildren(inst.children) });
+        if (def.kind !== 'filter') {
+          geo = def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, children: resolveChildren(inst.children) });
+          if (def.reframe) {
+            const b = bounds(geo);
+            if (b.width > 0 || b.height > 0) ref = b;
+          }
+        }
       }
-      if (memo) memo.steps[i] = { key, geo, dynamic };
+      if (memo) memo.steps[i] = { key, geo, dynamic, ref };
     });
     if (memo) memo.steps.length = stack.length;
+    if (refs) refs[''] = ref;
     return geo;
   }
   /**

@@ -180,6 +180,8 @@ export function shatterProject() {
 // 1. Morph: un círculo nace, pasa a cuadrado y a estrella, con ráfagas y una onda en cada golpe.
 // 2. Clone + Field: una rejilla brota desde el centro, una ola la recorre de ida y vuelta, y estalla.
 // 3. Stagger + Range: un rótulo entra letra a letra, una ola lo recorre, parpadea y se va.
+// Usa también pistas que se repiten (las ráfagas), un efecto que se enciende y apaga (el RGB Split),
+// curvas «in» (la salida del rótulo) y texto con ancla (el pie no salta al cambiar de acto).
 export function reelProject() {
   const k = (t: number, value: unknown, ease = 'linear') => ({ t, value, ease });
   const INK = '#f4f4f4', MINT = '#09fdd1', VIOLET = '#8a5cff', CORAL = '#ff6b5e', BG = '#0b0b0e';
@@ -193,7 +195,7 @@ export function reelProject() {
       document: { width: 1280, height: 720 },
       objects: [
         // ── Pie: el acto en curso y una barra que avanza con el bucle.
-        { kind: 'shape', id: 'caption', name: 'Caption', shape: 'text', params: { text: '01 / MORPH', font: 'JetBrains Mono', size: 13, tracking: 300, fillColor: '#7a7a88' }, transform: { y: 306 }, stack: [] },
+        { kind: 'shape', id: 'caption', name: 'Caption', shape: 'text', params: { text: '01 / MORPH', font: 'JetBrains Mono', size: 13, tracking: 300, fillColor: '#7a7a88', anchor: 'center' }, transform: { y: 306 }, stack: [] },
         {
           kind: 'shape', id: 'bar', name: 'Progress', shape: 'line',
           params: { length: 1200, strokeColor: MINT, strokeWidth: 2, strokeCap: 'butt' },
@@ -224,10 +226,10 @@ export function reelProject() {
                 { id: 'title-wave-tint', type: 'tint', params: { color: MINT, amount: 1 } },
               ],
             },
-            { id: 'title-split', type: 'rgbsplit', params: { distance: 0, angle: 0, colorA: MINT, colorB: CORAL } },
+            { id: 'title-split', type: 'rgbsplit', enabled: false, params: { distance: 18, angle: 0, colorA: MINT, colorB: CORAL } },
             {
               id: 'title-out', type: 'stagger',
-              params: { progress: 0, direction: 'out', stagger: 0.4, ease: 'ease-in', order: 'forward' },
+              params: { progress: 0, direction: 'out', stagger: 0.4, ease: 'back-in', order: 'forward' },
               children: [
                 { id: 'title-out-move', type: 'transform', params: { y: -150, rotation: -18, scale: 0.7 } },
                 { id: 'title-out-fade', type: 'opacity', params: { opacity: 0 } },
@@ -280,10 +282,13 @@ export function reelProject() {
         { kind: 'shape', id: 'to-square', name: 'To: square', shape: 'rectangle', params: { width: 180, height: 180, radius: 22, fillColor: VIOLET }, stack: [], visible: false },
         { kind: 'shape', id: 'to-star', name: 'To: star', shape: 'star', params: { radius: 132, points: 5, inner: 0.5, fillColor: CORAL }, stack: [], visible: false },
 
-        // ── Acto 2: la rejilla. Las copias van en un grupo: así los campos miden sobre la rejilla entera.
+        // ── Acto 2: la rejilla. Detrás del Clone, los campos miden sobre la rejilla entera.
         {
-          kind: 'group', id: 'grid', name: 'Grid', opacity: 0,
+          kind: 'shape', id: 'grid', name: 'Grid', shape: 'rectangle', opacity: 0,
+          params: { width: 44, height: 44, radius: 7, fillColor: MINT },
           stack: [
+            { id: 'grid-clone', type: 'clone', params: { mode: 'grid', columns: 12, rows: 5, spacing: [2, 2] } },
+            { id: 'grid-color', type: 'color', params: { mode: 'gradient', from: MINT, to: VIOLET } },
             // Brota desde el centro: fuera del círculo, las teselas están a escala 0.
             {
               id: 'grid-reveal', type: 'field',
@@ -300,16 +305,6 @@ export function reelProject() {
               ],
             },
             { id: 'grid-boom', type: 'explosion', params: { amount: 0, force: 0.3, spin: 200, shrink: 1, chaos: 0.45, center: [0.5, 0.5], seed: 5 } },
-          ],
-          children: [
-            {
-              kind: 'shape', id: 'tile', name: 'Tile', shape: 'rectangle',
-              params: { width: 44, height: 44, radius: 7, fillColor: MINT },
-              stack: [
-                { id: 'tile-clone', type: 'clone', params: { mode: 'grid', columns: 12, rows: 5, spacing: [2, 2] } },
-                { id: 'tile-color', type: 'color', params: { mode: 'gradient', from: MINT, to: VIOLET } },
-              ],
-            },
           ],
         },
 
@@ -334,9 +329,9 @@ export function reelProject() {
           { id: 'r-core-rot', node: 'core', on: 'modifier', modifier: 'core-spin', param: 'rotation', keys: [k(1.1, 0, 'ease-in-out'), k(1.7, 90, 'hold'), k(2, 90, 'ease-in-out'), k(2.6, 360, 'hold'), k(2.9, 360, 'ease-in'), k(3.2, 450)] },
           { id: 'r-core-square', node: 'core', on: 'modifier', modifier: 'core-square', param: 'amount', keys: [k(1.1, 0, 'ease-in-out'), k(1.7, 1)] },
           { id: 'r-core-star', node: 'core', on: 'modifier', modifier: 'core-star', param: 'amount', keys: [k(2, 0, 'ease-in-out'), k(2.6, 1)] },
-          // Ráfagas: el trazo sale del centro (end) y se consume por detrás (start). Dos veces.
-          { id: 'r-burst-end', node: 'burst', on: 'modifier', modifier: 'burst-trim', param: 'end', keys: [k(0.3, 0, 'expo-out'), k(0.9, 1, 'hold'), k(2.5, 0, 'expo-out'), k(3.1, 1)] },
-          { id: 'r-burst-start', node: 'burst', on: 'modifier', modifier: 'burst-trim', param: 'start', keys: [k(0.42, 0, 'expo-out'), k(1.15, 1, 'hold'), k(2.5, 0, 'hold'), k(2.62, 0, 'expo-out'), k(3.35, 1)] },
+          // Ráfagas: el trazo sale del centro (end) y se consume por detrás (start). Dos veces, cada 2,2 s.
+          { id: 'r-burst-end', node: 'burst', on: 'modifier', modifier: 'burst-trim', param: 'end', keys: [k(0.3, 0, 'expo-out'), k(0.9, 1)], repeat: 2, every: 2.2 },
+          { id: 'r-burst-start', node: 'burst', on: 'modifier', modifier: 'burst-trim', param: 'start', keys: [k(0.42, 0, 'expo-out'), k(1.15, 1)], repeat: 2, every: 2.2 },
           { id: 'r-burst-turn', node: 'burst', on: 'node', param: 'rotation', keys: [k(0, 0, 'hold'), k(2.5, 12.857)] },
           { id: 'r-burst-color', node: 'burst', on: 'shape', param: 'strokeColor', keys: [k(0, MINT, 'hold'), k(2.5, CORAL)] },
           // La onda, al cerrar el cuadrado.
@@ -354,8 +349,9 @@ export function reelProject() {
           { id: 'r-rule-in', node: 'rule', on: 'modifier', modifier: 'rule-trim', param: 'end', keys: [k(7.5, 0, 'expo-out'), k(8.3, 1)] },
           { id: 'r-sub-in', node: 'subtitle', on: 'modifier', modifier: 'sub-in', param: 'progress', keys: [k(7.8, 0), k(8.9, 1)] },
           { id: 'r-title-wave', node: 'title', on: 'modifier', modifier: 'title-wave', param: 'offset', keys: [k(8.3, -0.5, 'ease-in-out'), k(9.5, 1.05)] },
-          // Un parpadeo de color antes de irse.
-          { id: 'r-title-split', node: 'title', on: 'modifier', modifier: 'title-split', param: 'distance', keys: [k(9.8, 0, 'hold'), k(9.83, 18, 'expo-out'), k(10.3, 0)] },
+          // Un parpadeo de color antes de irse: el RGB Split solo está encendido mientras dura.
+          { id: 'r-title-split-on', node: 'title', on: 'modifier', modifier: 'title-split', param: 'enabled', keys: [k(0, false, 'hold'), k(9.8, true, 'hold'), k(10.3, false)] },
+          { id: 'r-title-split', node: 'title', on: 'modifier', modifier: 'title-split', param: 'distance', keys: [k(9.8, 18, 'expo-out'), k(10.3, 0)] },
           { id: 'r-title-out', node: 'title', on: 'modifier', modifier: 'title-out', param: 'progress', keys: [k(10.6, 0), k(11.4, 1)] },
           { id: 'r-rule-out', node: 'rule', on: 'modifier', modifier: 'rule-trim', param: 'start', keys: [k(10.6, 0, 'ease-in-out'), k(11.2, 1)] },
           { id: 'r-sub-out', node: 'subtitle', on: 'node', param: 'opacity', keys: [k(10.5, 1, 'ease-in'), k(11, 0)] },
