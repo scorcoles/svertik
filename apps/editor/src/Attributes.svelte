@@ -6,6 +6,17 @@
 
   let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
   let tab = $state('Params');
+  let panel = $state<HTMLElement>();
+  // Al cambiar de selección: arriba del todo y en Params (si no, un panel corto podía quedar
+  // fuera de la vista por el scroll del anterior, o abrirse en la pestaña Info).
+  let shown: string | null = null;
+  $effect(() => {
+    const id = editor.selected;
+    if (id === shown) return;
+    shown = id;
+    tab = 'Params';
+    if (panel) panel.scrollTop = 0;
+  });
   const m = $derived(editor.current);
   // Para los efectos que usan otro objeto: todos menos el dueño del efecto.
   const others = $derived(
@@ -27,7 +38,7 @@
   });
 </script>
 
-<section class="attrs" aria-label="Attributes">
+<section class="attrs" aria-label="Attributes" bind:this={panel}>
   {#if m && def}
     <header>
       <h2>{def.label}</h2>
