@@ -5,6 +5,10 @@ import type { Bounds, Geometry } from './geometry';
 
 interface ParamBase {
   label?: string;
+  /** Pareja que se puede enlazar en el panel (ancho ↔ alto): con el candado, cambian en proporción. */
+  pair?: string;
+  /** Para puntos: X e Y se pueden enlazar (en proporción). */
+  linkable?: boolean;
   /** Se podrá animar en la línea de tiempo (fase 2). Por defecto, sí. */
   animatable?: boolean;
   /** Sección del panel de atributos donde aparece. Sin grupo: la sección principal. */
