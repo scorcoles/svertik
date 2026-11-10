@@ -33,6 +33,14 @@ export interface Gizmo {
   handles: GizmoHandle[];
 }
 
+/**
+ * Efectos cuyo actuador va en un recuadro fijo en una esquina del lienzo, no sobre el dibujo
+ * (Rotate 3D: sus anillos tapaban demasiado). Se construyen sobre CORNER_BOX, en píxeles del recuadro.
+ */
+export const cornerTypes = new Set(['rotate3d']);
+export const CORNER_SIZE = 128;
+export const CORNER_BOX: Bounds = { x: 0, y: 0, width: CORNER_SIZE, height: CORNER_SIZE };
+
 const SEG = 64;
 const rad = (d: number) => (d * Math.PI) / 180;
 const deg = (r: number) => (r * 180) / Math.PI;
@@ -126,9 +134,12 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
     // Anillos fijos, legibles en 2D: Z, el círculo (girar alrededor del pivote); X, una elipse estrecha
     // vertical (inclinar hacia delante/atrás, arrastrando en vertical); Y, una estrecha horizontal
     // (inclinar a los lados, en horizontal). Un punto en cada anillo marca su ángulo y también se arrastra.
-    const c = at(b, p.pivot);
-    const R = sizeOf(b) * 0.35;
-    const k = 0.32;
+    // Va en el recuadro de la esquina: centrado en él (el pivote del efecto tiene su propio tirador).
+    const c = center(b);
+    const R = sizeOf(b) * 0.38;
+    const k = 0.3;
+    // X e Y, más pequeños que Z: así ningún anillo toca a otro por fuera y siempre se sabe cuál se coge.
+    const r = R * 0.7;
     const ax = rad(Number(p.rotateX) || 0), ay = rad(Number(p.rotateY) || 0), az = rad(Number(p.rotateZ) || 0);
     const spinZ: Drag = (p0, from, to, snap) => ({ rotateZ: snapDeg(Number(p0.rotateZ) + turn(c, from, to), snap) });
     // 0,5° por cada 1 % del tamaño.
@@ -137,13 +148,13 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
     return {
       lines: [
         { pts: ellipse(c, R, R), closed: true, tone: 'z', ribbon: true, label: 'Spin Z', drag: spinZ },
-        { pts: ellipse(c, R * k, R), closed: true, tone: 'x', ribbon: true, label: 'Tilt X', drag: tiltX },
-        { pts: ellipse(c, R, R * k), closed: true, tone: 'y', ribbon: true, label: 'Tilt Y', drag: tiltY },
+        { pts: ellipse(c, r * k, r), closed: true, tone: 'x', ribbon: true, label: 'Tilt X', drag: tiltX },
+        { pts: ellipse(c, r, r * k), closed: true, tone: 'y', ribbon: true, label: 'Tilt Y', drag: tiltY },
       ],
       handles: [
         { at: [c[0] + Math.cos(az - Math.PI / 2) * R, c[1] + Math.sin(az - Math.PI / 2) * R], label: 'Spin Z', drag: spinZ, tone: 'z' },
-        { at: [c[0] + Math.sin(ax) * R * k, c[1] - Math.cos(ax) * R], label: 'Tilt X', drag: tiltX, tone: 'x' },
-        { at: [c[0] + Math.sin(ay) * R, c[1] + Math.cos(ay) * R * k], label: 'Tilt Y', drag: tiltY, tone: 'y' },
+        { at: [c[0] + Math.sin(ax) * r * k, c[1] - Math.cos(ax) * r], label: 'Tilt X', drag: tiltX, tone: 'x' },
+        { at: [c[0] + Math.sin(ay) * r, c[1] + Math.cos(ay) * r * k], label: 'Tilt Y', drag: tiltY, tone: 'y' },
       ],
     };
   },
