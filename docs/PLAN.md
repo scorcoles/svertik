@@ -25,6 +25,7 @@ Como el motor solo necesita parámetros, animar (fase 2) consiste en cambiarlos 
 | Agrietar | Con librería de recorte de polígonos (`polygon-clipping` o `clipper2-js`) en vez de escribirlo a mano. |
 | Design system | En Penpot (archivo «Design System»), a través de su MCP; los tokens pasan a variables CSS de `packages/ui`. Tema **oscuro** de herramienta, **todo en JetBrains Mono**, acento **turquesa VERTIK** (#09fdd1, como relleno), densidad **compacta** (filas de 24 px, texto de 11 px), radio 0. Tokens en dos conjuntos: `primitives` y `theme/dark` (semánticos: surface, rule, text, accent, signal). |
 | Motor | TypeScript, sin dependencias salvo que alguna compense (ver «Pendiente»). |
+| Alcance | **Solo lo que el estándar SVG puede expresar.** Si SVG no lo tiene (posición del trazo dentro/fuera, varias páginas…), no se añade. |
 | Repo | Público, `scorcoles/svertik`, demos en GitHub Pages, como los experimentos del Lab. |
 
 ## Arquitectura
@@ -111,7 +112,7 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 3. ~~**Recuadro de selección útil:** escalar y rotar desde él; actuadores y wire del efecto seleccionado.~~ Actuadores para todos los deformadores salvo Noise y Melt (no tienen forma que dibujar), y para Clone.
 4. ~~**Objetos:** alinear, distribuir, reflejar (horizontal/vertical).~~
 5. ~~**Entre objetos** (librería de recorte): Boolean, Clone sobre otro objeto, deformador guiado por otro objeto (Path Wrap).~~
-6. **Con esa librería:** Glitch, Mosaic, cara trasera de Cylinder y alineación del trazo (dentro/fuera).
+6. **Con esa librería:** Glitch, Mosaic y cara trasera de Cylinder.
 7. **Fase 2, animación:** línea de tiempo, fotogramas clave y easing. Después, composiciones y reescalado de tiempo.
 8. Publicar: repo en GitHub, Pages y página en vertik.net.
 9. Penpot va por detrás: barra de primitivas y lápiz en las pantallas del editor.
@@ -130,7 +131,7 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 - Degradado (lineal/radial) como efecto de Style.
 - Reflejo horizontal/vertical.
 - Repetición lineal con escala: botón para repartir los huecos de forma uniforme según el tamaño de cada copia, no por sus centros.
-- Trazo: SVG no tiene posición del trazo (dentro/fuera/centro) en ningún navegador. Se emula: *dentro* = doble de grosor recortado por la propia forma; *fuera* = doble de grosor con máscara que quita el interior; o, mejor para exportar, desplazar el contorno (offset) con la librería de recorte. Esquinas y extremos sí existen: `stroke-linejoin` (miter, round, bevel), `stroke-miterlimit` y `stroke-linecap` (butt, round, square); ya están en el panel (primitivas y Paint). Falta `stroke-miterlimit`.
+- Trazo: esquinas y extremos (`stroke-linejoin`, `stroke-linecap`) ya están en el panel (primitivas y Paint); falta `stroke-miterlimit`. La posición del trazo (dentro/fuera) queda fuera: SVG no la tiene.
 
 **Objetos y escena**
 - Alinear y distribuir objetos.
