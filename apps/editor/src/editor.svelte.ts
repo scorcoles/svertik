@@ -81,6 +81,15 @@ export function locateModifier(scene: SceneV2, id: string | null): (Location & {
 const HISTORY_LIMIT = 200;
 const uid = () => Math.random().toString(36).slice(2, 8);
 
+/** Copia con ids nuevos (también los de sus hijos y sus efectos), para pegar sin repetir. */
+function freshModifier(m: ModifierInstance): ModifierInstance {
+  return { ...m, id: `${m.type}-${uid()}`, ...(m.children ? { children: m.children.map(freshModifier) } : {}) };
+}
+function freshNode(n: SceneNode): SceneNode {
+  const base = { ...n, id: `${n.kind === 'shape' ? n.shape : n.kind}-${uid()}`, stack: n.stack.map(freshModifier) };
+  return base.kind === 'group' ? { ...base, children: base.children.map(freshNode) } : base;
+}
+
 export class Editor {
   scene = $state<SceneV2 | null>(null);
   /** Nombre del documento (el del primer SVG, mientras no haya otro). */
@@ -120,6 +129,8 @@ export class Editor {
   #busyTimer: ReturnType<typeof setTimeout> | undefined;
 
   #history: string[] = [];
+  #lastPasted = '';
+  #pastes = 0;
   #index = $state(-1);
   #historyLength = $state(0);
   #timer: ReturnType<typeof setTimeout> | undefined;
@@ -393,6 +404,74 @@ export class Editor {
       this.selected = null;
     }
     this.record(true);
+  }
+
+  // ── Copiar y pegar (el portapapeles lleva JSON con la marca `svertik`)
+
+  /** Lo seleccionado, listo para el portapapeles: nodos (con sus pilas) o un efecto. */
+  copySelection(): string | null {
+    if (!this.scene) return null;
+    if (this.current) return JSON.stringify({ svertik: 1, kind: 'modifiers', items: [$state.snapshot(this.current)] });
+    const nodes = this.selectedNodes;
+    if (!nodes.length) return null;
+    // En el orden de la lista (el primero, delante), para pegarlos igual.
+    const order = [...walkNodes(this.scene.objects)].map((x) => x.node.id);
+    const sorted = [...nodes].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    return JSON.stringify({ svertik: 1, kind: 'nodes', items: sorted.map((n) => $state.snapshot(n)) });
+  }
+
+  /** Pega lo copiado. Devuelve false si el texto no es del portapapeles de svertik. */
+  paste(text: string, offset = 16): boolean {
+    let data: { svertik?: number; kind?: string; items?: unknown[] };
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return false;
+    }
+    if (data?.svertik !== 1 || !Array.isArray(data.items) || !data.items.length) return false;
+    if (data.kind === 'modifiers') {
+      const owner = this.activeNode;
+      if (!this.scene || !owner) return true;
+      const items = (data.items as ModifierInstance[]).map(freshModifier);
+      const at = locate(owner.stack, this.selected);
+      // Debajo del efecto seleccionado (en su misma lista), o al final de la pila.
+      const list = at ? at.list : owner.stack;
+      list.splice(at ? at.index + 1 : list.length, 0, ...items);
+      this.selected = items[0]!.id;
+      this.record(true);
+      return true;
+    }
+    if (data.kind !== 'nodes') return false;
+    // Pegar lo mismo otra vez: cada copia, un paso más allá (no todas en el mismo sitio).
+    this.#pastes = this.#lastPasted === text ? this.#pastes + 1 : 1;
+    this.#lastPasted = text;
+    offset *= this.#pastes;
+    const items = (data.items as SceneNode[]).map(freshNode).map((n) => {
+      n.transform = { ...n.transform, x: (n.transform?.x ?? 0) + offset, y: (n.transform?.y ?? 0) + offset };
+      return n;
+    });
+    if (!this.scene) {
+      this.scene = { version: 2, objects: items };
+      this.#history = [];
+      this.#index = -1;
+    } else {
+      // Encima del primer seleccionado (en su lista), o arriba del todo.
+      const first = this.selectedNodes[0];
+      const at = first ? locateNode(this.scene.objects, first.id) : null;
+      (at ? at.list : this.scene.objects).splice(at ? at.index : 0, 0, ...items);
+    }
+    this.selected = items[0]!.id;
+    this.also = items.slice(1).map((n) => n.id);
+    this.record(true);
+    return true;
+  }
+
+  /** Duplica lo seleccionado (⌘D), sin pasar por el portapapeles. */
+  duplicate() {
+    const text = this.copySelection();
+    if (!text) return;
+    this.#lastPasted = '';
+    this.paste(text);
   }
 
   // ── Pila del nodo activo
