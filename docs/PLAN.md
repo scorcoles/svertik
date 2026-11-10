@@ -25,6 +25,7 @@ Como el motor solo necesita parámetros, animar (fase 2) consiste en cambiarlos 
 | Agrietar | Con librería de recorte de polígonos (`polygon-clipping` o `clipper2-js`) en vez de escribirlo a mano. |
 | Design system | En Penpot (archivo «Design System»), a través de su MCP; los tokens pasan a variables CSS de `packages/ui`. Tema **oscuro** de herramienta, **todo en JetBrains Mono**, acento **turquesa VERTIK** (#09fdd1, como relleno), densidad **compacta** (filas de 24 px, texto de 11 px), radio 0. Tokens en dos conjuntos: `primitives` y `theme/dark` (semánticos: surface, rule, text, accent, signal). |
 | Motor | TypeScript, sin dependencias salvo que alguna compense (ver «Pendiente»). |
+| No es otro Illustrator | La identidad es la pila de efectos no destructiva, la animación y el runtime para la web. De escena, solo lo mínimo al servicio de los efectos (primitivas, texto como forma, grupos, pivote, colocar). Nada de pluma, edición de nodos, dibujo a mano ni maquetación: para eso, Illustrator o Inkscape, y se importa el SVG. |
 | Alcance | **Solo lo que el estándar SVG puede expresar.** Si SVG no lo tiene (posición del trazo dentro/fuera, varias páginas…), no se añade. |
 | Repo | Público, `scorcoles/svertik`, demos en GitHub Pages, como los experimentos del Lab. |
 
@@ -82,7 +83,6 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 **Después:**
 - animación con línea de tiempo, fotogramas clave y easing;
 - primitivas y varios objetos (árbol tipo C4D);
-- edición directa con el cursor («Illustrator lite»).
 
 ## Pendiente de decidir
 
