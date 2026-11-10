@@ -203,3 +203,15 @@ describe('efectos que usan otro objeto', () => {
     expect(box.y).toBeCloseTo(25);
   });
 });
+
+describe('pivote', () => {
+  const sq = (transform: object) => engine().evaluateDocument({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [], transform }] }).nodes.get('a')!.box;
+  it('cambiar el pivote, sin giro ni escala, no mueve el objeto', () => {
+    expect(sq({ pivot: [0, 0] })).toEqual({ x: -5, y: -5, width: 10, height: 10 });
+  });
+  it('gira alrededor del pivote (la esquina superior izquierda)', () => {
+    const b = sq({ pivot: [0, 0], rotation: 180 });
+    expect(b.x).toBeCloseTo(-15);
+    expect(b.y).toBeCloseTo(-15);
+  });
+});
