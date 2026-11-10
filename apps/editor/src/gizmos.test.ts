@@ -19,6 +19,13 @@ describe('gizmos', () => {
     expect(z.drag!({ rotateZ: 10 }, [150, 50], [100, 100], true)).toEqual({ rotateZ: 105 });
   });
 
+  it('rotate3d: arrastrar por dentro inclina en X e Y a la vez (bola de rastreo)', () => {
+    const g = gizmoFor('rotate3d', { rotateX: 0, rotateY: 0, rotateZ: 0, pivot: [0.5, 0.5] }, { x: 0, y: 0, width: 100, height: 100 })!;
+    const ball = g.lines.find((l) => l.area)!;
+    // R = 38: 90° por cada 76 px. Hacia abajo, X baja (lo de arriba viene hacia delante); a la derecha, Y sube.
+    expect(ball.drag!({ rotateX: 0, rotateY: 0 }, [50, 50], [50 + 38, 50 + 38], false)).toEqual({ rotateX: -45, rotateY: 45 });
+  });
+
   it('wave: el tirador cambia la amplitud en perpendicular a la dirección', () => {
     const g = gizmoFor('wave', { amplitude: 0.05, wavelength: 0.5, phase: 0, direction: 0 }, box)!;
     expect(g.handles[0]!.drag({ amplitude: 0.05 }, [0, 0], [0, 20], false)).toEqual({ amplitude: 0.15 });

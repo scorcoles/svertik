@@ -489,7 +489,7 @@
     const d = (pts: readonly (readonly [number, number])[], closed?: boolean) =>
       pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (closed ? 'Z' : '');
     return {
-      lines: g.lines.map((l) => ({ d: d(l.pts, l.closed), tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, drag: l.drag, label: l.label })),
+      lines: g.lines.map((l) => ({ d: d(l.pts, l.closed), tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, area: !!l.area, drag: l.drag, label: l.label })),
       handles: g.handles.map((h) => ({ x: h.at[0], y: h.at[1], label: h.label, drag: h.drag, tone: h.tone ?? 'accent' })),
     };
   });
@@ -548,10 +548,11 @@
       if (!from || !to) return;
       const changed = drag(p0, from, to, ev.shiftKey);
       for (const [k, v] of Object.entries(changed)) editor.setParam(k, v);
-      const v = Object.values(changed)[0];
+      const vals = Object.values(changed);
+      const v = vals.length > 1 ? vals.map((x) => (typeof x === 'number' ? x : '')).join(' · ') : vals[0];
       // En el recuadro de la esquina, el valor va a su izquierda (junto al puntero taparía los anillos).
       const box = toLocal === toCorner ? cornerEl?.getBoundingClientRect() : undefined;
-      const text = `${label} ${typeof v === 'number' ? v : ''}`;
+      const text = `${label} ${typeof v === 'number' || typeof v === 'string' ? v : ''}`;
       gesture = box
         ? { text, x: box.left - r.left - 8, y: box.top - r.top + box.height / 2 - 8, left: true }
         : { text, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
@@ -705,14 +706,17 @@
       <div class="corner-gizmo" bind:this={cornerEl} data-active={gizmoActive || gizmoHover || editor.busy || undefined}>
         <svg class="gizmo" width={CORNER_SIZE} height={CORNER_SIZE} viewBox="0 0 {CORNER_SIZE} {CORNER_SIZE}" aria-hidden="true">
           {#each cornerGizmo.lines as l, i (i)}
-            <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
-            <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} data-ribbon={l.ribbon || undefined} />
+            {#if !l.area}
+              <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
+              <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} data-ribbon={l.ribbon || undefined} />
+            {/if}
             {#if l.drag}
               {@const drag = l.drag}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <path
                 class="hit"
                 data-ribbon={l.ribbon || undefined}
+                data-area={l.area || undefined}
                 d={l.d}
                 onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '', toCorner)}
                 onpointerenter={() => (gizmoHover = true)}
@@ -914,6 +918,8 @@
   .gizmo .halo[data-ribbon] { stroke: rgb(0 0 0 / 0.45); stroke-width: 11; }
   .gizmo .line[data-ribbon] { stroke-width: 8; stroke-opacity: 0.8; }
   .gizmo .hit[data-ribbon] { stroke-width: 12; }
+  /* La bola: se agarra por dentro (relleno invisible). */
+  .gizmo .hit[data-area] { fill: transparent; stroke: none; pointer-events: fill; cursor: move; }
   .gizmo .hit { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: grab; }
   .gizmo-handle {
     position: absolute;

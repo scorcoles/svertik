@@ -14,6 +14,8 @@ export interface GizmoLine {
   /** Color: acento, o los ejes de C4D (X rojo, Y verde, Z azul). */
   tone?: 'accent' | 'x' | 'y' | 'z';
   dashed?: boolean;
+  /** Zona (no línea): se agarra por todo su interior y no se dibuja (la bola de Rotate 3D). */
+  area?: boolean;
   /** Cinta ancha y translúcida en vez de línea (los anillos de Rotate 3D). */
   ribbon?: boolean;
   /** Si se puede arrastrar la propia línea (los anillos de rotación). */
@@ -131,9 +133,8 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
   },
 
   rotate3d(p, b) {
-    // Anillos fijos, legibles en 2D: Z, el círculo (girar alrededor del pivote); X, una elipse estrecha
-    // vertical (inclinar hacia delante/atrás, arrastrando en vertical); Y, una estrecha horizontal
-    // (inclinar a los lados, en horizontal). Un punto en cada anillo marca su ángulo y también se arrastra.
+    // Anillos fijos, legibles en 2D: Z, el círculo (se arrastra para girar); X, una elipse estrecha vertical;
+    // Y, una estrecha horizontal. Un punto en cada anillo marca su ángulo.
     // Va en el recuadro de la esquina: centrado en él (el pivote del efecto tiene su propio tirador).
     const c = center(b);
     const R = sizeOf(b) * 0.38;
@@ -142,19 +143,25 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
     const r = R * 0.7;
     const ax = rad(Number(p.rotateX) || 0), ay = rad(Number(p.rotateY) || 0), az = rad(Number(p.rotateZ) || 0);
     const spinZ: Drag = (p0, from, to, snap) => ({ rotateZ: snapDeg(Number(p0.rotateZ) + turn(c, from, to), snap) });
-    // 0,5° por cada 1 % del tamaño.
-    const tiltX: Drag = (p0, from, to, snap) => ({ rotateX: snapDeg(Number(p0.rotateX) + ((to[1] - from[1]) * 180) / sizeOf(b), snap) });
-    const tiltY: Drag = (p0, from, to, snap) => ({ rotateY: snapDeg(Number(p0.rotateY) + ((to[0] - from[0]) * 180) / sizeOf(b), snap) });
+    // Bola de rastreo: arrastrar por dentro inclina en X e Y a la vez, como si se empujara la superficie
+    // de una esfera (hacia abajo, la parte de arriba viene hacia delante). 90° por cada ancho del círculo.
+    const k180 = 90 / (2 * R);
+    const trackball: Drag = (p0, from, to, snap) => ({
+      rotateX: snapDeg(Number(p0.rotateX) - (to[1] - from[1]) * k180, snap),
+      rotateY: snapDeg(Number(p0.rotateY) + (to[0] - from[0]) * k180, snap),
+    });
     return {
       lines: [
+        { pts: ellipse(c, R * 0.86, R * 0.86), closed: true, area: true, label: 'Tilt', drag: trackball },
         { pts: ellipse(c, R, R), closed: true, tone: 'z', ribbon: true, label: 'Spin Z', drag: spinZ },
-        { pts: ellipse(c, r * k, r), closed: true, tone: 'x', ribbon: true, label: 'Tilt X', drag: tiltX },
-        { pts: ellipse(c, r, r * k), closed: true, tone: 'y', ribbon: true, label: 'Tilt Y', drag: tiltY },
+        // X e Y solo marcan el ángulo: se cambian arrastrando por dentro del círculo.
+        { pts: ellipse(c, r * k, r), closed: true, tone: 'x', ribbon: true, label: 'Tilt X' },
+        { pts: ellipse(c, r, r * k), closed: true, tone: 'y', ribbon: true, label: 'Tilt Y' },
       ],
       handles: [
         { at: [c[0] + Math.cos(az - Math.PI / 2) * R, c[1] + Math.sin(az - Math.PI / 2) * R], label: 'Spin Z', drag: spinZ, tone: 'z' },
-        { at: [c[0] + Math.sin(ax) * r * k, c[1] - Math.cos(ax) * r], label: 'Tilt X', drag: tiltX, tone: 'x' },
-        { at: [c[0] + Math.sin(ay) * r, c[1] + Math.cos(ay) * r * k], label: 'Tilt Y', drag: tiltY, tone: 'y' },
+        { at: [c[0] + Math.sin(ax) * r * k, c[1] - Math.cos(ax) * r], label: 'Tilt X', drag: trackball, tone: 'x' },
+        { at: [c[0] + Math.sin(ay) * r, c[1] + Math.cos(ay) * r * k], label: 'Tilt Y', drag: trackball, tone: 'y' },
       ],
     };
   },
