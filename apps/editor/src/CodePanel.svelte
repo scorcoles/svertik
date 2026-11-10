@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { builtins, createEngine, migrateScene, shapeRegistry, type AnyScene, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, shapeRegistry, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, IconButton, Tabs } from '@svertik/ui';
   import CodeEditor from './CodeEditor.svelte';
   import { exportJS, extractScript, jsDocument, sourceRanges, syntaxErrorLine } from './code';
@@ -46,12 +46,11 @@
   // ── Validación de lo que llega del código
 
   function validate(s: unknown): SceneV2 {
-    const raw = s as AnyScene;
+    const raw = s as Partial<SceneV2> | null;
     if (!raw || typeof raw !== 'object') throw new Error('Expected an object');
-    if (raw.version !== 1 && raw.version !== 2) throw new Error('version must be 2');
-    if (raw.version === 1 && typeof raw.source !== 'string') throw new Error('source must be a string with the SVG');
-    if (raw.version === 2 && !Array.isArray(raw.objects)) throw new Error('objects must be an array');
-    const scene = migrateScene(raw);
+    if (raw.version !== 2) throw new Error('version must be 2');
+    if (!Array.isArray(raw.objects)) throw new Error('objects must be an array');
+    const scene = raw as SceneV2;
     const checkStack = (list: unknown) => {
       if (!Array.isArray(list)) throw new Error('stack and children must be arrays');
       for (const m of list) {

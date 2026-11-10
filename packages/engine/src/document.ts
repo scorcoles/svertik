@@ -7,7 +7,7 @@ import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { Animation, Track } from './animation';
 import type { Interaction } from './interactions';
-import type { ModifierInstance, Scene as SceneV1, StepMemo } from './engine';
+import type { ModifierInstance, StepMemo } from './engine';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
 export const BLEND_MODES = [
@@ -90,19 +90,17 @@ export interface SceneV2 {
   interactions?: Interaction[];
 }
 
-export type AnyScene = SceneV1 | SceneV2;
+/** La escena (lo que se guarda y se exporta). */
+export type Scene = SceneV2;
+
+/** ¿Es una escena de svertik? (para lo que llega de un archivo, del portapapeles o de la URL) */
+export function isScene(value: unknown): value is SceneV2 {
+  const s = value as Partial<SceneV2> | null;
+  return !!s && s.version === 2 && Array.isArray(s.objects);
+}
 
 export const DEFAULT_PLACEMENT: Placement = { x: 0, y: 0, scale: 1, rotation: 0 };
 
-/** Escenas v1 (un SVG, una pila) → v2 con un objeto. Las v2 pasan tal cual. */
-export function migrateScene(scene: AnyScene, name = 'source.svg'): SceneV2 {
-  if (scene.version === 2) return scene;
-  return {
-    version: 2,
-    resolution: scene.resolution,
-    objects: [{ kind: 'object', id: 'object-1', name, source: scene.source, stack: scene.stack }],
-  };
-}
 
 /** Recorre el árbol: cada nodo con su padre. */
 export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null): Generator<{ node: SceneNode; parent: GroupNode | null }> {
@@ -425,7 +423,6 @@ export function sceneFonts(scene: SceneV2) {
 }
 
 /** Baja de Fontsource las fuentes que usa la escena y aún no están registradas. */
-export async function loadFonts(scene: AnyScene): Promise<void> {
-  const v2 = migrateScene(scene);
-  await Promise.all(sceneFonts(v2).filter((f) => !hasFont(f.key)).map((f) => loadFont(f.family, f.weight, f.italic)));
+export async function loadFonts(scene: SceneV2): Promise<void> {
+  await Promise.all(sceneFonts(scene).filter((f) => !hasFont(f.key)).map((f) => loadFont(f.family, f.weight, f.italic)));
 }

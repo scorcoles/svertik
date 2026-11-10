@@ -1,6 +1,6 @@
 <script lang="ts">
   // Pila + atributos + lienzo con el motor de verdad: lo que será el editor v1, en pequeño.
-  import { builtins, createEngine, resolveParams, type ModifierDef, type ModifierInstance, type Scene } from '@svertik/engine';
+  import { builtins, createEngine, renderInto, resolveParams, type ModifierDef, type ModifierInstance, type StackInput } from '@svertik/engine';
   import Button from '../lib/Button.svelte';
   import type { IconName } from '../lib/icons';
   import Panel from '../lib/Panel.svelte';
@@ -22,8 +22,7 @@
     params: { ...resolveParams(registry.get(type)!.params) },
   });
 
-  let scene: Scene = $state({
-    version: 1,
+  let scene: StackInput = $state({
     source,
     stack: [make('transform', 0), make('spherize', 1), make('twist', 2), make('bend', 3), make('wave', 4)],
   });
@@ -49,8 +48,8 @@
   const engine = createEngine(builtins);
   let svg: SVGSVGElement;
   $effect(() => {
-    const snapshot = $state.snapshot(scene) as Scene;
-    engine.mount(svg, snapshot);
+    const snapshot = $state.snapshot(scene) as StackInput;
+    renderInto(svg, engine.evaluateStack(snapshot));
   });
 </script>
 

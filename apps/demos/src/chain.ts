@@ -1,4 +1,4 @@
-import { builtins, createEngine, renderInto, type Scene } from '@svertik/engine';
+import { builtins, createEngine, renderInto, toSVG, type StackInput } from '@svertik/engine';
 
 // Un rectángulo con una retícula dentro, para que se vea cómo se deforma el interior.
 const lines = [1, 2, 3, 4, 5]
@@ -9,8 +9,7 @@ const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <g stroke="#000" stroke-width="0.5" fill="none">${lines}</g>
 </svg>`;
 
-const scene: Scene = {
-  version: 1,
+const scene: StackInput = {
   source,
   stack: [
     { id: 'move', type: 'transform', params: { x: 0, y: 0, rotation: 0 } },
@@ -69,7 +68,7 @@ function frame(now: number) {
   if (!paused) t += (now - last) / 1000;
   last = now;
   animate(t);
-  const steps = engine.evaluateSteps(scene);
+  const steps = engine.evaluateStackSteps(scene);
   renderInto(result, steps.at(-1)!);
   steps.forEach((geo, i) => renderInto(thumbs[i]!.svg, geo));
   thumbs.forEach((th, i) => (th.info.textContent = i === 0 ? '' : describe(scene.stack[i - 1]!.params)));
@@ -82,7 +81,7 @@ document.querySelector('[data-action="pause"]')!.addEventListener('click', (e) =
   (e.currentTarget as HTMLButtonElement).textContent = paused ? 'Play' : 'Pause';
 });
 document.querySelector('[data-action="svg"]')!.addEventListener('click', () => {
-  const blob = new Blob([engine.toSVG(scene)], { type: 'image/svg+xml' });
+  const blob = new Blob([toSVG(engine.evaluateStack(scene))], { type: 'image/svg+xml' });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'svertik.svg' });
   a.click();
   URL.revokeObjectURL(a.href);

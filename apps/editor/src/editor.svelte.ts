@@ -2,6 +2,7 @@
 import {
   builtins,
   createEngine,
+  isScene,
   outlineNode,
   packNode,
   unpackNode,
@@ -9,7 +10,6 @@ import {
   readTarget,
   sampleScene,
   setKey,
-  migrateScene,
   placementOf,
   shapeRegistry,
   randomizeParams,
@@ -17,7 +17,6 @@ import {
   resolveParams,
   rng,
   walkNodes,
-  type AnyScene,
   type Animation,
   type BlendMode,
   type Ease,
@@ -1036,9 +1035,8 @@ export class Editor {
   }
 
   /** Sustituye la escena entera (desde el panel de código). Devuelve false si no cambia nada. */
-  applyScene(next: AnyScene) {
+  applyScene(v2: SceneV2) {
     if (!this.scene) return false;
-    const v2 = migrateScene(next);
     if (JSON.stringify(v2) === JSON.stringify($state.snapshot(this.scene))) return false;
     this.scene = v2;
     if (this.selected && !locateNode(v2.objects, this.selected) && !locateModifier(v2, this.selected)) this.selected = v2.objects[0]?.id ?? null;
@@ -1204,16 +1202,16 @@ export class Editor {
 
   /** Abre un proyecto guardado. Devuelve false si el texto no es un proyecto de svertik. */
   openProject(text: string): boolean {
-    let data: { svertik?: string; name?: string; canvas?: string; script?: string; scene?: AnyScene };
+    let data: { svertik?: string; name?: string; canvas?: string; script?: string; scene?: unknown };
     try {
       data = JSON.parse(text);
     } catch {
       return false;
     }
     // También vale el JSON de la escena a secas («Copy JSON»).
-    const scene = data?.svertik === 'project' ? data.scene : (data as unknown as AnyScene);
-    if (!scene || (scene.version !== 1 && scene.version !== 2)) return false;
-    this.scene = migrateScene(scene);
+    const scene = data?.svertik === 'project' ? data.scene : data;
+    if (!isScene(scene)) return false;
+    this.scene = scene;
     // Las primitivas, con todos sus parámetros (los que falten, por defecto): el panel los necesita.
     for (const { node } of walkNodes(this.scene.objects)) {
       const def = node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
@@ -1264,7 +1262,7 @@ export class Editor {
     if (!m) return false;
     const state = await decodeState(m[2]!);
     if (!state) return false;
-    const scene = migrateScene(state.scene, state.name.endsWith('.svg') ? state.name : `${state.name}.svg`);
+    const scene = state.scene;
     this.scene = scene;
     this.name = state.name.replace(/\.svg$/i, '');
     if (state.script) this.script = state.script;

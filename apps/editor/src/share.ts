@@ -1,5 +1,5 @@
 // La escena viaja en la URL (#s=…), comprimida con deflate y en base64url.
-import type { AnyScene } from '@svertik/engine';
+import { isScene, type SceneV2 } from '@svertik/engine';
 
 const toB64url = (bytes: Uint8Array) => {
   let s = '';
@@ -17,7 +17,7 @@ async function pipe(bytes: Uint8Array, stream: CompressionStream | Decompression
 }
 
 export interface SharedState {
-  scene: AnyScene;
+  scene: SceneV2;
   name: string;
   script?: string;
   /** Color del lienzo del editor. */
@@ -33,9 +33,7 @@ export async function decodeState(text: string): Promise<SharedState | null> {
   try {
     const json = await pipe(fromB64url(text), new DecompressionStream('deflate-raw'));
     const state = JSON.parse(new TextDecoder().decode(json)) as SharedState;
-    const s = state?.scene;
-    const ok = (s?.version === 1 && typeof s.source === 'string') || (s?.version === 2 && Array.isArray(s.objects));
-    return ok ? state : null;
+    return isScene(state?.scene) ? state : null;
   } catch {
     return null;
   }

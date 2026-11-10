@@ -57,12 +57,6 @@ describe('JS del panel', () => {
     expect(run(() => {})).toEqual(scene);
   });
 
-  it('una escena v1 se escribe como v2', () => {
-    const doc = jsDocument({ version: 1, source: svg, stack: [] }, '');
-    expect(doc).toContain('version: 2,');
-    expect(doc).toMatch(/import \{ createEngine \} from/);
-  });
-
   it('localiza la línea de un error de sintaxis', () => {
     expect(syntaxErrorLine('const a = 1;\nconst b = 2;\nfoo(;\n')).toBe(3);
     expect(syntaxErrorLine('const a = 1;\n')).toBeNull();

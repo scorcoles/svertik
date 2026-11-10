@@ -1,6 +1,6 @@
 // El JS del panel de código: escena generada arriba, script del usuario abajo.
 import { parser } from '@lezer/javascript';
-import { migrateScene, sceneFonts, walkNodes, type AnyScene, type ModifierInstance, type SceneNode, type SceneV2 } from '@svertik/engine';
+import { sceneFonts, walkNodes, type ModifierInstance, type SceneNode, type SceneV2 } from '@svertik/engine';
 
 /** Primera línea con error de sintaxis (los SyntaxError de JS no dicen dónde). */
 export function syntaxErrorLine(text: string): number | null {
@@ -40,8 +40,7 @@ export function inlineLiteral(value: unknown): string {
 
 const sourceLiteral = (source: string) => '`' + source.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${') + '`';
 
-export function sceneTypes(scene: AnyScene): string[] {
-  const v2 = migrateScene(scene);
+export function sceneTypes(v2: SceneV2): string[] {
   const types = new Set<string>();
   const add = (stack: ModifierInstance[]) => {
     for (const m of stack) {
@@ -86,8 +85,7 @@ function writeNode(node: SceneNode, vars: Map<string, string>, indent: string): 
 }
 
 /** La parte generada: import, una constante por SVG y la escena. */
-export function generatedPart(scene: AnyScene): string {
-  const v2 = migrateScene(scene);
+export function generatedPart(v2: SceneV2): string {
   const vars = variableNames(v2);
   const consts: string[] = [];
   for (const { node } of walkNodes(v2.objects)) if (node.kind === 'object' && !node.packed) consts.push(`const ${vars.get(node.id)} = ${sourceLiteral(node.source)};`);
@@ -106,7 +104,7 @@ export function generatedPart(scene: AnyScene): string {
 }
 
 /** El texto completo que se ve en la pestaña JS. */
-export function jsDocument(scene: AnyScene, script: string) {
+export function jsDocument(scene: SceneV2, script: string) {
   return generatedPart(scene) + script;
 }
 
@@ -138,14 +136,13 @@ export function sourceRanges(text: string): [number, number][] {
 export const sourceRange = (text: string) => sourceRanges(text)[0] ?? null;
 
 /** Fragmento autosuficiente para pegar en otra web: añade el motor y onFrame. */
-export function exportJS(scene: AnyScene, script: string): string {
-  const v2 = migrateScene(scene);
-  const types = sceneTypes(scene);
+export function exportJS(v2: SceneV2, script: string): string {
+  const types = sceneTypes(v2);
   // Con animación o interacciones, el reproductor del motor (línea de tiempo, hover, clic y «reducir movimiento»).
   const player = !!(v2.animation?.tracks.length || v2.interactions?.length);
   // Con textos, sus fuentes (libres, de Fontsource) se bajan antes de dibujar.
   const fonts = sceneFonts(v2).length > 0;
-  const head = generatedPart(scene);
+  const head = generatedPart(v2);
   return (
     (fonts ? head.replace('import { createEngine', 'import { createEngine, loadFonts') : head) +
     (fonts ? `// Las fuentes de los textos (Fontsource, en jsDelivr).\nawait loadFonts(scene);\n\n` : '') +

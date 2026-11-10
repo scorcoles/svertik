@@ -187,10 +187,12 @@ describe('varios objetos y grupos', () => {
     expect(e.scene!.objects[0]!.opacity).toBeUndefined();
   });
 
-  it('applyScene acepta una v1 y la convierte', () => {
+  it('applyScene sustituye la escena (y no hace nada si es igual)', () => {
     const e = fresh();
-    e.applyScene({ version: 1, source: samples.rings, stack: [{ id: 'x', type: 'wave' }] });
-    expect(e.scene!.version).toBe(2);
+    const next = JSON.parse(JSON.stringify(e.scene)) as typeof e.scene & object;
+    expect(e.applyScene(next)).toBe(false);
+    next.objects.at(-1)!.stack.push({ id: 'x', type: 'wave' });
+    expect(e.applyScene(next)).toBe(true);
     expect(stack(e).map((m) => m.type)).toEqual(['wave']);
   });
 });

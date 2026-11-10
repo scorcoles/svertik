@@ -1,8 +1,8 @@
 // Ejecuta el JS del panel en un Web Worker: sin acceso a la página y con freno si se cuelga.
-import type { AnyScene, SceneNode } from '@svertik/engine';
+import type { SceneNode, SceneV2 } from '@svertik/engine';
 
 export type RunnerMessage =
-  | { type: 'scene'; scene: AnyScene }
+  | { type: 'scene'; scene: SceneV2 }
   | { type: 'frame'; objects: SceneNode[]; fps: number }
   | { type: 'error'; message: string; line: number | null };
 

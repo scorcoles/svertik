@@ -7,11 +7,10 @@ import {
   builtins,
   createEngine,
   hasFont,
-  migrateScene,
+  isScene,
   registerFont,
   sampleScene,
   shapes,
-  type AnyScene,
   type SceneNode,
   type SceneV2,
 } from '@svertik/engine';
@@ -53,10 +52,10 @@ export function loadInput(text: string, fileName: string): Loaded {
   if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
     return { scene: { version: 2, objects: [{ kind: 'object', id: 'object-1', name: `${base}.svg`, source: text, stack: [] }] }, name: base };
   }
-  const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: AnyScene } & Partial<AnyScene>;
-  const scene = data.svertik === 'project' ? data.scene : (data as AnyScene);
-  if (!scene || (scene.version !== 1 && scene.version !== 2)) throw new Error(`${fileName} no es un proyecto de svertik ni un SVG`);
-  return { scene: migrateScene(scene), name: data.name ?? base };
+  const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: unknown };
+  const scene = data.svertik === 'project' ? data.scene : data;
+  if (!isScene(scene)) throw new Error(`${fileName} no es un proyecto de svertik ni un SVG`);
+  return { scene, name: data.name ?? base };
 }
 
 /** El SVG plano del instante `t` (s); con `background`, un rectángulo de fondo. */

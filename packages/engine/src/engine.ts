@@ -1,6 +1,6 @@
 // La escena (lo que se guarda y se exporta como JSON) y el motor que la evalúa.
 
-import { createDocumentEvaluator, migrateScene, type AnyScene, type DocumentResult } from './document';
+import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
 import { bounds, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './import';
 import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
@@ -17,11 +17,10 @@ export interface ModifierInstance {
 }
 
 /**
- * Escena v1: un SVG de origen y una pila lineal de modificadores.
- * (Cuando haya varios objetos, `stack` pasará a vivir dentro de cada objeto.)
+ * Una pila de efectos sobre un SVG suelto, sin escena (para probar efectos o enseñar la cadena paso a paso).
+ * El resultado queda en las coordenadas del SVG.
  */
-export interface Scene {
-  version: 1;
+export interface StackInput {
   source: string;
   stack: ModifierInstance[];
   /** Longitud máxima de tramo al subdividir, como fracción del tamaño del dibujo. */
@@ -29,15 +28,15 @@ export interface Scene {
 }
 
 export interface Engine {
-  /** Escena v1: evalúa la escena; reutiliza lo calculado si el principio de la pila no ha cambiado. */
-  evaluate(scene: Scene): Geometry;
-  /** Escena v1: resultado de cada paso de la pila: [origen, tras el 1.º, tras el 2.º, …]. */
-  evaluateSteps(scene: Scene): Geometry[];
-  /** Cualquier escena (v1 o v2): el documento entero, el origen colocado y la información de cada nodo. */
-  evaluateDocument(scene: AnyScene): DocumentResult;
-  toSVG(scene: AnyScene, options?: ToSVGOptions): string;
+  /** Aplica una pila a un SVG; reutiliza lo calculado si el principio de la pila no ha cambiado. */
+  evaluateStack(input: StackInput): Geometry;
+  /** El resultado de cada paso de la pila: [origen, tras el 1.º, tras el 2.º, …]. */
+  evaluateStackSteps(input: StackInput): Geometry[];
+  /** La escena: el documento entero, el origen colocado y la información de cada nodo. */
+  evaluateDocument(scene: SceneV2): DocumentResult;
+  toSVG(scene: SceneV2, options?: ToSVGOptions): string;
   /** Pinta la escena en un <svg> y devuelve con qué actualizarla. */
-  mount(svg: SVGSVGElement, scene: AnyScene, options?: ToSVGOptions): { update(scene: AnyScene): void };
+  mount(svg: SVGSVGElement, scene: SceneV2, options?: ToSVGOptions): { update(scene: SceneV2): void };
 }
 
 const DEFAULT_RESOLUTION = 0.01;
@@ -57,7 +56,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   let sourceGeo: Geometry | null = null;
   let steps: { key: string; geo: Geometry }[] = [];
 
-  function load(scene: Scene): Geometry {
+  function load(scene: StackInput): Geometry {
     const key = `${scene.resolution ?? DEFAULT_RESOLUTION}\n${scene.source}`;
     if (key !== sourceKey || !sourceGeo) {
       sourceGeo = importSVG(scene.source);
@@ -67,7 +66,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     return sourceGeo;
   }
 
-  function evaluateSteps(scene: Scene): Geometry[] {
+  function evaluateStackSteps(scene: StackInput): Geometry[] {
     const source = load(scene);
     const b = bounds(source);
     const ctx: ModifierContext = {
@@ -104,7 +103,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     });
   }
 
-  const evaluate = (scene: Scene) => evaluateSteps(scene).at(-1)!;
+  const evaluateStack = (input: StackInput) => evaluateStackSteps(input).at(-1)!;
 
   /**
    * Una pila aplicada a una geometría con su caja de referencia (para objetos y grupos de la v2).
@@ -137,13 +136,12 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     return geo;
   }
   const documents = createDocumentEvaluator(runStack);
-  const evaluateDocument = (scene: AnyScene) => documents.evaluate(migrateScene(scene));
-  // v1 conserva su resultado de siempre (mismo viewBox); v2 compone el documento.
-  const flat = (scene: AnyScene) => (scene.version === 2 ? evaluateDocument(scene).geometry : evaluate(scene));
+  const evaluateDocument = (scene: SceneV2) => documents.evaluate(scene);
+  const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;
 
   return {
-    evaluate,
-    evaluateSteps,
+    evaluateStack,
+    evaluateStackSteps,
     evaluateDocument,
     toSVG: (scene, options) => toSVG(flat(scene), options),
     mount(svg, scene, options) {

@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, migrateScene, renderInto, type Geometry, type SceneV2 } from '../src';
+import { bounds, builtins, createEngine, isScene, renderInto, type Geometry, type SceneV2 } from '../src';
 
 const rect = (w: number, h: number, fill = '#000') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`;
 const engine = () => createEngine(builtins);
 
 describe('escena v2', () => {
-  it('migra una v1 a un objeto con la misma pila', () => {
-    const v2 = migrateScene({ version: 1, source: rect(10, 10), stack: [{ id: 'w', type: 'wave' }] }, 'a.svg');
-    expect(v2.objects).toHaveLength(1);
-    expect(v2.objects[0]).toMatchObject({ kind: 'object', name: 'a.svg', stack: [{ id: 'w', type: 'wave' }] });
+  it('reconoce una escena (y rechaza lo que no lo es)', () => {
+    expect(isScene({ version: 2, objects: [] })).toBe(true);
+    expect(isScene({ version: 1, source: rect(10, 10), stack: [] })).toBe(false);
+    expect(isScene(null)).toBe(false);
   });
 
   it('cada objeto queda centrado en el origen y se mueve con su posición', () => {
@@ -92,7 +92,7 @@ describe('escena v2', () => {
 
   it('toSVG y mount aceptan las dos versiones', () => {
     const e = engine();
-    expect(e.toSVG({ version: 1, source: rect(10, 10), stack: [] })).toContain('<path');
+    expect(e.toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('<path');
     expect(e.toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('viewBox="-5.5 -5.5 11 11"');
   });
 });

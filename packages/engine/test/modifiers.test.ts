@@ -1,30 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { covers, simplify } from '../src/clip';
-import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, type Scene } from '../src';
+import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type StackInput } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
-const scene = (stack: Scene['stack']): Scene => ({ version: 1, source: square, stack });
+const scene = (stack: StackInput['stack']): StackInput => ({ source: square, stack });
 const engine = () => createEngine(builtins);
 
 describe('modificadores', () => {
   it('transform desplaza', () => {
-    const geo = engine().evaluate(scene([{ id: 'a', type: 'transform', params: { x: 5, y: -5 } }]));
+    const geo = engine().evaluateStack(scene([{ id: 'a', type: 'transform', params: { x: 5, y: -5 } }]));
     expect(bounds(geo)).toEqual({ x: 25, y: 15, width: 60, height: 60 });
   });
 
   it('transform escala alrededor del pivote (centro por defecto)', () => {
-    const b = bounds(engine().evaluate(scene([{ id: 'a', type: 'transform', params: { scale: 0.5 } }])));
+    const b = bounds(engine().evaluateStack(scene([{ id: 'a', type: 'transform', params: { scale: 0.5 } }])));
     expect(b.x).toBeCloseTo(35);
     expect(b.width).toBeCloseTo(30);
   });
 
   it('spherize no mueve lo que queda fuera del radio', () => {
-    const geo = engine().evaluate(scene([{ id: 'a', type: 'spherize', params: { radius: 0.1, strength: 1 } }]));
+    const geo = engine().evaluateStack(scene([{ id: 'a', type: 'spherize', params: { radius: 0.1, strength: 1 } }]));
     expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 60, height: 60 });
   });
 
   it('spherize con fuerza positiva empuja hacia fuera lo que está dentro', () => {
-    const steps = engine().evaluateSteps(scene([{ id: 'a', type: 'spherize', params: { radius: 0.6, strength: 1 } }]));
+    const steps = engine().evaluateStackSteps(scene([{ id: 'a', type: 'spherize', params: { radius: 0.6, strength: 1 } }]));
     // El punto medio del lado superior (50, 20) está a 30 del centro, dentro del radio (36).
     const all = steps[1]!.shapes[0]!.subpaths[0]!.segs.map((s) => s.p);
     const top = all.find((p) => Math.abs(p[0] - 50) < 0.5)!;
@@ -33,13 +33,13 @@ describe('modificadores', () => {
 
   it('twist con ángulo 0 y wave con amplitud 0 no cambian nada', () => {
     const e = engine();
-    const base = bounds(e.evaluate(scene([])));
-    expect(bounds(e.evaluate(scene([{ id: 'a', type: 'twist', params: { angle: 0 } }])))).toEqual(base);
-    expect(bounds(e.evaluate(scene([{ id: 'a', type: 'wave', params: { amplitude: 0 } }])))).toEqual(base);
+    const base = bounds(e.evaluateStack(scene([])));
+    expect(bounds(e.evaluateStack(scene([{ id: 'a', type: 'twist', params: { angle: 0 } }])))).toEqual(base);
+    expect(bounds(e.evaluateStack(scene([{ id: 'a', type: 'wave', params: { amplitude: 0 } }])))).toEqual(base);
   });
 
   it('bend con ángulo positivo hace un arco ∩: las esquinas de arriba bajan respecto al centro del lado', () => {
-    const geo = engine().evaluate(scene([{ id: 'a', type: 'bend', params: { angle: 60 } }]));
+    const geo = engine().evaluateStack(scene([{ id: 'a', type: 'bend', params: { angle: 60 } }]));
     const pts = geo.shapes[0]!.subpaths[0]!.segs.map((s) => s.p);
     const top = pts.filter((p) => p[1] < 40);
     const mid = top.reduce((a, p) => (Math.abs(p[0] - 50) < Math.abs(a[0] - 50) ? p : a));
@@ -48,23 +48,23 @@ describe('modificadores', () => {
   });
 
   it('noise es determinista: misma semilla, mismo resultado; otra semilla, otro', () => {
-    const run = (seed: number) => engine().toSVG(scene([{ id: 'a', type: 'noise', params: { seed } }]));
+    const run = (seed: number) => toSVG(engine().evaluateStack(scene([{ id: 'a', type: 'noise', params: { seed } }])));
     expect(run(3)).toBe(run(3));
     expect(run(3)).not.toBe(run(4));
   });
 
   it('un modificador desactivado no hace nada', () => {
-    const geo = engine().evaluate(scene([{ id: 'a', type: 'transform', enabled: false, params: { x: 50 } }]));
+    const geo = engine().evaluateStack(scene([{ id: 'a', type: 'transform', enabled: false, params: { x: 50 } }]));
     expect(bounds(geo).x).toBe(20);
   });
 
   it('un tipo desconocido avisa', () => {
-    expect(() => engine().evaluate(scene([{ id: 'a', type: 'nope' }]))).toThrow(/nope/);
+    expect(() => engine().evaluateStack(scene([{ id: 'a', type: 'nope' }]))).toThrow(/nope/);
   });
 
   it('todos tienen valores por defecto válidos', () => {
     for (const m of [transform, spherize, twist, bend, wave, noise]) {
-      expect(() => engine().evaluate(scene([{ id: 'a', type: m.type, params: resolveParams(m.params) }]))).not.toThrow();
+      expect(() => engine().evaluateStack(scene([{ id: 'a', type: m.type, params: resolveParams(m.params) }]))).not.toThrow();
     }
   });
 });
@@ -72,25 +72,27 @@ describe('modificadores', () => {
 describe('motor', () => {
   it('reutiliza los pasos que no han cambiado', () => {
     const e = engine();
-    const stack: Scene['stack'] = [
+    const stack: StackInput['stack'] = [
       { id: 'a', type: 'spherize' },
       { id: 'b', type: 'wave', params: { phase: 0 } },
     ];
-    const first = e.evaluateSteps(scene(stack));
-    const second = e.evaluateSteps(scene([stack[0]!, { id: 'b', type: 'wave', params: { phase: 90 } }]));
+    const first = e.evaluateStackSteps(scene(stack));
+    const second = e.evaluateStackSteps(scene([stack[0]!, { id: 'b', type: 'wave', params: { phase: 90 } }]));
     expect(second[1]).toBe(first[1]); // spherize, de la caché
     expect(second[2]).not.toBe(first[2]);
   });
 
   it('la cadena completa da siempre el mismo SVG', () => {
-    const svg = engine().toSVG(
-      scene([
-        { id: 'a', type: 'transform', params: { rotation: 10 } },
-        { id: 'b', type: 'spherize' },
-        { id: 'c', type: 'twist' },
-        { id: 'd', type: 'wave' },
-        { id: 'e', type: 'noise' },
-      ]),
+    const svg = toSVG(
+      engine().evaluateStack(
+        scene([
+          { id: 'a', type: 'transform', params: { rotation: 10 } },
+          { id: 'b', type: 'spherize' },
+          { id: 'c', type: 'twist' },
+          { id: 'd', type: 'wave' },
+          { id: 'e', type: 'noise' },
+        ]),
+      ),
       { precision: 1 },
     );
     expect(svg).toMatchSnapshot();
@@ -99,7 +101,7 @@ describe('motor', () => {
 
 describe('crack', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'crack', params: { mode: 'lines', ...params } }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'crack', params: { mode: 'lines', ...params } }] });
 
   it('cut: recorta las grietas como huecos (sin forma de trazo encima); shatter: separa los trozos', () => {
     const cut = run({ mode: 'cut', width: 2 });
@@ -141,7 +143,7 @@ describe('crack', () => {
   });
 
   it('es determinista con la semilla', () => {
-    const svg = (seed: number) => createEngine(builtins).toSVG({ version: 1, source: square, stack: [{ id: 'c', type: 'crack', params: { seed } }] });
+    const svg = (seed: number) => toSVG(createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'crack', params: { seed } }] }));
     expect(svg(2)).toBe(svg(2));
     expect(svg(2)).not.toBe(svg(3));
   });
@@ -149,7 +151,7 @@ describe('crack', () => {
 
 describe('rotate3d', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'r', type: 'rotate3d', params }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'r', type: 'rotate3d', params }] });
 
   it('sin giro no cambia nada', () => {
     expect(bounds(run({ rotateX: 0 }))).toEqual({ x: 20, y: 20, width: 60, height: 60 });
@@ -170,7 +172,7 @@ describe('rotate3d', () => {
 
 describe('clone', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'clone', params }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'clone', params }] });
 
   it('grid: filas × columnas copias, centradas en el original', () => {
     const geo = run({ mode: 'grid', columns: 3, rows: 2 });
@@ -191,7 +193,7 @@ describe('clone', () => {
 });
 
 describe('step', () => {
-  const run = (stack: Scene['stack'], source = square) => createEngine(builtins).evaluate({ version: 1, source, stack });
+  const run = (stack: StackInput['stack'], source = square) => createEngine(builtins).evaluateStack({ source, stack });
   const boxOf = (geo: ReturnType<typeof run>, i: number) => bounds({ ...geo, shapes: [geo.shapes[i]!] });
 
   it('Clone marca cada copia con su número y los deformadores lo conservan', () => {
@@ -248,7 +250,7 @@ describe('step', () => {
 
 describe('distorsiones', () => {
   const run = (type: string, params: Record<string, unknown> = {}) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'x', type, params }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'x', type, params }] });
 
   it('todas funcionan con sus valores por defecto y sin efecto devuelven lo mismo', () => {
     const neutral: Record<string, Record<string, unknown>> = {
@@ -310,8 +312,8 @@ describe('dado', () => {
 
 describe('color', () => {
   const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="10" height="10" fill="#ff0000"/><rect x="50" width="10" height="10" fill="#ff0000" stroke="#0000ff"/><rect y="50" width="10" height="10" fill="none"/></svg>';
-  const run = (params: Record<string, unknown>, stack: Scene['stack'] = []) =>
-    createEngine(builtins).evaluate({ version: 1, source: two, stack: [...stack, { id: 'c', type: 'color', params }] });
+  const run = (params: Record<string, unknown>, stack: StackInput['stack'] = []) =>
+    createEngine(builtins).evaluateStack({ source: two, stack: [...stack, { id: 'c', type: 'color', params }] });
 
   it('shift: girar 120° el tono del rojo da verde; none no se toca', () => {
     const geo = run({ mode: 'shift', hue: 120 });
@@ -333,8 +335,7 @@ describe('color', () => {
   });
 
   it('dentro de Step, el tono se escalona copia a copia', () => {
-    const geo = createEngine(builtins).evaluate({
-      version: 1,
+    const geo = createEngine(builtins).evaluateStack({
       source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff0000"/></svg>',
       stack: [
         { id: 'cl', type: 'clone', params: { mode: 'linear', count: 3 } },
@@ -356,7 +357,7 @@ describe('color', () => {
 describe('paint', () => {
   const src = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="10" height="10" fill="#ff0000"/><line x1="0" y1="50" x2="100" y2="50" stroke="#000" fill="none"/></svg>';
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: src, stack: [{ id: 'p', type: 'paint', params }] });
+    createEngine(builtins).evaluateStack({ source: src, stack: [{ id: 'p', type: 'paint', params }] });
 
   it('cantidad 1 sustituye el relleno; 0.5 mezcla; las líneas sin relleno no se rellenan', () => {
     expect(run({ fillColor: '#0000ff' }).shapes[0]!.style.fill).toBe('#0000ff');
@@ -373,8 +374,7 @@ describe('paint', () => {
 
 describe('tint', () => {
   it('lleva el color hacia el objetivo; en Step, cada copia un poco más', () => {
-    const geo = createEngine(builtins).evaluate({
-      version: 1,
+    const geo = createEngine(builtins).evaluateStack({
       source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#000000"/></svg>',
       stack: [
         { id: 'cl', type: 'clone', params: { mode: 'linear', count: 3 } },
@@ -386,7 +386,7 @@ describe('tint', () => {
 });
 
 describe('mirror', () => {
-  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mirror', params }] });
+  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'm', type: 'mirror', params }] });
 
   it('simetría: el original y su reflejo al otro lado del borde derecho', () => {
     const geo = run({});
@@ -404,8 +404,7 @@ describe('mirror', () => {
 
 describe('clone lineal con huecos iguales', () => {
   it('con escala, los huecos entre copias son todos iguales', () => {
-    const geo = createEngine(builtins).evaluate({
-      version: 1,
+    const geo = createEngine(builtins).evaluateStack({
       source: square,
       stack: [{ id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.5, 0], scaleStep: 0.5, even: true } }],
     });
@@ -419,10 +418,10 @@ describe('clone lineal con huecos iguales', () => {
 describe('gradient', () => {
   it('pone url(#…) en el relleno y escribe el degradado en <defs>', () => {
     const e = createEngine(builtins);
-    const scene: Scene = { version: 1, source: square, stack: [{ id: 'g', type: 'gradient', params: { angle: 0 } }] };
-    const geo = e.evaluate(scene);
+    const scene: StackInput = { source: square, stack: [{ id: 'g', type: 'gradient', params: { angle: 0 } }] };
+    const geo = e.evaluateStack(scene);
     expect(geo.shapes[0]!.style.fill).toMatch(/^url\(#svk-/);
-    const svg = e.toSVG(scene);
+    const svg = toSVG(e.evaluateStack(scene));
     expect(svg).toContain('<defs><linearGradient');
     expect(svg).toContain('x1="0" y1="0.5" x2="1" y2="0.5"');
   });
@@ -430,7 +429,7 @@ describe('gradient', () => {
 
 describe('mosaic', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mosaic', params }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'm', type: 'mosaic', params }] });
   const area = (geo: { shapes: { subpaths: { start: readonly [number, number]; segs: { p: readonly [number, number] }[] }[] }[] }) =>
     geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
       const pts = [sp.start, ...sp.segs.map((g) => g.p)];
@@ -493,14 +492,14 @@ describe('mosaic con la forma de otro objeto', () => {
   });
 
   it('sin objeto, el dibujo como estaba', () => {
-    const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape' } }] });
+    const geo = createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape' } }] });
     expect(bounds(geo)).toMatchObject({ x: 20, width: 60 });
   });
 });
 
 describe('mosaic girado', () => {
   it('con la red a 45° sigue cubriendo todo el dibujo', () => {
-    const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0], angle: 45 } }] });
+    const geo = createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'm', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0], angle: 45 } }] });
     const b = bounds(geo);
     expect(b.x).toBeCloseTo(20);
     expect(b.width).toBeCloseTo(60);
@@ -511,7 +510,7 @@ describe('mosaic girado', () => {
 
 describe('damage', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'd', type: 'damage', params }] });
   const holes = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).length;
 
   it('recorta grietas, desconchones y motas; misma semilla, mismo resultado', () => {
@@ -532,7 +531,7 @@ describe('damage', () => {
 });
 
 describe('roughen y fractal', () => {
-  const run = (stack: Scene['stack']) => createEngine(builtins).evaluate({ version: 1, source: square, stack });
+  const run = (stack: StackInput['stack']) => createEngine(builtins).evaluateStack({ source: square, stack });
   const points = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).reduce((n, sp) => n + sp.segs.length, 0);
 
   it('koch: cada iteración multiplica los tramos por 4 (cuadrado: 4 → 16 → 64)', () => {
@@ -556,7 +555,7 @@ describe('roughen y fractal', () => {
 });
 
 describe('fractal fit y glitch', () => {
-  const run = (stack: Scene['stack']) => createEngine(builtins).evaluate({ version: 1, source: square, stack });
+  const run = (stack: StackInput['stack']) => createEngine(builtins).evaluateStack({ source: square, stack });
 
   it('fit: el árbol cabe en la caja del cuadrado original', () => {
     const b = bounds(run([{ id: 'f', type: 'fractal', params: { preset: 'tree', depth: 6 } }]));
@@ -578,7 +577,7 @@ describe('fractal fit y glitch', () => {
 
 describe('damage: trozos', () => {
   it('una grieta pasante parte el cuadrado: cada trozo es un elemento', () => {
-    const geo = createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params: { cracks: 0, chips: 0, specks: 0, through: 1, roughness: 0 } }] });
+    const geo = createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'd', type: 'damage', params: { cracks: 0, chips: 0, specks: 0, through: 1, roughness: 0 } }] });
     expect(geo.shapes.length).toBeGreaterThanOrEqual(2);
     expect(geo.shapes.map((s) => s.clone)).toEqual(geo.shapes.map((_, i) => i));
   });
@@ -608,7 +607,7 @@ describe('a cero y dado', () => {
 
 describe('gradient radial y con paso', () => {
   it('radial con centro, radio y foco; color de paso', () => {
-    const svg = createEngine(builtins).toSVG({ version: 1, source: square, stack: [{ id: 'g', type: 'gradient', params: { kind: 'radial', center: [0.3, 0.4], radius: 0.8, focus: [0.2, 0.2], via: true, viaColor: '#ff0000' } }] });
+    const svg = toSVG(createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'g', type: 'gradient', params: { kind: 'radial', center: [0.3, 0.4], radius: 0.8, focus: [0.2, 0.2], via: true, viaColor: '#ff0000' } }] }));
     expect(svg).toContain('<radialGradient');
     expect(svg).toContain('cx="0.3" cy="0.4" r="0.8" fx="0.2" fy="0.2"');
     expect(svg).toContain('stop-color="#ff0000"');
@@ -616,8 +615,8 @@ describe('gradient radial y con paso', () => {
 });
 
 describe('range, field y opacity', () => {
-  const grid = (stack: Scene['stack']) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.2, 0] } }, ...stack] });
+  const grid = (stack: StackInput['stack']) =>
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.2, 0] } }, ...stack] });
   const op = (geo: ReturnType<typeof grid>) => geo.shapes.map((s) => Number(s.style.opacity ?? 1));
 
   it('range: solo los elementos del tramo reciben el efecto (square)', () => {
@@ -641,8 +640,7 @@ describe('range, field y opacity', () => {
 
 describe('stagger', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({
-      version: 1,
+    createEngine(builtins).evaluateStack({
       source: square,
       stack: [
         { id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.2, 0] } },
@@ -665,7 +663,7 @@ describe('stagger', () => {
 
 describe('damage: growth continuo', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params: { seed: 4, ...params } }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'd', type: 'damage', params: { seed: 4, ...params } }] });
   const area = (geo: ReturnType<typeof run>) =>
     geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
       const pts = [sp.start, ...sp.segs.map((g) => g.p)];
@@ -686,7 +684,7 @@ describe('damage: growth continuo', () => {
 });
 
 describe('trim', () => {
-  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 't', type: 'trim', params }] });
+  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 't', type: 'trim', params }] });
   const length = (geo: ReturnType<typeof run>) =>
     geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
       let p0 = sp.start, l = 0;
