@@ -389,3 +389,29 @@ describe('mirror', () => {
     expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 60, height: 60 });
   });
 });
+
+describe('clone lineal con huecos iguales', () => {
+  it('con escala, los huecos entre copias son todos iguales', () => {
+    const geo = createEngine(builtins).evaluate({
+      version: 1,
+      source: square,
+      stack: [{ id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.5, 0], scaleStep: 0.5, even: true } }],
+    });
+    const boxes = geo.shapes.map((s) => bounds({ viewBox: [0, 0, 0, 0], shapes: [s] })).sort((a, b) => a.x - b.x);
+    const gaps = boxes.slice(1).map((b, i) => b.x - (boxes[i]!.x + boxes[i]!.width));
+    // El cuadrado mide 60 y el desplazamiento 90: hueco de 30 entre todas.
+    for (const g of gaps) expect(g).toBeCloseTo(30);
+  });
+});
+
+describe('gradient', () => {
+  it('pone url(#…) en el relleno y escribe el degradado en <defs>', () => {
+    const e = createEngine(builtins);
+    const scene: Scene = { version: 1, source: square, stack: [{ id: 'g', type: 'gradient', params: { angle: 0 } }] };
+    const geo = e.evaluate(scene);
+    expect(geo.shapes[0]!.style.fill).toMatch(/^url\(#svk-/);
+    const svg = e.toSVG(scene);
+    expect(svg).toContain('<defs><linearGradient');
+    expect(svg).toContain('x1="0" y1="0.5" x2="1" y2="0.5"');
+  });
+});

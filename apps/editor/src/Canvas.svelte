@@ -20,6 +20,9 @@
   let ghost = $state<SVGSVGElement>();
   let stage = $state<HTMLDivElement>();
   let renderError = $state<string | null>(null);
+  /** Lo que tarda en recalcular y pintar (ms, suavizado). Pasado SLOW, aviso. */
+  let cost = $state<number | null>(null);
+  const SLOW = 50;
   let dropping = $state(false);
   /**
    * Encuadre del lienzo, en coordenadas del documento. Se fija al abrir y con Fit (⇧1);
@@ -40,6 +43,7 @@
     // Mientras el script anima, se pintan sus objetos (sin tocar la escena guardada).
     if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     try {
+      const t0 = performance.now();
       const doc = engine.evaluateDocument(scene);
       docViewBox = doc.geometry.viewBox;
       if (!framed) {
@@ -54,6 +58,9 @@
       }
       nodes = doc.nodes;
       renderError = null;
+      // Tiempo de recálculo, suavizado (para el aviso de rendimiento).
+      const ms = performance.now() - t0;
+      cost = cost === null ? ms : cost * 0.7 + ms * 0.3;
     } catch (e) {
       renderError = e instanceof Error ? e.message : String(e);
     }
@@ -631,6 +638,13 @@
         <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
       </span>
       <span class="muted">{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</span>
+      {#if cost !== null}
+        <span
+          class="cost"
+          data-slow={cost > SLOW || undefined}
+          title={cost > SLOW ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects (eye or checkbox) while you edit' : 'Time to evaluate and draw'}
+        >{cost > SLOW ? '⚠ ' : ''}{Math.round(cost)} ms</span>
+      {/if}
     </footer>
   {:else}
     <div class="drop">
@@ -799,6 +813,8 @@
     color: var(--sv-text-secondary);
   }
   .muted { color: var(--sv-text-muted); }
+  .cost { color: var(--sv-text-disabled); font-variant-numeric: tabular-nums; }
+  .cost[data-slow] { color: var(--sv-signal-error); }
   .drop {
     display: grid;
     justify-items: center;

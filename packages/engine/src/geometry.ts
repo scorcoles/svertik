@@ -24,6 +24,20 @@ export interface Shape {
   clone?: number;
   /** Objeto de la escena del que sale (para seleccionarlo en el lienzo). */
   node?: string;
+  /** Degradados que usa su estilo (`fill="url(#id)"`); el render los escribe en <defs>. */
+  gradients?: Gradient[];
+}
+
+/** Degradado relativo a la caja de cada forma (objectBoundingBox): sigue a la forma al moverla o escalarla. */
+export interface Gradient {
+  id: string;
+  kind: 'linear' | 'radial';
+  stops: { offset: number; color: string; opacity?: number }[];
+  /** Lineal: de (x1, y1) a (x2, y2), en fracciones de la caja. */
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
 }
 
 export interface Geometry {

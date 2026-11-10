@@ -24,6 +24,7 @@ export const clone = defineModifier({
     offset: { type: 'point', default: [1.1, 0], unit: 'fraction', group: 'Linear', label: 'Offset', handle: false },
     scaleStep: { type: 'number', default: 1, min: 0, max: 2, step: 0.01, group: 'Linear', label: 'Scale step' },
     rotateStep: { type: 'angle', default: 0, group: 'Linear', label: 'Rotate step' },
+    even: { type: 'boolean', default: false, group: 'Linear', label: 'Even gaps', animatable: false },
     target: { type: 'node', default: '', group: 'Object', label: 'Object' },
     place: { type: 'enum', default: 'contour', options: ['contour', 'vertices', 'inside'] as const, group: 'Object', label: 'Place', animatable: false },
     seed: { type: 'seed', default: 1, group: 'Object' },
@@ -88,9 +89,24 @@ export const clone = defineModifier({
       }
     } else {
       const n = Math.max(1, Math.round(p.count));
-      for (let i = 0; i < n; i++) {
-        const t = i - (n - 1) / 2;
-        copies.push({ dx: t * p.offset[0] * W, dy: t * p.offset[1] * H, rot: deg(p.rotateStep) * i, scale: Math.pow(p.scaleStep, i) });
+      const ox = p.offset[0] * W, oy = p.offset[1] * H;
+      const d = Math.hypot(ox, oy);
+      if (p.even && d > 0 && n > 1) {
+        // Huecos iguales entre copias de distinto tamaño: cada paso es el hueco (el de escala 1)
+        // más media copia de cada lado, a su escala. Luego se centra el conjunto.
+        const [ux, uy] = [ox / d, oy / d];
+        const extent = Math.abs(ux) * b.width + Math.abs(uy) * b.height;
+        const gap = d - extent;
+        const scales = Array.from({ length: n }, (_, i) => Math.pow(p.scaleStep, i));
+        const pos = [0];
+        for (let i = 1; i < n; i++) pos.push(pos[i - 1]! + gap + (extent * (scales[i - 1]! + scales[i]!)) / 2);
+        const mid = (pos[0]! + pos[n - 1]!) / 2;
+        for (let i = 0; i < n; i++) copies.push({ dx: ux * (pos[i]! - mid), dy: uy * (pos[i]! - mid), rot: deg(p.rotateStep) * i, scale: scales[i]! });
+      } else {
+        for (let i = 0; i < n; i++) {
+          const t = i - (n - 1) / 2;
+          copies.push({ dx: t * ox, dy: t * oy, rot: deg(p.rotateStep) * i, scale: Math.pow(p.scaleStep, i) });
+        }
       }
     }
 
