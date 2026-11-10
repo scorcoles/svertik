@@ -415,3 +415,33 @@ describe('gradient', () => {
     expect(svg).toContain('x1="0" y1="0.5" x2="1" y2="0.5"');
   });
 });
+
+describe('mosaic', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mosaic', params }] });
+  const area = (geo: { shapes: { subpaths: { start: readonly [number, number]; segs: { p: readonly [number, number] }[] }[] }[] }) =>
+    geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
+      const pts = [sp.start, ...sp.segs.map((g) => g.p)];
+      let a = 0;
+      for (let i = 0; i < pts.length - 1; i++) a += pts[i]![0] * pts[i + 1]![1] - pts[i + 1]![0] * pts[i]![1];
+      return sum + Math.abs(a) / 2;
+    }, 0);
+
+  it('sin separación, 2 × 2 teselas que cubren el dibujo; cada una, un elemento', () => {
+    const geo = run({ columns: 2, rows: 2, gutter: [0, 0] });
+    expect(geo.shapes.map((s) => s.clone)).toEqual([0, 1, 2, 3]);
+    expect(area(geo)).toBeCloseTo(3600);
+  });
+
+  it('la separación encoge cada tesela (a la mitad en X e Y: un cuarto del área)', () => {
+    expect(area(run({ columns: 2, rows: 2, gutter: [0.5, 0.5] }))).toBeCloseTo(900);
+    // Solo en X: la mitad.
+    expect(area(run({ columns: 3, rows: 3, gutter: [0.5, 0] }))).toBeCloseTo(1800);
+  });
+
+  it('triángulos y hexágonos cubren todo; los círculos, π/4', () => {
+    expect(area(run({ tile: 'triangle', columns: 3, rows: 3, gutter: [0, 0] }))).toBeCloseTo(3600, 0);
+    expect(area(run({ tile: 'hexagon', columns: 3, rows: 3, gutter: [0, 0] }))).toBeCloseTo(3600, 0);
+    expect(area(run({ tile: 'circle', columns: 2, rows: 2, gutter: [0, 0] }) ) / 3600).toBeCloseTo(Math.PI / 4, 2);
+  });
+});
