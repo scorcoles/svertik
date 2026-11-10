@@ -479,7 +479,7 @@
     return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, info.bounds);
   });
   /** El gizmo ya en píxeles del escenario (se recalcula tras pintar, como los tiradores). */
-  let gizmoScreen = $state<{ lines: { d: string; tone: string; dashed: boolean; drag?: Drag; label?: string }[]; handles: { x: number; y: number; label: string; drag: Drag }[] } | null>(null);
+  let gizmoScreen = $state<{ lines: { d: string; tone: string; dashed: boolean; ribbon: boolean; drag?: Drag; label?: string }[]; handles: { x: number; y: number; label: string; drag: Drag; tone: string }[] } | null>(null);
   $effect(() => {
     void view; void stageSize; void viewBox;
     const g = gizmo;
@@ -491,11 +491,11 @@
         lines: g.lines.map((l) => {
           const pts = l.pts.map(s).filter((q): q is [number, number] => !!q);
           const d = pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (l.closed ? 'Z' : '');
-          return { d, tone: l.tone ?? 'accent', dashed: !!l.dashed, drag: l.drag, label: l.label };
+          return { d, tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, drag: l.drag, label: l.label };
         }),
         handles: g.handles.flatMap((h) => {
           const q = s(h.at);
-          return q ? [{ x: q[0], y: q[1], label: h.label, drag: h.drag }] : [];
+          return q ? [{ x: q[0], y: q[1], label: h.label, drag: h.drag, tone: h.tone ?? 'accent' }] : [];
         }),
       };
     });
@@ -628,13 +628,14 @@
       {#if gizmoScreen && !editor.tool}
         <svg class="gizmo" data-active={gizmoActive || gizmoHover || editor.busy || undefined} aria-hidden="true">
           {#each gizmoScreen.lines as l, i (i)}
-            <path class="halo" d={l.d} />
-            <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} />
+            <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
+            <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} data-ribbon={l.ribbon || undefined} />
             {#if l.drag}
               {@const drag = l.drag}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <path
                 class="hit"
+                data-ribbon={l.ribbon || undefined}
                 d={l.d}
                 onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '')}
                 onpointerenter={() => (gizmoHover = true)}
@@ -647,6 +648,7 @@
           <button
             type="button"
             class="gizmo-handle"
+            data-tone={h.tone}
             style:left="{h.x}px"
             style:top="{h.y}px"
             title={h.label}
@@ -830,14 +832,19 @@
     white-space: nowrap;
   }
   /* Wire del efecto: tenue en reposo; encendido al pasar, al arrastrar o al cambiar sus valores. */
-  .gizmo { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0.45; transition: opacity 120ms; }
+  .gizmo { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0.8; transition: opacity 120ms; }
   .gizmo[data-active] { opacity: 1; }
-  .gizmo .halo { fill: none; stroke: rgb(0 0 0 / 0.35); stroke-width: 3; }
-  .gizmo .line { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1; }
+  .gizmo .halo { fill: none; stroke: rgb(0 0 0 / 0.55); stroke-width: 3.5; }
+  .gizmo .line { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.25; }
+  .gizmo .line[data-tone='x'], .gizmo .line[data-tone='y'], .gizmo .line[data-tone='z'] { stroke-width: 1.75; }
   .gizmo .line[data-dashed] { stroke-dasharray: 4 3; }
   .gizmo .line[data-tone='x'] { stroke: #ff5c5c; }
   .gizmo .line[data-tone='y'] { stroke: #6bdc6b; }
   .gizmo .line[data-tone='z'] { stroke: #5c8cff; }
+  /* Cintas: banda ancha y translúcida de su color, con un borde oscuro debajo. */
+  .gizmo .halo[data-ribbon] { stroke: rgb(0 0 0 / 0.45); stroke-width: 11; }
+  .gizmo .line[data-ribbon] { stroke-width: 8; stroke-opacity: 0.8; }
+  .gizmo .hit[data-ribbon] { stroke-width: 12; }
   .gizmo .hit { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: grab; }
   .gizmo-handle {
     position: absolute;
@@ -852,6 +859,12 @@
     cursor: move;
   }
   .gizmo-handle::before { content: ''; position: absolute; inset: -4px; }
+  .gizmo-handle[data-tone='x'],
+  .gizmo-handle[data-tone='y'],
+  .gizmo-handle[data-tone='z'] { width: 9px; height: 9px; border-radius: 50%; }
+  .gizmo-handle[data-tone='x'] { background: #ff5c5c; }
+  .gizmo-handle[data-tone='y'] { background: #6bdc6b; }
+  .gizmo-handle[data-tone='z'] { background: #5c8cff; }
   .stage[data-space] .gizmo-handle,
   .stage[data-space] .gizmo .hit { pointer-events: none; }
   .ghost { opacity: 0.2; }

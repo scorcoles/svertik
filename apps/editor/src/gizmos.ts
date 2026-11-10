@@ -14,6 +14,8 @@ export interface GizmoLine {
   /** Color: acento, o los ejes de C4D (X rojo, Y verde, Z azul). */
   tone?: 'accent' | 'x' | 'y' | 'z';
   dashed?: boolean;
+  /** Cinta ancha y translúcida en vez de línea (los anillos de Rotate 3D). */
+  ribbon?: boolean;
   /** Si se puede arrastrar la propia línea (los anillos de rotación). */
   drag?: Drag;
   label?: string;
@@ -23,6 +25,7 @@ export interface GizmoHandle {
   at: Vec2;
   label: string;
   drag: Drag;
+  tone?: GizmoLine['tone'];
 }
 
 export interface Gizmo {
@@ -67,18 +70,6 @@ function radiusHandle(b: Bounds, c: Vec2, R: number): GizmoHandle {
     label: 'Radius',
     drag: (_p0, _from, to) => ({ radius: round(Math.min(2, Math.hypot(to[0] - c[0], to[1] - c[1]) / sizeOf(b)), 100) }),
   };
-}
-
-/** Rotate 3D: la misma rotación que el efecto (Z, luego X, luego Y), en proyección ortográfica. */
-function rotate3(p: Params, v: [number, number, number]): Vec2 {
-  const [sx, cx] = [Math.sin(rad(Number(p.rotateX) || 0)), Math.cos(rad(Number(p.rotateX) || 0))];
-  const [sy, cy] = [Math.sin(rad(Number(p.rotateY) || 0)), Math.cos(rad(Number(p.rotateY) || 0))];
-  const [sz, cz] = [Math.sin(rad(Number(p.rotateZ) || 0)), Math.cos(rad(Number(p.rotateZ) || 0))];
-  let [x, y, z] = v;
-  [x, y] = [x * cz - y * sz, x * sz + y * cz];
-  [y, z] = [y * cx - z * sx, y * sx + z * cx];
-  [x, z] = [x * cy + z * sy, -x * sy + z * cy];
-  return [x, y];
 }
 
 const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
@@ -132,27 +123,28 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
   },
 
   rotate3d(p, b) {
+    // Anillos fijos, legibles en 2D: Z, el círculo (girar alrededor del pivote); X, una elipse estrecha
+    // vertical (inclinar hacia delante/atrás, arrastrando en vertical); Y, una estrecha horizontal
+    // (inclinar a los lados, en horizontal). Un punto en cada anillo marca su ángulo y también se arrastra.
     const c = at(b, p.pivot);
     const R = sizeOf(b) * 0.35;
-    const ring = (axis: 'x' | 'y' | 'z') =>
-      Array.from({ length: SEG + 1 }, (_, i) => {
-        const t = (i / SEG) * Math.PI * 2;
-        const v: [number, number, number] =
-          axis === 'x' ? [0, Math.cos(t), Math.sin(t)] : axis === 'y' ? [Math.cos(t), 0, Math.sin(t)] : [Math.cos(t), Math.sin(t), 0];
-        const [x, y] = rotate3(p, v);
-        return [c[0] + x * R, c[1] + y * R] as Vec2;
-      });
-    // Los anillos X e Y se arrastran en línea (0,5° por cada 1 % del tamaño); el Z, girando alrededor del pivote.
-    const linear = (key: 'rotateX' | 'rotateY', i: 0 | 1, sign: number): Drag => (p0, from, to, snap) => ({
-      [key]: snapDeg(Number(p0[key]) + (sign * (to[i] - from[i]) * 180) / sizeOf(b), snap),
-    });
+    const k = 0.32;
+    const ax = rad(Number(p.rotateX) || 0), ay = rad(Number(p.rotateY) || 0), az = rad(Number(p.rotateZ) || 0);
+    const spinZ: Drag = (p0, from, to, snap) => ({ rotateZ: snapDeg(Number(p0.rotateZ) + turn(c, from, to), snap) });
+    // 0,5° por cada 1 % del tamaño.
+    const tiltX: Drag = (p0, from, to, snap) => ({ rotateX: snapDeg(Number(p0.rotateX) + ((to[1] - from[1]) * 180) / sizeOf(b), snap) });
+    const tiltY: Drag = (p0, from, to, snap) => ({ rotateY: snapDeg(Number(p0.rotateY) + ((to[0] - from[0]) * 180) / sizeOf(b), snap) });
     return {
       lines: [
-        { pts: ring('x'), closed: true, tone: 'x', label: 'Tilt X', drag: linear('rotateX', 1, 1) },
-        { pts: ring('y'), closed: true, tone: 'y', label: 'Tilt Y', drag: linear('rotateY', 0, 1) },
-        { pts: ring('z'), closed: true, tone: 'z', label: 'Spin Z', drag: (p0, from, to, snap) => ({ rotateZ: snapDeg(Number(p0.rotateZ) + turn(c, from, to), snap) }) },
+        { pts: ellipse(c, R, R), closed: true, tone: 'z', ribbon: true, label: 'Spin Z', drag: spinZ },
+        { pts: ellipse(c, R * k, R), closed: true, tone: 'x', ribbon: true, label: 'Tilt X', drag: tiltX },
+        { pts: ellipse(c, R, R * k), closed: true, tone: 'y', ribbon: true, label: 'Tilt Y', drag: tiltY },
       ],
-      handles: [],
+      handles: [
+        { at: [c[0] + Math.cos(az - Math.PI / 2) * R, c[1] + Math.sin(az - Math.PI / 2) * R], label: 'Spin Z', drag: spinZ, tone: 'z' },
+        { at: [c[0] + Math.sin(ax) * R * k, c[1] - Math.cos(ax) * R], label: 'Tilt X', drag: tiltX, tone: 'x' },
+        { at: [c[0] + Math.sin(ay) * R, c[1] + Math.cos(ay) * R * k], label: 'Tilt Y', drag: tiltY, tone: 'y' },
+      ],
     };
   },
 
