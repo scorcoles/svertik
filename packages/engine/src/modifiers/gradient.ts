@@ -3,7 +3,8 @@ import type { Gradient } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Degradado en el relleno o en el trazo de cada forma: lineal (con ángulo) o radial.
+ * Degradado en el relleno o en el trazo de cada forma: lineal (con ángulo) o radial (centro, radio y foco),
+ * con un color de paso opcional (`via`).
  * Va relativo a la caja de cada forma, así que la sigue al moverla o escalarla.
  */
 export const gradient = defineModifier({
@@ -16,8 +17,13 @@ export const gradient = defineModifier({
     to: { type: 'color', default: '#5c3cff', label: 'To' },
     fromOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'From opacity', ramp: false },
     toOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'To opacity', ramp: false },
-    angle: { type: 'angle', default: 90 },
+    via: { type: 'boolean', default: false, label: 'Via', animatable: false },
+    viaColor: { type: 'color', default: '#ffffff', label: 'Via color' },
     midpoint: { type: 'number', default: 0.5, min: 0.05, max: 0.95, step: 0.01, label: 'Midpoint', ramp: false },
+    angle: { type: 'angle', default: 90, group: 'Linear' },
+    center: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Radial', label: 'Center' },
+    radius: { type: 'number', default: 0.5, min: 0.05, max: 2, step: 0.01, unit: 'fraction', group: 'Radial', label: 'Radius', ramp: false },
+    focus: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Radial', label: 'Focus' },
     apply: { type: 'enum', default: 'fill', options: ['fill', 'stroke'] as const, label: 'Apply to', animatable: false },
   },
   apply(geo, p) {
@@ -30,11 +36,13 @@ export const gradient = defineModifier({
       kind: p.kind === 'radial' ? 'radial' : 'linear',
       stops: [
         { offset: 0, color: p.from, opacity: p.fromOpacity },
-        // Punto medio: el color a medio camino, donde diga `midpoint`.
-        { offset: r(p.midpoint), color: mid(p.from, p.to), opacity: r((p.fromOpacity + p.toOpacity) / 2) },
+        // Punto medio (donde diga `midpoint`): el color de paso (`via`) o, sin él, la mezcla de los dos.
+        { offset: r(p.midpoint), color: p.via ? p.viaColor : mid(p.from, p.to), opacity: r((p.fromOpacity + p.toOpacity) / 2) },
         { offset: 1, color: p.to, opacity: p.toOpacity },
       ],
-      ...(p.kind === 'linear' ? { x1: r(0.5 - dx * k), y1: r(0.5 - dy * k), x2: r(0.5 + dx * k), y2: r(0.5 + dy * k) } : {}),
+      ...(p.kind === 'linear'
+        ? { x1: r(0.5 - dx * k), y1: r(0.5 - dy * k), x2: r(0.5 + dx * k), y2: r(0.5 + dy * k) }
+        : { cx: r(p.center[0]), cy: r(p.center[1]), r: r(p.radius), fx: r(p.focus[0]), fy: r(p.focus[1]) }),
     };
     // Mismo degradado, mismo id: así el SVG no repite definiciones.
     const id = `svk-${hash(JSON.stringify(g))}`;

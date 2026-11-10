@@ -38,6 +38,12 @@ export interface Gradient {
   y1?: number;
   x2?: number;
   y2?: number;
+  /** Radial: centro, radio y foco (el punto de más intensidad), en fracciones de la caja. */
+  cx?: number;
+  cy?: number;
+  r?: number;
+  fx?: number;
+  fy?: number;
 }
 
 export interface Geometry {
