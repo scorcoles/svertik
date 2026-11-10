@@ -39,3 +39,47 @@ describe('interacciones', () => {
     expect(it.step(1)).toBe(false);
   });
 });
+
+describe('interacciones: acciones', () => {
+  const base = (interactions: SceneV2['interactions']): SceneV2 => ({
+    version: 2,
+    objects: [{ kind: 'shape', id: 'b', name: 'b', shape: 'star', params: {}, stack: [{ id: 'g', type: 'glitch', params: { seed: 1 } }, { id: 'w', type: 'wave', params: {} }] }],
+    animation: { duration: 2, autoplay: false, tracks: [] },
+    interactions,
+  });
+
+  it('play: el cabezal recorre el tramo al entrar y vuelve al salir', () => {
+    const sc = base([{ id: 'p', node: 'b', trigger: 'hover', action: 'play', target: { node: 'b', on: 'node', param: 'x' }, to: 0, duration: 0, segment: [0.5, 1.5] }]);
+    const it = createInteractions(() => sc);
+    it.event('enter', 'b');
+    it.step(0.4);
+    expect(it.playhead()).toBeCloseTo(0.9);
+    it.step(5);
+    expect(it.playhead()).toBeCloseTo(1.5);
+    it.event('leave', null);
+    it.step(0.5);
+    expect(it.playhead()).toBeCloseTo(1);
+  });
+
+  it('seed: una semilla nueva en cada clic; toggle: apaga el efecto', () => {
+    const sc = base([
+      { id: 's', node: 'b', trigger: 'click', action: 'seed', target: { node: 'b', on: 'modifier', modifier: 'g', param: 'seed' }, to: 0, duration: 0 },
+      { id: 't', node: 'b', trigger: 'click', action: 'toggle', target: { node: 'b', on: 'modifier', modifier: 'w', param: '' }, to: 0, duration: 0 },
+    ]);
+    const it = createInteractions(() => sc);
+    it.event('click', 'b');
+    const out = it.apply(sc);
+    expect(out.objects[0]!.stack[0]!.params!.seed).not.toBe(1);
+    expect(out.objects[0]!.stack[1]!.enabled).toBe(false);
+    it.event('click', 'b');
+    expect(it.apply(sc).objects[0]!.stack[1]!.enabled ?? true).toBe(true);
+  });
+
+  it('enter: se dispara cuando el dibujo entra en pantalla', () => {
+    const sc = base([{ id: 'e', node: 'b', trigger: 'enter', action: 'tween', target: { node: 'b', on: 'node', param: 'scale' }, to: 2, duration: 1, ease: 'linear' }]);
+    const it = createInteractions(() => sc);
+    it.event('view', null);
+    it.step(0.5);
+    expect(it.apply(sc).objects[0]!.transform?.scale).toBeCloseTo(1.5);
+  });
+});

@@ -421,3 +421,35 @@ describe('interacciones en el editor', () => {
     expect(e.scene!.interactions).toHaveLength(0);
   });
 });
+
+describe('Interacciones', () => {
+  it('añadir, cambiar de acción y quitar, con deshacer', () => {
+    const e = fresh();
+    const node = e.scene!.objects.at(-1)!.id;
+    e.add('damage');
+    e.addInteraction(node);
+    const it0 = e.scene!.interactions![0]!;
+    expect(it0).toMatchObject({ node, trigger: 'hover' });
+
+    e.setInteractionAction(it0.id, 'play');
+    expect(e.scene!.interactions![0]!.segment).toEqual([0, e.animation?.duration ?? 3]);
+
+    e.setInteractionAction(it0.id, 'seed');
+    const fx = stack(e)[0]!;
+    expect(e.scene!.interactions![0]!.target).toEqual({ node, on: 'modifier', modifier: fx.id, param: 'seed' });
+
+    e.setInteractionAction(it0.id, 'toggle');
+    expect(e.scene!.interactions![0]!.target.modifier).toBe(fx.id);
+
+    e.removeInteraction(it0.id);
+    expect(e.scene!.interactions).toEqual([]);
+    e.undo();
+    expect(e.scene!.interactions).toHaveLength(1);
+  });
+
+  it('autoplay se guarda en la animación', () => {
+    const e = fresh();
+    e.setAutoplay(false);
+    expect(e.scene!.animation?.autoplay).toBe(false);
+  });
+});

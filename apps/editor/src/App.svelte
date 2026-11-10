@@ -12,6 +12,7 @@
   import { demoProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
+  import Presenter from './Presenter.svelte';
   import Timeline from './Timeline.svelte';
   import Toolbar from './Toolbar.svelte';
 
@@ -117,6 +118,8 @@
     return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
   };
   function keydown(e: KeyboardEvent) {
+    // En el modo Play, el editor está detrás: sus atajos no actúan.
+    if (editor.presenting) return;
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z' && !typing(e)) {
       e.preventDefault();
@@ -162,7 +165,7 @@
     say(cut ? 'Cut' : 'Copied');
   }
   function paste(e: ClipboardEvent) {
-    if (typing(e)) return;
+    if (typing(e) || editor.presenting) return;
     const text = e.clipboardData?.getData('text/plain') ?? '';
     if (editor.paste(text)) {
       e.preventDefault();
@@ -275,6 +278,7 @@
       e.currentTarget.value = '';
     }}
   />
+  {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
 </div>
 

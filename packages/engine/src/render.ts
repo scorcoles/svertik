@@ -108,6 +108,12 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       if (path.getAttribute(k) !== v) path.setAttribute(k, v);
     }
     for (const k of before) if (!now.includes(k)) path.removeAttribute(k);
+    // Invisible (opacidad 0): deja pasar el puntero a lo que haya debajo (un destello apagado no tapa los clics).
+    const hidden = Number(shape.style.opacity ?? 1) <= 0;
+    if (hidden !== path.hasAttribute('pointer-events')) {
+      if (hidden) path.setAttribute('pointer-events', 'none');
+      else path.removeAttribute('pointer-events');
+    }
     const list = now.join(' ');
     if ((path.getAttribute('data-svertik') ?? '') !== list) path.setAttribute('data-svertik', list);
     const css = cssOf(shape.style);

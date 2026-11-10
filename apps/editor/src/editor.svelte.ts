@@ -167,8 +167,8 @@ export class Editor {
   codeOpen = $state(false);
   /** Línea de tiempo: abierta, instante actual (s) y reproducción. */
   timelineOpen = $state(false);
-  /** Modo Preview: el lienzo responde a las interacciones (no se selecciona ni se mueve nada). */
-  previewMode = $state(false);
+  /** Modo Play: la escena a pantalla completa, sin herramientas, con el reproductor del código exportado. */
+  presenting = $state(false);
   time = $state(0);
   playing = $state(false);
   /** Fuentes que se pueden elegir en Text (las incluidas y, si se pidieron, las del sistema). */
@@ -696,6 +696,39 @@ export class Editor {
     // Primero se crea la lista y luego se lee de la escena: así se usa la versión reactiva (no la copia).
     this.scene.interactions ??= [];
     this.scene.interactions.push({ id: `int-${uid()}`, node: nodeId, trigger: 'hover', target: { node: nodeId, on: 'node', param: 'scale' }, to: 1.2, duration: 0.3, ease: 'back-out' });
+    this.record(true);
+  }
+  /** Los efectos del nodo (para «toggle» y «seed»): con su nombre y si tienen semilla. */
+  interactionEffects(nodeId: string): { id: string; label: string; hasSeed: boolean }[] {
+    const n = this.scene ? locateNode(this.scene.objects, nodeId)?.node : undefined;
+    const out: { id: string; label: string; hasSeed: boolean }[] = [];
+    const walk = (list: ModifierInstance[]) => {
+      for (const m of list) {
+        const def = registry.get(m.type);
+        const same = out.filter((x) => x.label.startsWith(def?.label ?? m.type)).length;
+        out.push({ id: m.id, label: `${def?.label ?? m.type}${same ? ` ${same + 1}` : ''}`, hasSeed: !!def && Object.values(def.params).some((p) => p.type === 'seed') });
+        walk(m.children ?? []);
+      }
+    };
+    walk(n?.stack ?? []);
+    return out;
+  }
+  /** Cambia lo que hace una interacción, con valores de partida razonables para la nueva acción. */
+  setInteractionAction(id: string, action: 'tween' | 'play' | 'seed' | 'toggle') {
+    const it = this.scene?.interactions?.find((x) => x.id === id);
+    if (!it) return;
+    it.action = action;
+    if (action === 'play') it.segment = it.segment ?? [0, this.animation?.duration ?? 3];
+    if (action === 'seed' || action === 'toggle') {
+      const fx = this.interactionEffects(it.node);
+      const pick = action === 'seed' ? fx.find((x) => x.hasSeed) : fx[0];
+      it.target = { node: it.node, on: 'modifier', modifier: pick?.id, param: action === 'seed' ? 'seed' : '' };
+    }
+    if (action === 'tween') it.target = { node: it.node, on: 'node', param: 'scale' };
+    this.record(true);
+  }
+  setAutoplay(on: boolean) {
+    this.#ensureAnimation().autoplay = on;
     this.record(true);
   }
   updateInteraction(id: string, patch: Partial<Interaction>) {

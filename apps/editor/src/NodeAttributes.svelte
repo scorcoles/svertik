@@ -15,6 +15,12 @@
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
   const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
+  const ACTIONS = [
+    { value: 'tween', label: 'Change a value' },
+    { value: 'play', label: 'Play the timeline' },
+    { value: 'seed', label: 'New seed' },
+    { value: 'toggle', label: 'Toggle an effect' },
+  ] as const;
   // Animación: rombos de los parámetros de la primitiva y de la colocación.
   const shapeKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'shape', param }));
   const nodeKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'node', param }));
@@ -107,42 +113,76 @@
     {#each (editor.scene?.interactions ?? []).filter((x) => x.node === node.id) as it (it.id)}
       {@const targets = editor.interactionTargets(node.id)}
       {@const current = targets.find((t) => t.target.on === it.target.on && t.target.param === it.target.param && (t.target.modifier ?? '') === (it.target.modifier ?? '')) ?? targets[2]}
+      {@const effects = editor.interactionEffects(node.id)}
+      {@const act = it.action ?? 'tween'}
       <div class="interaction">
         <ParamRow label="On">
-          <Segmented value={it.trigger} label="Trigger" options={[{ value: 'hover', label: 'hover' }, { value: 'click', label: 'click' }]} onchange={(v) => editor.updateInteraction(it.id, { trigger: v as 'hover' | 'click' })} />
+          <Segmented value={it.trigger} label="Trigger" options={[{ value: 'hover', label: 'hover' }, { value: 'click', label: 'click' }, { value: 'enter', label: 'enter' }]} onchange={(v) => editor.updateInteraction(it.id, { trigger: v as 'hover' | 'click' | 'enter' })} />
           <span class="mini">
             <IconButton icon="trash" label="Remove interaction" onclick={() => editor.removeInteraction(it.id)} />
           </span>
         </ParamRow>
-        <ParamRow label="Change">
+        <ParamRow label="Do">
           <Select
-            value={current?.label ?? ''}
-            options={targets.map((t) => t.label)}
-            label="What changes"
+            value={ACTIONS.find((x) => x.value === act)!.label}
+            options={ACTIONS.map((x) => x.label)}
+            label="Action"
             width="172px"
-            onchange={(v) => {
-              const t = targets.find((x) => x.label === v);
-              if (t) editor.updateInteraction(it.id, { target: t.target, to: t.kind === 'color' ? '#09fdd1' : t.target.param === 'scale' ? 1.2 : t.target.param === 'opacity' ? 0.5 : 0 });
-            }}
+            onchange={(v) => editor.setInteractionAction(it.id, ACTIONS.find((x) => x.label === v)!.value)}
           />
         </ParamRow>
-        <ParamRow label="To">
-          {#if current?.kind === 'color'}
-            <ColorField value={String(it.to)} label="To" onchange={(v) => editor.updateInteraction(it.id, { to: v })} />
-          {:else}
-            <NumberField value={Number(it.to) || 0} step={current?.kind === 'angle' ? 1 : 0.01} unit={current?.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { to: v })} />
-          {/if}
-        </ParamRow>
-        <ParamRow label="Time">
-          <NumberField value={it.duration} min={0.01} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { duration: v })} />
-          <Select value={it.ease ?? 'ease-out'} options={EASES.filter((e) => e !== 'hold')} label="Ease" width="104px" onchange={(v) => editor.updateInteraction(it.id, { ease: v as Ease })} />
-        </ParamRow>
+        {#if act === 'tween'}
+          <ParamRow label="Change">
+            <Select
+              value={current?.label ?? ''}
+              options={targets.map((t) => t.label)}
+              label="What changes"
+              width="172px"
+              onchange={(v) => {
+                const t = targets.find((x) => x.label === v);
+                if (t) editor.updateInteraction(it.id, { target: t.target, to: t.kind === 'color' ? '#09fdd1' : t.target.param === 'scale' ? 1.2 : t.target.param === 'opacity' ? 0.5 : 0 });
+              }}
+            />
+          </ParamRow>
+          <ParamRow label="To">
+            {#if current?.kind === 'color'}
+              <ColorField value={String(it.to)} label="To" onchange={(v) => editor.updateInteraction(it.id, { to: v })} />
+            {:else}
+              <NumberField value={Number(it.to) || 0} step={current?.kind === 'angle' ? 1 : 0.01} unit={current?.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { to: v })} />
+            {/if}
+          </ParamRow>
+          <ParamRow label="Time">
+            <NumberField value={it.duration} min={0.01} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { duration: v })} />
+            <Select value={it.ease ?? 'ease-out'} options={EASES.filter((e) => e !== 'hold')} label="Ease" width="104px" onchange={(v) => editor.updateInteraction(it.id, { ease: v as Ease })} />
+          </ParamRow>
+        {:else if act === 'play'}
+          {@const seg = it.segment ?? [0, editor.animation?.duration ?? 3]}
+          <ParamRow label="From">
+            <NumberField value={seg[0]} min={0} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { segment: [v, seg[1]] })} />
+            <span class="dim">to</span>
+            <NumberField value={seg[1]} min={0} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { segment: [seg[0], v] })} />
+          </ParamRow>
+        {:else}
+          {@const list = act === 'seed' ? effects.filter((x) => x.hasSeed) : effects}
+          <ParamRow label="Effect">
+            <Select
+              value={list.find((x) => x.id === it.target.modifier)?.label ?? '— none —'}
+              options={['— none —', ...list.map((x) => x.label)]}
+              label="Effect"
+              width="172px"
+              onchange={(v) => {
+                const m = list.find((x) => x.label === v);
+                editor.updateInteraction(it.id, { target: { node: node.id, on: 'modifier', modifier: m?.id, param: act === 'seed' ? 'seed' : '' } });
+              }}
+            />
+          </ParamRow>
+        {/if}
       </div>
     {/each}
     <div class="presets">
       <Button label="+ Add interaction" onclick={() => editor.addInteraction(node.id)} />
     </div>
-    <p class="note">Hover: goes to the value and back when the pointer leaves. Click: toggles. Try it with Preview (bottom bar).</p>
+    <p class="note">Hover: does it while the pointer is over, undoes it when it leaves. Click: toggles (Play restarts, Seed rolls a new one). Enter: when the drawing scrolls into view. Try it with ▶ Play (bottom bar).</p>
   </Section>
   <Section title="Animate">
     <div class="presets">
@@ -186,6 +226,7 @@
   .name:focus { border-bottom-color: var(--sv-accent-fill); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .mini { display: flex; }
+  .dim { color: var(--sv-text-muted); }
   .interaction { margin: 0 0 var(--sv-space-6); padding-bottom: var(--sv-space-4); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }

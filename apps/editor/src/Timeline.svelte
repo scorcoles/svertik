@@ -124,6 +124,7 @@
     <span class="rule" aria-hidden="true"></span>
     <label class="field">Duration <NumberField value={duration} min={0.1} step={0.1} unit="s" width="64px" onchange={(v) => editor.setDuration(v)} /></label>
     <label class="field"><Checkbox checked={anim?.loop !== false} label="Loop" onchange={(v) => editor.setLoop(v)} /> Loop</label>
+    <label class="field" title="Off: the timeline only moves with “Play the timeline” interactions"><Checkbox checked={anim?.autoplay !== false} label="Autoplay" onchange={(v) => editor.setAutoplay(v)} /> Autoplay</label>
     {#if selectedKey}
       <span class="rule" aria-hidden="true"></span>
       <span class="field">Ease

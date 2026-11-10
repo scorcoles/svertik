@@ -116,8 +116,8 @@ export function shatterProject() {
           id: 'caption',
           name: 'Caption',
           shape: 'text',
-          params: { text: 'IMPACT', font: 'JetBrains Mono Bold', size: 22, tracking: 700, fillColor: '#09fdd1' },
-          transform: { y: 360 },
+          params: { text: 'IMPACT', font: 'JetBrains Mono Bold', size: 28, tracking: 700, fillColor: '#09fdd1' },
+          transform: { y: 0 },
           stack: [
             {
               id: 'cap-in',

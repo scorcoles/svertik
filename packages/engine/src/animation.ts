@@ -34,6 +34,8 @@ export interface Animation {
   /** Duración en segundos. */
   duration: number;
   loop?: boolean;
+  /** Arranca sola al cargar (por defecto, sí). Sin autoplay, solo la mueven las interacciones «play». */
+  autoplay?: boolean;
   /** Fotogramas por segundo para encajar las claves (24, 25, 30, 60…). */
   fps?: number;
   tracks: Track[];
