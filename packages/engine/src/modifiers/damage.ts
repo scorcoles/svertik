@@ -161,7 +161,7 @@ function edgeSampler(outer: Pair[][], rand: () => number) {
 }
 
 /** Banda alrededor de una línea: ancho `w`, que se afila hacia el final (`taper`), con algo de ruido. */
-function band(pts: Vec2[], w: number, taper: number, rand: () => number): Pair[] {
+export function band(pts: Vec2[], w: number, taper: number, rand: () => number): Pair[] {
   const left: Pair[] = [], right: Pair[] = [];
   const n = pts.length;
   for (let i = 0; i < n; i++) {
