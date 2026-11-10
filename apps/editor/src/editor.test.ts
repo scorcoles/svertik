@@ -251,6 +251,21 @@ describe('copiar y pegar', () => {
     expect(new Set(stack(e).map((m) => m.id)).size).toBe(3);
   });
 
+  it('nombres al pegar: «copy», «copy 2»… solo si el nombre ya existe', () => {
+    const e = fresh();
+    const name = e.scene!.objects[0]!.name;
+    e.selected = e.scene!.objects[0]!.id;
+    e.duplicate();
+    e.duplicate();
+    e.selected = e.scene!.objects.at(-1)!.id;
+    e.duplicate();
+    expect(e.scene!.objects.map((n) => n.name)).toEqual([`${name} copy 2`, `${name} copy`, `${name} copy 3`, name]);
+    // En un documento donde no existe, conserva su nombre.
+    const other = new Editor();
+    other.paste(e.copySelection()!);
+    expect(other.scene!.objects[0]!.name).toBe(`${name} copy 3`);
+  });
+
   it('duplicar varios a la vez; texto ajeno no se pega', () => {
     const e = fresh();
     e.addShape('star');

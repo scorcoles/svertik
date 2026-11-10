@@ -446,8 +446,17 @@ export class Editor {
     this.#pastes = this.#lastPasted === text ? this.#pastes + 1 : 1;
     this.#lastPasted = text;
     offset *= this.#pastes;
+    // Si el nombre ya existe: «Name copy», «Name copy 2», «Name copy 3»… (de «Name copy» sale «Name copy 2»).
+    const taken = new Set(this.scene ? [...walkNodes(this.scene.objects)].map((x) => x.node.name) : []);
     const items = (data.items as SceneNode[]).map(freshNode).map((n) => {
       n.transform = { ...n.transform, x: (n.transform?.x ?? 0) + offset, y: (n.transform?.y ?? 0) + offset };
+      if (taken.has(n.name)) {
+        const base = n.name.replace(/ copy( \d+)?$/, '');
+        let name = `${base} copy`;
+        for (let i = 2; taken.has(name); i++) name = `${base} copy ${i}`;
+        n.name = name;
+      }
+      taken.add(n.name);
       return n;
     });
     if (!this.scene) {
