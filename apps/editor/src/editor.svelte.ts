@@ -1287,14 +1287,26 @@ export class Editor {
 
   // ── URL
 
+  /** Lo último que quedó guardado en la URL (el estado del historial), o nada si no cabía. */
+  #inURL: string | undefined;
   async saveToURL() {
     if (!this.scene) {
       history.replaceState(null, '', `${location.pathname}${location.search}`);
       return;
     }
+    this.flush();
+    const state = this.#history[this.#index];
     const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
-    const hash = encoded.length < MAX_HASH ? `#s=${encoded}` : '';
-    history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+    const fits = encoded.length < MAX_HASH;
+    history.replaceState(null, '', `${location.pathname}${location.search}${fits ? `#s=${encoded}` : ''}`);
+    this.#inURL = fits ? state : undefined;
+  }
+  /**
+   * Cerrar la pestaña perdería algo: hay cambios sin guardar y no están en la URL (una escena grande no
+   * cabe). Si están en la URL, volver a abrirla (o recargar) los recupera: no hace falta preguntar.
+   */
+  get wouldLose() {
+    return this.dirty && this.#history[this.#index] !== this.#inURL;
   }
 
   /**
