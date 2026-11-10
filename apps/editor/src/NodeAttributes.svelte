@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { BLEND_MODES, hasFont, placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
+  import { BLEND_MODES, EASES, hasFont, placementOf, shapeRegistry, type Ease, type SceneNode } from '@svertik/engine';
   import { canUseSystemFonts, listSystemFonts } from './fonts';
-  import { Button, Checkbox, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Select, Slider } from '@svertik/ui';
+  import { Button, Checkbox, ColorField, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, type Editor } from './editor.svelte';
 
   interface Props {
@@ -103,6 +103,47 @@
       <Checkbox id="node-vis" checked={node.visible !== false} onchange={(v) => editor.setNode(node.id, 'visible', v, true)} />
     </ParamRow>
   </Section>
+  <Section title="Interactions">
+    {#each (editor.scene?.interactions ?? []).filter((x) => x.node === node.id) as it (it.id)}
+      {@const targets = editor.interactionTargets(node.id)}
+      {@const current = targets.find((t) => t.target.on === it.target.on && t.target.param === it.target.param && (t.target.modifier ?? '') === (it.target.modifier ?? '')) ?? targets[2]}
+      <div class="interaction">
+        <ParamRow label="On">
+          <Segmented value={it.trigger} label="Trigger" options={[{ value: 'hover', label: 'hover' }, { value: 'click', label: 'click' }]} onchange={(v) => editor.updateInteraction(it.id, { trigger: v as 'hover' | 'click' })} />
+          <span class="mini">
+            <IconButton icon="trash" label="Remove interaction" onclick={() => editor.removeInteraction(it.id)} />
+          </span>
+        </ParamRow>
+        <ParamRow label="Change">
+          <Select
+            value={current?.label ?? ''}
+            options={targets.map((t) => t.label)}
+            label="What changes"
+            width="172px"
+            onchange={(v) => {
+              const t = targets.find((x) => x.label === v);
+              if (t) editor.updateInteraction(it.id, { target: t.target, to: t.kind === 'color' ? '#09fdd1' : t.target.param === 'scale' ? 1.2 : t.target.param === 'opacity' ? 0.5 : 0 });
+            }}
+          />
+        </ParamRow>
+        <ParamRow label="To">
+          {#if current?.kind === 'color'}
+            <ColorField value={String(it.to)} label="To" onchange={(v) => editor.updateInteraction(it.id, { to: v })} />
+          {:else}
+            <NumberField value={Number(it.to) || 0} step={current?.kind === 'angle' ? 1 : 0.01} unit={current?.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { to: v })} />
+          {/if}
+        </ParamRow>
+        <ParamRow label="Time">
+          <NumberField value={it.duration} min={0.01} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { duration: v })} />
+          <Select value={it.ease ?? 'ease-out'} options={EASES.filter((e) => e !== 'hold')} label="Ease" width="104px" onchange={(v) => editor.updateInteraction(it.id, { ease: v as Ease })} />
+        </ParamRow>
+      </div>
+    {/each}
+    <div class="presets">
+      <Button label="+ Add interaction" onclick={() => editor.addInteraction(node.id)} />
+    </div>
+    <p class="note">Hover: goes to the value and back when the pointer leaves. Click: toggles. Try it with Preview (bottom bar).</p>
+  </Section>
   <Section title="Animate">
     <div class="presets">
       {#each PRESETS as name (name)}
@@ -145,6 +186,7 @@
   .name:focus { border-bottom-color: var(--sv-accent-fill); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .mini { display: flex; }
+  .interaction { margin: 0 0 var(--sv-space-6); padding-bottom: var(--sv-space-4); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }

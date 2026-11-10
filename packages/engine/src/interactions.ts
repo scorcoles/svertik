@@ -86,6 +86,10 @@ export function createInteractions(getScene: () => SceneV2) {
       }
       return out;
     },
+    /** ¿Alguna interacción fuera de su reposo? */
+    isActive(): boolean {
+      return list().some((it) => (states.get(it.id)?.progress ?? 0) > 0);
+    },
     reset() {
       states.clear();
     },

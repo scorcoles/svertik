@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { apply, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
+  import { apply, builtins, buildShape, createEngine, createInteractions, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -367,6 +367,45 @@
     el.addEventListener('pointerup', up);
   }
 
+  // ── Preview: el lienzo responde a hover y clic como lo hará en la web (no se selecciona ni se mueve nada)
+
+  const inter = createInteractions(() => $state.snapshot(editor.scene) as SceneV2);
+  $effect(() => {
+    const svg = result;
+    if (!editor.previewMode || !svg) return;
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      const moving = inter.step(dt);
+      if (inter.isActive()) editor.preview = inter.apply($state.snapshot(editor.scene) as SceneV2).objects;
+      else editor.preview = null;
+      frame = moving ? requestAnimationFrame(tick) : 0;
+    };
+    const wake = () => {
+      if (!frame) {
+        last = performance.now();
+        frame = requestAnimationFrame(tick);
+      }
+    };
+    const nodeOf = (el: EventTarget | null) => (el as Element | null)?.closest?.('[data-node]')?.getAttribute('data-node') ?? null;
+    const over = (e: PointerEvent) => (inter.event('enter', nodeOf(e.target)), wake());
+    const out = (e: PointerEvent) => (inter.event('leave', nodeOf(e.relatedTarget)), wake());
+    const click = (e: MouseEvent) => (inter.event('click', nodeOf(e.target)), wake());
+    svg.addEventListener('pointerover', over);
+    svg.addEventListener('pointerout', out);
+    svg.addEventListener('click', click);
+    return () => {
+      cancelAnimationFrame(frame);
+      svg.removeEventListener('pointerover', over);
+      svg.removeEventListener('pointerout', out);
+      svg.removeEventListener('click', click);
+      inter.reset();
+      editor.preview = null;
+    };
+  });
+
   // ── Dibujar primitivas: con una herramienta armada, arrastrar define tamaño y sitio.
   // Mientras se arrastra se ve la forma real (con su estilo por defecto), no un rectángulo.
 
@@ -430,7 +469,7 @@
   }
 
   function pick(e: PointerEvent) {
-    if (space || e.button !== 0 || !editor.scene) return;
+    if (space || e.button !== 0 || !editor.scene || editor.previewMode) return;
     if (editor.tool) return drawShape(e);
     const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
     if (!id) {
@@ -647,7 +686,7 @@
   <Tools {editor} oncenter={placeAtCenter} />
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown}>
+    <div class="stage" bind:this={stage} data-preview={editor.previewMode || undefined} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown}>
       <div class="view" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
@@ -733,7 +772,7 @@
         ></button>
       {/each}
     </div>
-    {#if cornerGizmo && !editor.tool}
+    {#if cornerGizmo && !editor.tool && !editor.previewMode}
       <div class="corner-gizmo" bind:this={cornerEl} data-active={gizmoActive || gizmoHover || editor.busy || undefined}>
         <svg class="gizmo" width={CORNER_SIZE} height={CORNER_SIZE} viewBox="0 0 {CORNER_SIZE} {CORNER_SIZE}" aria-hidden="true">
           {#each cornerGizmo.lines as l, i (i)}
@@ -770,7 +809,7 @@
         {/each}
       </div>
     {/if}
-    {#if editor.selectedNodes.length && !editor.tool}
+    {#if editor.selectedNodes.length && !editor.tool && !editor.previewMode}
       {@const n = editor.selectedNodes.length}
       {@const canBool = n > 1 || editor.selectedNodes[0]?.kind === 'group'}
       <div class="arrange" role="toolbar" aria-label="Arrange">
@@ -816,6 +855,7 @@
         >{cost > SLOW ? '⚠ ' : ''}{Math.round(cost)} ms</span>
       {/if}
       <span class="zoom tl-wrap">
+        <button type="button" class="tl" aria-pressed={editor.previewMode} onclick={() => (editor.previewMode = !editor.previewMode)} title="Preview: try hover and click like on the web">Preview</button>
         <button type="button" class="tl" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
       </span>
     </footer>
@@ -1014,6 +1054,9 @@
     cursor: pointer;
   }
   .zoom button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  /* Preview: sin recuadros, tiradores ni actuadores; las formas con interacción, con mano. */
+  .stage[data-preview] :is(.selection, .corner, .rotate, .pivot, .handle, .gizmo, .gizmo-handle) { display: none; }
+  .stage[data-preview] :global(path[data-node]) { cursor: pointer; }
   /* Timeline, a la derecha del todo y algo separado del resto. */
   .tl-wrap { margin-left: auto; padding-left: var(--sv-space-16); }
   .zoom .tl[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }

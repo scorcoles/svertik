@@ -19,6 +19,7 @@ import {
   type Ease,
   type Track,
   type GroupNode,
+  type Interaction,
   type NodeInfo,
   type ModifierDef,
   type ModifierInstance,
@@ -166,6 +167,8 @@ export class Editor {
   codeOpen = $state(false);
   /** Línea de tiempo: abierta, instante actual (s) y reproducción. */
   timelineOpen = $state(false);
+  /** Modo Preview: el lienzo responde a las interacciones (no se selecciona ni se mueve nada). */
+  previewMode = $state(false);
   time = $state(0);
   playing = $state(false);
   /** Fuentes que se pueden elegir en Text (las incluidas y, si se pidieron, las del sistema). */
@@ -662,6 +665,51 @@ export class Editor {
     this.record(true);
   }
 
+  // ── Interacciones (hover y clic): viven en scene.interactions
+
+  /** Los valores que una interacción de este nodo puede cambiar: colocación y números, ángulos y colores de sus efectos. */
+  interactionTargets(nodeId: string): { label: string; target: TrackTarget; kind: 'number' | 'angle' | 'color' }[] {
+    const n = this.scene ? locateNode(this.scene.objects, nodeId)?.node : undefined;
+    if (!n) return [];
+    const out: { label: string; target: TrackTarget; kind: 'number' | 'angle' | 'color' }[] = [
+      { label: 'Position X', target: { node: nodeId, on: 'node', param: 'x' }, kind: 'number' },
+      { label: 'Position Y', target: { node: nodeId, on: 'node', param: 'y' }, kind: 'number' },
+      { label: 'Scale', target: { node: nodeId, on: 'node', param: 'scale' }, kind: 'number' },
+      { label: 'Rotation', target: { node: nodeId, on: 'node', param: 'rotation' }, kind: 'angle' },
+      { label: 'Opacity', target: { node: nodeId, on: 'node', param: 'opacity' }, kind: 'number' },
+    ];
+    const walk = (list: ModifierInstance[]) => {
+      for (const m of list) {
+        const def = registry.get(m.type);
+        for (const [name, spec] of Object.entries(def?.params ?? {})) {
+          if (spec.animatable === false || (spec.type !== 'number' && spec.type !== 'angle' && spec.type !== 'color')) continue;
+          out.push({ label: `${def!.label} · ${spec.label ?? name}`, target: { node: nodeId, on: 'modifier', modifier: m.id, param: name }, kind: spec.type });
+        }
+        walk(m.children ?? []);
+      }
+    };
+    walk(n.stack);
+    return out;
+  }
+  addInteraction(nodeId: string) {
+    if (!this.scene) return;
+    // Primero se crea la lista y luego se lee de la escena: así se usa la versión reactiva (no la copia).
+    this.scene.interactions ??= [];
+    this.scene.interactions.push({ id: `int-${uid()}`, node: nodeId, trigger: 'hover', target: { node: nodeId, on: 'node', param: 'scale' }, to: 1.2, duration: 0.3, ease: 'back-out' });
+    this.record(true);
+  }
+  updateInteraction(id: string, patch: Partial<Interaction>) {
+    const it = this.scene?.interactions?.find((x) => x.id === id);
+    if (!it) return;
+    Object.assign(it, patch);
+    this.record();
+  }
+  removeInteraction(id: string) {
+    if (!this.scene?.interactions) return;
+    this.scene.interactions = this.scene.interactions.filter((x) => x.id !== id);
+    this.record(true);
+  }
+
   // ── Copiar y pegar (el portapapeles lleva JSON con la marca `svertik`)
 
   /** Lo seleccionado, listo para el portapapeles: nodos (con sus pilas) o un efecto. */
@@ -753,7 +801,8 @@ export class Editor {
     const at = locate(stack, this.selected);
     if (at && containers.has(at.inst.type) && !containers.has(type)) {
       // Con Step seleccionado: dentro, al final.
-      (at.inst.children ??= []).push(inst);
+      at.inst.children ??= [];
+      at.inst.children.push(inst);
     } else if (at && at.parent && !containers.has(type)) {
       // Con algo de dentro de Step seleccionado: dentro, debajo de él.
       at.list.splice(at.index + 1, 0, inst);
@@ -821,7 +870,8 @@ export class Editor {
     const stack = owner.stack;
     const target = parentId ? locate(stack, parentId)?.inst : null;
     if (parentId && (!target || !containers.has(target.type))) return;
-    const list = target ? (target.children ??= []) : stack;
+    if (target) target.children ??= [];
+    const list = target ? target.children! : stack;
     let m: ModifierInstance;
     let i = index;
     if (copy) m = freshModifier($state.snapshot(at.inst) as ModifierInstance);

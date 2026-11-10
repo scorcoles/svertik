@@ -402,3 +402,22 @@ describe('proyecto .svrtk', () => {
     expect(new Editor().openProject('hola')).toBe(false);
   });
 });
+
+describe('interacciones en el editor', () => {
+  it('añadir, cambiar y quitar; los destinos incluyen la colocación y los valores de sus efectos', () => {
+    const e = fresh();
+    const id = e.scene!.objects[0]!.id;
+    e.selected = id;
+    e.add('spherize');
+    e.addInteraction(id);
+    expect(e.scene!.interactions).toHaveLength(1);
+    const it = e.scene!.interactions![0]!;
+    e.updateInteraction(it.id, { trigger: 'click', to: 2 });
+    expect(e.scene!.interactions![0]).toMatchObject({ trigger: 'click', to: 2 });
+    const labels = e.interactionTargets(id).map((t) => t.label);
+    expect(labels).toContain('Scale');
+    expect(labels).toContain('Spherize · strength');
+    e.removeInteraction(it.id);
+    expect(e.scene!.interactions).toHaveLength(0);
+  });
+});
