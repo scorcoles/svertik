@@ -374,7 +374,9 @@
         ? { width: r2(Math.abs(dx)), height: r2(Math.abs(dy)) }
         : type === 'line'
           ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
-          : { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2) };
+          : type === 'pawn'
+            ? { height: r2(Math.max(Math.abs(dy), Math.abs(dx) * (200 / 120))) }
+            : { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2) };
     return { params, center };
   }
 
