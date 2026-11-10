@@ -43,7 +43,7 @@ export const rectangle = defineShape({
   type: 'rectangle',
   label: 'Rectangle',
   params: {
-    width: { type: 'number', default: 160, min: 1, step: 1, unit: 'px' },
+    width: { type: 'number', default: 160, min: 1, step: 1, unit: 'px', pair: 'height' },
     height: { type: 'number', default: 120, min: 1, step: 1, unit: 'px' },
     radius: { type: 'number', default: 0, min: 0, step: 1, unit: 'px' },
     ...style,
@@ -72,7 +72,7 @@ export const ellipseShape = defineShape({
   type: 'ellipse',
   label: 'Ellipse',
   params: {
-    width: { type: 'number', default: 140, min: 1, step: 1, unit: 'px' },
+    width: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', pair: 'height' },
     height: { type: 'number', default: 140, min: 1, step: 1, unit: 'px' },
     ...style,
   },

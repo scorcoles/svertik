@@ -17,7 +17,7 @@ export const clone = defineModifier({
     count: { type: 'number', default: 6, min: 1, max: 64, step: 1, label: 'Count', ramp: false },
     columns: { type: 'number', default: 3, min: 1, max: 16, step: 1, group: 'Grid', ramp: false },
     rows: { type: 'number', default: 3, min: 1, max: 16, step: 1, group: 'Grid', ramp: false },
-    spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false },
+    spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false, linkable: true },
     radius: { type: 'number', default: 1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', ramp: false },
     align: { type: 'boolean', default: true, label: 'Align' },
     startAngle: { type: 'angle', default: 0, group: 'Radial', label: 'Start' },
