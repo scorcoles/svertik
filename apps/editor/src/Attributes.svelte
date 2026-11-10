@@ -54,13 +54,17 @@
       <p class="note">
         {editor.currentParent.type === 'step'
           ? 'Per element: numbers grow ×1, ×2, ×3… Centers are each element’s own.'
+          : editor.currentParent.type === 'stagger'
+            ? 'Per element: where it starts (In) or ends (Out). Centers are each element’s own.'
           : 'Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).'}
       </p>
     {:else if m.children}
       <p class="note">
         {m.type === 'step'
           ? 'Applies the modifiers nested under it to each element, stepping their numbers. Drop modifiers onto it, or select it and add.'
-          : m.type === 'range'
+          : m.type === 'stagger'
+            ? 'Each element makes its own transition, a little after the previous one, with its ease. Animate Progress from 0 to 1. In: from the nested modifiers to rest; Out: the other way.'
+            : m.type === 'range'
             ? 'Selects elements by order (letters, words, lines, copies, tiles, pieces): the nested modifiers act on them, more or less by the shape. Animate Offset to sweep.'
             : 'Selects elements by where they are: the nested modifiers act more near the field. Move or animate it to sweep.'}
       </p>
@@ -69,10 +73,10 @@
       {#snippet children(t)}
         {#if t === 'Params'}
           <div class="params">
-            <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
+            <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
-                <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} onchange={(n, v) => editor.setParam(n, v)} />
+                <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
           </div>

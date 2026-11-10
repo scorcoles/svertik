@@ -5,8 +5,8 @@ import type { SceneNode, SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
 
 /** Curva desde una clave hasta la siguiente. `hold`: se mantiene hasta la siguiente (salto). */
-export type Ease = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'hold';
-export const EASES: Ease[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold'];
+export type Ease = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'expo-out' | 'back-out' | 'elastic-out' | 'bounce-out' | 'hold';
+export const EASES: Ease[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'expo-out', 'back-out', 'elastic-out', 'bounce-out', 'hold'];
 
 export interface Keyframe {
   /** Instante, en segundos. */
@@ -44,6 +44,21 @@ const EASE: Record<Ease, (x: number) => number> = {
   'ease-in': (x) => x * x * x,
   'ease-out': (x) => 1 - (1 - x) ** 3,
   'ease-in-out': (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2),
+  // Como los de GSAP: expo (arranque muy rápido), back (se pasa un poco y vuelve), elastic (muelle)
+  // y bounce (rebota contra el final). back y elastic salen de 0–1 a propósito.
+  'expo-out': (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x)),
+  'back-out': (x) => {
+    const c = 1.8;
+    return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2;
+  },
+  'elastic-out': (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 2 ** (-10 * x) * Math.sin(((x * 10 - 0.75) * 2 * Math.PI) / 3) + 1),
+  'bounce-out': (x) => {
+    const n = 7.5625, d = 2.75;
+    if (x < 1 / d) return n * x * x;
+    if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+    if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+    return n * (x -= 2.625 / d) * x + 0.984375;
+  },
   hold: () => 0,
 };
 export const ease = (name: Ease | undefined, x: number) => (EASE[name ?? 'ease-in-out'] ?? EASE.linear)(Math.max(0, Math.min(1, x)));
@@ -56,7 +71,8 @@ export function lerpValue(a: unknown, b: unknown, k: number): unknown {
   }
   if (typeof a === 'string' && typeof b === 'string' && a.startsWith('#') && b.startsWith('#')) {
     const ca = parseColor(a), cb = parseColor(b);
-    if (ca && cb) return toHex(mixColor(ca, cb, k));
+    // Los colores no se pasan (back, elastic): se quedan entre los dos.
+    if (ca && cb) return toHex(mixColor(ca, cb, Math.max(0, Math.min(1, k))));
   }
   return k < 1 ? a : b;
 }

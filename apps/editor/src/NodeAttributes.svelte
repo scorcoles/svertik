@@ -2,7 +2,7 @@
   import { BLEND_MODES, hasFont, placementOf, shapeRegistry, type SceneNode } from '@svertik/engine';
   import { canUseSystemFonts, listSystemFonts } from './fonts';
   import { Button, Checkbox, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Select, Slider } from '@svertik/ui';
-  import type { Editor } from './editor.svelte';
+  import { PRESETS, type Editor } from './editor.svelte';
 
   interface Props {
     editor: Editor;
@@ -103,6 +103,14 @@
       <Checkbox id="node-vis" checked={node.visible !== false} onchange={(v) => editor.setNode(node.id, 'visible', v, true)} />
     </ParamRow>
   </Section>
+  <Section title="Animate">
+    <div class="presets">
+      {#each PRESETS as name (name)}
+        <Button label={name.charAt(0).toUpperCase() + name.slice(1)} onclick={() => editor.applyPreset(name)} />
+      {/each}
+    </div>
+    <p class="note">Letters, copies, tiles or pieces arrive one after another (Fall: they leave). Adds a Stagger with two keyframes; tweak it like anything else.</p>
+  </Section>
   <div class="actions">
     {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
     {#if node.kind === 'group'}
@@ -137,6 +145,7 @@
   .name:focus { border-bottom-color: var(--sv-accent-fill); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .mini { display: flex; }
+  .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }

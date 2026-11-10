@@ -368,3 +368,18 @@ describe('animación en el editor', () => {
     expect(e.animation!.tracks).toHaveLength(0);
   });
 });
+
+describe('presets de animación', () => {
+  it('Rise añade un Stagger con sus efectos y dos claves de Progress', () => {
+    const e = fresh();
+    const id = e.scene!.objects[0]!.id;
+    e.selected = id;
+    e.applyPreset('rise');
+    const st = e.scene!.objects[0]!.stack.at(-1)!;
+    expect(st.type).toBe('stagger');
+    expect(st.children!.map((c) => c.type)).toEqual(['transform', 'opacity']);
+    const tr = e.animation!.tracks.find((t) => t.modifier === st.id)!;
+    expect(tr.keys.map((k) => k.value)).toEqual([0, 1]);
+    expect(e.timelineOpen).toBe(true);
+  });
+});

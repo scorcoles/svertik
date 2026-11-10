@@ -46,6 +46,7 @@ export const icons = {
   'flip-v': 'M1.5 8h2 M6 8h4 M12.5 8h2 M3.5 6l9-4.5v4.5z M3.5 10l9 4.5v-4.5z',
   clone: 'M1.5 1.5h5v5h-5z M9.5 1.5h5v5h-5z M1.5 9.5h5v5h-5z M9.5 9.5h5v5h-5z',
   step: 'M1.5 14.5h4v-4h4v-4h4v-4h1',
+  stagger: 'M1.5 3.5h5 M3.5 7h5 M5.5 10.5h5 M7.5 14h5',
   range: 'M1.5 11.5h2v-3h2v-4h2v-2h2v2h2v4h2v3h1 M1.5 13.5h13',
   field: 'M8 8m-6.5 0a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0 M8 8m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M8 8m-.5 0a.5 .5 0 1 0 1 0a.5 .5 0 1 0-1 0',
   opacity: 'M2.5 2.5h11v11h-11z M2.5 13.5l11-11 M6 13.5l7.5-7.5 M2.5 10l7.5-7.5',
