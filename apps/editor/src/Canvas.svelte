@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { DropdownMenu } from 'bits-ui';
   import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
@@ -530,6 +530,26 @@
     return () => cancelAnimationFrame(frame);
   });
 
+  // ── Guías del efecto seleccionado (los huesos de Bones), en píxeles del escenario.
+  let guides = $state<{ lines: string[]; points: [number, number][] } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const m = editor.current;
+    const def = m && !editor.currentParent ? registry.get(m.type) : undefined;
+    const params = def?.guides && m ? resolveParams(def.params, $state.snapshot(m.params) as Record<string, unknown>) : null;
+    const frame = requestAnimationFrame(() => {
+      const info = ownerInfo();
+      if (!def?.guides || !params || !info) return (guides = null);
+      const g = def.guides(params as never, info.bounds);
+      const at = (q: readonly [number, number]) => docToStage(...apply(info.matrix, q));
+      guides = {
+        lines: g.lines.map((l) => l.map(at).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')),
+        points: g.points.map(at).filter((q): q is [number, number] => !!q),
+      };
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
   // ── Actuadores del efecto seleccionado: su wire y sus tiradores (ver gizmos.ts)
 
   const gizmo = $derived.by(() => {
@@ -709,6 +729,14 @@
         {#if tn && tn.kind === 'shape' && ti}
           {#key tn.id}<TextEdit {editor} node={tn} info={ti} {docToStage} onclose={() => (editor.editingText = null)} />{/key}
         {/if}
+      {/if}
+      {#if guides && !editor.tool}
+        <!-- Guías del efecto (los huesos): tramos y articulaciones. -->
+        <svg class="guides" aria-hidden="true">
+          <!-- Un trazo oscuro debajo y uno claro encima: se leen sobre cualquier color. -->
+          {#each guides.lines as l, i (i)}<polyline class="under" points={l} /><polyline points={l} />{/each}
+          {#each guides.points as [cx, cy], i (i)}<circle {cx} {cy} r={i === 0 ? 5 : 4} data-root={i === 0 || undefined} />{/each}
+        </svg>
       {/if}
       {#if selection && !editor.tool}
         <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
@@ -922,6 +950,11 @@
   .stage[data-tool] { cursor: crosshair; }
   .stage[data-tool] :global(path[data-node]) { cursor: crosshair; }
   .draft { pointer-events: none; }
+  .guides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .guides polyline { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .guides polyline.under { stroke: rgb(0 0 0 / 0.75); stroke-width: 5; }
+  .guides circle { fill: #fff; stroke: rgb(0 0 0 / 0.75); stroke-width: 2; }
+  .guides circle[data-root] { fill: var(--sv-accent-fill); }
   .bounds { pointer-events: none; }
   .bounds .outside { fill: rgb(0 0 0 / 0.5); }
   .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }

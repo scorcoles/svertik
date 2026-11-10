@@ -1,4 +1,4 @@
-import { mapPoints, subdivide, type Vec2 } from '../geometry';
+import { mapPoints, subdivide, type Bounds, type Vec2 } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /**
@@ -28,32 +28,10 @@ export const bones = defineModifier({
     end: { type: 'point', default: [1, 0.5], unit: 'fraction', label: 'End', group: 'Chain' },
   },
   apply(geo, p, ctx) {
-    const b = ctx.bounds;
-    const A = fromFraction(b, p.start);
-    const B = fromFraction(b, p.end);
-    const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
-    if (L < 1e-9) return geo;
-    const n = Math.max(2, Math.min(6, Math.round(p.segments)));
-    const seg = L / n;
-    const base = Math.atan2(B[1] - A[1], B[0] - A[0]);
-    const [ux, uy] = [Math.cos(base), Math.sin(base)];
-
-    // Ángulos de cada hueso (relativos al anterior): los del panel, o los que llevan la punta al objetivo.
-    let rel = [p.angle1, p.angle2, p.angle3, p.angle4, p.angle5, p.angle6].slice(0, n).map(deg);
-    if (p.ik) rel = solveIK(A, base, seg, rel, fromFraction(b, p.target));
-    if (rel.every((a) => Math.abs(a) < 1e-9)) return geo;
-
-    // Articulaciones en reposo (sobre la recta) y en pose; el giro acumulado de cada hueso.
-    const rest: Vec2[] = Array.from({ length: n + 1 }, (_, k) => [A[0] + ux * seg * k, A[1] + uy * seg * k]);
-    const pose: Vec2[] = [A];
-    const turn: number[] = [];
-    let acc = 0;
-    for (let k = 0; k < n; k++) {
-      acc += rel[k]!;
-      turn.push(acc);
-      const j = pose[k]!;
-      pose.push([j[0] + Math.cos(base + acc) * seg, j[1] + Math.sin(base + acc) * seg]);
-    }
+    const chain = chainOf(p, ctx.bounds);
+    if (!chain || chain.rel.every((a) => Math.abs(a) < 1e-9)) return geo;
+    const { A, n, seg, rest, pose, turn } = chain;
+    const [ux, uy] = [Math.cos(chain.base), Math.sin(chain.base)];
     // Lo que hace el hueso k con un punto: girarlo sobre su articulación y llevarlo a la de la pose.
     const move = (k: number, x: number, y: number): Vec2 => {
       const [jx, jy] = rest[k]!, [px, py] = pose[k]!;
@@ -81,7 +59,40 @@ export const bones = defineModifier({
       return move(k, x, y);
     });
   },
+  // En el lienzo: la cadena en su pose (los huesos y sus articulaciones).
+  guides(p, b) {
+    const chain = chainOf(p, b);
+    return chain ? { lines: [chain.pose], points: chain.pose } : { lines: [], points: [] };
+  },
 });
+
+/** La cadena en pose: articulaciones en reposo (sobre la recta) y en pose, y el giro acumulado de cada hueso. */
+function chainOf(
+  p: { start: [number, number]; end: [number, number]; segments: number; ik: boolean; target: [number, number]; angle1: number; angle2: number; angle3: number; angle4: number; angle5: number; angle6: number },
+  b: Bounds,
+) {
+  const A = fromFraction(b, p.start);
+  const B = fromFraction(b, p.end);
+  const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+  if (L < 1e-9) return null;
+  const n = Math.max(2, Math.min(6, Math.round(p.segments)));
+  const seg = L / n;
+  const base = Math.atan2(B[1] - A[1], B[0] - A[0]);
+  // Ángulos de cada hueso (relativos al anterior): los del panel, o los que llevan la punta al objetivo.
+  let rel = [p.angle1, p.angle2, p.angle3, p.angle4, p.angle5, p.angle6].slice(0, n).map(deg);
+  if (p.ik) rel = solveIK(A, base, seg, rel, fromFraction(b, p.target));
+  const rest: Vec2[] = Array.from({ length: n + 1 }, (_, k) => [A[0] + Math.cos(base) * seg * k, A[1] + Math.sin(base) * seg * k]);
+  const pose: Vec2[] = [A];
+  const turn: number[] = [];
+  let acc = 0;
+  for (let k = 0; k < n; k++) {
+    acc += rel[k]!;
+    turn.push(acc);
+    const j = pose[k]!;
+    pose.push([j[0] + Math.cos(base + acc) * seg, j[1] + Math.sin(base + acc) * seg]);
+  }
+  return { A, n, seg, base, rel, rest, pose, turn };
+}
 
 /**
  * IK por FABRIK: la punta de la cadena (raíz fija en A) hacia el objetivo, en unas pocas pasadas. Parte de la

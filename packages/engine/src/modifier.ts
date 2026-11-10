@@ -83,6 +83,8 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   filter?(params: ParamValues<P>, io: { input: string; out: string; id: string }, place: FilterPlace): string;
   /** Cuánto se sale el filtro de la caja del objeto, en unidades del documento (para no cortarlo). */
   filterPad?(params: ParamValues<P>): number;
+  /** Guías para el lienzo del editor (líneas y puntos, en las coordenadas del objeto): los huesos de Bones. */
+  guides?(params: ParamValues<P>, bounds: Bounds): { lines: (readonly [number, number])[][]; points: (readonly [number, number])[] };
 }
 
 /** Dónde está el objeto al que se aplica un filtro, en el documento. */
