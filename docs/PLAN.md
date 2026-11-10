@@ -152,6 +152,8 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 - Modificador de tiempo para composiciones (una de 10 s pasa a 5 o 20 s).
 - Huesos (rigging) para deformar un objeto.
 
+**Exportar a PDF (más adelante):** con modal de tamaño (A4, Letter…, margen, orientación). Descartado de momento: jsPDF + svg2pdf no entienden los modos de fusión y la impresión del navegador varía entre navegadores; exportar distinto de lo que se ve frustra. Volver a mirarlo si aparece una vía fiable.
+
 **Filtros SVG (más adelante):** Glow y otros efectos de render (`<filter>`: desenfoque, sombras…). Son estándar SVG, pero el usuario prefiere decidir antes cómo encajan; de momento, solo geometría.
 
 **Fase 3:** rejilla de fondo y ajuste a la rejilla (después de la animación).
