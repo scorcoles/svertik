@@ -51,6 +51,7 @@ export const icons = {
   'distribute-h': 'M1.5 1.5v13 M14.5 1.5v13 M6.5 4.5h3v7h-3z',
   'distribute-v': 'M1.5 1.5h13 M1.5 14.5h13 M4.5 6.5h7v3h-7z',
   // Interfaz
+  center: 'M8 1.5v4 M8 10.5v4 M1.5 8h4 M10.5 8h4 M7 7h2v2h-2z',
   link: 'M6.5 9.5l3-3 M7.5 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M8.5 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1',
   unlink: 'M7.5 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M8.5 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1 M2.5 2.5l2 2 M13.5 13.5l-2-2',
   dice: 'M2.5 2.5h11v11h-11z M5 5h1v1h-1z M10 10h1v1h-1z M7.5 7.5h1v1h-1z M10 5h1v1h-1z M5 10h1v1h-1z',

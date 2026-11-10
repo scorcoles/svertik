@@ -50,6 +50,14 @@
     </ParamRow>
     <ParamRow label="Pivot" for="node-pivot">
       <PointField id="node-pivot" label="Pivot" step={0.01} value={p.pivot ?? [0.5, 0.5]} onchange={(v) => editor.setPivot(node.id, v)} />
+      <span class="mini">
+        <IconButton
+          icon="center"
+          label="Center the pivot"
+          disabled={!p.pivot || (p.pivot[0] === 0.5 && p.pivot[1] === 0.5)}
+          onclick={() => editor.setPivot(node.id, [0.5, 0.5], true)}
+        />
+      </span>
     </ParamRow>
     <ParamRow label="Flip">
       <IconButton icon="flip-h" label="Flip horizontally" active={!!p.flipX} onclick={() => editor.setNode(node.id, 'flipX', !p.flipX, true)} />
@@ -98,6 +106,8 @@
   .name:hover { border-bottom-color: var(--sv-rule-strong); }
   .name:focus { border-bottom-color: var(--sv-accent-fill); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .mini { display: flex; }
+  .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
   .note { margin: 0; padding: var(--sv-space-8) var(--sv-space-8) 0 100px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
