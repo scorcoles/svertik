@@ -51,9 +51,19 @@
       <IconButton icon="dice" label="Randomize (R)" onclick={() => editor.randomize()} />
     </header>
     {#if editor.currentParent}
-      <p class="note">Per element: numbers grow ×1, ×2, ×3… Centers are each element's own.</p>
+      <p class="note">
+        {editor.currentParent.type === 'step'
+          ? 'Per element: numbers grow ×1, ×2, ×3… Centers are each element’s own.'
+          : 'Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).'}
+      </p>
     {:else if m.children}
-      <p class="note">Applies the modifiers nested under it to each element, stepping their numbers. Drop modifiers onto it, or select it and add.</p>
+      <p class="note">
+        {m.type === 'step'
+          ? 'Applies the modifiers nested under it to each element, stepping their numbers. Drop modifiers onto it, or select it and add.'
+          : m.type === 'range'
+            ? 'Selects elements by order (letters, words, lines, copies, tiles, pieces): the nested modifiers act on them, more or less by the shape. Animate Offset to sweep.'
+            : 'Selects elements by where they are: the nested modifiers act more near the field. Move or animate it to sweep.'}
+      </p>
     {/if}
     <Tabs bind:value={tab} tabs={['Params', 'Info']}>
       {#snippet children(t)}

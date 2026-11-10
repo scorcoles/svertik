@@ -570,3 +570,27 @@ describe('gradient radial y con paso', () => {
     expect(svg).toContain('stop-color="#ff0000"');
   });
 });
+
+describe('range, field y opacity', () => {
+  const grid = (stack: Scene['stack']) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.2, 0] } }, ...stack] });
+  const op = (geo: ReturnType<typeof grid>) => geo.shapes.map((s) => Number(s.style.opacity ?? 1));
+
+  it('range: solo los elementos del tramo reciben el efecto (square)', () => {
+    const geo = grid([{ id: 'r', type: 'range', params: { start: 0, end: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    expect(op(geo)).toEqual([0, 0, 1, 1]);
+  });
+
+  it('range con offset: el tramo se desplaza', () => {
+    const geo = grid([{ id: 'r', type: 'range', params: { start: 0, end: 0.5, offset: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    expect(op(geo)).toEqual([1, 1, 0, 0]);
+  });
+
+  it('field: más efecto cerca del centro, nada fuera del radio', () => {
+    const geo = grid([{ id: 'f', type: 'field', params: { center: [0.5, 0.5], radius: 1.5, softness: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    const o = op(geo);
+    // La copia de la izquierda del todo está lejos: casi intacta; las del centro, casi invisibles.
+    expect(Math.max(...o)).toBeGreaterThan(0.9);
+    expect(Math.min(...o)).toBeLessThan(0.5);
+  });
+});

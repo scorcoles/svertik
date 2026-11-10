@@ -32,3 +32,10 @@ describe('texto', () => {
     expect(buildShape('text', { text: 'a', font: 'Nope' }).shapes).toHaveLength(1);
   });
 });
+
+describe('Range y Field', () => {
+  it('cada letra lleva su palabra y su línea', () => {
+    const geo = buildShape('text', { text: 'ab c\nde', size: 50 });
+    expect(geo.shapes.map((s) => [s.word, s.line])).toEqual([[0, 0], [0, 0], [1, 0], [2, 1], [2, 1]]);
+  });
+});

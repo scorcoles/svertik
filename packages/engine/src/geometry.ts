@@ -22,6 +22,9 @@ export interface Shape {
   style: Style;
   /** Número de copia que le dio Clone (para efectores como Step). */
   clone?: number;
+  /** En un texto: a qué palabra y a qué línea pertenece la letra (para Range por palabras o líneas). */
+  word?: number;
+  line?: number;
   /** Objeto de la escena del que sale (para seleccionarlo en el lienzo). */
   node?: string;
   /** Degradados que usa su estilo (`fill="url(#id)"`); el render los escribe en <defs>. */

@@ -34,7 +34,7 @@ export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type
 export const modifierTypes = builtins.map((m) => m.type);
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
-export const containers = new Set(['step']);
+export const containers = new Set(['step', 'range', 'field']);
 
 /** Dónde está un modificador en el árbol de una pila: su lista, su posición y quién la contiene. */
 export interface Location {
@@ -561,6 +561,8 @@ export class Editor {
   }
   /** Al cambiar un valor animado desde el panel o el lienzo: clave en el instante actual (como After Effects). */
   #autoKey(t: TrackTarget, value: unknown) {
+    // Reproduciendo, los cambios vienen de la propia animación: nunca son claves nuevas.
+    if (this.playing) return;
     const tr = this.track(t);
     if (!tr) return;
     tr.keys = setKey(tr.keys, this.time, $state.snapshot(value as object) ?? value, this.animation?.fps ?? 30);
