@@ -4,7 +4,7 @@
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
-  import { Checkbox, ColorField } from '@svertik/ui';
+  import { Checkbox } from '@svertik/ui';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
@@ -231,7 +231,6 @@
     onimport={() => fileInput.click()}
     onsave={saveProject}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
-    oncopycode={() => (editor.codeOpen = !editor.codeOpen)}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
     ondemo={openDemo}
@@ -262,13 +261,6 @@
         <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>
         <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
         <label title="The edge of the document: what is exported and shown in Play"><Checkbox bind:checked={editor.showBounds} label="Show document bounds" disabled={!editor.scene} /> Bounds</label>
-        <span class="bg" title="Canvas color (view only, not exported)">
-          <ColorField compact value={editor.canvas || '#0b0b0b'} label="Canvas color" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
-          Canvas
-        </span>
-        {#if editor.canvas}
-          <button type="button" class="reset" title="Default canvas color" aria-label="Default canvas color" onclick={() => editor.setCanvas('')}>×</button>
-        {/if}
       </div>
       <footer>
         <span>svertik {version} alpha</span>
@@ -333,10 +325,6 @@
   .view strong { color: var(--sv-text-secondary); }
   .view label { display: flex; align-items: center; gap: var(--sv-space-6); cursor: pointer; }
   .view.off { opacity: 0.35; }
-  .bg { margin-left: auto; }
-  .bg { display: flex; align-items: center; gap: var(--sv-space-6); }
-  .reset { margin-left: calc(var(--sv-space-12) * -1); padding: 0 var(--sv-space-2); font: inherit; color: var(--sv-text-muted); background: none; border: 0; cursor: pointer; }
-  .reset:hover { color: var(--sv-text-primary); }
   .inspector footer {
     display: flex;
     justify-content: space-between;

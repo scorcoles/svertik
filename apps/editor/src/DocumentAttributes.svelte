@@ -1,6 +1,6 @@
 <script lang="ts">
   // Sin nada seleccionado: el documento. Su tamaño es lo que se exporta y lo que enseña el modo Play.
-  import { Button, NumberField, ParamRow, Section, Segmented, Select } from '@svertik/ui';
+  import { Button, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
@@ -53,6 +53,13 @@
         ? 'What is exported and shown in Play. Anything outside is cut off. Turn on Bounds (View, below) to see the edge.'
         : 'The document fits whatever is drawn, with a small margin. Fix a size to export a frame (a video size, a post…).'}
     </p>
+  </Section>
+  <Section title="Canvas">
+    <ParamRow label="Color">
+      <ColorField value={editor.canvas || '#0b0b0b'} label="Canvas color" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
+      {#if editor.canvas}<IconButton icon="undo" label="Default canvas color" onclick={() => editor.setCanvas('')} />{/if}
+    </ParamRow>
+    <p class="note">The color behind the drawing, in the editor and in Play. It is not exported: the SVG stays transparent.</p>
   </Section>
   <p class="hint">Select an object or a modifier to edit it. Drop more SVGs to add objects.</p>
 </div>

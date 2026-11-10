@@ -9,13 +9,12 @@
     onimport: () => void;
     onsave: () => void;
     oncopyjson: () => void;
-    oncopycode: () => void;
     onexport: () => void;
     onexportpng: () => void;
     ondemo: (which: 'intro' | 'shatter') => void;
     onnew: () => void;
   }
-  let { editor, onimport, onsave, oncopyjson, oncopycode, onexport, onexportpng, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, ondemo, onnew }: Props = $props();
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);
   // Los efectos, por grupos: la barra no crece aunque crezca el catálogo.
   const groups = [
@@ -61,7 +60,6 @@
   </div>
   <span class="spacer"></span>
   <Button label="Copy JSON" disabled={!editor.scene} onclick={oncopyjson} />
-  <Button label="Code" disabled={!editor.scene} aria-pressed={editor.codeOpen} onclick={oncopycode} />
   <Button label="Export PNG" disabled={!editor.scene} onclick={onexportpng} />
   <Button label="Export SVG" kind="primary" disabled={!editor.scene} onclick={onexport} />
 </header>

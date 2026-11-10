@@ -837,6 +837,8 @@
       {/if}
       <span class="zoom tl-wrap">
         <button type="button" class="tl play" onclick={() => { editor.playing = false; editor.presenting = true; }} title="Play: full screen, no tools, like on the web (Esc to exit)">▶ Play</button>
+        <!-- Código y línea de tiempo abren su panel en el mismo sitio, debajo del lienzo: uno u otro. -->
+        <button type="button" class="tl" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code: the scene as JavaScript, and your own script">Code {editor.codeOpen ? '▾' : '▴'}</button>
         <button type="button" class="tl" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
       </span>
     </footer>
@@ -1039,7 +1041,7 @@
     cursor: pointer;
   }
   .zoom button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
-  /* Timeline, a la derecha del todo y algo separado del resto. */
+  /* Play, Code y Timeline, a la derecha del todo y algo separados del resto. */
   .tl-wrap { margin-left: auto; padding-left: var(--sv-space-16); }
   .zoom .play { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   .zoom .tl[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
