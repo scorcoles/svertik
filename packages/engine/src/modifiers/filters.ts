@@ -159,32 +159,3 @@ export const displace = defineModifier({
     ),
   filterPad: (p) => p.amount / 2 + 2,
 });
-
-/** Separación RGB: dos copias de color, desplazadas a cada lado, detrás del dibujo (de la familia Glitch). */
-export const rgbsplit = defineModifier({
-  type: 'rgbsplit',
-  label: 'RGB Split',
-  kind: 'filter',
-  family: 'glitch',
-  params: {
-    distance: { type: 'number', default: 3, min: 0, max: 60, step: 0.5, unit: 'px', label: 'Distance' },
-    angle: { type: 'angle', default: 0, label: 'Angle', ramp: false },
-    colorA: { type: 'color', default: '#00e5ff', label: 'Color A' },
-    colorB: { type: 'color', default: '#ff2bd6', label: 'Color B' },
-  },
-  apply: same,
-  filter: (p, { input, out, id }) => {
-    const a = (p.angle * Math.PI) / 180;
-    const [dx, dy] = [Math.cos(a) * p.distance, Math.sin(a) * p.distance];
-    const copy = (k: string, color: string, sx: number, sy: number) =>
-      `<feOffset in="${input}" dx="${n(sx)}" dy="${n(sy)}" result="${id}-${k}o"/>` +
-      `<feFlood flood-color="${esc(color)}"/>` +
-      `<feComposite in2="${id}-${k}o" operator="in" result="${id}-${k}"/>`;
-    return (
-      copy('a', p.colorA, -dx, -dy) +
-      copy('b', p.colorB, dx, dy) +
-      `<feMerge result="${out}"><feMergeNode in="${id}-a"/><feMergeNode in="${id}-b"/><feMergeNode in="${input}"/></feMerge>`
-    );
-  },
-  filterPad: (p) => p.distance + 2,
-});

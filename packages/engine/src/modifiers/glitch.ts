@@ -3,12 +3,13 @@
 // - Blocks: trozos rectangulares que salen desplazados (dejan su hueco);
 // - Scanlines: rayitas horizontales recortadas dentro;
 // - Streaks: rayas finas que se escapan por los lados;
-// - RGB Split (en filters.ts): copias de color desplazadas detrás, como filtro de SVG.
+// - RGB Split: dos copias del dibujo, de color y desplazadas (detrás o delante, con su modo de fusión).
 // Las formas con relleno se cortan como superficies; las de solo trazo (sin relleno), como líneas.
 import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
 import { bounds, flatten, line, type Geometry, type Shape, type Vec2 } from '../geometry';
-import { defineModifier } from '../modifier';
+import { BLEND_MODES } from '../document';
+import { defineModifier, deg } from '../modifier';
 import { rng } from '../random';
 
 /** Cada forma con relleno, como superficie (con su caja); las demás, fuera. */
@@ -360,3 +361,48 @@ function boxOf(m: MultiPolygon): Box {
 const overlaps = (a: Box, b: Box) => a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
 const rect = (x: number, y: number, w: number, h: number): Pair[] => [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]];
 const move = (m: MultiPolygon, dx: number, dy: number): MultiPolygon => m.map((poly) => poly.map((ring) => ring.map(([x, y]) => [x + dx, y + dy] as Pair)));
+
+/**
+ * Separación RGB: dos copias del dibujo, una de cada color, desplazadas a cada lado (Distance, en la
+ * dirección de Angle). Son geometría, no un filtro: dentro de Step, Range o Field cada elemento (letra,
+ * copia, trozo) tiene su propia distancia, y se exporta a Lottie. Las copias van detrás o delante del
+ * dibujo, con su modo de fusión (screen o multiply mezclan los colores donde se cruzan).
+ */
+export const rgbsplit = defineModifier({
+  type: 'rgbsplit',
+  label: 'RGB Split',
+  kind: 'generator',
+  family: 'glitch',
+  params: {
+    distance: { type: 'number', default: 3, min: 0, max: 60, step: 0.5, unit: 'px', label: 'Distance' },
+    angle: { type: 'angle', default: 0, label: 'Angle', ramp: false },
+    colorA: { type: 'color', default: '#00e5ff', label: 'Color A' },
+    colorB: { type: 'color', default: '#ff2bd6', label: 'Color B' },
+    layer: { type: 'enum', default: 'behind', options: ['behind', 'front'] as const, label: 'Layer', animatable: false },
+    blend: { type: 'enum', default: 'normal', options: BLEND_MODES, label: 'Blend', animatable: false },
+  },
+  apply(geo, p) {
+    if (!(p.distance > 0)) return geo;
+    const a = deg(p.angle);
+    const [dx, dy] = [Math.cos(a) * p.distance, Math.sin(a) * p.distance];
+    const paint = (v: string | undefined, color: string) => (v && v !== 'none' ? color : v);
+    const copy = (color: string, sx: number, sy: number): Shape[] =>
+      geo.shapes.map((s) => ({
+        ...s,
+        subpaths: s.subpaths.map((sp) => ({
+          start: [sp.start[0] + sx, sp.start[1] + sy] as Vec2,
+          segs: sp.segs.map((g) => ({ c1: [g.c1[0] + sx, g.c1[1] + sy] as Vec2, c2: [g.c2[0] + sx, g.c2[1] + sy] as Vec2, p: [g.p[0] + sx, g.p[1] + sy] as Vec2 })),
+          closed: sp.closed,
+        })),
+        style: {
+          ...s.style,
+          fill: paint(s.style.fill ?? 'black', color)!,
+          ...(s.style.stroke ? { stroke: paint(s.style.stroke, color)! } : {}),
+          ...(p.blend !== 'normal' ? { 'mix-blend-mode': p.blend } : {}),
+        },
+      }));
+    // Lo primero de la lista se pinta antes (queda detrás).
+    const copies = [...copy(p.colorA, -dx, -dy), ...copy(p.colorB, dx, dy)];
+    return { viewBox: geo.viewBox, shapes: p.layer === 'front' ? [...geo.shapes, ...copies] : [...copies, ...geo.shapes] };
+  },
+});

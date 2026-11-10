@@ -129,7 +129,8 @@ describe('encender y apagar un efecto', () => {
     expect(sampleScene(s, 0.5).objects[0]!.stack[0]!.enabled).toBe(false);
     expect(sampleScene(s, 1.5).objects[0]!.stack[0]!.enabled).toBe(true);
     const engine = createEngine(builtins);
-    expect(engine.toSVG(sampleScene(s, 0.5))).not.toContain('<filter');
-    expect(engine.toSVG(sampleScene(s, 1.5))).toContain('<filter');
+    // Apagado: solo el rectángulo; encendido: con sus dos copias de color.
+    expect(engine.evaluateDocument(sampleScene(s, 0.5)).geometry.shapes).toHaveLength(1);
+    expect(engine.evaluateDocument(sampleScene(s, 1.5)).geometry.shapes).toHaveLength(3);
   });
 });

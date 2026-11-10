@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { covers, simplify } from '../src/clip';
-import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type StackInput } from '../src';
+import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type Shape, type StackInput } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
 const scene = (stack: StackInput['stack']): StackInput => ({ source: square, stack });
@@ -584,9 +584,6 @@ describe('fractal fit y glitch', () => {
     expect(run([{ id: 's', type: 'slices', params: { seed: 1 } }, { id: 'b', type: 'blocks', params: { seed: 1 } }]).shapes.length).toBeGreaterThan(sl.shapes.length);
   });
 
-  it('RGB Split es un filtro: no toca la geometría', () => {
-    expect(run([{ id: 'x', type: 'rgbsplit', params: { distance: 5 } }])).toEqual(run([]));
-  });
 });
 
 describe('damage: trozos', () => {
@@ -880,5 +877,26 @@ describe('streaks', () => {
       const touches = (x: number) => Math.min(...xs) - 1 <= x && x <= Math.max(...xs) + 1;
       expect(touches(e0) || touches(e1)).toBe(true);
     }
+  });
+});
+
+describe('rgb split', () => {
+  const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><rect x="0" y="0" width="20" height="20" fill="#fff"/><rect x="60" y="0" width="20" height="20" fill="#fff"/></svg>';
+  const xOf = (s: Shape) => s.subpaths[0]!.start[0];
+  it('dos copias de color, desplazadas a cada lado, detrás del dibujo', () => {
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 5 } }] });
+    expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#00e5ff', '#00e5ff', '#ff2bd6', '#ff2bd6', '#fff', '#fff']);
+    expect(xOf(geo.shapes[0]!) - xOf(geo.shapes[4]!)).toBeCloseTo(-5);
+    expect(xOf(geo.shapes[2]!) - xOf(geo.shapes[4]!)).toBeCloseTo(5);
+  });
+  it('delante y con modo de fusión', () => {
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 5, layer: 'front', blend: 'screen' } }] });
+    expect(geo.shapes[0]!.style.fill).toBe('#fff');
+    expect(geo.shapes.at(-1)!.style['mix-blend-mode']).toBe('screen');
+  });
+  it('dentro de Step, cada elemento con su distancia (la 2.ª, el doble)', () => {
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 's', type: 'step', children: [{ id: 'r', type: 'rgbsplit', params: { distance: 4 } }] }] });
+    const cyan = geo.shapes.filter((s) => s.style.fill === '#00e5ff').map(xOf);
+    expect(cyan).toEqual([-4, 52]);
   });
 });

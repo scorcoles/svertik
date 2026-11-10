@@ -49,7 +49,7 @@ export function toLottie(engine: Engine, scene: SceneV2, options: { name?: strin
   layers.reverse().forEach((l, i) => (l.ind = i + 1));
 
   const warnings: string[] = [];
-  if (Object.keys(a.filters).length) warnings.push('Filters (Shadow, Blur, Glow, Grain, Displace, RGB Split) are not exported: Lottie players don’t support them reliably.');
+  if (Object.keys(a.filters).length) warnings.push('Filters (Shadow, Blur, Glow, Grain, Displace) are not exported: Lottie players don’t support them reliably.');
   if (scene.interactions?.length) warnings.push('Interactions (hover, click, enter) are not exported: Lottie has none.');
   if (a.heavy.length) warnings.push(`Partly exported frame by frame (their shape changes, so the file is heavier): ${a.heavy.join(', ')}.`);
   if (!a.autoplay) warnings.push('Autoplay is off here, but Lottie players decide that themselves (autoplay, loop).');
