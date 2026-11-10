@@ -18,7 +18,12 @@
   aria-label={label}
   onCheckedChange={(v) => onchange?.(v)}
   class="sv-checkbox"
-/>
+>
+  {#snippet children({ checked: on })}
+    <!-- Marcada: una marca, no un cuadro relleno (que se confundía con una muestra de color). -->
+    {#if on}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.25l2.25 2.25 4.75-5" /></svg>{/if}
+  {/snippet}
+</Checkbox.Root>
 
 <style>
   :global(.sv-checkbox) {
@@ -32,6 +37,8 @@
     cursor: pointer;
   }
   :global(.sv-checkbox:hover) { border-color: var(--sv-text-muted); }
-  :global(.sv-checkbox[data-state='checked']) { background: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
+  :global(.sv-checkbox) { display: inline-grid; place-items: center; }
+  :global(.sv-checkbox[data-state='checked']) { border-color: var(--sv-accent-fill); }
+  :global(.sv-checkbox svg) { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; stroke-linecap: square; }
   :global(.sv-checkbox:disabled) { opacity: 0.4; cursor: default; }
 </style>
