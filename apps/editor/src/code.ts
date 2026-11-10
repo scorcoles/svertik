@@ -157,13 +157,17 @@ function onFrame(fn) {
 ` +
     (migrateScene(scene).animation?.tracks.length
       ? `// La animación de la línea de tiempo (en bucle, o una vez si no lo está).
-const t0 = performance.now();
-requestAnimationFrame(function play(now) {
-  const { duration, loop } = scene.animation;
-  const t = (now - t0) / 1000;
-  live.update(sampleScene(scene, loop === false ? Math.min(t, duration) : t % duration));
-  requestAnimationFrame(play);
-});
+// Con «reducir movimiento» activado en el sistema, no se reproduce: se enseña el final, quieto.
+const { duration, loop } = scene.animation;
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) live.update(sampleScene(scene, duration));
+else {
+  const t0 = performance.now();
+  requestAnimationFrame(function play(now) {
+    const t = (now - t0) / 1000;
+    live.update(sampleScene(scene, loop === false ? Math.min(t, duration) : t % duration));
+    requestAnimationFrame(play);
+  });
+}
 
 `
       : '') +

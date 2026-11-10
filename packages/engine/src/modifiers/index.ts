@@ -18,6 +18,7 @@ import { roughenModifier as roughen } from './roughen';
 import { shear } from './shear';
 import { taper } from './taper';
 import { tint } from './tint';
+import { trim } from './trim';
 import { bend } from './bend';
 import { boolean } from './boolean';
 import { color } from './color';
@@ -34,7 +35,7 @@ import { transform } from './transform';
 import { twist } from './twist';
 import { wave } from './wave';
 
-export { bend, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, glitch, gradient, melt, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, shear, spherize, stagger, step, taper, tint, transform, twist, wave };
+export { bend, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, glitch, gradient, melt, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -55,6 +56,7 @@ export const builtins = [
   envelope,
   pathwrap,
   morph,
+  trim,
   crack,
   damage,
   clone,
