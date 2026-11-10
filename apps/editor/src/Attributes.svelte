@@ -43,6 +43,7 @@
     <header>
       <h2>{def.label}</h2>
       <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : def.kind}</span>
+      <IconButton icon="zero" label="Set values to zero" onclick={() => editor.zero()} />
       <IconButton icon="dice" label="Randomize (R)" onclick={() => editor.randomize()} />
     </header>
     {#if editor.currentParent}

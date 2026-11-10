@@ -104,22 +104,46 @@ export function rampParams(schema: ParamSchema, params: Record<string, unknown>,
  * Valores aleatorios para el dado. Respeta los rangos del esquema; lo que no tiene sentido sortear
  * (colores, desplazamientos en píxeles…) se queda como está.
  */
+/**
+ * «A cero»: números y ángulos a 0 (o a su valor neutro, como la escala 1; o a su mínimo si 0 no vale).
+ * Puntos, colores, modos, textos y semillas no se tocan.
+ */
+export function zeroParams(schema: ParamSchema, current: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...current };
+  for (const [name, spec] of Object.entries(schema)) {
+    if (spec.type === 'angle') out[name] = 0;
+    else if (spec.type === 'number') {
+      const v = spec.neutral ?? 0;
+      out[name] = Math.min(spec.max ?? Infinity, Math.max(spec.min ?? -Infinity, v));
+    }
+  }
+  return out;
+}
+
 export function randomizeParams(schema: ParamSchema, current: Record<string, unknown>, rand: () => number): Record<string, unknown> {
   const out: Record<string, unknown> = { ...current };
-  const between = (a: number, b: number) => a + (b - a) * rand();
+  // Reparto en triángulo (media de dos): más a menudo cerca del centro del rango que en los bordes.
+  const between = (a: number, b: number) => a + (b - a) * ((rand() + rand()) / 2);
   const snap = (v: number, step?: number) => (step ? Math.round(v / step) * step : v);
   const round = (v: number, step?: number) => Number(snap(v, step).toFixed(step && step < 1 ? String(step).split('.')[1]!.length : 3));
   for (const [name, spec] of Object.entries(schema)) {
     if (spec.random === false) continue;
     switch (spec.type) {
       case 'number': {
-        const [a, b] = spec.random ?? (spec.min !== undefined && spec.max !== undefined ? [spec.min, spec.max] : null) ?? [null, null];
-        if (a === null || b === null) break;
-        out[name] = round(between(a, b), spec.step);
+        // Sin rango propio: alrededor del valor por defecto (un 30 % del rango), no de punta a punta.
+        // Los extremos rara vez son útiles; el uso normal está cerca de los valores de partida.
+        let range = spec.random ?? null;
+        if (!range && spec.min !== undefined && spec.max !== undefined) {
+          const w = (spec.max - spec.min) * 0.3;
+          const lo = Math.max(spec.min, spec.default - w / 2), hi = Math.min(spec.max, spec.default + w / 2);
+          range = [lo, hi];
+        }
+        if (!range) break;
+        out[name] = round(between(range[0], range[1]), spec.step);
         break;
       }
       case 'angle': {
-        const [a, b] = spec.random ?? [-90, 90];
+        const [a, b] = spec.random ?? [spec.default - 45, spec.default + 45];
         out[name] = Math.round(between(a, b));
         break;
       }
