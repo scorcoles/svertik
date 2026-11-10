@@ -2,6 +2,9 @@
 import {
   builtins,
   linearOf,
+  readTarget,
+  sampleScene,
+  setKey,
   migrateScene,
   placementOf,
   shapeRegistry,
@@ -11,7 +14,10 @@ import {
   rng,
   walkNodes,
   type AnyScene,
+  type Animation,
   type BlendMode,
+  type Ease,
+  type Track,
   type GroupNode,
   type NodeInfo,
   type ModifierDef,
@@ -82,6 +88,25 @@ export function locateModifier(scene: SceneV2, id: string | null): (Location & {
 
 const HISTORY_LIMIT = 200;
 
+export type TrackTarget = Pick<Track, 'node' | 'on' | 'modifier' | 'param'>;
+
+/** Escribe un valor en lo que apunta una pista (en la escena viva del editor). */
+function writeTrackTarget(scene: SceneV2, tr: TrackTarget, value: unknown) {
+  if (value === undefined) return;
+  const at = locateNode(scene.objects, tr.node);
+  if (!at) return;
+  const n = at.node;
+  if (tr.on === 'node') {
+    if (tr.param === 'opacity') n.opacity = value as number;
+    else n.transform = { ...n.transform, [tr.param]: value as number };
+  } else if (tr.on === 'shape') {
+    if (n.kind === 'shape') n.params[tr.param] = value;
+  } else {
+    const m = tr.modifier ? locate(n.stack, tr.modifier)?.inst : undefined;
+    if (m) m.params = { ...m.params, [tr.param]: value };
+  }
+}
+
 /** Preferencias en localStorage (puede no haberlo: modo privado, sin permisos…). */
 function readPref(key: string): string {
   try {
@@ -136,6 +161,10 @@ export class Editor {
   /** Objetos animados por el script mientras corre; no entran en el historial. */
   preview = $state<SceneNode[] | null>(null);
   codeOpen = $state(false);
+  /** Línea de tiempo: abierta, instante actual (s) y reproducción. */
+  timelineOpen = $state(false);
+  time = $state(0);
+  playing = $state(false);
   /** Fuentes que se pueden elegir en Text (las incluidas y, si se pidieron, las del sistema). */
   fonts = $state<string[]>([]);
   /** Sube cada vez que llega una fuente: el lienzo vuelve a dibujar el texto. */
@@ -279,6 +308,7 @@ export class Editor {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at || at.node.kind !== 'shape') return;
     at.node.params[name] = value;
+    this.#autoKey({ node: id, on: 'shape', param: name }, value);
     this.record();
   }
 
@@ -376,6 +406,7 @@ export class Editor {
       else n.blend = value as BlendMode;
     }
     else n.transform = { ...n.transform, [key]: value as number };
+    if (key === 'x' || key === 'y' || key === 'scale' || key === 'rotation' || key === 'opacity') this.#autoKey({ node: id, on: 'node', param: key }, value);
     this.record(now);
   }
 
@@ -484,6 +515,113 @@ export class Editor {
     }
     // El grupo queda seleccionado: la barra sigue a mano para probar otro modo.
     this.selected = g.id;
+    this.record(true);
+  }
+
+  // ── Animación: las claves viven en scene.animation; el valor del instante actual se escribe en la escena
+  // (sin historial), así panel, lienzo y actuadores leen siempre «lo que se ve ahora».
+
+  get animation(): Animation | null {
+    return this.scene?.animation ?? null;
+  }
+  #ensureAnimation(): Animation {
+    const s = this.scene!;
+    s.animation ??= { duration: 3, loop: true, fps: 30, tracks: [] };
+    return s.animation;
+  }
+  /** La pista de un parámetro, si está animado. */
+  track(t: TrackTarget): Track | undefined {
+    return this.animation?.tracks.find((x) => x.node === t.node && x.on === t.on && x.param === t.param && (x.modifier ?? '') === (t.modifier ?? ''));
+  }
+  /** Estado del rombo de un parámetro: sin animar, animado o con clave en este instante. */
+  keyState(t: TrackTarget): 'none' | 'animated' | 'key' {
+    const tr = this.track(t);
+    if (!tr) return 'none';
+    const eps = 0.5 / (this.animation?.fps ?? 30);
+    return tr.keys.some((k) => Math.abs(k.t - this.time) <= eps) ? 'key' : 'animated';
+  }
+  /**
+   * Rombo: sin animar, empieza a animarlo con una clave aquí; con clave aquí, la quita (y si era la última,
+   * deja de estar animado); animado sin clave aquí, pone una con el valor actual.
+   */
+  toggleKey(t: TrackTarget) {
+    if (!this.scene) return;
+    const anim = this.#ensureAnimation();
+    const tr = this.track(t);
+    const fps = anim.fps ?? 30;
+    if (!tr) {
+      anim.tracks.push({ id: `track-${uid()}`, ...t, keys: [{ t: this.time, value: $state.snapshot(readTarget(this.scene, t) as object) ?? readTarget(this.scene, t) }] });
+    } else if (this.keyState(t) === 'key') {
+      tr.keys = tr.keys.filter((k) => Math.abs(k.t - this.time) > 0.5 / fps);
+      if (!tr.keys.length) anim.tracks = anim.tracks.filter((x) => x !== tr);
+    } else {
+      tr.keys = setKey(tr.keys, this.time, $state.snapshot(readTarget(this.scene, t) as object) ?? readTarget(this.scene, t), fps);
+    }
+    this.record(true);
+  }
+  /** Al cambiar un valor animado desde el panel o el lienzo: clave en el instante actual (como After Effects). */
+  #autoKey(t: TrackTarget, value: unknown) {
+    const tr = this.track(t);
+    if (!tr) return;
+    tr.keys = setKey(tr.keys, this.time, $state.snapshot(value as object) ?? value, this.animation?.fps ?? 30);
+  }
+  /** Ir a un instante: escribe en la escena el valor de cada pista (sin historial). */
+  setTime(t: number) {
+    const anim = this.animation;
+    const d = anim?.duration ?? 0;
+    this.time = Math.max(0, Math.min(d || t, t));
+    this.#applyTime();
+  }
+  #applyTime() {
+    if (!this.scene?.animation) return;
+    const sampled = sampleScene($state.snapshot(this.scene) as SceneV2, this.time);
+    for (const tr of this.scene.animation.tracks) {
+      const v = readTarget(sampled, tr);
+      writeTrackTarget(this.scene, tr, v);
+    }
+  }
+  setDuration(d: number) {
+    const anim = this.#ensureAnimation();
+    anim.duration = Math.max(0.1, d);
+    if (this.time > anim.duration) this.setTime(anim.duration);
+    this.record();
+  }
+  setLoop(loop: boolean) {
+    this.#ensureAnimation().loop = loop;
+    this.record(true);
+  }
+  /** Mueve una clave a otro instante (arrastrándola en la línea de tiempo). */
+  moveKey(trackId: string, from: number, to: number) {
+    const tr = this.animation?.tracks.find((x) => x.id === trackId);
+    if (!tr) return;
+    const k = tr.keys.find((x) => x.t === from);
+    if (!k) return;
+    const d = this.animation!.duration;
+    k.t = Math.round(Math.max(0, Math.min(d, to)) * 1000) / 1000;
+    tr.keys.sort((a, b) => a.t - b.t);
+    this.#applyTime();
+    this.record();
+  }
+  setEase(trackId: string, at: number, e: Ease) {
+    const k = this.animation?.tracks.find((x) => x.id === trackId)?.keys.find((x) => x.t === at);
+    if (!k) return;
+    k.ease = e;
+    this.#applyTime();
+    this.record(true);
+  }
+  removeKey(trackId: string, at: number) {
+    const anim = this.animation;
+    const tr = anim?.tracks.find((x) => x.id === trackId);
+    if (!anim || !tr) return;
+    tr.keys = tr.keys.filter((k) => k.t !== at);
+    if (!tr.keys.length) anim.tracks = anim.tracks.filter((x) => x !== tr);
+    this.#applyTime();
+    this.record(true);
+  }
+  removeTrack(trackId: string) {
+    const anim = this.animation;
+    if (!anim) return;
+    anim.tracks = anim.tracks.filter((x) => x.id !== trackId);
     this.record(true);
   }
 
@@ -663,6 +801,8 @@ export class Editor {
   setParam(name: string, value: unknown) {
     if (!this.current?.params) return;
     this.current.params[name] = value;
+    const owner = this.activeNode;
+    if (owner) this.#autoKey({ node: owner.id, on: 'modifier', modifier: this.current.id, param: name }, value);
     if (registry.get(this.current.type)?.params[name]?.type === 'point') this.showMarker(value as [number, number]);
     this.busy = true;
     clearTimeout(this.#busyTimer);

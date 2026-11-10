@@ -806,6 +806,7 @@
         <button type="button" onclick={refit} title="Fit (⇧1)">Fit</button>
         <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
         <button type="button" class="redraw" onclick={redraw} title="Redraw everything (if something looks stale)" aria-label="Redraw">↻</button>
+        <button type="button" class="tl" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
       </span>
       <span class="muted">{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</span>
       {#if cost !== null}
@@ -1011,6 +1012,7 @@
     cursor: pointer;
   }
   .zoom button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  .zoom .tl[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   footer {
     position: absolute;
     left: 0;

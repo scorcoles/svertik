@@ -9,6 +9,7 @@
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
+  import Timeline from './Timeline.svelte';
   import Toolbar from './Toolbar.svelte';
 
   const editor = new Editor();
@@ -157,13 +158,21 @@
     onexport={exportSVG}
   />
   <main>
-    <div class="left" style:grid-template-rows={editor.codeOpen && editor.scene ? `minmax(0, 1fr) 6px ${codeHeight}px` : 'minmax(0, 1fr)'}>
+    <div
+      class="left"
+      style:grid-template-rows={[
+        'minmax(0, 1fr)',
+        ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
+        ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
+      ].join(' ')}
+    >
       <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} />
       {#if editor.codeOpen && editor.scene}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
         <CodePanel {editor} oncopy={copy} />
       {/if}
+      {#if editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
     <aside class="inspector">
       <StackPanel {editor} />

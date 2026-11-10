@@ -15,6 +15,12 @@
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
   const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
+  // Animación: rombos de los parámetros de la primitiva y de la colocación.
+  const shapeKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'shape', param }));
+  const nodeKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'node', param }));
+  const toggleNode = (...params: string[]) => {
+    for (const param of params) editor.toggleKey({ node: node.id, on: 'node', param });
+  };
   const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => s.group === 'Style'));
   // Fuentes del sistema (Chrome/Edge): se piden una vez; se suman a la lista del campo Font.
   let systemListed = $state(false);
@@ -43,7 +49,7 @@
 <div class="params">
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
-      <ParamList swatches={editor.docColors} fonts={editor.fonts} params={shapeMain} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      <ParamList swatches={editor.docColors} fonts={editor.fonts} params={shapeMain} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
       {#if node.kind === 'shape' && node.shape === 'text'}
         {@const font = String(node.params.font ?? 'JetBrains Mono')}
         {#if editor.fontsTick >= 0 && !hasFont(font)}
@@ -55,18 +61,18 @@
       {/if}
     </Section>
     <Section title="Style">
-      <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
     </Section>
   {/if}
   <Section title="Transform">
-    <ParamRow label="Position" for="node-x">
+    <ParamRow label="Position" for="node-x" keyState={nodeKey('x')} onkey={() => toggleNode('x', 'y')}>
       <PointField id="node-x" label="Position" step={1} value={[p.x, p.y]} onchange={([x, y]) => { editor.setNode(node.id, 'x', x); editor.setNode(node.id, 'y', y); }} />
     </ParamRow>
-    <ParamRow label="Scale" for="node-scale">
+    <ParamRow label="Scale" for="node-scale" keyState={nodeKey('scale')} onkey={() => toggleNode('scale')}>
       <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={(v) => editor.setNode(node.id, 'scale', v)} />
       <Slider value={p.scale} min={0} max={4} step={0.01} label="Scale" onchange={(v) => editor.setNode(node.id, 'scale', v)} />
     </ParamRow>
-    <ParamRow label="Rotation" for="node-rot">
+    <ParamRow label="Rotation" for="node-rot" keyState={nodeKey('rotation')} onkey={() => toggleNode('rotation')}>
       <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />
     </ParamRow>
     <ParamRow label="Pivot" for="node-pivot">
@@ -86,7 +92,7 @@
     </ParamRow>
   </Section>
   <Section title="Display">
-    <ParamRow label="Opacity" for="node-op">
+    <ParamRow label="Opacity" for="node-op" keyState={nodeKey('opacity')} onkey={() => toggleNode('opacity')}>
       <NumberField id="node-op" value={node.opacity ?? 1} step={0.01} min={0} max={1} onchange={(v) => editor.setNode(node.id, 'opacity', v)} />
       <Slider value={node.opacity ?? 1} min={0} max={1} step={0.01} label="Opacity" onchange={(v) => editor.setNode(node.id, 'opacity', v)} />
     </ParamRow>
