@@ -21,6 +21,7 @@ import { taper } from './taper';
 import { tint } from './tint';
 import { trim } from './trim';
 import { bend } from './bend';
+import { bones } from './bones';
 import { boolean } from './boolean';
 import { color } from './color';
 import { clone } from './clone';
@@ -37,7 +38,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks };
-export { bend, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, gradient, melt, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, gradient, melt, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -46,6 +47,7 @@ export const builtins = [
   spherize,
   twist,
   bend,
+  bones,
   taper,
   shear,
   wave,

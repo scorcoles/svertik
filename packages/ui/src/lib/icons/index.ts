@@ -19,6 +19,8 @@ export const icons = {
   minus: 'M3.5 8h9',
   // Encajar a lo ancho: flechas a los dos lados.
   'fit-width': 'M1.5 8h13 M4 5.5L1.5 8 4 10.5 M12 5.5l2.5 2.5-2.5 2.5',
+  // Huesos: una cadena de tres tramos con sus articulaciones.
+  bones: 'M2 12.5l4-3 3.5 1 4.5-6 M2 12.5h0.01 M6 9.5h0.01 M9.5 10.5h0.01 M14 4.5h0.01 M1 12.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M5 9.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M8.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
   // Documento: el lienzo, con sus marcas de corte (lo que se exporta).
   document: 'M4.5 4.5h7v7h-7z M4.5 1v2 M11.5 1v2 M4.5 13v2 M11.5 13v2 M1 4.5h2 M13 4.5h2 M1 11.5h2 M13 11.5h2',
   // Compartir: tres nodos unidos.

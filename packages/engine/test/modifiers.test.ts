@@ -740,3 +740,33 @@ describe('recortes rápidos', () => {
     expect(covers(sq, { x: 20, y: 20, width: 3, height: 3 })).toBe(false);
   });
 });
+
+describe('bones', () => {
+  // Una barra larga (100 × 10), con la cadena de izquierda a derecha.
+  const bar = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 10"><rect width="100" height="10"/></svg>';
+  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluateStack({ source: bar, stack: [{ id: 'b', type: 'bones', params }] });
+  const tip = (geo: ReturnType<typeof run>) => {
+    // El punto más alejado del origen de la cadena: la punta.
+    const pts = geo.shapes.flatMap((s) => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]));
+    return pts.reduce((best, q) => (Math.hypot(q[0], q[1] - 5) > Math.hypot(best[0], best[1] - 5) ? q : best));
+  };
+
+  it('con los ángulos a 0, el dibujo como estaba', () => {
+    expect(bounds(run({ angle1: 0, angle2: 0, angle3: 0, angle4: 0 }))).toEqual({ x: 0, y: 0, width: 100, height: 10 });
+  });
+
+  it('cada hueso gira sobre su articulación: doblar el último solo mueve la punta', () => {
+    const geo = run({ segments: 2, angle1: 0, angle2: 90, smooth: 0 });
+    const b = bounds(geo);
+    // El primer hueso (0–50) se queda; el segundo baja en vertical desde x ≈ 50.
+    expect(b.x).toBeCloseTo(0, 0);
+    expect(b.x + b.width).toBeLessThan(60);
+    expect(b.y + b.height).toBeGreaterThan(50);
+  });
+
+  it('IK: la punta llega al objetivo', () => {
+    // Objetivo (en fracciones de la barra): x = 60, y = 40.
+    const [x, y] = tip(run({ segments: 3, ik: true, target: [0.6, 4], smooth: 0 }));
+    expect(Math.hypot(x - 60, y - 40)).toBeLessThan(6);
+  });
+});
