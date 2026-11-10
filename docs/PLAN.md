@@ -126,6 +126,8 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 5. ~~**Entre objetos** (librería de recorte): Boolean, Clone sobre otro objeto, deformador guiado por otro objeto (Path Wrap).~~
 6. **Con esa librería:** Glitch y cara trasera de Cylinder. ~~Mosaic~~.
 7. **Fase 2, animación:** línea de tiempo, fotogramas clave y easing. Después, composiciones y reescalado de tiempo.
+   - **Interacciones** (después de la línea de tiempo, sobre su interpolación): panel «Interactions» por objeto con disparador (hover, clic/toque, entrar en pantalla, posición del puntero) y acción (llevar parámetros a otro valor con duración y easing, encender/apagar un efecto, nueva semilla, reproducir un tramo de la línea de tiempo). Modo Preview en el editor; el código exportado las incluye. Segunda capa a mano: `on('click', 'Pawn', …)` en el panel de código.
+   - **Seguir al puntero** (al final): enlazar un parámetro a la posición del ratón (p. ej. el centro de Spherize). Ojo al rendimiento con efectos pesados (aviso de ms) y en móvil (sin hover: elegir qué hace el toque).
 8. Publicar: repo en GitHub, Pages y página en vertik.net.
 9. Penpot va por detrás: barra de primitivas y lápiz en las pantallas del editor.
 10. Al final: pantallas estrechas.
