@@ -97,6 +97,7 @@ SVG ──importar──▶ Geometría ──modificador 1──▶ … ──mo
 - 2026-11-10: nombre del documento editable en la barra (con deshacer); casilla y color en la misma fila (Fill, Stroke: `ParamList` en `packages/ui`); primitivas en gris neutro (#d9d9d9) en vez del turquesa del acento; color del lienzo en la fila View (solo para ver: no entra en el SVG, sí en la URL y el historial); Step se pliega.
 - 2026-11-10: al dibujar una primitiva se ve la forma real (con su estilo y un contorno de acento), no un rectángulo; doble clic en la herramienta la pone en el centro de lo que se ve.
 - 2026-11-10: recuadro de selección con esquinas para escalar y zona exterior para rotar (⇧ = 15°) y rótulo junto al puntero. Actuadores de efecto (`apps/editor/src/gizmos.ts`): Spherize (esfera de alambre y radio), Twist (círculo, arco del ángulo y su punta), Rotate 3D (anillos X/Y/Z con los colores de C4D, arrastrables) y Wave (la onda y su amplitud). Tenues en reposo; encendidos al pasar, arrastrar o cambiar valores en el panel.
+- 2026-11-10: selección múltiple (⇧ + clic en lienzo o pila, ⌘ en la pila); arrastrar mueve toda la selección; ⌘G agrupa los seleccionados; Supr los borra. Barra «Arrange» arriba del lienzo: alinear (6), distribuir (2), voltear (2). Voltear también en Transform (flipX/flipY en la colocación del motor). Efecto Mirror (generador): eje, posición y «Original: keep/transform», con actuador. Unión y extremo del trazo en primitivas y en Paint.
 - 2026-11-10: más actuadores: Bend (eje doblado y su extremo), Ripple (anillos y longitud de onda), Taper (contorno y cantidad), Shear (paralelogramo y dos tiradores), Perspective y Envelope (cuadrilátero y malla), Cylinder (cilindro y wrap), Transform (aro que se arrastra para mover; tirador que gira y escala) y Clone (radio y ángulo de inicio, separación, desplazamiento).
 
 ## Siguiente
@@ -106,7 +107,7 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 1. ~~**Arreglos rápidos de interfaz:** nombre del documento editable, muestras de color de Style alineadas, color de las primitivas distinto del acento, color del lienzo, plegar Step.~~
 2. ~~**Primitivas:** al crearla, ver la forma real; doble clic en la herramienta = primitiva en el centro del lienzo.~~
 3. ~~**Recuadro de selección útil:** escalar y rotar desde él; actuadores y wire del efecto seleccionado.~~ Actuadores para todos los deformadores salvo Noise y Melt (no tienen forma que dibujar), y para Clone.
-4. **Objetos:** alinear, distribuir, reflejar (horizontal/vertical).
+4. ~~**Objetos:** alinear, distribuir, reflejar (horizontal/vertical).~~
 5. **Entre objetos** (librería de recorte): Boolean (unir, restar, intersectar, excluir), Clone sobre el contorno o el interior de otro objeto, deformador guiado por otro objeto.
 6. **Con esa librería:** Glitch, Mosaic, cara trasera de Cylinder y alineación del trazo (dentro/fuera).
 7. **Fase 2, animación:** línea de tiempo, fotogramas clave y easing. Después, composiciones y reescalado de tiempo.
@@ -127,7 +128,7 @@ Orden propuesto (con las notas del usuario del 2026-11-10; el detalle, en «Idea
 - Degradado (lineal/radial) como efecto de Style.
 - Reflejo horizontal/vertical.
 - Repetición lineal con escala: botón para repartir los huecos de forma uniforme según el tamaño de cada copia, no por sus centros.
-- Trazo: SVG no tiene posición del trazo (dentro/fuera/centro) en ningún navegador. Se emula: *dentro* = doble de grosor recortado por la propia forma; *fuera* = doble de grosor con máscara que quita el interior; o, mejor para exportar, desplazar el contorno (offset) con la librería de recorte. Esquinas y extremos sí existen: `stroke-linejoin` (miter, round, bevel), `stroke-miterlimit` y `stroke-linecap` (butt, round, square); el importador ya los conserva, falta exponerlos en el panel.
+- Trazo: SVG no tiene posición del trazo (dentro/fuera/centro) en ningún navegador. Se emula: *dentro* = doble de grosor recortado por la propia forma; *fuera* = doble de grosor con máscara que quita el interior; o, mejor para exportar, desplazar el contorno (offset) con la librería de recorte. Esquinas y extremos sí existen: `stroke-linejoin` (miter, round, bevel), `stroke-miterlimit` y `stroke-linecap` (butt, round, square); ya están en el panel (primitivas y Paint). Falta `stroke-miterlimit`.
 
 **Objetos y escena**
 - Alinear y distribuir objetos.

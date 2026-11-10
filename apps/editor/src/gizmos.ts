@@ -366,6 +366,29 @@ Object.assign(builders, {
     };
   },
 
+  mirror(p: Params, b: Bounds): Gizmo {
+    // El eje del espejo, con un tirador en su centro para moverlo.
+    const horizontal = p.axis !== 'vertical';
+    const pos = Number(p.position ?? 1);
+    const ext = sizeOf(b) * 0.15;
+    const line: Vec2[] = horizontal
+      ? [[b.x + pos * b.width, b.y - ext], [b.x + pos * b.width, b.y + b.height + ext]]
+      : [[b.x - ext, b.y + pos * b.height], [b.x + b.width + ext, b.y + pos * b.height]];
+    const mid: Vec2 = [(line[0]![0] + line[1]![0]) / 2, (line[0]![1] + line[1]![1]) / 2];
+    return {
+      lines: [{ pts: line, dashed: true }],
+      handles: [
+        {
+          at: mid,
+          label: 'Axis at',
+          drag: (_p0, _f, to) => ({
+            position: round(clamp(horizontal ? (to[0] - b.x) / (b.width || 1) : (to[1] - b.y) / (b.height || 1), -1, 2), 100),
+          }),
+        },
+      ],
+    };
+  },
+
   clone(p: Params, b: Bounds): Gizmo {
     const c = center(b);
     const W = b.width, H = b.height, size = sizeOf(b);

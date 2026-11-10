@@ -372,3 +372,20 @@ describe('tint', () => {
     expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#404040', '#808080', '#bfbfbf']);
   });
 });
+
+describe('mirror', () => {
+  const run = (params: Record<string, unknown>) => createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'm', type: 'mirror', params }] });
+
+  it('simetría: el original y su reflejo al otro lado del borde derecho', () => {
+    const geo = run({});
+    expect(geo.shapes).toHaveLength(2);
+    expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 120, height: 60 });
+    expect(geo.shapes.map((s) => s.clone)).toEqual([0, 1]);
+  });
+
+  it('sin el original y en vertical, con el eje en el centro: queda en su sitio', () => {
+    const geo = run({ axis: 'vertical', position: 0.5, original: 'transform' });
+    expect(geo.shapes).toHaveLength(1);
+    expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  });
+});

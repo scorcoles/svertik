@@ -73,7 +73,7 @@ export const clone = defineModifier({
 });
 
 /** Amplía el viewBox lo justo para que quepa todo, con un margen del 5 %. */
-function fitViewBox([x, y, w, h]: [number, number, number, number], b: { x: number; y: number; width: number; height: number }): [number, number, number, number] {
+export function fitViewBox([x, y, w, h]: [number, number, number, number], b: { x: number; y: number; width: number; height: number }): [number, number, number, number] {
   const m = Math.max(b.width, b.height) * 0.05;
   const x0 = Math.min(x, b.x - m);
   const y0 = Math.min(y, b.y - m);

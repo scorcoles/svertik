@@ -20,6 +20,8 @@ const style: ParamSchema = {
   stroke: { type: 'boolean', default: false, group: 'Style', label: 'Stroke', animatable: false },
   strokeColor: { type: 'color', default: '#ededed', group: 'Style', label: 'Stroke color' },
   strokeWidth: { type: 'number', default: 2, min: 0, max: 40, step: 0.5, unit: 'px', group: 'Style', label: 'Stroke width' },
+  strokeJoin: { type: 'enum', default: 'round', options: ['miter', 'round', 'bevel'], group: 'Style', label: 'Join', animatable: false },
+  strokeCap: { type: 'enum', default: 'round', options: ['butt', 'round', 'square'], group: 'Style', label: 'Cap', animatable: false },
 };
 
 const closed = (pts: Vec2[]): SubPath => ({ start: pts[0]!, segs: pts.slice(1).concat([pts[0]!]).map((p, i) => line(i === 0 ? pts[0]! : pts[i]!, p)), closed: true });
@@ -161,7 +163,7 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
   const subpaths = def.build(p as never);
   const st: Style = {
     fill: p.fill ? String(p.fillColor) : 'none',
-    ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': 'round', 'stroke-linecap': 'round' } : {}),
+    ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round') } : {}),
   };
   return { viewBox: [0, 0, 0, 0], shapes: [{ subpaths, style: st }] };
 }

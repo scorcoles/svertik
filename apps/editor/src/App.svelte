@@ -77,7 +77,7 @@
       editor.randomize();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && editor.selected && !typing(e)) {
       e.preventDefault();
-      editor.remove();
+      editor.removeSelection();
     } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && editor.selected && editor.scene && !typing(e)) {
       e.preventDefault();
       const at = locateModifier(editor.scene, editor.selected) ?? locateNode(editor.scene.objects, editor.selected);

@@ -116,8 +116,8 @@
         icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : 'object') as IconName}
         {depth}
         expanded={n.stack.length || n.kind === 'group' ? open : undefined}
-        selected={editor.selected === n.id}
-        onselect={() => (editor.selected = n.id)}
+        selected={editor.isSelected(n.id)}
+        onselect={(e) => (e.shiftKey || e.metaKey || e.ctrlKey ? editor.toggleSelect(n.id) : (editor.selected = n.id))}
         onexpand={(v) => editor.toggleCollapsed(n.id, v)}
         onremove={() => editor.remove(n.id)}
         visible={n.visible !== false}

@@ -20,6 +20,9 @@ export const paint = defineModifier({
     strokeColor: { type: 'color', default: '#000000', label: 'Color', group: 'Stroke' },
     strokeWidth: { type: 'number', default: 1, min: 0, max: 20, step: 0.1, unit: 'px', label: 'Width', group: 'Stroke', random: [0.5, 6] },
     strokeOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Opacity', group: 'Stroke', ramp: false, random: [0.4, 1] },
+    // Esquinas y extremos del trazo; «keep» respeta lo que traiga el dibujo.
+    strokeJoin: { type: 'enum', default: 'keep', options: ['keep', 'miter', 'round', 'bevel'] as const, label: 'Join', group: 'Stroke', animatable: false },
+    strokeCap: { type: 'enum', default: 'keep', options: ['keep', 'butt', 'round', 'square'] as const, label: 'Cap', group: 'Stroke', animatable: false },
   },
   apply(geo, p) {
     const overlay = parseColor(p.fillColor);
@@ -39,7 +42,9 @@ export const paint = defineModifier({
         style.stroke = p.strokeColor;
         style['stroke-width'] = String(p.strokeWidth);
         if (p.strokeOpacity < 1) style['stroke-opacity'] = String(p.strokeOpacity);
-        style['stroke-linejoin'] ??= 'round';
+        if (p.strokeJoin !== 'keep') style['stroke-linejoin'] = p.strokeJoin;
+        else style['stroke-linejoin'] ??= 'round';
+        if (p.strokeCap !== 'keep') style['stroke-linecap'] = p.strokeCap;
       }
       return { ...shape, style };
     });

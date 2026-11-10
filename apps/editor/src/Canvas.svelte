@@ -1,8 +1,9 @@
 <script lang="ts">
   import { apply, builtins, buildShape, createEngine, invert, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
-  import { Button, Icon } from '@svertik/ui';
+  import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
+  import { align, distribute, type Align, type Move } from './arrange';
   import { gizmoFor, type Drag } from './gizmos';
   import Tools from './Tools.svelte';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
@@ -197,19 +198,55 @@
 
   // ── Selección: recuadro del nodo seleccionado; clic para seleccionar y arrastrar para mover
 
-  let selection = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+  type Rect = { x: number; y: number; w: number; h: number };
+  let selection = $state<Rect | null>(null);
+  /** Los demás nodos seleccionados (⇧ + clic): solo su recuadro. */
+  let others = $state<Rect[]>([]);
+  const rectOf = (id: string): Rect | null => {
+    const info = nodes.get(id);
+    if (!info || info.box.width + info.box.height === 0) return null;
+    const a = docToStage(info.box.x, info.box.y);
+    const b = docToStage(info.box.x + info.box.width, info.box.y + info.box.height);
+    return a && b ? { x: a[0], y: a[1], w: b[0] - a[0], h: b[1] - a[1] } : null;
+  };
   $effect(() => {
     void view; void stageSize; void viewBox; void nodes;
     const node = editor.currentNode;
+    const rest = editor.selectedNodes.filter((n) => n.id !== node?.id).map((n) => n.id);
     const frame = requestAnimationFrame(() => {
-      const info = node ? nodes.get(node.id) : undefined;
-      if (!info || info.box.width + info.box.height === 0) return (selection = null);
-      const a = docToStage(info.box.x, info.box.y);
-      const b = docToStage(info.box.x + info.box.width, info.box.y + info.box.height);
-      selection = a && b ? { x: a[0], y: a[1], w: b[0] - a[0], h: b[1] - a[1] } : null;
+      selection = node ? rectOf(node.id) : null;
+      others = rest.map(rectOf).filter((r): r is Rect => !!r);
     });
     return () => cancelAnimationFrame(frame);
   });
+
+  // ── Organizar: alinear y distribuir la selección (en el documento), voltear
+
+  function arrange(moves: Move[]) {
+    if (!editor.scene) return;
+    // Del documento a las coordenadas del grupo de cada uno.
+    editor.moveNodes(
+      moves.map(({ id, dx, dy }) => {
+        const at = locateNode(editor.scene!.objects, id);
+        const parentInfo = at?.parent ? nodes.get(at.parent.id) : undefined;
+        if (!parentInfo) return { id, dx, dy };
+        const m = invert(parentInfo.matrix);
+        return { id, dx: m[0] * dx + m[2] * dy, dy: m[1] * dx + m[3] * dy };
+      }),
+    );
+  }
+  const items = () => editor.selectedNodes.flatMap((n) => {
+    const info = nodes.get(n.id);
+    return info ? [{ id: n.id, box: info.box }] : [];
+  });
+  const alignments: { how: Align; icon: string; label: string }[] = [
+    { how: 'left', icon: 'align-left', label: 'Align left' },
+    { how: 'hcenter', icon: 'align-hcenter', label: 'Align centers horizontally' },
+    { how: 'right', icon: 'align-right', label: 'Align right' },
+    { how: 'top', icon: 'align-top', label: 'Align top' },
+    { how: 'vcenter', icon: 'align-vcenter', label: 'Align centers vertically' },
+    { how: 'bottom', icon: 'align-bottom', label: 'Align bottom' },
+  ];
 
   // ── Escalar y rotar desde el recuadro: esquinas para escalar (uniforme), justo fuera de ellas para rotar.
   // Todo gira y escala alrededor del centro del nodo (su pivote), como en sus atributos.
@@ -327,29 +364,37 @@
     if (editor.tool) return drawShape(e);
     const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
     if (!id) {
-      editor.selected = null;
+      if (!e.shiftKey) editor.selected = null;
       return;
     }
     e.preventDefault();
-    editor.selected = id;
-    // Arrastrar mueve el objeto (en las coordenadas de su grupo, si lo tiene).
-    const at = locateNode(editor.scene.objects, id);
-    if (!at) return;
-    const parentInfo = at.parent ? nodes.get(at.parent.id) : undefined;
-    const toParent = parentInfo ? invert(parentInfo.matrix) : null;
+    // ⇧ + clic: sumar o quitar de la selección (sin mover).
+    if (e.shiftKey) return editor.toggleSelect(id);
+    // Clic en algo ya seleccionado: se mueve toda la selección; si no, se selecciona solo él.
+    if (!editor.isSelected(id)) editor.selected = id;
+    const ids = editor.selectedNodes.map((n) => n.id);
+    // Cada uno se mueve en las coordenadas de su grupo (si lo tiene).
+    const parts = ids.flatMap((nid) => {
+      const at = locateNode(editor.scene!.objects, nid);
+      if (!at) return [];
+      const parentInfo = at.parent ? nodes.get(at.parent.id) : undefined;
+      return [{ id: nid, toParent: parentInfo ? invert(parentInfo.matrix) : null, t0: { x: at.node.transform?.x ?? 0, y: at.node.transform?.y ?? 0 } }];
+    });
     const start = clientToDoc(e.clientX, e.clientY);
-    const t0 = { x: at.node.transform?.x ?? 0, y: at.node.transform?.y ?? 0 };
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
       const now = clientToDoc(ev.clientX, ev.clientY);
-      if (!start || !now) return;
-      let dx = now[0] - start[0];
-      let dy = now[1] - start[1];
-      if (toParent) [dx, dy] = [toParent[0] * dx + toParent[2] * dy, toParent[1] * dx + toParent[3] * dy];
+      if (!start || !now || !editor.scene) return;
       const r = (n: number) => Math.round(n * 100) / 100;
-      editor.setNode(id, 'x', r(t0.x + dx));
-      editor.setNode(id, 'y', r(t0.y + dy));
+      for (const p of parts) {
+        let dx = now[0] - start[0];
+        let dy = now[1] - start[1];
+        if (p.toParent) [dx, dy] = [p.toParent[0] * dx + p.toParent[2] * dy, p.toParent[1] * dx + p.toParent[3] * dy];
+        const n = locateNode(editor.scene.objects, p.id)?.node;
+        if (n) n.transform = { ...n.transform, x: r(p.t0.x + dx), y: r(p.t0.y + dy) };
+      }
+      editor.record();
     };
     const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
     el.addEventListener('pointermove', move);
@@ -512,6 +557,9 @@
           <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
         {/each}
       {/if}
+      {#each others as o, i (i)}
+        <span class="selection other" style:left="{o.x}px" style:top="{o.y}px" style:width="{o.w}px" style:height="{o.h}px" aria-hidden="true"></span>
+      {/each}
       {#if gesture}<span class="gesture" style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
       {#if gizmoScreen && !editor.tool}
         <svg class="gizmo" data-active={gizmoActive || gizmoHover || editor.busy || undefined} aria-hidden="true">
@@ -561,6 +609,20 @@
         ></button>
       {/each}
     </div>
+    {#if editor.selectedNodes.length && !editor.tool}
+      {@const n = editor.selectedNodes.length}
+      <div class="arrange" role="toolbar" aria-label="Arrange">
+        {#each alignments as a (a.how)}
+          <IconButton icon={a.icon as IconName} label={`${a.label}${n < 2 ? ' (select 2+ with ⇧)' : ''}`} disabled={n < 2} onclick={() => arrange(align(items(), a.how))} />
+        {/each}
+        <span class="rule" aria-hidden="true"></span>
+        <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' (select 3+)' : ''}`} disabled={n < 3} onclick={() => arrange(distribute(items(), 'x'))} />
+        <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' (select 3+)' : ''}`} disabled={n < 3} onclick={() => arrange(distribute(items(), 'y'))} />
+        <span class="rule" aria-hidden="true"></span>
+        <IconButton icon="flip-h" label="Flip horizontally" onclick={() => editor.flip('x')} />
+        <IconButton icon="flip-v" label="Flip vertically" onclick={() => editor.flip('y')} />
+      </div>
+    {/if}
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
     <footer>
       <span class="pct" title="Zoom (wheel or pinch)">{percent}%</span>
@@ -631,6 +693,22 @@
   .result :global(path[data-node]) { cursor: default; }
   /* Recuadro del objeto o grupo seleccionado. */
   .selection { position: absolute; pointer-events: none; outline: 1px solid var(--sv-accent-fill); }
+  .selection.other { outline-style: dashed; }
+  /* Organizar: arriba, en el centro del lienzo, mientras haya algo seleccionado. */
+  .arrange {
+    position: absolute;
+    top: var(--sv-space-12);
+    left: 50%;
+    translate: -50% 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-2);
+    padding: var(--sv-space-4);
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+  }
+  .arrange .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-4); background: var(--sv-rule-default); }
   /* Esquinas: escalar. Un poco más allá de cada una (la zona grande, debajo): rotar. */
   .corner,
   .rotate { position: absolute; translate: -50% -50%; }
