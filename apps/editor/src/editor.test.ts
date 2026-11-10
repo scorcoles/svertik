@@ -515,3 +515,16 @@ describe('Código y línea de tiempo', () => {
     expect(e.playing).toBe(false);
   });
 });
+
+describe('Documento', () => {
+  it('tamaño fijo, ajustado a lo dibujado, y vuelta a automático', () => {
+    const e = fresh();
+    e.setDocument({ width: 1920, height: 1080 });
+    expect(e.scene!.document).toEqual({ width: 1920, height: 1080 });
+    e.contentBox = { x: 10, y: 20, width: 99.5, height: 50 };
+    e.fitDocument();
+    expect(e.scene!.document).toEqual({ width: 100, height: 50, x: 59.75, y: 45 });
+    e.setDocument(null);
+    expect(e.scene!.document).toBeUndefined();
+  });
+});

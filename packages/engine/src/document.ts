@@ -82,8 +82,8 @@ export interface SceneV2 {
   objects: SceneNode[];
   /** Longitud máxima de tramo al subdividir, como fracción del tamaño de cada objeto. */
   resolution?: number;
-  /** Tamaño fijo del documento (centrado en el origen). Sin él, se ajusta a lo que haya. */
-  document?: { width: number; height: number } | null;
+  /** Tamaño fijo del documento, centrado en (x, y) (por defecto, el origen). Sin él, se ajusta a lo que haya. */
+  document?: { width: number; height: number; x?: number; y?: number } | null;
   /** Animación (opcional): pistas de fotogramas clave. Ver animation.ts. */
   animation?: Animation;
   /** Interacciones (opcional): hover y clic sobre los objetos. Ver interactions.ts. */
@@ -333,8 +333,8 @@ export function createDocumentEvaluator(
     const all = bounds({ viewBox: [0, 0, 0, 0], shapes });
     let viewBox: [number, number, number, number];
     if (scene.document) {
-      const { width: w, height: h } = scene.document;
-      viewBox = [-w / 2, -h / 2, w, h];
+      const { width: w, height: h, x = 0, y = 0 } = scene.document;
+      viewBox = [x - w / 2, y - h / 2, w, h];
     } else {
       const m = Math.max(all.width, all.height) * 0.05 || 1;
       viewBox = [all.x - m, all.y - m, all.width + 2 * m, all.height + 2 * m].map((n) => Math.round(n * 100) / 100) as [number, number, number, number];

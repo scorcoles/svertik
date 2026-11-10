@@ -162,6 +162,17 @@ export class Editor {
   collapsed = $state<string[]>([]);
   showOriginal = $state(false);
   showWire = $state(false);
+  /** Ver el borde del documento (lo que se exporta). Se recuerda en este navegador. */
+  #showBounds = $state(readPref('svertik.bounds') !== 'off');
+  get showBounds() {
+    return this.#showBounds;
+  }
+  set showBounds(on: boolean) {
+    this.#showBounds = on;
+    writePref('svertik.bounds', on ? '' : 'off');
+  }
+  /** Caja de lo que hay dibujado (sin margen), en el documento: la escribe el lienzo al pintar. */
+  contentBox = $state.raw<{ x: number; y: number; width: number; height: number } | null>(null);
   error = $state<string | null>(null);
   /** Script del panel de código (lo que va después de la escena en la pestaña JS). */
   script = $state(DEFAULT_SCRIPT);
@@ -352,6 +363,23 @@ export class Editor {
     if (!n || n === this.name) return;
     this.name = n;
     this.record(true);
+  }
+
+  /** Tamaño del documento: fijo (centrado donde se diga) o null, que se ajusta a lo que haya. */
+  setDocument(size: { width: number; height: number; x?: number; y?: number } | null, commit = true) {
+    if (!this.scene) return;
+    if (size) {
+      const r = (v: number) => Math.round(v * 100) / 100;
+      const { width, height, x = this.scene.document?.x ?? 0, y = this.scene.document?.y ?? 0 } = size;
+      this.scene.document = { width: Math.max(1, r(width)), height: Math.max(1, r(height)), ...(x ? { x: r(x) } : {}), ...(y ? { y: r(y) } : {}) };
+    } else delete this.scene.document;
+    this.record(commit);
+  }
+  /** Documento del tamaño de lo dibujado y centrado en ello (sin mover nada). */
+  fitDocument() {
+    const b = this.contentBox;
+    if (!b || b.width <= 0 || b.height <= 0) return;
+    this.setDocument({ width: Math.ceil(b.width), height: Math.ceil(b.height), x: b.x + b.width / 2, y: b.y + b.height / 2 });
   }
 
   setCanvas(color: string) {
@@ -1205,7 +1233,9 @@ export class Editor {
     if (!this.scene) return null;
     const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     if (encoded.length >= MAX_HASH) return null;
-    return `${location.origin}${location.pathname}${location.search}#p=${encoded}`;
+    // La página de Play, junto al editor: carga solo el motor (mucho menos que el editor entero).
+    const dir = location.pathname.replace(/[^/]*$/, '');
+    return `${location.origin}${dir}play.html#p=${encoded}`;
   }
 
   async loadFromURL() {

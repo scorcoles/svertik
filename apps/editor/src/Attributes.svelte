@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DocumentAttributes from './DocumentAttributes.svelte';
   import { Button, IconButton, ParamList, Section, Tabs } from '@svertik/ui';
   import { walkNodes, type ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
@@ -96,7 +97,7 @@
   {:else if editor.currentNode}
     {#key editor.currentNode.id}<NodeAttributes {editor} node={editor.currentNode} {onreplace} />{/key}
   {:else if editor.scene}
-    <p class="hint">Select an object or a modifier to edit it. Drop more SVGs to add objects.</p>
+    <DocumentAttributes {editor} />
   {/if}
 </section>
 
@@ -111,6 +112,5 @@
   .info dt { color: var(--sv-text-secondary); text-align: right; }
   .info dd { margin: 0; color: var(--sv-text-primary); }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
-  .hint { margin: 0; padding: var(--sv-space-8); color: var(--sv-text-muted); }
   .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

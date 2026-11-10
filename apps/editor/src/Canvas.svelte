@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { apply, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -36,7 +36,7 @@
    */
   let viewBox = $state<[number, number, number, number]>([0, 0, 1, 1]);
   /** El viewBox que tendría el documento ahora (se ajusta al contenido): el que usa Fit. */
-  let docViewBox: [number, number, number, number] = [0, 0, 1, 1];
+  let docViewBox = $state.raw<[number, number, number, number]>([0, 0, 1, 1]);
   let framed = false;
   /** Información de cada nodo tras evaluar: caja de referencia, matriz al documento y caja final. */
   let nodes = $state.raw<Map<string, NodeInfo>>(new Map());
@@ -53,6 +53,7 @@
       const t0 = performance.now();
       const doc = engine.evaluateDocument(scene);
       docViewBox = doc.geometry.viewBox;
+      editor.contentBox = bounds(doc.geometry);
       if (!framed) {
         viewBox = docViewBox;
         framed = true;
@@ -96,6 +97,16 @@
     viewBox = docViewBox;
     view = FIT;
   }
+
+  // Al fijar o cambiar el tamaño del documento, se encaja en él.
+  let lastDoc = '';
+  $effect(() => {
+    const d = JSON.stringify(editor.scene?.document ?? null);
+    if (d === lastDoc) return;
+    const first = lastDoc === '';
+    lastDoc = d;
+    if (!first) untrack(() => queueMicrotask(refit));
+  });
 
   // Al empezar una escena (o cambiar de documento), se vuelve a encajar.
   let lastFirst = '';
@@ -651,6 +662,15 @@
       <div class="view" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
+        {#if editor.showBounds}
+          {@const [bx, by, bw, bh] = docViewBox}
+          {@const fixed = !!editor.scene.document}
+          <!-- El borde del documento (lo que se exporta). Fijo: lo de fuera, oscurecido; automático: discontinuo. -->
+          <svg class="bounds" viewBox={viewBox.join(' ')} aria-hidden="true">
+            {#if fixed}<path class="outside" fill-rule="evenodd" d="M{bx - 1e5} {by - 1e5}h{bw + 2e5}v{bh + 2e5}h{-(bw + 2e5)}z M{bx} {by}h{bw}v{bh}h{-bw}z" />{/if}
+            <rect class="frame" data-auto={!fixed || undefined} x={bx} y={by} width={bw} height={bh} />
+          </svg>
+        {/if}
         {#if draft}
           <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true">
             <path d={draft.d} transform="translate({draft.x} {draft.y})" fill={draft.fill} stroke={draft.stroke} stroke-width={draft.width} stroke-linejoin="round" stroke-linecap="round" />
@@ -854,6 +874,10 @@
   .stage[data-tool] { cursor: crosshair; }
   .stage[data-tool] :global(path[data-node]) { cursor: crosshair; }
   .draft { pointer-events: none; }
+  .bounds { pointer-events: none; }
+  .bounds .outside { fill: rgb(0 0 0 / 0.5); }
+  .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .bounds .frame[data-auto] { stroke: var(--sv-text-muted); stroke-dasharray: 4 4; }
   .draft .outline { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1px; vector-effect: non-scaling-stroke; }
   .stage[data-panning] { cursor: grabbing; }
   .view { position: absolute; inset: 48px 48px 56px; transform-origin: 0 0; }
