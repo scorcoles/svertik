@@ -53,7 +53,9 @@
     </header>
     {#if editor.currentParent}
       <p class="note">
-        {editor.currentParent.type === 'step'
+        {editor.currentParent.type === 'rgbsplit'
+          ? 'Applies only to the colored copies (the drawing stays as it is). Blur or Glow soften them; Step spreads them by element.'
+          : editor.currentParent.type === 'step'
           ? 'Per element: numbers grow ×1, ×2, ×3… Centers are each element’s own.'
           : editor.currentParent.type === 'stagger'
             ? 'Per element: where it starts (In) or ends (Out). Centers are each element’s own.'
@@ -63,7 +65,9 @@
       <p class="note">Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.</p>
     {:else if m.children}
       <p class="note">
-        {m.type === 'step'
+        {m.type === 'rgbsplit'
+          ? 'Two colored copies, shifted. Modifiers nested under it apply only to the copies: add Blur to soften them, Step to spread them by element. Select it and add, or drop modifiers onto it.'
+          : m.type === 'step'
           ? 'Applies the modifiers nested under it to each element, stepping their numbers. Drop modifiers onto it, or select it and add.'
           : m.type === 'stagger'
             ? 'Each element makes its own transition, a little after the previous one, with its ease. Animate Progress from 0 to 1. In: from the nested modifiers to rest; Out: the other way.'

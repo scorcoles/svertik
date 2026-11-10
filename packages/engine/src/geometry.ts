@@ -1,3 +1,4 @@
+import type { FilterChain } from './chain';
 // Geometría interna: todo es curva cúbica. Una forma tiene subtrazados y un estilo.
 
 export type Vec2 = readonly [number, number];
@@ -68,6 +69,18 @@ export interface Geometry {
    * caja. Un texto anclado a la izquierda no se mueve al cambiar de palabra.
    */
   origin?: Vec2;
+  /**
+   * Filtros que solo van sobre parte del dibujo (lo que hay dentro de RGB Split: las copias de color), por
+   * clave. Las formas que los llevan tienen `@clave` en su `wrap`; al colocar el nodo se convierten en
+   * filtros de verdad (con su id y su zona). `ref`: la caja de esa parte, para los filtros por zonas.
+   */
+  inner?: Record<string, { chain: FilterChain; ref: Bounds }>;
+}
+
+/** Los filtros internos de `before` que `after` no trae (un efecto que rehízo la geometría): se conservan. */
+export function keepInner(before: Geometry, after: Geometry): Geometry {
+  if (!before.inner || after === before) return after;
+  return { ...after, inner: { ...before.inner, ...after.inner } };
 }
 
 export interface Bounds {

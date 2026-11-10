@@ -7,6 +7,9 @@
 // Todo en coordenadas del documento.
 
 import { sampleScene } from './animation';
+
+/** Separa, en la clave de una capa, el objeto de sus filtros. */
+const LAYER_SEP = '\u0001';
 import type { SceneV2 } from './document';
 import type { Engine } from './engine';
 import type { FilterDef, Shape } from './geometry';
@@ -76,7 +79,8 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
     const byNode = new Map<string, Shape[]>();
     const order: string[] = [];
     for (const s of doc.geometry.shapes) {
-      const id = s.node ?? '';
+      // Una capa por objeto y por filtros: las copias de RGB Split con desenfoque, aparte del dibujo.
+      const id = (s.node ?? '') + (s.wrap?.length ? LAYER_SEP + s.wrap.join(',') : '');
       if (!byNode.has(id)) (byNode.set(id, []), order.push(id));
       byNode.get(id)!.push(s);
     }
@@ -94,7 +98,9 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
   // Los objetos, en el orden en que se pintan (el primero, el de más atrás).
   const ids: string[] = [];
   for (const fr of evaluated) for (const id of fr.order) if (!ids.includes(id)) ids.push(id);
-  const nameOf = (id: string) => {
+  const nodeOf = (key: string) => key.split(LAYER_SEP)[0]!;
+  const nameOf = (key: string) => {
+    const id = nodeOf(key);
     for (const { node } of walk(scene.objects)) if (node.id === id) return node.name;
     return id ? id : 'Effects';
   };
@@ -103,7 +109,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
   const heavy: string[] = [];
   for (const id of ids) {
     const name = nameOf(id);
-    const perFrame = evaluated.map((fr) => ({ shapes: fr.byNode.get(id) ?? [], m: fr.matrix.get(id), a: fr.anchor.get(id) ?? ([0, 0] as [number, number]) }));
+    const perFrame = evaluated.map((fr) => ({ shapes: fr.byNode.get(id) ?? [], m: fr.matrix.get(nodeOf(id)), a: fr.anchor.get(nodeOf(id)) ?? ([0, 0] as [number, number]) }));
     const wrapOf = (shapes: Shape[]) => (shapes[0]?.wrap?.length ? { wrap: shapes[0].wrap } : {});
     // ¿La forma es la misma en todos los fotogramas, vista desde el propio objeto?
     const local = perFrame.map(({ shapes, m }) => {

@@ -7,7 +7,8 @@
 // Las formas con relleno se cortan como superficies; las de solo trazo (sin relleno), como líneas.
 import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
-import { bounds, flatten, line, type Geometry, type Shape, type Vec2 } from '../geometry';
+import { bounds, flatten, keepInner, line, type Geometry, type Shape, type Vec2 } from '../geometry';
+import { chainFrom } from '../chain';
 import { BLEND_MODES } from '../document';
 import { defineModifier, deg } from '../modifier';
 import { rng } from '../random';
@@ -367,6 +368,8 @@ const move = (m: MultiPolygon, dx: number, dy: number): MultiPolygon => m.map((p
  * dirección de Angle). Son geometría, no un filtro: dentro de Step, Range o Field cada elemento (letra,
  * copia, trozo) tiene su propia distancia, y se exporta a Lottie. Las copias van detrás o delante del
  * dibujo, con su modo de fusión (screen o multiply mezclan los colores donde se cruzan).
+ * Lo que va dentro de RGB Split (como en Step) se aplica solo a las copias: Blur o Glow las desenfocan,
+ * Transform o Step las mueven, un Glitch las rompe… El dibujo se queda como está.
  */
 export const rgbsplit = defineModifier({
   type: 'rgbsplit',
@@ -381,7 +384,7 @@ export const rgbsplit = defineModifier({
     layer: { type: 'enum', default: 'behind', options: ['behind', 'front'] as const, label: 'Layer', animatable: false },
     blend: { type: 'enum', default: 'normal', options: BLEND_MODES, label: 'Blend', animatable: false },
   },
-  apply(geo, p) {
+  apply(geo, p, ctx) {
     if (!(p.distance > 0)) return geo;
     const a = deg(p.angle);
     const [dx, dy] = [Math.cos(a) * p.distance, Math.sin(a) * p.distance];
@@ -402,7 +405,32 @@ export const rgbsplit = defineModifier({
         },
       }));
     // Lo primero de la lista se pinta antes (queda detrás).
-    const copies = [...copy(p.colorA, -dx, -dy), ...copy(p.colorB, dx, dy)];
-    return { viewBox: geo.viewBox, shapes: p.layer === 'front' ? [...geo.shapes, ...copies] : [...copies, ...geo.shapes] };
+    let copies: Geometry = { viewBox: geo.viewBox, shapes: [...copy(p.colorA, -dx, -dy), ...copy(p.colorB, dx, dy)] };
+    // Lo de dentro, solo sobre las copias: primero los efectos de geometría, en orden; los filtros, al pintar.
+    const children = ctx.children.filter((c) => c.enabled);
+    for (const c of children) {
+      if (c.def.kind === 'filter') continue;
+      copies = keepInner(copies, c.def.apply(copies, c.params as never, { ...ctx, bounds: bounds(copies), children: c.children }));
+    }
+    const chain = chainFrom(children.map((c) => ({ def: c.def, params: c.params })));
+    let inner = geo.inner;
+    if (chain) {
+      // La clave sale de los filtros y sus valores: los mismos filtros, el mismo <filter>.
+      const key = `rgb${hashText(JSON.stringify(children.filter((c) => c.def.kind === 'filter').map((c) => [c.def.type, c.params])))}`;
+      copies = { ...copies, shapes: copies.shapes.map((s) => ({ ...s, wrap: [...(s.wrap ?? []), `@${key}`] })) };
+      inner = { ...inner, ...copies.inner, [key]: { chain, ref: bounds(copies) } };
+    } else if (copies.inner) inner = { ...inner, ...copies.inner };
+    const shapes = p.layer === 'front' ? [...geo.shapes, ...copies.shapes] : [...copies.shapes, ...geo.shapes];
+    return { viewBox: geo.viewBox, shapes, ...(inner ? { inner } : {}) };
   },
 });
+
+/** Huella corta de un texto (FNV-1a), para nombrar filtros. */
+function hashText(text: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}

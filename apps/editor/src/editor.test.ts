@@ -131,6 +131,37 @@ describe('Step con hijos', () => {
   });
 });
 
+describe('RGB Split con efectos dentro', () => {
+  it('con RGB Split seleccionado, Blur y Step entran dentro; otro RGB Split va debajo', () => {
+    const e = fresh();
+    e.add('rgbsplit');
+    const rgb = e.current!.id;
+    e.add('blur');
+    e.selected = rgb;
+    e.add('step');
+    expect(stack(e)[0]!.children!.map((m) => m.type)).toEqual(['blur', 'step']);
+    // Dentro del Step de dentro: un efecto normal entra, debajo del seleccionado.
+    e.add('transform');
+    e.add('noise');
+    expect(stack(e)[0]!.children![1]!.children!.map((m) => m.type)).toEqual(['transform', 'noise']);
+    // Con el propio RGB Split seleccionado, otro RGB Split no entra: va debajo, en la pila.
+    e.selected = rgb;
+    e.add('rgbsplit');
+    expect(stack(e).map((m) => m.type)).toEqual(['rgbsplit', 'rgbsplit']);
+  });
+  it('RGB Split puede ir dentro de Step, pero no dentro de sí mismo', () => {
+    const e = fresh();
+    e.add('step');
+    e.add('rgbsplit');
+    const rgb = e.current!.id;
+    expect(stack(e)[0]!.children!.map((m) => m.type)).toEqual(['rgbsplit']);
+    e.add('blur');
+    const blur = e.current!.id;
+    e.moveTo(rgb, blur, 0);
+    expect(stack(e)[0]!.children![0]!.id).toBe(rgb);
+  });
+});
+
 describe('dado', () => {
   it('cambia los parámetros del seleccionado y se deshace con un paso', () => {
     const e = fresh();

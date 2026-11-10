@@ -1,9 +1,10 @@
 // La escena (lo que se guarda y se exporta como JSON) y el motor que la evalúa.
 
 import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
-import { bounds, type Bounds, type Geometry } from './geometry';
+import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './import';
-import { resolveParams, type FilterPlace, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
+import { chainFrom, type FilterChain } from './chain';
+import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 
 export interface ModifierInstance {
@@ -27,11 +28,7 @@ export interface StackInput {
   resolution?: number;
 }
 
-/** Los filtros de un objeto, encadenados (ver `ModifierDef.filter`). */
-export interface FilterChain {
-  pad: number;
-  markup(id: string, place: FilterPlace): string;
-}
+export type { FilterChain } from './chain';
 
 export interface Engine {
   /** Aplica una pila a un SVG; reutiliza lo calculado si el principio de la pila no ha cambiado. */
@@ -102,7 +99,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
         // Los filtros no cambian la geometría (se aplican al pintar el objeto).
         if (inst.enabled !== false && def.kind !== 'filter') {
-          geo = def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, bounds: ref, children: resolveChildren(inst.children) });
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, bounds: ref, children: resolveChildren(inst.children) }));
           if (def.reframe) {
             const nb = bounds(geo);
             if (nb.width > 0 || nb.height > 0) ref = nb;
@@ -153,7 +150,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
         if (def.kind !== 'filter') {
-          geo = def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, children: resolveChildren(inst.children) });
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, children: resolveChildren(inst.children) }));
           if (def.reframe) {
             const b = bounds(geo);
             if (b.width > 0 || b.height > 0) ref = b;
@@ -171,26 +168,14 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * primitivas encadenadas cuando se sepa dónde está el objeto.
    */
   function filtersOf(stack: ModifierInstance[]): FilterChain | null {
-    const list = stack.flatMap((inst) => {
-      const def = registry.get(inst.type);
-      return inst.enabled !== false && def?.kind === 'filter' && def.filter ? [{ def, params: resolveParams(def.params, inst.params) }] : [];
-    });
-    if (!list.length) return null;
-    return {
-      pad: list.reduce((sum, f) => sum + (f.def.filterPad?.(f.params) ?? 0), 0),
-      markup(id, place) {
-        let input = 'SourceGraphic';
-        return list
-          .map((f, n) => {
-            const out = `f${n}`;
-            const m = f.def.filter!(f.params, { input, out, id: `${id}-${n}` }, place);
-            input = out;
-            return m;
-          })
-          .join('');
-      },
-    };
+    return chainFrom(
+      stack.flatMap((inst) => {
+        const def = registry.get(inst.type);
+        return inst.enabled !== false && def?.kind === 'filter' ? [{ def, params: resolveParams(def.params, inst.params) as Record<string, unknown> }] : [];
+      }),
+    );
   }
+
   const documents = createDocumentEvaluator(runStack, filtersOf);
   const evaluateDocument = (scene: SceneV2) => documents.evaluate(scene);
   const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;

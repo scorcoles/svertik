@@ -18,6 +18,7 @@ export function applyWeighted(
   if (!children.length) return geo;
   const keys = [...new Set(geo.shapes.map(keyOf))].filter((k) => k >= 0).sort((a, b) => a - b);
   const out: Shape[] = [];
+  let inner = geo.inner;
   keys.forEach((key, index) => {
     const own = geo.shapes.filter((s, i) => keyOf(s, i) === key);
     let part: Geometry = { viewBox: geo.viewBox, shapes: own };
@@ -28,10 +29,11 @@ export function applyWeighted(
       // Lo que sale conserva su elemento (y sus marcas de palabra y línea).
       const tag = own[0]!;
       out.push(...part.shapes.map((s) => ({ ...s, clone: s.clone ?? tag.clone, word: s.word ?? tag.word, line: s.line ?? tag.line })));
+      if (part.inner) inner = { ...inner, ...part.inner };
     } else out.push(...own);
   });
   geo.shapes.forEach((s, i) => keyOf(s, i) < 0 && out.push(s));
-  return { viewBox: geo.viewBox, shapes: out };
+  return { viewBox: geo.viewBox, shapes: out, ...(inner ? { inner } : {}) };
 }
 
 /** Elementos: copias o letras (clone); si no hay, cada forma. Por palabras o líneas, si el texto lo marca. */

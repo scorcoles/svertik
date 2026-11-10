@@ -900,3 +900,36 @@ describe('rgb split', () => {
     expect(cyan).toEqual([-4, 52]);
   });
 });
+
+describe('rgb split con efectos dentro (solo a las copias)', () => {
+  const scene = (children: { id: string; type: string; params?: Record<string, unknown>; children?: unknown[] }[]) => ({
+    version: 2 as const,
+    objects: [{ kind: 'shape' as const, id: 'n', name: 'n', shape: 'rectangle', params: { width: 100, height: 40, fillColor: '#ffffff' }, transform: { x: 50 }, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 6 }, children: children as never }] }],
+  });
+  it('Blur dentro: un <filter> solo para las copias; el dibujo, sin él', () => {
+    const geo = createEngine(builtins).evaluateDocument(scene([{ id: 'b', type: 'blur', params: { amount: 3 } }])).geometry;
+    const ids = Object.keys(geo.filters ?? {});
+    expect(ids).toHaveLength(1);
+    const [copyA, copyB, original] = geo.shapes;
+    expect(copyA!.wrap).toEqual([ids[0]]);
+    expect(copyB!.wrap).toEqual([ids[0]]);
+    expect(original!.wrap ?? []).toEqual([]);
+    expect(createEngine(builtins).toSVG(scene([{ id: 'b', type: 'blur', params: { amount: 3 } }]))).toContain('feGaussianBlur');
+  });
+  it('Transform dentro: mueve las copias, no el dibujo', () => {
+    const plain = createEngine(builtins).evaluateDocument(scene([])).geometry.shapes;
+    const moved = createEngine(builtins).evaluateDocument(scene([{ id: 't', type: 'transform', params: { y: 10 } }])).geometry.shapes;
+    expect(moved[2]!.subpaths[0]!.start).toEqual(plain[2]!.subpaths[0]!.start);
+    expect(moved[0]!.subpaths[0]!.start[1]).toBeCloseTo(plain[0]!.subpaths[0]!.start[1] + 10);
+  });
+  it('sin colocar en una escena (evaluateStack), un filtro de dentro no rompe el SVG', () => {
+    const src = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
+    const geo = createEngine(builtins).evaluateStack({ source: src, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 2 }, children: [{ id: 'b', type: 'blur' }] }] });
+    expect(toSVG(geo)).not.toContain('filter=');
+  });
+  it('detrás de RGB Split, otro efecto no pierde el filtro de las copias', () => {
+    const s = scene([{ id: 'b', type: 'blur', params: { amount: 3 } }]);
+    s.objects[0]!.stack.push({ id: 'w', type: 'wave', children: undefined as never, params: { amplitude: 0.02 } });
+    expect(Object.keys(createEngine(builtins).evaluateDocument(s).geometry.filters ?? {})).toHaveLength(1);
+  });
+});

@@ -39,7 +39,18 @@ export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type
 export const modifierTypes = builtins.map((m) => m.type);
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
-export const containers = new Set(['step', 'range', 'field', 'stagger']);
+/** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
+export const effectors = new Set(['step', 'range', 'field', 'stagger']);
+export const containers = new Set([...effectors, 'rgbsplit']);
+/**
+ * ¿Puede `child` ir dentro de `parent`? Un efector no lleva otro efector; RGB Split lleva cualquier cosa
+ * menos otro RGB Split (un Step dentro reparte sus copias por elementos), y también puede ir dentro de un efector.
+ */
+export function canNest(parent: string, child: string): boolean {
+  if (!containers.has(parent)) return false;
+  if (effectors.has(parent)) return !effectors.has(child);
+  return child !== 'rgbsplit';
+}
 
 /** Dónde está un modificador en el árbol de una pila: su lista, su posición y quién la contiene. */
 export interface Location {
@@ -968,17 +979,19 @@ export class Editor {
     if (containers.has(type)) inst.children = [];
     const stack = owner.stack;
     const at = locate(stack, this.selected);
-    if (at && containers.has(at.inst.type) && !containers.has(type)) {
-      // Con Step seleccionado: dentro, al final.
+    if (at && canNest(at.inst.type, type)) {
+      // Con Step (o RGB Split) seleccionado: dentro, al final.
       at.inst.children ??= [];
       at.inst.children.push(inst);
-    } else if (at && at.parent && !containers.has(type)) {
-      // Con algo de dentro de Step seleccionado: dentro, debajo de él.
-      at.list.splice(at.index + 1, 0, inst);
+    } else if (at) {
+      // Debajo del seleccionado, en su misma lista si lo admite; si no, se sube de nivel (un Step dentro de
+      // un Step va debajo del de fuera).
+      let cur = at;
+      while (cur.parent && !canNest(cur.parent.type, type)) cur = locate(stack, cur.parent.id)!;
+      cur.list.splice(cur.index + 1, 0, inst);
     } else {
-      // Si no, en la pila del nodo, debajo del seleccionado (o del Step que lo contiene); con el nodo seleccionado, al final.
-      const top = at?.parent ? stack.findIndex((m) => m.id === at.parent!.id) : (at?.index ?? -1);
-      stack.splice(top < 0 ? stack.length : top + 1, 0, inst);
+      // Con el nodo seleccionado: al final de su pila.
+      stack.push(inst);
     }
     this.selected = inst.id;
     // Que se vea lo añadido: el nodo y el Step que lo recibe, desplegados.
@@ -1033,12 +1046,13 @@ export class Editor {
     if (!this.scene) return;
     const at = locateModifier(this.scene, id);
     if (!at || id === parentId) return;
-    if (parentId && containers.has(at.inst.type)) return;
+    // Ni dentro de algo que no lo admite, ni dentro de sí mismo (o de lo que lleva dentro).
+    if (parentId && at.inst.children && locate(at.inst.children, parentId)) return;
     const owner = ownerId ? locateNode(this.scene.objects, ownerId)?.node : at.owner;
     if (!owner) return;
     const stack = owner.stack;
     const target = parentId ? locate(stack, parentId)?.inst : null;
-    if (parentId && (!target || !containers.has(target.type))) return;
+    if (parentId && (!target || !canNest(target.type, at.inst.type))) return;
     if (target) target.children ??= [];
     const list = target ? target.children! : stack;
     let m: ModifierInstance;

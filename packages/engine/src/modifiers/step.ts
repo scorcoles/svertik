@@ -29,6 +29,8 @@ export const step = defineModifier({
 
     const out: Shape[] = [];
     const untouched: Shape[] = [];
+    // Los filtros internos que traigan los trozos (RGB Split dentro de Step).
+    let inner = geo.inner;
     for (const key of keys) {
       const own = geo.shapes.filter((s, i) => keyOf(s, i) === key);
       let part: Geometry = { viewBox: geo.viewBox, shapes: own };
@@ -39,8 +41,9 @@ export const step = defineModifier({
         part = c.def.apply(part, params, { ...local, children: c.children });
       }
       out.push(...part.shapes.map((s) => (tagged ? { ...s, clone: key } : s)));
+      if (part.inner) inner = { ...inner, ...part.inner };
     }
     for (const [i, s] of geo.shapes.entries()) if (keyOf(s, i) < 0) untouched.push(s);
-    return { viewBox: geo.viewBox, shapes: [...out, ...untouched] };
+    return { viewBox: geo.viewBox, shapes: [...out, ...untouched], ...(inner ? { inner } : {}) };
   },
 });

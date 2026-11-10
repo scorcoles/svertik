@@ -59,6 +59,9 @@ export function gradientDefs(geo: Geometry): string {
     .join('');
 }
 
+/** Los filtros que envuelven una forma, solo los que existen (un `@clave` sin colocar en un nodo, fuera). */
+export const wrapOf = (geo: Geometry, shape: Shape): string[] => (shape.wrap ?? []).filter((id) => geo.filters?.[id]);
+
 /** Los filtros de la geometría, como contenido de <defs> (con `prefix` delante de cada id). */
 export function filterDefs(geo: Geometry, prefix = ''): string {
   return Object.entries(geo.filters ?? {})
@@ -80,7 +83,7 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
   const lines: string[] = [];
   let open: string[] = [];
   for (const shape of geo.shapes) {
-    const wrap = shape.wrap ?? [];
+    const wrap = wrapOf(geo, shape);
     let same = 0;
     while (same < open.length && same < wrap.length && open[same] === wrap[same]) same++;
     for (let i = open.length - 1; i >= same; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
@@ -132,7 +135,7 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     }
     // Dentro de los grupos con filtro que le tocan (de fuera adentro).
     let parent: Element = svg;
-    for (const id of shape.wrap ?? []) {
+    for (const id of wrapOf(geo, shape)) {
       let g = groups.get(id);
       if (!g) {
         g = svg.ownerDocument.createElementNS(SVG_NS, 'g');

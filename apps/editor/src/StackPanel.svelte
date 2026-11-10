@@ -2,7 +2,7 @@
   import type { ModifierInstance, SceneNode } from '@svertik/engine';
   import { IconButton, StackItem, type IconName } from '@svertik/ui';
   import AddMenu from './AddMenu.svelte';
-  import { containers, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
+  import { canNest, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
 
@@ -26,7 +26,7 @@
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = e.shiftKey ? 'copy' : 'move';
-    drop = { id: m.id, where: zone(e, containers.has(m.type) && !containers.has(from.inst.type)) };
+    drop = { id: m.id, where: zone(e, canNest(m.type, from.inst.type)) };
   }
 
   function overNode(e: DragEvent, n: SceneNode) {

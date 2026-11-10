@@ -238,6 +238,7 @@ export function createDocumentEvaluator(
     let shapes: Shape[] = [];
     let finalResults = new Map<string, Geometry>();
     let fx = new Map<string, FilterChain>();
+    let innerFx = new Map<string, { chain: FilterChain; ref: Bounds; node: string }>();
 
     for (let passNo = 0; passNo < 3; passNo++) {
       nodes = new Map<string, NodeInfo>();
@@ -258,6 +259,14 @@ export function createDocumentEvaluator(
 
       // Filtros (sombra, desenfoque…): sus formas van dentro de un grupo con el filtro del nodo.
       fx = new Map();
+      // Filtros de una parte del dibujo (lo de dentro de RGB Split): `@clave` pasa a `<nodo>--<clave>`.
+      innerFx = new Map();
+      const adoptInner = (node: SceneNode, result: Geometry, shapes: Shape[]): Shape[] => {
+        if (!result.inner) return shapes;
+        const idOf = (key: string) => `${node.id}--${key}`;
+        for (const [key, f] of Object.entries(result.inner)) innerFx.set(idOf(key), { ...f, node: node.id });
+        return shapes.map((s) => (s.wrap?.some((w) => w.startsWith('@')) ? { ...s, wrap: s.wrap.map((w) => (w.startsWith('@') ? idOf(w.slice(1)) : w)) } : s));
+      };
       const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
         const f = filtersOf(node.stack);
         if (!f || !shapes.length) return shapes;
@@ -305,7 +314,7 @@ export function createDocumentEvaluator(
           results.set(node.id, entry.result);
           nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: bounds(transformGeo(entry.result, world)) });
           if (node.visible === false) return [];
-          return withFilters(node, withBlend(withOpacity(placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id })), node.opacity), node.blend));
+          return withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend));
         }
         // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
         // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
@@ -328,7 +337,7 @@ export function createDocumentEvaluator(
         results.set(node.id, result);
         nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: bounds(transformGeo(result, world)) });
         if (node.visible === false) return [];
-        return withFilters(node, withBlend(withOpacity(transformGeo(result, m).shapes, node.opacity), node.blend));
+        return withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes), node.opacity), node.blend));
       };
 
       // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.
@@ -382,6 +391,23 @@ export function createDocumentEvaluator(
         region,
       };
       (filters ??= {})[id] = { markup: f.markup(id, place), region };
+    }
+    // Los internos: su zona, la de las formas que los llevan (ya en el documento) más lo que se salen;
+    // su lugar, la caja de esa parte (en el nodo) con la matriz del nodo.
+    for (const [id, f] of innerFx) {
+      const info = nodes.get(f.node);
+      const mine = shapes.filter((s) => s.wrap?.includes(id));
+      if (!info || !mine.length) continue;
+      const b = bounds({ viewBox: [0, 0, 0, 0], shapes: mine });
+      const region: [number, number, number, number] = [b.x - f.chain.pad, b.y - f.chain.pad, b.width + 2 * f.chain.pad, b.height + 2 * f.chain.pad];
+      const m = info.matrix, r = f.ref;
+      const place = {
+        point: (fx: number, fy: number) => apply(m, [r.x + fx * r.width, r.y + fy * r.height]),
+        size: Math.max(r.width, r.height) * Math.hypot(m[0], m[1]),
+        rotation: (Math.atan2(m[1], m[0]) * 180) / Math.PI,
+        region,
+      };
+      (filters ??= {})[id] = { markup: f.chain.markup(id, place), region };
     }
     // Lo que ocupa todo, contando lo que se salen los filtros (una sombra larga no se corta).
     const all = union([bounds({ viewBox: [0, 0, 0, 0], shapes }), ...Object.values(filters ?? {}).map(({ region: [x, y, width, height] }) => ({ x, y, width, height }))]);
