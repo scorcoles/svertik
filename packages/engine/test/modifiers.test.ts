@@ -594,3 +594,49 @@ describe('range, field y opacity', () => {
     expect(Math.min(...o)).toBeLessThan(0.5);
   });
 });
+
+describe('stagger', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({
+      version: 1,
+      source: square,
+      stack: [
+        { id: 'c', type: 'clone', params: { mode: 'linear', count: 4, offset: [1.2, 0] } },
+        { id: 's', type: 'stagger', params: { ease: 'linear', ...params }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] },
+      ],
+    });
+  const op = (geo: ReturnType<typeof run>) => geo.shapes.map((s) => Math.round(Number(s.style.opacity ?? 1) * 100) / 100);
+
+  it('in: al principio todos con el efecto; al final, todos en su sitio', () => {
+    expect(op(run({ progress: 0 }))).toEqual([0, 0, 0, 0]);
+    expect(op(run({ progress: 1 }))).toEqual([1, 1, 1, 1]);
+  });
+  it('a medias y escalonado del todo: los primeros ya han llegado y los últimos no', () => {
+    expect(op(run({ progress: 0.5, stagger: 1 }))).toEqual([1, 1, 0, 0]);
+  });
+  it('out y orden inverso', () => {
+    expect(op(run({ progress: 0.5, stagger: 1, direction: 'out', order: 'reverse' }))).toEqual([1, 1, 0, 0]);
+  });
+});
+
+describe('damage: growth continuo', () => {
+  const run = (params: Record<string, unknown>) =>
+    createEngine(builtins).evaluate({ version: 1, source: square, stack: [{ id: 'd', type: 'damage', params: { seed: 4, ...params } }] });
+  const area = (geo: ReturnType<typeof run>) =>
+    geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
+      const pts = [sp.start, ...sp.segs.map((g) => g.p)];
+      let a = 0;
+      for (let i = 0; i < pts.length - 1; i++) a += pts[i]![0] * pts[i + 1]![1] - pts[i + 1]![0] * pts[i]![1];
+      return sum + a / 2;
+    }, 0);
+
+  it('al crecer, lo recortado solo aumenta (las grietas avanzan por su camino)', () => {
+    const areas = [0.25, 0.5, 0.75, 1].map((g) => Math.abs(area(run({ growth: g, chips: 0, specks: 0, roughness: 0.5 }))));
+    for (let i = 1; i < areas.length; i++) expect(areas[i]!).toBeLessThanOrEqual(areas[i - 1]! + 1e-6);
+  });
+
+  it('motas y desconchones no se mueven al cambiar Growth', () => {
+    const a = run({ growth: 0.3, cracks: 0 }), b = run({ growth: 0.9, cracks: 0 });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});

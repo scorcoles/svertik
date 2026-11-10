@@ -98,10 +98,18 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     path.setAttribute('d', toPathData(shape, precision));
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
+    // Los atributos de estilo que ya no tiene (una opacidad, un trazo…) se quitan: si no, se quedaría
+    // con los del fotograma anterior. Se recuerda cuáles puso el render en data-svertik.
+    const before = (path.getAttribute('data-svertik') ?? '').split(' ').filter(Boolean);
+    const now: string[] = [];
     for (const [k, v] of Object.entries(shape.style)) {
       if (CSS_ONLY.has(k)) continue;
+      now.push(k);
       if (path.getAttribute(k) !== v) path.setAttribute(k, v);
     }
+    for (const k of before) if (!now.includes(k)) path.removeAttribute(k);
+    const list = now.join(' ');
+    if ((path.getAttribute('data-svertik') ?? '') !== list) path.setAttribute('data-svertik', list);
     const css = cssOf(shape.style);
     if ((path.getAttribute('style') ?? '') !== css) {
       if (css) path.setAttribute('style', css);

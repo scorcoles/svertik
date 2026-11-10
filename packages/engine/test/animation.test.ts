@@ -53,3 +53,14 @@ describe('animación', () => {
     expect(doc.nodes.get('s')!.box.x).toBeGreaterThan(40);
   });
 });
+
+describe('curvas tipo GSAP', () => {
+  it('back y elastic se pasan del destino y vuelven; bounce y expo acaban en 1', () => {
+    const keys = (e: string) => [{ t: 0, value: 0, ease: e as never }, { t: 1, value: 1 }];
+    const max = (e: string) => Math.max(...Array.from({ length: 50 }, (_, i) => valueAt(keys(e), i / 50) as number));
+    expect(max('back-out')).toBeGreaterThan(1.02);
+    expect(max('elastic-out')).toBeGreaterThan(1.02);
+    expect(valueAt(keys('bounce-out'), 0.999)).toBeCloseTo(1, 2);
+    expect(valueAt(keys('expo-out'), 0.3)).toBeGreaterThan(0.8);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, migrateScene, type Geometry, type SceneV2 } from '../src';
+import { bounds, builtins, createEngine, migrateScene, renderInto, type Geometry, type SceneV2 } from '../src';
 
 const rect = (w: number, h: number, fill = '#000') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`;
@@ -278,5 +278,18 @@ describe('morph con pasos', () => {
     };
     const shapes = engine().evaluateDocument(scene).geometry.shapes.filter((s) => s.node === 'sq');
     expect(shapes.map((s) => s.clone)).toEqual([0, 1, 2, 3, 4]);
+  });
+});
+
+describe('render en vivo', () => {
+  it('quita los atributos de estilo que la forma ya no tiene', async () => {
+    const { Window } = await import('happy-dom');
+    const win = new Window();
+    const svg = win.document.createElementNS('http://www.w3.org/2000/svg', 'svg') as unknown as SVGSVGElement;
+    const base = { viewBox: [0, 0, 10, 10] as [number, number, number, number], shapes: [{ subpaths: [], style: { fill: '#000', opacity: '0' } }] };
+    renderInto(svg, base);
+    expect(svg.querySelector('path')!.getAttribute('opacity')).toBe('0');
+    renderInto(svg, { ...base, shapes: [{ subpaths: [], style: { fill: '#000' } }] });
+    expect(svg.querySelector('path')!.getAttribute('opacity')).toBeNull();
   });
 });

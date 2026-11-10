@@ -34,7 +34,7 @@ export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type
 export const modifierTypes = builtins.map((m) => m.type);
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
-export const containers = new Set(['step', 'range', 'field']);
+export const containers = new Set(['step', 'range', 'field', 'stagger']);
 
 /** Dónde está un modificador en el árbol de una pila: su lista, su posición y quién la contiene. */
 export interface Location {
@@ -87,6 +87,9 @@ export function locateModifier(scene: SceneV2, id: string | null): (Location & {
 }
 
 const HISTORY_LIMIT = 200;
+
+export const PRESETS = ['rise', 'cascade', 'flip', 'spring', 'scatter', 'fall'] as const;
+export type PresetName = (typeof PRESETS)[number];
 
 export type TrackTarget = Pick<Track, 'node' | 'on' | 'modifier' | 'param'>;
 
@@ -624,6 +627,38 @@ export class Editor {
     const anim = this.animation;
     if (!anim) return;
     anim.tracks = anim.tracks.filter((x) => x.id !== trackId);
+    this.record(true);
+  }
+
+  /**
+   * Presets de entrada y salida (como las recetas de GSAP): un Stagger con sus efectos y dos claves de
+   * Progress (0 → 1 en la duración de la animación). Se aplican al objeto activo y se editan como cualquier otra cosa.
+   */
+  applyPreset(name: PresetName) {
+    const node = this.activeNode;
+    if (!this.scene || !node) return;
+    const h = this.infos.get(node.id)?.box.height || 100;
+    const r = (v: number) => Math.round(v);
+    const mod = (type: string, params: Record<string, unknown>): ModifierInstance => ({ id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(registry.get(type)!.params), ...params } });
+    const fade = () => mod('opacity', { opacity: 0 });
+    const P: Record<PresetName, { stagger: Record<string, unknown>; children: ModifierInstance[] }> = {
+      rise: { stagger: { ease: 'expo-out', stagger: 0.6 }, children: [mod('transform', { y: r(h * 0.6) }), fade()] },
+      cascade: { stagger: { ease: 'back-out', stagger: 0.7 }, children: [mod('transform', { y: r(-h * 0.8), rotation: -20 }), fade()] },
+      flip: { stagger: { ease: 'ease-out', stagger: 0.6 }, children: [mod('rotate3d', { rotateX: 90, rotateY: 0, rotateZ: 0 }), fade()] },
+      spring: { stagger: { ease: 'elastic-out', stagger: 0.5 }, children: [mod('transform', { scale: 0 })] },
+      scatter: { stagger: { ease: 'expo-out', stagger: 0.3, order: 'random' }, children: [mod('explosion', { amount: 1, force: 1, spin: 180, shrink: 0.5 }), fade()] },
+      fall: { stagger: { ease: 'ease-in', stagger: 0.6, direction: 'out' }, children: [mod('transform', { y: r(h * 1.2), rotation: 25 }), fade()] },
+    };
+    const preset = P[name];
+    const st = mod('stagger', { ...preset.stagger, progress: 0 });
+    st.children = preset.children;
+    node.stack.push(st);
+    const anim = this.#ensureAnimation();
+    anim.tracks.push({ id: `track-${uid()}`, node: node.id, on: 'modifier', modifier: st.id, param: 'progress', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: anim.duration, value: 1 }] });
+    this.collapsed = this.collapsed.filter((x) => x !== node.id && x !== st.id);
+    this.selected = st.id;
+    this.timelineOpen = true;
+    this.setTime(0);
     this.record(true);
   }
 

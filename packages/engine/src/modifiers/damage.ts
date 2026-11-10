@@ -45,6 +45,7 @@ export const damage = defineModifier({
     if (!edges) return geo;
 
     const holes: Polygon[] = [];
+    const growth = Math.max(0, Math.min(1, p.growth));
     const crackLines: Vec2[][] = [];
 
     // ── Grietas: desde un punto del borde, hacia dentro, con zigzag; más anchas al empezar.
@@ -53,7 +54,8 @@ export const damage = defineModifier({
       // Rumbo general de la grieta; el trazo vuelve a él tras cada quiebro (recta en conjunto, con dientes).
       const heading = Math.atan2(inward[1], inward[0]) + (rand() - 0.5) * 1.6;
       let a = heading;
-      const L = p.length * size * (0.55 + rand() * 0.7) * Math.max(0, Math.min(1, p.growth));
+      // Siempre la grieta entera (mismos números al azar sea cual sea Growth); luego se recorta.
+      const L = p.length * size * (0.55 + rand() * 0.7);
       const seg = size * 0.012;
       const pts: Vec2[] = [[at[0] - inward[0] * seg, at[1] - inward[1] * seg]];
       let q = at;
@@ -75,7 +77,10 @@ export const damage = defineModifier({
       }
       if (pts.length < 3) continue;
       crackLines.push(pts);
-      holes.push([band(pts, p.width * size, p.taper, rand)]);
+      // Anchura de cada punto, calculada una vez sobre la grieta entera; Growth solo enseña el tramo inicial.
+      const half = halfWidths(pts, p.width * size, p.taper, rand);
+      const grownBand = growing(pts, half, growth);
+      if (grownBand) holes.push([grownBand]);
       // Donde empieza, a veces, un desconchón.
       if (rand() < 0.6) holes.push([blob(at, p.chipSize * size * (0.5 + rand() * 0.6), 7, rand)]);
     }
@@ -92,7 +97,7 @@ export const damage = defineModifier({
       let q = from, a = heading;
       // Avanza hasta haber recorrido (en la dirección del destino) la parte que diga `growth`.
       const total = Math.hypot(to[0] - from[0], to[1] - from[1]);
-      const goal = total * Math.max(0, Math.min(1, p.growth));
+      const goal = total;
       const [ux, uy] = [(to[0] - from[0]) / total, (to[1] - from[1]) / total];
       for (let guard = 0; (q[0] - from[0]) * ux + (q[1] - from[1]) * uy < goal && guard < 4000; guard++) {
         if (rand() < 0.18 + p.jagged * 0.25) a += (rand() - 0.5) * (0.6 + p.jagged * 2.2);
@@ -106,7 +111,9 @@ export const damage = defineModifier({
       }
       if (pts.length < 3) continue;
       crackLines.push(pts);
-      holes.push([band(pts, p.width * size * 0.8, 0.2, rand)]);
+      const halfT = halfWidths(pts, p.width * size * 0.8, 0.2, rand);
+      const grownT = growing(pts, halfT, growth);
+      if (grownT) holes.push([grownT]);
     }
 
     // ── Desconchones sueltos en el borde.
@@ -138,10 +145,11 @@ export const damage = defineModifier({
     // Bordes orgánicos: cada agujero, rasgado (los lados largos se parten y se desplazan al azar).
     if (p.roughness > 0) {
       const detail = size * 0.006;
-      for (const h of holes) {
-        const r = tearPolyline(h[0]!.slice(0, -1) as Vec2[], true, detail, p.roughness, rand) as Pair[];
+      holes.forEach((h, i) => {
+        // Cada agujero, con su propio azar: así el rasgado de uno no cambia al crecer otro.
+        const r = tearPolyline(h[0]!.slice(0, -1) as Vec2[], true, detail, p.roughness, rngFrom(p.seed * 1000 + i)) as Pair[];
         h[0] = [...r, r[0]!];
-      }
+      });
     }
 
     // Cada forma conserva su estilo: se le restan los agujeros.
@@ -169,6 +177,60 @@ export const damage = defineModifier({
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
+
+/** Media anchura en cada punto de la grieta: más ancha al nacer y afilándose (taper), con algo de ruido. */
+function halfWidths(pts: Vec2[], w: number, taper: number, rand: () => number): number[] {
+  return pts.map((_, i) => (w / 2) * (1 - taper * (i / (pts.length - 1))) * (0.5 + rand()));
+}
+
+/**
+ * La banda de la grieta hasta la fracción `f` de su longitud, con las anchuras de siempre y la punta afilada.
+ * Así, al animar Growth, la grieta avanza por su camino en vez de cambiar de forma.
+ */
+function growing(pts: Vec2[], half: number[], f: number): Pair[] | null {
+  if (f <= 0) return null;
+  const tr = f >= 1 ? pts : trim(pts, f);
+  if (tr.length < 2) return null;
+  const n = tr.length;
+  const left: Pair[] = [], right: Pair[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = tr[Math.max(0, i - 1)]!, c = tr[Math.min(n - 1, i + 1)]!;
+    const dx = c[0] - a[0], dy = c[1] - a[1];
+    const l = Math.hypot(dx, dy) || 1;
+    // El último punto, en crecimiento, es la punta: anchura casi nula.
+    const hw = f < 1 && i === n - 1 ? (half[Math.min(i, half.length - 1)] ?? 0) * 0.15 : (half[Math.min(i, half.length - 1)] ?? 0);
+    const [nx, ny] = [-dy / l, dx / l];
+    left.push([tr[i]![0] + nx * hw, tr[i]![1] + ny * hw]);
+    right.push([tr[i]![0] - nx * hw, tr[i]![1] - ny * hw]);
+  }
+  const ring = [...left, ...right.reverse()];
+  return [...ring, ring[0]!];
+}
+
+/** El tramo inicial de una polilínea: la fracción `f` de su longitud (para que Growth haga crecer la grieta). */
+function trim(pts: Vec2[], f: number): Vec2[] {
+  if (f >= 1) return pts;
+  if (f <= 0) return [];
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]);
+  let left = total * f;
+  const out: Vec2[] = [pts[0]!];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!;
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d >= left) {
+      const k = d ? left / d : 0;
+      out.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
+      return out;
+    }
+    out.push(b);
+    left -= d;
+  }
+  return out;
+}
+
+/** Azar propio para las bandas recortadas (no gasta del azar común: así nada más cambia con Growth). */
+const rngFrom = (seed: number) => rng(seed * 2654435761);
 
 /** Puntos al azar en el contorno (por longitud), con la normal hacia dentro. */
 function edgeSampler(outer: Pair[][], rand: () => number) {
