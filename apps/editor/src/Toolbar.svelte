@@ -13,7 +13,7 @@
     onexportpng: () => void;
     onexportlottie: () => void;
     onexportanimsvg: () => void;
-    ondemo: (which: 'intro' | 'shatter' | 'snake') => void;
+    ondemo: (which: 'intro' | 'shatter') => void;
     onnew: () => void;
   }
   let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();

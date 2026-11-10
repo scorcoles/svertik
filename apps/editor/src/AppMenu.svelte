@@ -14,7 +14,7 @@
     onexportlottie: () => void;
     onexportanimsvg: () => void;
     oncopyjson: () => void;
-    ondemo: (which: 'intro' | 'shatter' | 'snake') => void;
+    ondemo: (which: 'intro' | 'shatter') => void;
   }
   let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportlottie, onexportanimsvg, oncopyjson, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
@@ -30,10 +30,9 @@
     { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
   ]);
   // Las demos, en su submenú.
-  const demos: { label: string; which: 'intro' | 'shatter' | 'snake' }[] = [
+  const demos: { label: string; which: 'intro' | 'shatter' }[] = [
     { label: 'Intro: the logo', which: 'intro' },
     { label: 'Shatter: a triangle that explodes', which: 'shatter' },
-    { label: 'Snake: bones that slither', which: 'snake' },
   ];
 </script>
 
