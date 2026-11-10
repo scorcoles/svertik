@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { apply, builtins, createEngine, invert, renderInto, type NodeInfo, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { apply, builtins, buildShape, createEngine, invert, renderInto, toPathData, type NodeInfo, type SceneNode, type SceneV2 } from '@svertik/engine';
   import { Button, Icon } from '@svertik/ui';
   import { locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
@@ -210,22 +210,41 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  // ── Dibujar primitivas: con una herramienta armada, arrastrar define tamaño y sitio
+  // ── Dibujar primitivas: con una herramienta armada, arrastrar define tamaño y sitio.
+  // Mientras se arrastra se ve la forma real (con su estilo por defecto), no un rectángulo.
 
-  let draft = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+  /** Parámetros y centro (en el documento) de una primitiva dibujada de `a` a `b`. */
+  function sized(type: string, a: [number, number], b: [number, number], square: boolean) {
+    let dx = b[0] - a[0], dy = b[1] - a[1];
+    if (square && type !== 'line') dx = dy = Math.max(Math.abs(dx), Math.abs(dy)) * Math.sign(dx || 1);
+    const center = { x: a[0] + dx / 2, y: a[1] + dy / 2 };
+    const r2 = (n: number) => Math.max(1, Math.round(n));
+    const params: Record<string, unknown> =
+      type === 'rectangle' || type === 'ellipse'
+        ? { width: r2(Math.abs(dx)), height: r2(Math.abs(dy)) }
+        : type === 'line'
+          ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
+          : { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2) };
+    return { params, center };
+  }
+
+  /** La forma que se está dibujando: trazado y estilo, ya colocada en el documento. */
+  let draft = $state<{ d: string; fill: string; stroke?: string; width?: string; x: number; y: number } | null>(null);
   function drawShape(e: PointerEvent) {
     const type = editor.tool;
     if (!type || !stage) return;
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const r = stage.getBoundingClientRect();
     const sx = e.clientX, sy = e.clientY;
     const start = clientToDoc(sx, sy);
     const move = (ev: PointerEvent) => {
-      let w = ev.clientX - sx, h = ev.clientY - sy;
-      if (ev.shiftKey) w = h = Math.max(Math.abs(w), Math.abs(h)) * Math.sign(w || 1);
-      draft = { x: Math.min(sx, sx + w) - r.left, y: Math.min(sy, sy + h) - r.top, w: Math.abs(w), h: Math.abs(h) };
+      const now = clientToDoc(ev.clientX, ev.clientY);
+      if (!start || !now || Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return (draft = null);
+      const { params, center } = sized(type, start, now, ev.shiftKey);
+      const shape = buildShape(type, params).shapes[0]!;
+      const st = shape.style;
+      draft = { d: toPathData(shape), fill: st.fill ?? 'none', stroke: st.stroke, width: st['stroke-width'], x: center.x, y: center.y };
     };
     const up = (ev: PointerEvent) => {
       el.removeEventListener('pointermove', move);
@@ -233,24 +252,20 @@
       draft = null;
       const end = clientToDoc(ev.clientX, ev.clientY);
       if (!start || !end) return;
-      let dx = end[0] - start[0], dy = end[1] - start[1];
-      if (ev.shiftKey && type !== 'line') dx = dy = Math.max(Math.abs(dx), Math.abs(dy)) * Math.sign(dx || 1);
-      const tiny = Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4;
       // Un clic: a su tamaño por defecto, centrada donde se hizo clic.
-      if (tiny) return editor.addShape(type, {}, { x: start[0], y: start[1] });
-      const center = { x: start[0] + dx / 2, y: start[1] + dy / 2 };
-      const r2 = (n: number) => Math.max(1, Math.round(n));
-      const size = Math.max(Math.abs(dx), Math.abs(dy));
-      const params: Record<string, unknown> =
-        type === 'rectangle' || type === 'ellipse'
-          ? { width: r2(Math.abs(dx)), height: r2(Math.abs(dy)) }
-          : type === 'line'
-            ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
-            : { radius: r2(size / 2) };
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return editor.addShape(type, {}, { x: start[0], y: start[1] });
+      const { params, center } = sized(type, start, end, ev.shiftKey);
       editor.addShape(type, params, center);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
+  }
+
+  /** Doble clic en la herramienta: la primitiva, a su tamaño por defecto, en el centro de lo que se ve. */
+  function placeAtCenter(type: string) {
+    const r = stage?.getBoundingClientRect();
+    const c = r && clientToDoc(r.left + r.width / 2, r.top + r.height / 2);
+    editor.addShape(type, {}, c ? { x: c[0], y: c[1] } : undefined);
   }
 
   function pick(e: PointerEvent) {
@@ -349,17 +364,20 @@
   ondragleave={() => (dropping = false)}
   ondrop={drop}
 >
-  <Tools {editor} />
+  <Tools {editor} oncenter={placeAtCenter} />
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown}>
       <div class="view" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
+        {#if draft}
+          <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true">
+            <path d={draft.d} transform="translate({draft.x} {draft.y})" fill={draft.fill} stroke={draft.stroke} stroke-width={draft.width} stroke-linejoin="round" stroke-linecap="round" />
+            <path class="outline" d={draft.d} transform="translate({draft.x} {draft.y})" />
+          </svg>
+        {/if}
       </div>
-      {#if draft}
-        <span class="draft" style:left="{draft.x}px" style:top="{draft.y}px" style:width="{draft.w}px" style:height="{draft.h}px" aria-hidden="true"></span>
-      {/if}
       {#if selection && !editor.tool}
         <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
       {/if}
@@ -421,7 +439,8 @@
   .stage[data-space] { cursor: grab; }
   .stage[data-tool] { cursor: crosshair; }
   .stage[data-tool] :global(path[data-node]) { cursor: crosshair; }
-  .draft { position: absolute; pointer-events: none; border: 1px dashed var(--sv-accent-fill); }
+  .draft { pointer-events: none; }
+  .draft .outline { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1px; vector-effect: non-scaling-stroke; }
   .stage[data-panning] { cursor: grabbing; }
   .view { position: absolute; inset: 48px 48px 56px; transform-origin: 0 0; }
   .view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
