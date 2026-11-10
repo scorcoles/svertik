@@ -65,6 +65,11 @@ export const icons = {
   'bool-subtract': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
   'bool-intersect': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
   'bool-exclude': 'M1.5 1.5h9v9h-9z M5.5 5.5h9v9h-9z',
+  // Orden: al frente, subir, bajar, al fondo
+  'order-front': 'M3.5 2.5h9 M8 14.5v-9 M5 8.5l3-3 3 3',
+  'order-forward': 'M8 13.5v-9 M5 7.5l3-3 3 3',
+  'order-backward': 'M8 2.5v9 M5 8.5l3 3 3-3',
+  'order-back': 'M3.5 13.5h9 M8 1.5v9 M5 7.5l3 3 3-3',
   // Interfaz
   center: 'M8 1.5v4 M8 10.5v4 M1.5 8h4 M10.5 8h4 M7 7h2v2h-2z',
   link: 'M6.5 9.5l3-3 M7.5 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M8.5 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1',

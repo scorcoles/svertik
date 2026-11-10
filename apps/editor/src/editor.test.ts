@@ -329,3 +329,22 @@ describe('arrastrar efectos entre objetos', () => {
     expect(star!.stack.map((m) => m.type)).toEqual(['wave', 'wave']);
   });
 });
+
+describe('orden de los objetos', () => {
+  it('al frente, subir, bajar y al fondo (el primero de la lista, delante)', () => {
+    const e = fresh();
+    e.addShape('star');
+    e.addShape('ellipse');
+    const names = () => e.scene!.objects.map((n) => n.name);
+    const grid = e.scene!.objects[2]!;
+    e.selected = grid.id;
+    e.reorder('forward');
+    expect(names()[1]).toBe(grid.name);
+    e.reorder('front');
+    expect(names()[0]).toBe(grid.name);
+    e.reorder('back');
+    expect(names()[2]).toBe(grid.name);
+    e.reorder('backward');
+    expect(names()[2]).toBe(grid.name);
+  });
+});

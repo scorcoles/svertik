@@ -784,6 +784,11 @@
         <IconButton icon="flip-h" label="Flip horizontally" onclick={() => editor.flip('x')} />
         <IconButton icon="flip-v" label="Flip vertically" onclick={() => editor.flip('y')} />
         <span class="rule" aria-hidden="true"></span>
+        <IconButton icon="order-front" label="Bring to front (⇧⌘])" onclick={() => editor.reorder('front')} />
+        <IconButton icon="order-forward" label="Bring forward (⌘])" onclick={() => editor.reorder('forward')} />
+        <IconButton icon="order-backward" label="Send backward (⌘[)" onclick={() => editor.reorder('backward')} />
+        <IconButton icon="order-back" label="Send to back (⇧⌘[)" onclick={() => editor.reorder('back')} />
+        <span class="rule" aria-hidden="true"></span>
         {#each booleans as b (b.mode)}
           <IconButton
             icon={b.icon as IconName}
