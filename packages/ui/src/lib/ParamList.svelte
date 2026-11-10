@@ -13,8 +13,10 @@
     onchange: (name: string, value: unknown) => void;
     /** Objetos que se pueden elegir en los parámetros `node`. */
     nodes?: { id: string; label: string }[];
+    /** Colores del documento (muestras del selector de color). */
+    swatches?: string[];
   }
-  let { params, values, onchange, nodes }: Props = $props();
+  let { params, values, onchange, nodes, swatches }: Props = $props();
 
   type Item = { name: string; spec: ParamSpec; color?: string };
   const items = $derived.by(() => {
@@ -41,11 +43,11 @@
     <ParamRow label={labelOf(it.name, it.spec)} for={`param-${it.name}`}>
       <Checkbox id={`param-${it.name}`} checked={on} onchange={(v) => onchange(it.name, v)} />
       <span class="color" data-off={!on || undefined}>
-        <ColorField value={values?.[it.color] as string} label={`${labelOf(it.name, it.spec)} color`} onchange={(v) => onchange(it.color!, v)} />
+        <ColorField value={values?.[it.color] as string} label={`${labelOf(it.name, it.spec)} color`} {swatches} onchange={(v) => onchange(it.color!, v)} />
       </span>
     </ParamRow>
   {:else}
-    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} onchange={(v) => onchange(it.name, v)} />
+    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {swatches} onchange={(v) => onchange(it.name, v)} />
   {/if}
 {/each}
 

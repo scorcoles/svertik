@@ -157,6 +157,24 @@ export class Editor {
     }
   }
 
+  /** Colores usados en el documento (primitivas, efectos y SVG importados), para las muestras del selector. */
+  docColors = $derived.by(() => {
+    if (!this.scene) return [] as string[];
+    const out = new Set<string>();
+    const hex = /#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi;
+    const add = (v: unknown) => {
+      if (typeof v !== 'string') return;
+      for (const m of v.match(hex) ?? []) out.add(m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}`.toLowerCase() : m.toLowerCase());
+    };
+    const fromStack = (list: ModifierInstance[]) => list.forEach((m) => { Object.values(m.params ?? {}).forEach(add); fromStack(m.children ?? []); });
+    for (const { node } of walkNodes(this.scene.objects)) {
+      if (node.kind === 'shape') Object.values(node.params).forEach(add);
+      if (node.kind === 'object') add(node.source);
+      fromStack(node.stack);
+    }
+    return [...out];
+  });
+
   objectCount = $derived(this.scene ? [...walkNodes(this.scene.objects)].filter((x) => x.node.kind !== 'group').length : 0);
 
   // ── Origen

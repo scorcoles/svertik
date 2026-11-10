@@ -18,8 +18,10 @@
     onchange: (value: unknown) => void;
     /** Para los parámetros `node`: los objetos que se pueden elegir. */
     nodes?: { id: string; label: string }[];
+    /** Colores del documento, para las muestras del selector de color. */
+    swatches?: string[];
   }
-  let { name, spec, value, onchange, nodes = [] }: Props = $props();
+  let { name, spec, value, onchange, nodes = [], swatches }: Props = $props();
   // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
   const NONE = '— none —';
   const nodeLabels = $derived.by(() => {
@@ -53,7 +55,7 @@
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
   {:else if spec.type === 'color'}
-    <ColorField {id} value={value as string} {label} {onchange} />
+    <ColorField {id} value={value as string} {label} {swatches} {onchange} />
   {:else if spec.type === 'node'}
     <Select
       value={nodeLabels.find((n) => n.id === value)?.label ?? NONE}
