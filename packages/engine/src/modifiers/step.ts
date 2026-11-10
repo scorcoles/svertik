@@ -2,7 +2,7 @@ import { bounds, type Geometry, type Shape } from '../geometry';
 import { defineModifier, rampParams, type ModifierContext } from '../modifier';
 
 /**
- * Efector incremental (como el Step Effector de C4D): aplica los modificadores que cuelgan de él
+ * Efector incremental: aplica los modificadores que cuelgan de él
  * a cada elemento por separado, con sus números multiplicados por la posición del elemento.
  * Un Twist de 10° debajo de Step: el primero gira 10°, el segundo 20°…
  * Los elementos son las copias de Clone; sin Clone, cada forma del SVG.

@@ -4,7 +4,7 @@ import { rng } from '../random';
 import { defineModifier, deg } from '../modifier';
 
 /**
- * Duplica el dibujo: en rejilla, en círculo o en línea (como el Cloner de C4D).
+ * Duplica el dibujo: en rejilla, en círculo o en línea.
  * Las copias se reparten alrededor del original y el viewBox crece para que quepan.
  * En modo `object`, sobre otro objeto: por su contorno, en sus vértices o dentro (al azar, con semilla).
  */

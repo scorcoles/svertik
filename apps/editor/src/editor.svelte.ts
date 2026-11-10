@@ -562,7 +562,7 @@ export class Editor {
     }
     this.record(true);
   }
-  /** Al cambiar un valor animado desde el panel o el lienzo: clave en el instante actual (como After Effects). */
+  /** Al cambiar un valor animado desde el panel o el lienzo: clave en el instante actual. */
   #autoKey(t: TrackTarget, value: unknown) {
     // Reproduciendo, los cambios vienen de la propia animación: nunca son claves nuevas.
     if (this.playing) return;
@@ -631,7 +631,7 @@ export class Editor {
   }
 
   /**
-   * Presets de entrada y salida (como las recetas de GSAP): un Stagger con sus efectos y dos claves de
+   * Presets de entrada y salida: un Stagger con sus efectos y dos claves de
    * Progress (0 → 1 en la duración de la animación). Se aplican al objeto activo y se editan como cualquier otra cosa.
    */
   applyPreset(name: PresetName) {

@@ -4,7 +4,7 @@ import type { Shape, SubPath } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Booleanos entre elementos (como el objeto Boole de C4D o el Buscatrazos de Illustrator).
+ * Booleanos entre elementos.
  * Un elemento es cada hijo de un grupo, o cada copia de un Clone: lo que Step numera.
  * - union: todo en una forma; intersect: lo común a todos; exclude: lo que no se solapa;
  * - subtract: al de más atrás se le restan los de delante («Minus Front»).
@@ -29,7 +29,7 @@ export const boolean = defineModifier({
     const [first, ...rest] = regions as [MultiPolygon, ...MultiPolygon[]];
     const out =
       p.mode === 'subtract' ? difference(first, ...rest) : p.mode === 'intersect' ? intersection(first, ...rest) : p.mode === 'exclude' ? xor(first, ...rest) : union(first, ...rest);
-    // Estilo: el del de atrás al restar (es lo que queda); si no, el del de delante (como Illustrator).
+    // Estilo: el del de atrás al restar (es lo que queda); si no, el del de delante.
     const from = (p.mode === 'subtract' ? list[0] : list[list.length - 1])![0]!;
     const subpaths = out.flatMap((poly) => poly.map(toSubPath)).filter((s): s is SubPath => !!s);
     return { viewBox: geo.viewBox, shapes: subpaths.length ? [{ ...from, subpaths, clone: 0 }] : [] };

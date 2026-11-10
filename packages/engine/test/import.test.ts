@@ -51,7 +51,7 @@ describe('importSVG', () => {
 });
 
 describe('hojas de estilo', () => {
-  it('aplica las reglas de <style> por clase, id y etiqueta (como Illustrator)', () => {
+  it('aplica las reglas de <style> por clase, id y etiqueta', () => {
     const geo = importSVG(
       svg(
         '<defs><style>.cls-1 { fill: #f40000; } #b { stroke: blue } rect.big, circle { opacity: .5 }</style></defs>' +

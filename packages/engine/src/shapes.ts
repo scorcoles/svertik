@@ -1,4 +1,4 @@
-// Primitivas: formas generadas por parámetros (como los objetos primitivos de C4D), no SVG importados.
+// Primitivas: formas generadas por parámetros, no SVG importados.
 
 import { line, type Cubic, type Geometry, type Style, type SubPath, type Vec2 } from './geometry';
 import { fontFor } from './fonts';

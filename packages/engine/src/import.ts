@@ -25,7 +25,7 @@ const num = (el: Element, name: string, fallback = 0) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
-/** Reglas CSS sencillas de los <style> del SVG: por clase, id o etiqueta (como exporta Illustrator). */
+/** Reglas CSS sencillas de los <style> del SVG: por clase, id o etiqueta. */
 type Rule = { selector: string; decls: [string, string][] };
 
 function parseStyleSheets(root: Element): Rule[] {

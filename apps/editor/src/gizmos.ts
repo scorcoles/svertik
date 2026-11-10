@@ -11,7 +11,7 @@ export type Drag = (p0: Params, from: Vec2, to: Vec2, snap: boolean) => Params;
 export interface GizmoLine {
   pts: Vec2[];
   closed?: boolean;
-  /** Color: acento, o los ejes de C4D (X rojo, Y verde, Z azul). */
+  /** Color: acento, o los colores de los ejes (X rojo, Y verde, Z azul). */
   tone?: 'accent' | 'x' | 'y' | 'z';
   dashed?: boolean;
   /** Zona (no línea): se agarra por todo su interior y no se dibuja (la bola de Rotate 3D). */

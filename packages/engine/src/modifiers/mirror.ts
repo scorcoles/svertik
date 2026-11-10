@@ -3,7 +3,7 @@ import { defineModifier } from '../modifier';
 import { fitViewBox } from './clone';
 
 /**
- * Refleja el dibujo en un eje. `keep`: se conserva el original y se añade su reflejo (simetría, como Symmetry de C4D);
+ * Refleja el dibujo en un eje. `keep`: se conserva el original y se añade su reflejo (simetría);
  * `transform`: el dibujo pasa a ser su reflejo.
  * El eje es una línea vertical (reflejo horizontal) u horizontal (vertical), a una fracción de la caja.
  */

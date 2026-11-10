@@ -1,4 +1,4 @@
-// Lógica del arrastre de valores numéricos (al estilo C4D), sin DOM.
+// Lógica del arrastre de valores numéricos, sin DOM.
 
 export interface ScrubOptions {
   step: number;
