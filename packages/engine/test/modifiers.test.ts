@@ -481,3 +481,27 @@ describe('damage', () => {
     expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 60, height: 60 });
   });
 });
+
+describe('roughen y fractal', () => {
+  const run = (stack: Scene['stack']) => createEngine(builtins).evaluate({ version: 1, source: square, stack });
+  const points = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).reduce((n, sp) => n + sp.segs.length, 0);
+
+  it('koch: cada iteración multiplica los tramos por 4 (cuadrado: 4 → 16 → 64)', () => {
+    expect(points(run([{ id: 'r', type: 'roughen', params: { mode: 'koch', iterations: 1 } }]))).toBe(16);
+    expect(points(run([{ id: 'r', type: 'roughen', params: { mode: 'koch', iterations: 2 } }]))).toBe(64);
+  });
+
+  it('organic: rasga sin salirse mucho y siempre igual con la misma semilla', () => {
+    const a = run([{ id: 'r', type: 'roughen', params: { amount: 0.5, detail: 0.05 } }]);
+    expect(points(a)).toBeGreaterThan(20);
+    expect(JSON.stringify(run([{ id: 'r', type: 'roughen', params: { amount: 0.5, detail: 0.05 } }]))).toBe(JSON.stringify(a));
+  });
+
+  it('fractal: sierpinski 3ⁿ copias; carpet con tope; tree guarda todos los niveles', () => {
+    expect(run([{ id: 'f', type: 'fractal', params: { preset: 'sierpinski', depth: 3 } }]).shapes).toHaveLength(27);
+    // 8⁵ = 32 768 > 4 096: baja a 8⁴.
+    expect(run([{ id: 'f', type: 'fractal', params: { preset: 'carpet', depth: 5 } }]).shapes).toHaveLength(4096);
+    expect(run([{ id: 'f', type: 'fractal', params: { preset: 'tree', depth: 3 } }]).shapes).toHaveLength(1 + 2 + 4 + 8);
+    expect(run([{ id: 'f', type: 'fractal', params: { preset: 'spiral', depth: 10 } }]).shapes).toHaveLength(11);
+  });
+});

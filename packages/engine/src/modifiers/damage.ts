@@ -2,6 +2,7 @@ import { difference, type MultiPolygon, type Pair, type Polygon } from 'polygon-
 import { regionOf, toSubPath } from '../clip';
 import { bounds, insidePolygons, type Shape, type Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
+import { tearPolyline } from '../paths';
 import { rng } from '../random';
 
 /**
@@ -107,7 +108,10 @@ export const damage = defineModifier({
     // Bordes orgánicos: cada agujero, rasgado (los lados largos se parten y se desplazan al azar).
     if (p.roughness > 0) {
       const detail = size * 0.006;
-      for (const h of holes) h[0] = roughen(h[0]!, detail, p.roughness, rand);
+      for (const h of holes) {
+        const r = tearPolyline(h[0]!.slice(0, -1) as Vec2[], true, detail, p.roughness, rand) as Pair[];
+        h[0] = [...r, r[0]!];
+      }
     }
 
     // Cada forma conserva su estilo: se le restan los agujeros.
@@ -172,31 +176,6 @@ function band(pts: Vec2[], w: number, taper: number, rand: () => number): Pair[]
   }
   const ring = [...left, ...right.reverse()];
   return [...ring, ring[0]!];
-}
-
-/**
- * Desplazamiento fractal del punto medio: mientras un lado mida más que `detail`, se parte en dos
- * y el punto nuevo se aparta en perpendicular (hasta `amount` × la mitad de su longitud). Borde rasgado.
- */
-function roughen(ring: Pair[], detail: number, amount: number, rand: () => number): Pair[] {
-  let pts = ring.slice(0, -1);
-  for (let pass = 0; pass < 6; pass++) {
-    const next: Pair[] = [];
-    let split = false;
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i]!, b = pts[(i + 1) % pts.length]!;
-      next.push(a);
-      const dx = b[0] - a[0], dy = b[1] - a[1];
-      const len = Math.hypot(dx, dy);
-      if (len <= detail) continue;
-      split = true;
-      const off = (rand() - 0.5) * len * 0.5 * amount;
-      next.push([(a[0] + b[0]) / 2 - (dy / len) * off, (a[1] + b[1]) / 2 + (dx / len) * off]);
-    }
-    pts = next;
-    if (!split || pts.length > 4000) break;
-  }
-  return [...pts, pts[0]!];
 }
 
 /** Mancha irregular de radio aproximado `r`. */
