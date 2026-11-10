@@ -70,3 +70,35 @@ describe('Lottie', () => {
     expect(out.warnings).toEqual([]);
   });
 });
+
+describe('Lottie: lo que entra desde invisible', () => {
+  it('un texto (o pieza) que aparece: relleno al 100 % y la opacidad animada desde 0, con las claves en su tiempo', () => {
+    const fade: SceneV2 = {
+      version: 2,
+      objects: [{ kind: 'shape', id: 'r', name: 'Fade', shape: 'rectangle', params: {}, stack: [{ id: 'c', type: 'clone', params: { mode: 'grid', columns: 2, rows: 1 } }, { id: 'o', type: 'opacity', params: { opacity: 0 } }, { id: 'x', type: 'explosion', params: { amount: 0 } }] }],
+      animation: {
+        duration: 2,
+        fps: 10,
+        tracks: [
+          { id: 'a', node: 'r', on: 'modifier', modifier: 'o', param: 'opacity', keys: [{ t: 0, value: 0 }, { t: 0.5, value: 1 }] },
+          // La explosión empieza a mitad: su tramo no empieza en el fotograma 0.
+          { id: 'b', node: 'r', on: 'modifier', modifier: 'x', param: 'amount', keys: [{ t: 0, value: 0 }, { t: 1, value: 0, ease: 'linear' }, { t: 2, value: 1 }] },
+        ],
+      },
+    };
+    const ls = toLottie(createEngine(builtins), fade).data.layers as { ip: number; shapes: { it: { ty: string; o: { a: number; k: unknown } }[] }[] }[];
+    // La del principio (las capas van de delante a atrás: la primera es el último tramo).
+    const first = ls.find((l) => l.ip === 0)!;
+    const fill = first.shapes[0]!.it.find((x) => x.ty === 'fl')!;
+    expect(fill.o).toEqual({ a: 0, k: 100 });
+    const tr = first.shapes[0]!.it.find((x) => x.ty === 'tr')! as unknown as { o: { a: number; k: { t: number; s: number[] }[] }; p: { k: { t: number }[] } };
+    expect(tr.o.k[0]!.s[0]).toBe(0);
+    // Todas las claves de cada capa caen dentro de su tramo.
+    for (const l of ls as unknown as { ip: number; op: number; shapes: { it: { ty: string; p?: { a: number; k: { t: number }[] } }[] }[] }[]) {
+      for (const g of l.shapes) {
+        const p = g.it.at(-1)!.p!;
+        if (p.a === 1) for (const k of p.k) expect(k.t).toBeGreaterThanOrEqual(l.ip), expect(k.t).toBeLessThan(l.op);
+      }
+    }
+  });
+});

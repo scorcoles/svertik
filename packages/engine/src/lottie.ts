@@ -98,17 +98,26 @@ export function toLottie(engine: Engine, scene: SceneV2, options: { name?: strin
     let f = 0;
     let loose = 0;
     while (f < frames) {
-      const ref = perFrame[f]!.shapes;
-      if (!ref.length) {
+      if (!perFrame[f]!.shapes.length) {
         f++;
         continue;
       }
       // Para ajustar, sin redondear (se redondea al escribir).
       const raw = (p: readonly [number, number]): [number, number] => [p[0] - vx, p[1] - vy];
+      const sig = topology(perFrame[f]!.shapes);
+      // La referencia: el primer fotograma del tramo en que todas las piezas tienen tamaño (si empiezan a
+      // escala 0, como las letras que entran, desde ahí no se puede calcular su movimiento).
+      let r = f;
+      for (let k = f; k < Math.min(frames, f + 120) && topology(perFrame[k]!.shapes) === sig; k++) {
+        if (perFrame[k]!.shapes.every((sh) => spanOf(pointsOf(sh)) > 1e-3)) {
+          r = k;
+          break;
+        }
+      }
+      const ref = perFrame[r]!.shapes;
       const refPts = ref.map((sh) => pointsOf(sh).map(raw));
-      const sig = topology(ref);
-      const fits: Mat[][] = [ref.map(() => IDENTITY_M)];
-      let g = f + 1;
+      const fits: Mat[][] = [];
+      let g = f;
       while (g < frames) {
         const cur = perFrame[g]!.shapes;
         if (topology(cur) !== sig) break;
@@ -117,14 +126,22 @@ export function toLottie(engine: Engine, scene: SceneV2, options: { name?: strin
         fits.push(step as Mat[]);
         g++;
       }
+      if (g === f) {
+        // Ni siquiera el primero encaja con la referencia: este fotograma, tal cual.
+        layers.push(layer(nameOf(id), lottieShapes(perFrame[f]!.shapes, toDoc), staticTransform(), f, f + 1, blendOf(perFrame[f]!.shapes)));
+        if (frames > 1) loose++;
+        f++;
+        continue;
+      }
       if (g - f === 1 && frames > 1) loose++;
-      const base = ref.map((sh) => Number(sh.style.opacity ?? 1));
+      // La opacidad de cada pieza, como animación de su grupo (en valor absoluto: puede empezar en 0).
       const trOf = (i: number) =>
         groupTransform(
           fits.map((ms) => ms[i]!),
-          perFrame.slice(f, g).map(({ shapes }) => (base[i] ? Number(shapes[i]!.style.opacity ?? 1) / base[i]! : 1)),
+          perFrame.slice(f, g).map(({ shapes }) => Number(shapes[i]!.style.opacity ?? 1)),
+          f,
         );
-      layers.push(layer(nameOf(id), lottieShapes(ref, toDoc, trOf), staticTransform(), f, g, blendOf(ref)));
+      layers.push(layer(nameOf(id), lottieShapes(ref.map((sh) => withOpacity(sh, 1)), toDoc, trOf), staticTransform(), f, g, blendOf(ref)));
       f = g;
     }
     if (loose > 1) heavy.push(nameOf(id));
@@ -210,7 +227,7 @@ function transformKeys(ms: Mat[], anchor: [number, number], opacity: number[], v
   return { o: keys(op, true), r: keys(rot, true), p: keys(pos), a: { a: 0, k: [r3(anchor[0]), r3(anchor[1]), 0] }, s: keys(scale) };
 }
 
-function keys(values: number[][], scalar = false) {
+function keys(values: number[][], scalar = false, from = 0) {
   const same = values.every((v) => v.every((x, i) => Math.abs(x - values[0]![i]!) < 1e-3));
   if (same) return { a: 0, k: scalar ? values[0]![0] : values[0] };
   // Se quedan las claves donde el movimiento deja de ser recto.
@@ -220,7 +237,7 @@ function keys(values: number[][], scalar = false) {
     return v.some((x, k) => Math.abs(x - (a[k]! + b[k]!) / 2) > 1e-3);
   });
   const lin = { o: { x: [0], y: [0] }, i: { x: [1], y: [1] } };
-  return { a: 1, k: values.flatMap((v, t) => (keep[t] ? [{ t, s: v, ...lin }] : [])) };
+  return { a: 1, k: values.flatMap((v, t) => (keep[t] ? [{ t: t + from, s: v, ...lin }] : [])) };
 }
 
 /** Las formas, como grupos de Lottie (la de delante, la primera). */
@@ -302,7 +319,13 @@ function gradientFill(g: Gradient, s: Shape, at: (p: readonly [number, number]) 
 
 // ── Piezas rígidas
 
-const IDENTITY_M: Mat = [1, 0, 0, 1, 0, 0];
+
+/** Lo que mide una nube de puntos (su lado mayor). */
+function spanOf(pts: (readonly [number, number])[]): number {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) (x0 = Math.min(x0, x)), (y0 = Math.min(y0, y)), (x1 = Math.max(x1, x)), (y1 = Math.max(y1, y));
+  return Math.max(x1 - x0, y1 - y0);
+}
 
 /** Todos los puntos de una forma (vértices y tiradores), en orden. */
 const pointsOf = (s: Shape): (readonly [number, number])[] => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.flatMap((g) => [g.c1, g.c2, g.p])]);
@@ -366,7 +389,7 @@ function fitRigid(P: (readonly [number, number])[], Q: (readonly [number, number
 }
 
 /** El movimiento de una pieza (matrices desde su primer fotograma) como transformación de su grupo en Lottie. */
-function groupTransform(ms: Mat[], opacity: number[]) {
+function groupTransform(ms: Mat[], opacity: number[], from: number) {
   let prev = 0;
   const pos: number[][] = [], rot: number[][] = [], scale: number[][] = [];
   ms.forEach((m, i) => {
@@ -380,5 +403,6 @@ function groupTransform(ms: Mat[], opacity: number[]) {
     rot.push([r3(a)]);
     scale.push([r3(sx * 100), r3(sy * 100)]);
   });
-  return { ty: 'tr', p: keys(pos), a: { a: 0, k: [0, 0] }, s: keys(scale), r: keys(rot, true), o: keys(opacity.map((o) => [r3(o * 100)]), true) };
+  // Las claves, en el tiempo de la animación (el tramo empieza en `from`).
+  return { ty: 'tr', p: keys(pos, false, from), a: { a: 0, k: [0, 0] }, s: keys(scale, false, from), r: keys(rot, true, from), o: keys(opacity.map((o) => [r3(o * 100)]), true, from) };
 }
