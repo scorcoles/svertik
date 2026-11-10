@@ -5,6 +5,7 @@ import { importSVG } from './import';
 import { fontsVersion } from './fonts';
 import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
+import type { Animation } from './animation';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
@@ -65,6 +66,8 @@ export interface SceneV2 {
   resolution?: number;
   /** Tamaño fijo del documento (centrado en el origen). Sin él, se ajusta a lo que haya. */
   document?: { width: number; height: number } | null;
+  /** Animación (opcional): pistas de fotogramas clave. Ver animation.ts. */
+  animation?: Animation;
 }
 
 export type AnyScene = SceneV1 | SceneV2;
