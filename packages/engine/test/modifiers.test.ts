@@ -839,6 +839,17 @@ describe('glitch sobre trazos (sin relleno)', () => {
 });
 
 describe('streaks', () => {
+  it('con Bite, cada raya deja un hueco en la forma; con 0, la forma queda intacta', () => {
+    const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#777"/></svg>';
+    const run = (bite: number) => createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 's', type: 'streaks', params: { count: 5, width: 4, bite, seed: 2 } }] });
+    const intact = run(0).shapes[0]!;
+    expect(intact.subpaths).toHaveLength(1);
+    expect(intact.subpaths[0]!.segs).toHaveLength(4);
+    // Con bocados, el contorno del cuadrado tiene más vértices (las muescas).
+    const bitten = run(0.5).shapes[0]!;
+    expect(bitten.subpaths.reduce((n, sp) => n + sp.segs.length, 0)).toBeGreaterThan(4 + 5 * 3);
+  });
+
   it('cada raya sale del contorno real (en un círculo, no de su caja)', () => {
     const circle = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="100" fill="#777"/></svg>';
     const geo = createEngine(builtins).evaluateStack({ source: circle, stack: [{ id: 's', type: 'streaks', params: { count: 40, length: 0.1, width: 1, seed: 3 } }] });

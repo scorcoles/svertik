@@ -245,6 +245,10 @@ export const scanlines = defineModifier({
   },
 });
 
+/**
+ * Rayas que se escapan por los lados, saliendo del borde real de la forma. Con Bite, cada una deja su
+ * bocado: un hueco del mismo grosor que entra desde ese borde (lo que sale fuera falta dentro).
+ */
 export const streaks = defineModifier({
   type: 'streaks',
   label: 'Streaks',
@@ -254,16 +258,16 @@ export const streaks = defineModifier({
     count: { type: 'number', default: 6, min: 1, max: 40, step: 1, ramp: false, label: 'Count' },
     length: { type: 'number', default: 0.15, min: 0.01, max: 1, step: 0.01, unit: 'fraction', label: 'Length' },
     width: { type: 'number', default: 1.5, min: 0.25, max: 10, step: 0.25, unit: 'px', label: 'Width' },
+    bite: { type: 'number', default: 0.5, min: 0, max: 2, step: 0.05, label: 'Bite' },
     seed: { type: 'seed', default: 1 },
   },
-  apply(geo, p) {
+  apply(geo, p, ctx) {
     const b = bounds(geo);
     if (b.width <= 0 || b.height <= 0) return geo;
     const size = Math.max(b.width, b.height);
     const rand = rng(p.seed);
-    // Del color del dibujo (el de la primera forma con relleno o, si no hay, el de su trazo); el dibujo se queda como estaba.
+    // Del color del dibujo (el de la primera forma con relleno o, si no hay, el de su trazo).
     const fill = geo.shapes.find((s) => s.style.fill && s.style.fill !== 'none')?.style.fill ?? geo.shapes.find(isLine)?.style.stroke ?? '#000000';
-    const out: Shape[] = [...geo.shapes];
     // El contorno de lo que se ve, como polilíneas: cada raya sale del borde real de la forma a su altura
     // (no de la caja, que en una forma redonda o en un anillo queda lejos).
     const outline = geo.shapes
@@ -273,6 +277,8 @@ export const streaks = defineModifier({
         if (sp.closed) pts.push(sp.start);
         return pts;
       }));
+    const bars: Shape[] = [];
+    const bites: Box[] = [];
     for (let k = 0; k < Math.round(p.count); k++) {
       // Una altura por la que pase la forma (unos cuantos intentos; un anillo tiene huecos).
       let y = 0, span: [number, number] | null = null;
@@ -282,12 +288,42 @@ export const streaks = defineModifier({
       }
       const len = p.length * size * (0.4 + rand());
       const left = rand() < 0.5;
+      const deep = p.bite * len * (0.6 + rand() * 0.8);
       if (!span) continue;
-      const x0 = left ? span[0] - len * 0.7 : span[1] - len * 0.3;
+      const edge = left ? span[0] : span[1];
+      // Sin bocado, la raya se mete un poco en la forma (para que se vea pegada); con bocado, sale del borde.
+      const inside = deep > 0 ? 0 : len * 0.3;
+      const x0 = left ? edge - len + inside : edge - inside;
       const sp = toSubPath(rect(x0, y, len, p.width));
-      if (sp) out.push({ subpaths: [sp], style: { fill } });
+      if (sp) bars.push({ subpaths: [sp], style: { fill } });
+      if (deep > 0) bites.push({ x: left ? edge : edge - deep, y, w: deep, h: p.width });
     }
-    return { viewBox: geo.viewBox, shapes: out };
+    // Los bocados: se quitan de las formas que tocan; las demás se quedan como estaban (con sus curvas).
+    let shapes = geo.shapes;
+    if (bites.length) {
+      const cutPolys: MultiPolygon = bites.map((r) => [rect(r.x, r.y, r.w, r.h)]);
+      const fills = new Map(regions(geo, ctx.resolution).map((pc) => [pc.shape, pc]));
+      const lines = new Map(linePieces(geo).map((lp) => [lp.shape, lp]));
+      shapes = geo.shapes.flatMap((shape) => {
+        const pc = fills.get(shape);
+        if (pc) {
+          if (!bites.some((r) => overlaps(pc.box, r))) return [shape];
+          const sh = toShape(pc, difference(pc.poly, cutPolys));
+          return sh ? [sh] : [];
+        }
+        const lp = lines.get(shape);
+        if (lp) {
+          const hit = bites.filter((r) => overlaps(lp.box, r));
+          if (!hit.length) return [shape];
+          let rest = lp.lines;
+          for (const r of hit) rest = clipLines(rest, r).outside;
+          const sh = rest.length && lineShape({ ...lp, lines: rest, whole: false });
+          return sh ? [sh] : [];
+        }
+        return [shape];
+      });
+    }
+    return { viewBox: geo.viewBox, shapes: [...shapes, ...bars] };
   },
 });
 
