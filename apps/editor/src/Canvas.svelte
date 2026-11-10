@@ -475,7 +475,9 @@
   const gizmo = $derived.by(() => {
     const m = editor.current;
     const info = ownerInfo();
-    if (!m || editor.currentParent || !info) return null;
+    // Dentro de Step cada copia usa su propio centro; el actuador se dibuja sobre el objeto entero
+    // y sirve igual para cambiar los valores (los de la primera copia; las demás los multiplican).
+    if (!m || !info) return null;
     return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, info.bounds);
   });
   /** El gizmo ya en píxeles del escenario (se recalcula tras pintar, como los tiradores). */
