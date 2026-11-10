@@ -82,15 +82,32 @@
       e.preventDefault();
       const at = locateModifier(editor.scene, editor.selected) ?? locateNode(editor.scene.objects, editor.selected);
       if (at) editor.move(editor.selected, at.index + (e.key === 'ArrowUp' ? -1 : 1));
+    } else if (mod && e.key.toLowerCase() === 'd' && !typing(e)) {
+      e.preventDefault();
+      editor.duplicate();
     } else if (mod && e.key.toLowerCase() === 'g' && !typing(e)) {
       e.preventDefault();
       if (e.shiftKey) editor.ungroup();
       else editor.group();
     }
   }
+  // Copiar y cortar: lo seleccionado, como JSON de svertik (vale entre pestañas).
+  function copySelection(e: ClipboardEvent, cut = false) {
+    if (typing(e) || window.getSelection()?.toString()) return;
+    const text = editor.copySelection();
+    if (!text) return;
+    e.preventDefault();
+    e.clipboardData?.setData('text/plain', text);
+    if (cut) editor.removeSelection();
+    say(cut ? 'Cut' : 'Copied');
+  }
   function paste(e: ClipboardEvent) {
     if (typing(e)) return;
     const text = e.clipboardData?.getData('text/plain') ?? '';
+    if (editor.paste(text)) {
+      e.preventDefault();
+      return;
+    }
     if (/<svg[\s>]/i.test(text)) {
       e.preventDefault();
       editor.load(text, 'pasted.svg');
@@ -102,7 +119,7 @@
   });
 </script>
 
-<svelte:window onkeydown={keydown} onpaste={paste} />
+<svelte:window onkeydown={keydown} onpaste={paste} oncopy={(e) => copySelection(e)} oncut={(e) => copySelection(e, true)} />
 
 <div class="app">
   <Toolbar

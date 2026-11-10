@@ -220,3 +220,47 @@ describe('primitivas', () => {
     expect((locateNode(e.scene!.objects, id)!.node as { params: Record<string, unknown> }).params.radius).toBe(0);
   });
 });
+
+describe('copiar y pegar', () => {
+  it('pega objetos con ids nuevos, desplazados, encima del original y seleccionados', () => {
+    const e = fresh();
+    e.add('wave');
+    const original = e.scene!.objects[0]!;
+    e.selected = original.id;
+    const text = e.copySelection()!;
+    expect(e.paste(text)).toBe(true);
+    const [copy, orig] = e.scene!.objects;
+    expect(orig!.id).toBe(original.id);
+    expect(copy!.id).not.toBe(original.id);
+    expect(copy!.stack[0]!.type).toBe('wave');
+    expect(copy!.stack[0]!.id).not.toBe(original.stack[0]!.id);
+    expect(copy!.transform).toMatchObject({ x: 16, y: 16 });
+    expect(e.selected).toBe(copy!.id);
+    // Pegar otra vez lo mismo: un paso más allá.
+    e.paste(text);
+    expect(e.scene!.objects[0]!.transform).toMatchObject({ x: 32, y: 32 });
+  });
+
+  it('un efecto copiado se pega en el objeto activo, debajo del seleccionado', () => {
+    const e = fresh();
+    e.add('wave');
+    e.add('twist');
+    e.selected = stack(e)[0]!.id;
+    e.paste(e.copySelection()!);
+    expect(stack(e).map((m) => m.type)).toEqual(['wave', 'wave', 'twist']);
+    expect(new Set(stack(e).map((m) => m.id)).size).toBe(3);
+  });
+
+  it('duplicar varios a la vez; texto ajeno no se pega', () => {
+    const e = fresh();
+    e.addShape('star');
+    const ids = e.scene!.objects.map((n) => n.id);
+    e.selected = ids[0]!;
+    e.toggleSelect(ids[1]!);
+    e.duplicate();
+    expect(e.scene!.objects).toHaveLength(4);
+    expect(e.selectedNodes).toHaveLength(2);
+    expect(e.paste('hola')).toBe(false);
+    expect(e.paste('{"a":1}')).toBe(false);
+  });
+});
