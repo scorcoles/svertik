@@ -827,7 +827,7 @@
         <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
         <button type="button" class="redraw" onclick={redraw} title="Redraw everything (if something looks stale)" aria-label="Redraw">↻</button>
       </span>
-      <span class="muted">{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</span>
+      <button type="button" class="size" title="Document: size and canvas" onclick={() => ((editor.selected = null), (editor.also = []))}>{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</button>
       {#if cost !== null}
         <span
           class="cost"
@@ -1041,6 +1041,8 @@
     cursor: pointer;
   }
   .zoom button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  footer .size { padding: 0 var(--sv-space-4); font: inherit; color: var(--sv-text-muted); background: none; border: 0; cursor: pointer; }
+  footer .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
   /* Play, Code y Timeline, a la derecha del todo y algo separados del resto. */
   .tl-wrap { margin-left: auto; padding-left: var(--sv-space-16); }
   .zoom .play { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }

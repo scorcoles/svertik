@@ -72,6 +72,7 @@
     drag = null;
     drop = null;
   };
+  const docSize = $derived(editor.scene?.document ? `${editor.scene.document.width}×${editor.scene.document.height}` : 'auto');
 </script>
 
 {#snippet modifiers(list: ModifierInstance[], depth: number)}
@@ -162,6 +163,15 @@
   </header>
   {#if editor.scene}
     <div class="rows" role="tree" aria-label="Objects and modifiers">
+      <!-- El documento, arriba de todo: sus propiedades (tamaño, lienzo) son lo que se ve sin nada seleccionado. -->
+      <StackItem
+        label={`Document · ${docSize}`}
+        kind="object"
+        icon="document"
+        depth={0}
+        selected={!editor.selected && !editor.also.length}
+        onselect={() => ((editor.selected = null), (editor.also = []))}
+      />
       {@render nodes(editor.scene.objects, 0)}
     </div>
   {:else}
