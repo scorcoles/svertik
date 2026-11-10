@@ -81,6 +81,23 @@ export function locateModifier(scene: SceneV2, id: string | null): (Location & {
 }
 
 const HISTORY_LIMIT = 200;
+
+/** Preferencias en localStorage (puede no haberlo: modo privado, sin permisos…). */
+function readPref(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writePref(key: string, value: string) {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    /* sin almacenamiento: no pasa nada */
+  }
+}
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 /** Copia con ids nuevos (también los de sus hijos y sus efectos), para pegar sin repetir. */
@@ -97,7 +114,7 @@ export class Editor {
   /** Nombre del documento (el del primer SVG, mientras no haya otro). */
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
-  canvas = $state('');
+  canvas = $state(readPref('svertik.canvas'));
   /** Lo seleccionado: un nodo (objeto o grupo) o un modificador. Asignarlo deja la selección en uno solo. */
   #selected = $state<string | null>(null);
   get selected() {
@@ -283,6 +300,8 @@ export class Editor {
 
   setCanvas(color: string) {
     this.canvas = color;
+    // Preferencia del usuario: se recuerda entre documentos y sesiones (en este navegador).
+    writePref('svertik.canvas', color);
     this.record();
   }
 
@@ -738,7 +757,7 @@ export class Editor {
     this.scene = scene;
     this.name = state.name.replace(/\.svg$/i, '');
     if (state.script) this.script = state.script;
-    this.canvas = state.canvas ?? '';
+    if (state.canvas) this.canvas = state.canvas;
     this.selected = scene.objects[0]?.id ?? null;
     this.#history = [];
     this.#index = -1;

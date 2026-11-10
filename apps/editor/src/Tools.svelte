@@ -18,6 +18,9 @@
 </script>
 
 <div class="tools" role="toolbar" aria-label="Primitives" aria-orientation="vertical">
+  <!-- Seleccionar (y mover): sin herramienta de dibujo armada. Tras crear una primitiva se vuelve aquí. -->
+  <IconButton icon="select" label="Select (V or Esc)" active={!editor.tool} onclick={() => (editor.tool = null)} />
+  <span class="sep" aria-hidden="true"></span>
   {#each shapes as s (s.type)}
     <!-- Doble clic: la primitiva aparece en el centro del lienzo, lista para editar. -->
     <span class="tool" role="none" ondblclick={() => { editor.tool = null; if (editor.scene && Date.now() - created > 600) oncenter?.(s.type); }}>
@@ -28,6 +31,7 @@
 
 <style>
   .tool { display: flex; }
+  .sep { height: 1px; margin: var(--sv-space-2) var(--sv-space-2); background: var(--sv-rule-default); }
   .tools {
     position: absolute;
     top: var(--sv-space-12);
