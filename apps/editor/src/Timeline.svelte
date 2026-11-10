@@ -1,7 +1,9 @@
 <script lang="ts">
   // Línea de tiempo: reproducción, regla con cabezal y una pista por parámetro animado con sus claves.
-  // Las claves se arrastran (encajan en fotogramas); la seleccionada muestra su easing y se borra con Supr.
-  import { EASES, shapeRegistry, type Ease } from '@svertik/engine';
+  // Las claves se arrastran (encajan en fotogramas); la seleccionada se borra con Supr.
+  // Entre dos claves se dibuja la curva del tramo (el easing de la primera); al pulsarla se elige otra.
+  import { Popover } from 'bits-ui';
+  import { EASES, ease, shapeRegistry, type Ease } from '@svertik/engine';
   import { Checkbox, IconButton, NumberField, Select } from '@svertik/ui';
   import { locateNode, locateModifier, registry, type Editor } from './editor.svelte';
 
@@ -64,8 +66,8 @@
   let selected = $state<{ track: string; t: number } | null>(null);
   function dragKey(e: PointerEvent, track: string, t0: number) {
     e.stopPropagation();
-    const el = e.currentTarget as HTMLElement;
-    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    // En la ventana y no en el rombo: al cambiar de instante, el rombo se vuelve a crear (va por su instante).
     selected = { track, t: t0 };
     editor.setTime(t0);
     const x0 = e.clientX;
@@ -73,15 +75,28 @@
     const move = (ev: PointerEvent) => {
       const t = snap(Math.max(0, Math.min(duration, t0 + ((ev.clientX - x0) / width) * duration)));
       if (t === cur) return;
-      editor.moveKey(track, cur, t);
-      cur = t;
-      selected = { track, t };
-      editor.setTime(t);
+      cur = editor.moveKey(track, cur, t);
+      selected = { track, t: cur };
+      editor.setTime(cur);
     };
-    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
+
+  // ── Curvas de los tramos
+  /** La curva de un easing en una caja de w × h (con sitio para lo que se pasa de 0 a 1). */
+  function curve(name: Ease | undefined, w: number, h: number, pad = 4) {
+    if (name === 'hold') return `M0 ${h - pad} H${w} V${pad}`;
+    const n = Math.max(8, Math.min(64, Math.round(w / 3)));
+    let d = '';
+    for (let i = 0; i <= n; i++) {
+      const u = i / n;
+      d += `${i ? 'L' : 'M'}${(u * w).toFixed(1)} ${(h - pad - ease(name, u) * (h - pad * 2)).toFixed(1)}`;
+    }
+    return d;
+  }
+  let easeOpen = $state<string | null>(null);
   const selectedKey = $derived.by(() => {
     if (!selected || !anim) return null;
     const tr = anim.tracks.find((x) => x.id === selected!.track);
@@ -156,6 +171,38 @@
       {#each anim?.tracks ?? [] as tr (tr.id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="lane" onpointerdown={scrub}>
+          {#each tr.keys.slice(0, -1) as a, i (a.t)}
+            {@const b = tr.keys[i + 1]!}
+            {@const w = Math.max(1, x(b.t) - x(a.t))}
+            {@const id = `${tr.id}@${a.t}`}
+            <Popover.Root open={easeOpen === id} onOpenChange={(o) => (easeOpen = o ? id : null)}>
+              <Popover.Trigger
+                class="segment"
+                style="left: {x(a.t)}px; width: {w}px"
+                title={`${a.ease ?? 'ease-in-out'} — click to change the ease`}
+                aria-label={`Ease from ${a.t.toFixed(2)} to ${b.t.toFixed(2)} s: ${a.ease ?? 'ease-in-out'}`}
+                data-on={easeOpen === id || (selected?.track === tr.id && selected.t === a.t) || undefined}
+                onpointerdown={(e: PointerEvent) => e.stopPropagation()}
+              >
+                <svg width={w} height="22" aria-hidden="true"><path d={curve(a.ease, w, 22, 5)} /></svg>
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content class="sv-menu ease-menu" sideOffset={4}>
+                  {#each EASES as e (e)}
+                    <button
+                      type="button"
+                      class="sv-menu-item ease-item"
+                      data-current={(a.ease ?? 'ease-in-out') === e || undefined}
+                      onclick={() => { editor.setEase(tr.id, a.t, e); selected = { track: tr.id, t: a.t }; easeOpen = null; }}
+                    >
+                      <svg width="28" height="18" aria-hidden="true"><path d={curve(e, 28, 18, 3)} /></svg>
+                      {e}
+                    </button>
+                  {/each}
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
+          {/each}
           {#each tr.keys as k (k.t)}
             <button
               type="button"
@@ -212,6 +259,18 @@
     border: 1px solid rgb(0 0 0 / 0.5);
     cursor: grab;
   }
+  :global(.segment) { position: absolute; top: 0; height: 100%; padding: 0; background: none; border: 0; cursor: pointer; overflow: visible; }
+  :global(.segment svg) { display: block; overflow: visible; }
+  :global(.segment path) { fill: none; stroke: var(--sv-text-muted); stroke-width: 1; opacity: 0.55; }
+  :global(.segment:hover path), :global(.segment[data-on] path) { stroke: var(--sv-accent-fill); opacity: 1; }
+  :global(.segment:hover) { background: rgb(255 255 255 / 0.03); }
+  :global(.ease-menu) { width: 160px; }
+  :global(.ease-item) { width: 100%; font: inherit; background: none; border: 0; text-align: left; }
+  :global(.ease-item:hover), :global(.ease-item:focus-visible) { background: var(--sv-surface-hover); }
+  :global(.ease-item svg) { flex: none; overflow: visible; }
+  :global(.ease-item path) { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1.25; }
+  :global(.ease-item[data-current]) { color: var(--sv-accent-fill); }
+  :global(.ease-item[data-current] path) { stroke: var(--sv-accent-fill); }
   .key[data-hold] { border-radius: 0; background: var(--sv-text-secondary); }
   .key[data-selected] { outline: 1px solid var(--sv-text-primary); outline-offset: 2px; }
   .head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sv-signal-error); pointer-events: none; }

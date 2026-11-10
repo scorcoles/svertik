@@ -14,6 +14,7 @@
   import StackPanel from './StackPanel.svelte';
   import Presenter from './Presenter.svelte';
   import Timeline from './Timeline.svelte';
+  import UnsavedDialog from './UnsavedDialog.svelte';
   import Toolbar from './Toolbar.svelte';
 
   const editor = new Editor();
@@ -47,8 +48,10 @@
     const text = await file.text();
     // Un proyecto (.svrtk, o el JSON de una escena): se abre entero. Si no, es un SVG que se añade.
     if (/\.(svrtk|json)$/i.test(file.name) || /^\s*\{/.test(text)) {
-      if (editor.openProject(text)) say(`Opened ${file.name}`);
-      else editor.error = 'That file is not a svertik project.';
+      guard(() => {
+        if (editor.openProject(text)) say(`Opened ${file.name}`);
+        else editor.error = 'That file is not a svertik project.';
+      });
       return;
     }
     editor.load(text, file.name);
@@ -58,7 +61,20 @@
     if (!text) return;
     const name = `${editor.name}.svrtk`;
     download(name, text, 'application/json');
+    editor.markSaved();
     say(`Saved ${name}`);
+  }
+  // Lo que cambia de archivo (nuevo, abrir un proyecto, una demo) pregunta antes si hay cambios sin guardar.
+  let pending = $state<(() => void) | null>(null);
+  function guard(run: () => void) {
+    if (editor.dirty) pending = run;
+    else run();
+  }
+  function resolvePending(save: boolean) {
+    const run = pending;
+    pending = null;
+    if (save) saveProject();
+    run?.();
   }
   // Sustituir el SVG del objeto seleccionado (desde sus atributos).
   let replaceInput: HTMLInputElement;
@@ -100,6 +116,9 @@
   }
   // La demo: un proyecto que se abre y se reproduce solo.
   function openDemo(which: 'intro' | 'shatter' = 'intro') {
+    guard(() => startDemo(which));
+  }
+  function startDemo(which: 'intro' | 'shatter') {
     if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : demoProject()))) {
       editor.selected = null;
       editor.timelineOpen = true;
@@ -119,7 +138,7 @@
   };
   function keydown(e: KeyboardEvent) {
     // En el modo Play, el editor está detrás: sus atajos no actúan.
-    if (editor.presenting) return;
+    if (editor.presenting || pending) return;
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z' && !typing(e)) {
       e.preventDefault();
@@ -216,6 +235,7 @@
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
     ondemo={openDemo}
+    onnew={() => guard(() => editor.newFile())}
   />
   <main>
     <div
@@ -279,6 +299,7 @@
     }}
   />
   {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
+  {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
 </div>
 

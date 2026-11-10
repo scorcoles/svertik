@@ -599,16 +599,20 @@ export class Editor {
     this.record(true);
   }
   /** Mueve una clave a otro instante (arrastrándola en la línea de tiempo). */
-  moveKey(trackId: string, from: number, to: number) {
+  /** Devuelve el instante en que queda (redondeado), que es por el que se la vuelve a buscar. */
+  moveKey(trackId: string, from: number, to: number): number {
     const tr = this.animation?.tracks.find((x) => x.id === trackId);
-    if (!tr) return;
-    const k = tr.keys.find((x) => x.t === from);
-    if (!k) return;
+    const k = tr?.keys.find((x) => x.t === from);
+    if (!tr || !k) return from;
     const d = this.animation!.duration;
-    k.t = Math.round(Math.max(0, Math.min(d, to)) * 1000) / 1000;
+    const t = Math.round(Math.max(0, Math.min(d, to)) * 1000) / 1000;
+    // No se pisa otra clave de la misma pista.
+    if (tr.keys.some((x) => x !== k && x.t === t)) return from;
+    k.t = t;
     tr.keys.sort((a, b) => a.t - b.t);
     this.#applyTime();
     this.record();
+    return t;
   }
   setEase(trackId: string, at: number, e: Ease) {
     const k = this.animation?.tracks.find((x) => x.id === trackId)?.keys.find((x) => x.t === at);
@@ -989,10 +993,26 @@ export class Editor {
 
   // ── Historial: los cambios seguidos (arrastrar un valor) cuentan como uno.
 
+  /**
+   * Lo que se anima o se dispara sobre algo que ya no existe (un efecto o un objeto borrado) sobra:
+   * sus pistas y sus interacciones se van con él.
+   */
+  #prune() {
+    const scene = this.scene;
+    if (!scene) return;
+    const alive = (t: { node: string; on?: string; modifier?: string }) =>
+      !!locateNode(scene.objects, t.node) && (t.on !== 'modifier' || !t.modifier || !!locateModifier(scene, t.modifier));
+    const anim = scene.animation;
+    if (anim && anim.tracks.some((t) => !alive(t))) anim.tracks = anim.tracks.filter(alive);
+    const list = scene.interactions;
+    if (list && list.some((x) => !alive({ node: x.node }) || !alive(x.target))) scene.interactions = list.filter((x) => alive({ node: x.node }) && alive(x.target));
+  }
+
   record(now = false) {
     clearTimeout(this.#timer);
     const push = () => {
       this.#pending = false;
+      this.#prune();
       const snap = JSON.stringify({ scene: this.scene, name: this.name, script: this.script, canvas: this.canvas });
       if (snap === this.#history[this.#index]) return;
       this.#history = this.#history.slice(0, this.#index + 1);
@@ -1041,6 +1061,37 @@ export class Editor {
   // ── Proyecto: todo en un archivo (.svrtk) para guardarlo y volver a abrirlo
 
   /** El proyecto entero como texto: objetos (con sus SVG), pilas, animación, script, nombre y lienzo. */
+  // ── Guardado: qué se perdería al empezar otro archivo
+
+  #saved: string | undefined;
+  /** Lo de ahora queda como guardado (al guardar, abrir un proyecto o una demo). */
+  markSaved() {
+    this.flush();
+    this.#saved = this.#history[this.#index];
+  }
+  /** Hay cambios sin guardar: una escena distinta de la última guardada o abierta. */
+  get dirty() {
+    this.flush();
+    return !!this.scene && this.#history[this.#index] !== this.#saved;
+  }
+  /** Archivo nuevo: lienzo vacío, sin historial. */
+  newFile() {
+    this.scene = null;
+    this.name = 'untitled';
+    this.script = DEFAULT_SCRIPT;
+    this.selected = null;
+    this.also = [];
+    this.time = 0;
+    this.playing = false;
+    this.timelineOpen = false;
+    this.codeOpen = false;
+    this.error = null;
+    this.#history = [];
+    this.#index = -1;
+    this.record(true);
+    this.markSaved();
+  }
+
   projectFile(): string | null {
     if (!this.scene) return null;
     return JSON.stringify(
@@ -1077,6 +1128,7 @@ export class Editor {
     this.#index = -1;
     this.#applyTime();
     this.record(true);
+    this.markSaved();
     return true;
   }
 

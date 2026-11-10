@@ -453,3 +453,34 @@ describe('Interacciones', () => {
     expect(e.scene!.animation?.autoplay).toBe(false);
   });
 });
+
+describe('Archivo y pistas', () => {
+  it('quitar un efecto animado se lleva su pista; arrastrar una clave encadena movimientos', () => {
+    const e = fresh();
+    e.add('damage');
+    const fx = stack(e)[0]!;
+    const node = e.scene!.objects.at(-1)!.id;
+    e.toggleKey({ node, on: 'modifier', modifier: fx.id, param: 'growth' });
+    e.toggleKey({ node, on: 'node', param: 'scale' });
+    expect(e.animation!.tracks).toHaveLength(2);
+    const tr = e.animation!.tracks.find((t) => t.on === 'node')!;
+    let t = e.moveKey(tr.id, 0, 1 / 30);
+    t = e.moveKey(tr.id, t, 2 / 30);
+    expect(tr.keys[0]!.t).toBe(t);
+    expect(t).toBeCloseTo(0.067, 3);
+    e.remove(fx.id);
+    expect(e.animation!.tracks.map((x) => x.on)).toEqual(['node']);
+  });
+
+  it('cambios sin guardar y archivo nuevo', () => {
+    const e = fresh();
+    expect(e.dirty).toBe(true);
+    e.markSaved();
+    expect(e.dirty).toBe(false);
+    e.add('wave');
+    expect(e.dirty).toBe(true);
+    e.newFile();
+    expect(e.scene).toBeNull();
+    expect(e.dirty).toBe(false);
+  });
+});

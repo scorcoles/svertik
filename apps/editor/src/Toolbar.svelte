@@ -13,8 +13,9 @@
     onexport: () => void;
     onexportpng: () => void;
     ondemo: (which: 'intro' | 'shatter') => void;
+    onnew: () => void;
   }
-  let { editor, onimport, onsave, oncopyjson, oncopycode, onexport, onexportpng, ondemo }: Props = $props();
+  let { editor, onimport, onsave, oncopyjson, oncopycode, onexport, onexportpng, ondemo, onnew }: Props = $props();
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);
   // Los efectos, por grupos: la barra no crece aunque crezca el catálogo.
   const groups = [
@@ -27,7 +28,7 @@
 
 <header class="toolbar">
   <div class="doc">
-    <AppMenu {editor} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {oncopyjson} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {oncopyjson} {ondemo} />
     <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
