@@ -25,7 +25,9 @@
     keyState?: 'none' | 'animated' | 'key';
     onkey?: () => void;
   }
-  let { name, spec, value, onchange, nodes = [], swatches, fonts = [], keyState, onkey }: Props = $props();
+  let { name, spec, value: given, onchange, nodes = [], swatches, fonts = [], keyState, onkey }: Props = $props();
+  // Un parámetro que no viene (proyecto escrito a mano, versión anterior…) se enseña con su valor por defecto.
+  const value = $derived(given ?? spec.default);
   // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
   const NONE = '— none —';
   const nodeLabels = $derived.by(() => {

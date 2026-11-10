@@ -9,6 +9,7 @@
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
+  import { demoProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Timeline from './Timeline.svelte';
@@ -69,6 +70,39 @@
       say(`${what} copied`);
     } catch {
       say(`Could not copy ${what}`);
+    }
+  }
+  /** PNG del fotograma actual, a doble resolución y con fondo transparente (lo dibuja el navegador). */
+  async function exportPNG(scale = 2) {
+    const svg = engine.toSVG(snapshot());
+    const vb = /viewBox="([^"]+)"/.exec(svg)?.[1]?.split(/\s+/).map(Number) ?? [0, 0, 100, 100];
+    const [w, h] = [Math.max(1, Math.round(vb[2]! * scale)), Math.max(1, Math.round(vb[3]! * scale))];
+    const url = URL.createObjectURL(new Blob([svg.replace('<svg ', `<svg width="${w}" height="${h}" `)], { type: 'image/svg+xml' }));
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const canvas = Object.assign(document.createElement('canvas'), { width: w, height: h });
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+      const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
+      if (!blob) throw new Error('no PNG');
+      const name = `${editor.name}.png`;
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
+      a.click();
+      URL.revokeObjectURL(a.href);
+      say(`Saved ${name} (${w} × ${h})`);
+    } catch {
+      say('Could not export the PNG');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  // La demo: un proyecto que se abre y se reproduce solo.
+  function openDemo() {
+    if (editor.openProject(JSON.stringify(demoProject()))) {
+      editor.timelineOpen = true;
+      editor.setTime(0);
+      editor.playing = true;
     }
   }
   function exportSVG() {
@@ -176,6 +210,8 @@
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
     oncopycode={() => (editor.codeOpen = !editor.codeOpen)}
     onexport={exportSVG}
+    onexportpng={() => exportPNG(2)}
+    ondemo={openDemo}
   />
   <main>
     <div

@@ -979,6 +979,11 @@ export class Editor {
     const scene = data?.svertik === 'project' ? data.scene : (data as unknown as AnyScene);
     if (!scene || (scene.version !== 1 && scene.version !== 2)) return false;
     this.scene = migrateScene(scene);
+    // Las primitivas, con todos sus parámetros (los que falten, por defecto): el panel los necesita.
+    for (const { node } of walkNodes(this.scene.objects)) {
+      const def = node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
+      if (node.kind === 'shape' && def) node.params = { ...resolveParams(def.params), ...node.params };
+    }
     this.name = data.name ?? 'untitled';
     if (data.canvas) this.canvas = data.canvas;
     this.script = data.script ?? DEFAULT_SCRIPT;

@@ -1,0 +1,8 @@
+// polygon-clipping, igual en el navegador (módulo ES) y en Node (CommonJS, todo dentro de `default`).
+import * as pc from 'polygon-clipping';
+
+type PC = typeof import('polygon-clipping');
+const api: PC = (pc as unknown as { union?: unknown }).union ? (pc as unknown as PC) : (pc as unknown as { default: PC }).default;
+
+export const { union, intersection, difference, xor } = api;
+export type { Geom, MultiPolygon, Pair, Polygon, Ring } from 'polygon-clipping';

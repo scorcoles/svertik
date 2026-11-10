@@ -9,7 +9,8 @@
     "demos": "pnpm --filter @svertik/demos dev",
     "storybook": "pnpm --filter @svertik/ui storybook",
     "tokens": "pnpm --filter @svertik/ui tokens",
-    "editor": "pnpm --filter @svertik/editor dev"
+    "editor": "pnpm --filter @svertik/editor dev",
+    "svertik": "node packages/cli/bin/svertik.mjs"
   },
   "packageManager": "pnpm@9.15.3"
 }

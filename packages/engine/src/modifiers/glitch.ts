@@ -1,4 +1,4 @@
-import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from 'polygon-clipping';
+import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
 import { bounds, type Shape } from '../geometry';
 import { defineModifier } from '../modifier';

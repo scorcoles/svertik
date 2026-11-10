@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button, IconButton } from '@svertik/ui';
   import { modifierTypes, registry, type Editor } from './editor.svelte';
+  import AppMenu from './AppMenu.svelte';
   import GroupMenu from './GroupMenu.svelte';
 
   interface Props {
@@ -10,8 +11,10 @@
     oncopyjson: () => void;
     oncopycode: () => void;
     onexport: () => void;
+    onexportpng: () => void;
+    ondemo: () => void;
   }
-  let { editor, onimport, onsave, oncopyjson, oncopycode, onexport }: Props = $props();
+  let { editor, onimport, onsave, oncopyjson, oncopycode, onexport, onexportpng, ondemo }: Props = $props();
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);
   // Los efectos, por grupos: la barra no crece aunque crezca el catálogo.
   const groups = [
@@ -24,7 +27,7 @@
 
 <header class="toolbar">
   <div class="doc">
-    <strong>svertik</strong>
+    <AppMenu {editor} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {oncopyjson} {ondemo} />
     <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
@@ -58,6 +61,7 @@
   <span class="spacer"></span>
   <Button label="Copy JSON" disabled={!editor.scene} onclick={oncopyjson} />
   <Button label="Code" disabled={!editor.scene} aria-pressed={editor.codeOpen} onclick={oncopycode} />
+  <Button label="Export PNG" disabled={!editor.scene} onclick={onexportpng} />
   <Button label="Export SVG" kind="primary" disabled={!editor.scene} onclick={onexport} />
 </header>
 
@@ -73,7 +77,6 @@
     min-width: 0;
   }
   .doc { display: flex; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: 0; }
-  .doc strong { font-size: var(--sv-font-size-12); }
   .alpha {
     align-self: center;
     padding: 1px 4px;

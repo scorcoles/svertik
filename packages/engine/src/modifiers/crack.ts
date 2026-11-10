@@ -1,4 +1,4 @@
-import { difference, type MultiPolygon, type Pair } from 'polygon-clipping';
+import { difference, type MultiPolygon, type Pair } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
 import { flatten, insidePolygons, line, type Geometry, type Shape, type SubPath, type Vec2 } from '../geometry';
 import { band } from './damage';

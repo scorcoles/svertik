@@ -1,6 +1,6 @@
 // Recortes con polygon-clipping: de trazados a superficies (polígonos) y de vuelta.
 // Las curvas se aproximan con tramos rectos según la resolución.
-import { union, xor, type MultiPolygon, type Ring } from 'polygon-clipping';
+import { union, xor, type MultiPolygon, type Ring } from './polygon';
 import { cubicAt, line, type Shape, type SubPath, type Vec2 } from './geometry';
 
 /** La superficie de un elemento: cada forma, par-impar entre sus anillos; las formas, unidas. */

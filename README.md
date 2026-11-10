@@ -13,7 +13,7 @@ Un experimento de [VERTIK](https://www.vertik.net). Contexto: [docs/recap.md](do
   - **Style:** Color, Tint, Paint, Gradient, Opacity.
 - **Primitivas** (rectángulo, elipse, polígono, estrella, línea, espiral, peón) y **texto** convertido en trazados (una pieza por letra).
 - **Animación:** fotogramas clave en cualquier valor, curvas (también back, elastic, bounce) y presets de entrada de letras.
-- **Proyectos `.svrtk`**: guardar (⌘S) y volver a abrir (⌘O o arrastrando el archivo).
+- **Proyectos `.svrtk`**: guardar (⌘S) y volver a abrir (⌘O o arrastrando el archivo). Exporta SVG y PNG. En el menú de «svertik» hay una demo.
 - Solo lo que SVG puede expresar: lo que exporta es SVG estándar.
 
 ## Probarlo
@@ -24,6 +24,15 @@ pnpm editor     # el editor
 pnpm test       # tests (motor, interfaz y editor)
 pnpm typecheck
 pnpm storybook  # componentes
+```
+
+## En la terminal
+
+```bash
+pnpm svertik render proyecto.svrtk -o cartel.png --scale 3 --background '#0d0d10'
+pnpm svertik render proyecto.svrtk --frames fotogramas/   # toda la animación, en PNG
+pnpm svertik info proyecto.svrtk
+pnpm svertik effects --json                               # efectos y parámetros
 ```
 
 ## El motor, en una web

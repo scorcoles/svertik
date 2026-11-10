@@ -38,7 +38,8 @@ export function parseNumber(text: string): number | null {
   return text.trim() !== '' && Number.isFinite(v) ? v : null;
 }
 
-export const formatNumber = (v: number, step: number) => v.toFixed(decimalsOf(step));
+// Un valor que no es número (no ha llegado aún) se enseña vacío en vez de romper el panel.
+export const formatNumber = (v: number, step: number) => (Number.isFinite(v) ? v.toFixed(decimalsOf(step)) : "");
 
 /** Un paso arriba o abajo (flechas del teclado), redondeado al paso. */
 export function nudge(value: number, direction: 1 | -1, o: ScrubOptions): number {

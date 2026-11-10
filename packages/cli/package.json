@@ -1,0 +1,25 @@
+{
+  "name": "@svertik/cli",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "svertik en la terminal: dibuja proyectos a SVG o PNG, fotogramas de la animación, y lista los efectos.",
+  "bin": {
+    "svertik": "./bin/svertik.mjs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@resvg/resvg-js": "2.6.2",
+    "@svertik/engine": "workspace:^",
+    "happy-dom": "^21.0.4",
+    "tsx": "4.23.15"
+  }
+}

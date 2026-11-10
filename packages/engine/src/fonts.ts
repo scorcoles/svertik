@@ -1,6 +1,10 @@
 // Fuentes para la primitiva Text: se registran (con sus bytes) y el motor saca de ellas el contorno de
 // cada letra. El motor no descarga nada: el editor (o quien lo use) registra las que tenga.
-import { parse, type Font } from 'opentype.js';
+import * as opentype from 'opentype.js';
+import type { Font } from 'opentype.js';
+
+// En el navegador llega como módulo ES (con `parse`); en Node, como CommonJS (dentro de `default`).
+const parse: (data: ArrayBuffer) => Font = (opentype as { parse?: typeof opentype.parse }).parse ?? (opentype as unknown as { default: typeof opentype }).default.parse;
 
 const fonts = new Map<string, Font>();
 let version = 0;

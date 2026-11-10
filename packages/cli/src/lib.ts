@@ -1,0 +1,117 @@
+// svertik sin navegador: leer proyectos, dibujarlos a SVG o PNG y describir los efectos.
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { Resvg } from '@resvg/resvg-js';
+import { Window } from 'happy-dom';
+import {
+  builtins,
+  createEngine,
+  hasFont,
+  migrateScene,
+  registerFont,
+  sampleScene,
+  shapes,
+  type AnyScene,
+  type SceneNode,
+  type SceneV2,
+} from '@svertik/engine';
+
+// El importador de SVG usa DOMParser: en Node, el de happy-dom.
+const g = globalThis as unknown as { DOMParser?: unknown };
+g.DOMParser ??= new Window().DOMParser;
+
+const require = createRequire(import.meta.url);
+const engine = createEngine(builtins);
+
+/** Las fuentes que trae el editor (JetBrains Mono normal y negrita), para los textos. */
+export function registerBundledFonts() {
+  if (hasFont('JetBrains Mono')) return;
+  const load = (w: number) => {
+    const b = readFileSync(require.resolve(`@fontsource/jetbrains-mono/files/jetbrains-mono-latin-${w}-normal.woff`));
+    return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+  };
+  registerFont('JetBrains Mono', load(400));
+  registerFont('JetBrains Mono Bold', load(700));
+}
+
+/** Registra una fuente propia (por si el proyecto usa una del sistema): nombre=ruta. */
+export function registerFontFile(spec: string) {
+  const [name, path] = spec.split('=');
+  if (!name || !path) throw new Error(`--font espera nombre=ruta («${spec}»)`);
+  const b = readFileSync(path);
+  registerFont(name, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
+}
+
+export interface Loaded {
+  scene: SceneV2;
+  name: string;
+}
+
+/** Un .svrtk, el JSON de una escena o un SVG (que pasa a ser un objeto sin efectos). */
+export function loadInput(text: string, fileName: string): Loaded {
+  const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(svrtk|json|svg)$/i, '');
+  if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
+    return { scene: { version: 2, objects: [{ kind: 'object', id: 'object-1', name: `${base}.svg`, source: text, stack: [] }] }, name: base };
+  }
+  const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: AnyScene } & Partial<AnyScene>;
+  const scene = data.svertik === 'project' ? data.scene : (data as AnyScene);
+  if (!scene || (scene.version !== 1 && scene.version !== 2)) throw new Error(`${fileName} no es un proyecto de svertik ni un SVG`);
+  return { scene: migrateScene(scene), name: data.name ?? base };
+}
+
+/** El SVG plano del instante `t` (s); con `background`, un rectángulo de fondo. */
+export function renderSVG(scene: SceneV2, t = 0, background?: string): string {
+  const svg = engine.toSVG(sampleScene(scene, t));
+  if (!background) return svg;
+  const vb = /viewBox="([^"]+)"/.exec(svg)?.[1]?.split(/\s+/) ?? ['0', '0', '0', '0'];
+  return svg.replace(/(<svg[^>]*>)/, `$1\n  <rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="${background}"/>`);
+}
+
+/** SVG → PNG con resvg, a `scale` píxeles por unidad. */
+export function renderPNG(svg: string, scale = 2): Buffer {
+  const r = new Resvg(svg, { fitTo: { mode: 'zoom', value: scale }, font: { loadSystemFonts: false } });
+  return r.render().asPng();
+}
+
+/** Los fotogramas de la animación: instantes de 0 a la duración, a `fps`. */
+export function frameTimes(scene: SceneV2, fps?: number): number[] {
+  const anim = scene.animation;
+  if (!anim) return [0];
+  const f = fps ?? anim.fps ?? 30;
+  const n = Math.max(1, Math.round(anim.duration * f));
+  return Array.from({ length: n }, (_, i) => i / f);
+}
+
+/** Los efectos y primitivas, con sus parámetros: lo que necesita un agente para escribir escenas. */
+export function describeEffects() {
+  const spec = (params: Record<string, unknown>) =>
+    Object.fromEntries(
+      Object.entries(params).map(([k, v]) => {
+        const s = v as Record<string, unknown>;
+        const out: Record<string, unknown> = { type: s.type, default: s.default };
+        for (const key of ['min', 'max', 'options', 'unit', 'group', 'label']) if (s[key] !== undefined) out[key] = s[key];
+        return [k, out];
+      }),
+    );
+  return {
+    effects: builtins.map((m) => ({ type: m.type, label: m.label, kind: m.kind, params: spec(m.params) })),
+    shapes: shapes.map((s) => ({ type: s.type, label: s.label, params: spec(s.params) })),
+  };
+}
+
+/** Resumen de un proyecto: objetos, sus efectos y la animación. */
+export function describeScene(scene: SceneV2): string {
+  const lines: string[] = [];
+  const walk = (nodes: SceneNode[], depth: number) => {
+    for (const node of nodes) {
+      const what = node.kind === 'shape' ? node.shape : node.kind;
+      const stack = node.stack.map((m) => m.type + (m.children?.length ? `(${m.children.map((c) => c.type).join(', ')})` : '')).join(' → ');
+      lines.push(`${'  '.repeat(depth)}${node.name} [${what}]${stack ? `: ${stack}` : ''}`);
+      if (node.kind === 'group') walk(node.children, depth + 1);
+    }
+  };
+  walk(scene.objects, 0);
+  const a = scene.animation;
+  if (a?.tracks.length) lines.push(`animación: ${a.duration} s${a.loop === false ? '' : ', en bucle'}, ${a.tracks.length} pistas (${a.tracks.map((t) => t.param).join(', ')})`);
+  return lines.join('\n');
+}
