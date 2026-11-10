@@ -16,6 +16,7 @@ import { boolean } from './boolean';
 import { color } from './color';
 import { clone } from './clone';
 import { crack } from './crack';
+import { damage } from './damage';
 import { noise } from './noise';
 import { rotate3d } from './rotate3d';
 import { spherize } from './spherize';
@@ -24,7 +25,7 @@ import { transform } from './transform';
 import { twist } from './twist';
 import { wave } from './wave';
 
-export { bend, boolean, clone, color, crack, cylinder, envelope, gradient, melt, mirror, mosaic, noise, paint, pathwrap, perspective, ripple, rotate3d, shear, spherize, step, taper, tint, transform, twist, wave };
+export { bend, boolean, clone, color, crack, cylinder, damage, envelope, gradient, melt, mirror, mosaic, noise, paint, pathwrap, perspective, ripple, rotate3d, shear, spherize, step, taper, tint, transform, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -44,6 +45,7 @@ export const builtins = [
   envelope,
   pathwrap,
   crack,
+  damage,
   clone,
   mirror,
   mosaic,
