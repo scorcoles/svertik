@@ -93,7 +93,7 @@ export function generatedPart(scene: AnyScene): string {
   const head = Object.entries(rest).map(([k, v]) => `  ${k}: ${inlineLiteral(v)},`);
   const sceneText = ['{', ...head, '  objects: [', ...objects.map((n) => `    ${writeNode(n, vars, '    ')},`), '  ],', '}'].join('\n');
   return [
-    `import { createEngine, ${[...sceneTypes(v2), ...(v2.animation?.tracks.length ? ['sampleScene'] : [])].join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
+    `import { createEngine, ${[...sceneTypes(v2), ...(v2.animation?.tracks.length || v2.interactions?.length ? ['createPlayer'] : [])].join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
     '',
     ...consts,
     '',
@@ -137,11 +137,31 @@ export const sourceRange = (text: string) => sourceRanges(text)[0] ?? null;
 
 /** Fragmento autosuficiente para pegar en otra web: añade el motor y onFrame. */
 export function exportJS(scene: AnyScene, script: string): string {
+  const v2 = migrateScene(scene);
   const types = sceneTypes(scene);
+  // Con animación o interacciones, el reproductor del motor (línea de tiempo, hover, clic y «reducir movimiento»).
+  const player = !!(v2.animation?.tracks.length || v2.interactions?.length);
   return (
     generatedPart(scene) +
     `const engine = createEngine([${types.join(', ')}]);
-const live = engine.mount(document.querySelector('svg'), scene);
+` +
+    (player
+      ? `// Reproduce la línea de tiempo y responde a hover y clic. Con «reducir movimiento», sin transiciones.
+const player = createPlayer(engine, document.querySelector('svg'), scene);
+
+// onFrame(fn): llama a fn(t) en cada fotograma y vuelve a pintar.
+function onFrame(fn) {
+  const t0 = performance.now();
+  const loop = (now) => {
+    fn((now - t0) / 1000);
+    player.refresh();
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
+`
+      : `const live = engine.mount(document.querySelector('svg'), scene);
 
 // onFrame(fn): llama a fn(t) en cada fotograma y vuelve a pintar.
 function onFrame(fn) {
@@ -154,23 +174,7 @@ function onFrame(fn) {
   requestAnimationFrame(loop);
 }
 
-` +
-    (migrateScene(scene).animation?.tracks.length
-      ? `// La animación de la línea de tiempo (en bucle, o una vez si no lo está).
-// Con «reducir movimiento» activado en el sistema, no se reproduce: se enseña el final, quieto.
-const { duration, loop } = scene.animation;
-if (matchMedia('(prefers-reduced-motion: reduce)').matches) live.update(sampleScene(scene, duration));
-else {
-  const t0 = performance.now();
-  requestAnimationFrame(function play(now) {
-    const t = (now - t0) / 1000;
-    live.update(sampleScene(scene, loop === false ? Math.min(t, duration) : t % duration));
-    requestAnimationFrame(play);
-  });
-}
-
-`
-      : '') +
+`) +
     script
   );
 }

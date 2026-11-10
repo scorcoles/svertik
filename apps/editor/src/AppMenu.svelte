@@ -11,7 +11,7 @@
     onexportsvg: () => void;
     onexportpng: () => void;
     oncopyjson: () => void;
-    ondemo: () => void;
+    ondemo: (which: 'intro' | 'shatter') => void;
   }
   let { editor, onopen, onsave, onexportsvg, onexportpng, oncopyjson, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
@@ -23,7 +23,8 @@
     { label: 'Export PNG', icon: 'export', run: onexportpng, needs: true },
     { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
     'sep',
-    { label: 'Demo', icon: 'play', run: ondemo },
+    { label: 'Demo: intro', icon: 'play', run: () => ondemo('intro') },
+    { label: 'Demo: shatter', icon: 'play', run: () => ondemo('shatter') },
   ]);
 </script>
 

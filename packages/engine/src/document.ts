@@ -6,6 +6,7 @@ import { fontsVersion } from './fonts';
 import { buildShape } from './shapes';
 import { IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import type { Animation } from './animation';
+import type { Interaction } from './interactions';
 import type { ModifierInstance, Scene as SceneV1 } from './engine';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
@@ -68,6 +69,8 @@ export interface SceneV2 {
   document?: { width: number; height: number } | null;
   /** Animación (opcional): pistas de fotogramas clave. Ver animation.ts. */
   animation?: Animation;
+  /** Interacciones (opcional): hover y clic sobre los objetos. Ver interactions.ts. */
+  interactions?: Interaction[];
 }
 
 export type AnyScene = SceneV1 | SceneV2;

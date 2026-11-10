@@ -122,7 +122,7 @@ export function readTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'modi
   return m?.params?.[tr.param];
 }
 
-function writeTarget(scene: SceneV2, tr: Track, value: unknown) {
+export function writeTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'modifier' | 'param'>, value: unknown) {
   const n = findNode(scene.objects, tr.node);
   if (!n || value === undefined) return;
   if (tr.on === 'node') {

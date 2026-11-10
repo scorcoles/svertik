@@ -70,10 +70,10 @@ describe('JS del panel', () => {
 });
 
 describe('código con animación', () => {
-  it('importa sampleScene y reproduce la línea de tiempo', () => {
+  it('usa el reproductor del motor (línea de tiempo, interacciones y movimiento reducido)', () => {
     const js = exportJS({ version: 2, objects: [], animation: { duration: 2, tracks: [{ id: 't', node: 'a', on: 'node', param: 'x', keys: [{ t: 0, value: 0 }] }] } }, '');
-    expect(js).toContain('sampleScene');
-    expect(js).toContain('live.update(sampleScene(scene');
-    expect(js).toContain('prefers-reduced-motion');
+    expect(js).toContain('createPlayer');
+    expect(js).toContain('createPlayer(engine, document.querySelector');
+    expect(js).toContain('reducir movimiento');
   });
 });

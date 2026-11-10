@@ -96,3 +96,81 @@ export function demoProject() {
     },
   };
 }
+
+// Segunda demo: un triángulo (punta abajo) entra desde cero, se agrieta, tiembla, estalla con un
+// destello y una onda, y sus trozos salen girando. 6 s en bucle.
+export function shatterProject() {
+  const k = (t: number, value: unknown, ease = 'linear') => ({ t, value, ease });
+  return {
+    svertik: 'project',
+    version: 1,
+    name: 'svertik shatter',
+    canvas: '#0b0b0e',
+    scene: {
+      version: 2,
+      objects: [
+        // Destello del impacto, por delante de todo (casi siempre transparente).
+        { kind: 'shape', id: 'flash', name: 'Flash', shape: 'rectangle', params: { width: 1300, height: 860, fillColor: '#ffffff' }, stack: [], opacity: 0 },
+        {
+          kind: 'shape',
+          id: 'caption',
+          name: 'Caption',
+          shape: 'text',
+          params: { text: 'IMPACT', font: 'JetBrains Mono Bold', size: 22, tracking: 700, fillColor: '#09fdd1' },
+          transform: { y: 360 },
+          stack: [
+            {
+              id: 'cap-in',
+              type: 'stagger',
+              params: { progress: 0, direction: 'in', stagger: 0.7, ease: 'expo-out', order: 'center' },
+              children: [
+                { id: 'cap-move', type: 'transform', params: { y: 18, rotation: 0, scale: 1 } },
+                { id: 'cap-fade', type: 'opacity', params: { opacity: 0 } },
+              ],
+            },
+          ],
+        },
+        // La onda del impacto.
+        { kind: 'shape', id: 'wave', name: 'Shockwave', shape: 'ellipse', params: { width: 520, height: 520, fill: false, stroke: true, strokeColor: '#09fdd1', strokeWidth: 3 }, stack: [], opacity: 0 },
+        {
+          kind: 'shape',
+          id: 'tri',
+          name: 'Triangle',
+          shape: 'polygon',
+          params: { sides: 3, radius: 280, rotation: 180, fillColor: '#efefef' },
+          transform: { scale: 0 },
+          stack: [
+            { id: 'tri-damage', type: 'damage', params: { seed: 7, growth: 0, cracks: 6, through: 6, length: 0.7, width: 0.011, chips: 9, chipSize: 0.035, specks: 60, speckSize: 0.006, roughness: 0.55 } },
+            { id: 'tri-boom', type: 'explosion', params: { amount: 0, force: 1.1, spin: 260, shrink: 0.3, chaos: 0.75, center: [0.5, 0.42], seed: 3 } },
+          ],
+        },
+        // Marco invisible (del color del lienzo): fija el encuadre aunque los trozos salgan volando.
+        { kind: 'shape', id: 'frame', name: 'Frame', shape: 'rectangle', params: { width: 1300, height: 860, fillColor: '#0b0b0e' }, stack: [] },
+      ],
+      animation: {
+        duration: 6,
+        loop: true,
+        fps: 30,
+        tracks: [
+          // Entrada: crece con rebote y gira hasta su sitio.
+          { id: 's-scale', node: 'tri', on: 'node', param: 'scale', keys: [k(0, 0, 'back-out'), k(0.9, 1)] },
+          { id: 's-rot', node: 'tri', on: 'node', param: 'rotation', keys: [k(0, -40, 'expo-out'), k(0.9, 0)] },
+          // Se agrieta.
+          { id: 's-growth', node: 'tri', on: 'modifier', modifier: 'tri-damage', param: 'growth', keys: [k(0.9, 0, 'ease-in'), k(2.1, 1)] },
+          // Tiembla justo antes de romper.
+          { id: 's-shake', node: 'tri', on: 'node', param: 'x', keys: [k(1.95, 0), k(2.02, -7), k(2.09, 6), k(2.16, -5), k(2.23, 4), k(2.3, 0)] },
+          // Estalla: rápido al principio, luego los trozos siguen a la deriva.
+          { id: 's-boom', node: 'tri', on: 'modifier', modifier: 'tri-boom', param: 'amount', keys: [k(2.3, 0, 'expo-out'), k(3, 0.7), k(5.6, 1)] },
+          { id: 's-fade', node: 'tri', on: 'node', param: 'opacity', keys: [k(4.9, 1, 'ease-in'), k(5.7, 0)] },
+          // Destello y onda.
+          { id: 's-flash', node: 'flash', on: 'node', param: 'opacity', keys: [k(2.28, 0), k(2.32, 0.35, 'expo-out'), k(2.75, 0)] },
+          { id: 's-wave-scale', node: 'wave', on: 'node', param: 'scale', keys: [k(2.3, 0.2, 'expo-out'), k(3.1, 2.4)] },
+          { id: 's-wave-op', node: 'wave', on: 'node', param: 'opacity', keys: [k(2.29, 0), k(2.31, 1, 'ease-out'), k(3.1, 0)] },
+          // El rótulo.
+          { id: 's-cap', node: 'caption', on: 'modifier', modifier: 'cap-in', param: 'progress', keys: [k(2.9, 0), k(3.8, 1)] },
+          { id: 's-cap-out', node: 'caption', on: 'node', param: 'opacity', keys: [k(5, 1, 'ease-in'), k(5.6, 0)] },
+        ],
+      },
+    },
+  };
+}

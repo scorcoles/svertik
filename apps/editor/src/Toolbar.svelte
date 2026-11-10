@@ -12,7 +12,7 @@
     oncopycode: () => void;
     onexport: () => void;
     onexportpng: () => void;
-    ondemo: () => void;
+    ondemo: (which: 'intro' | 'shatter') => void;
   }
   let { editor, onimport, onsave, oncopyjson, oncopycode, onexport, onexportpng, ondemo }: Props = $props();
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind);

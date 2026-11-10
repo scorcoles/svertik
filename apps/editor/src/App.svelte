@@ -9,7 +9,7 @@
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
-  import { demoProject } from './demo';
+  import { demoProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Timeline from './Timeline.svelte';
@@ -98,8 +98,9 @@
     }
   }
   // La demo: un proyecto que se abre y se reproduce solo.
-  function openDemo() {
-    if (editor.openProject(JSON.stringify(demoProject()))) {
+  function openDemo(which: 'intro' | 'shatter' = 'intro') {
+    if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : demoProject()))) {
+      editor.selected = null;
       editor.timelineOpen = true;
       editor.setTime(0);
       editor.playing = true;

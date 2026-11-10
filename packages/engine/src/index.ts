@@ -9,6 +9,7 @@ export * from './matrix';
 export * from './shapes';
 export * from './fonts';
 export * from './animation';
+export * from './interactions';
 export * from './modifiers';
 export { rng, noise2D } from './random';
 export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor } from './color';
