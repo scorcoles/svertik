@@ -1,6 +1,6 @@
 // Geometry → SVG: como texto (SVG plano) o actualizando un <svg> vivo.
 
-import type { Geometry, Shape, Style } from './geometry';
+import type { Geometry, Gradient, Shape, Style } from './geometry';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -29,6 +29,22 @@ const styleAttrs = (style: Style) =>
     .map(([k, v]) => ` ${k}="${escapeAttr(v)}"`)
     .join('');
 
+/** Los degradados de todas las formas, sin repetir, como contenido de <defs>. */
+export function gradientDefs(geo: Geometry): string {
+  const seen = new Map<string, Gradient>();
+  for (const s of geo.shapes) for (const g of s.gradients ?? []) seen.set(g.id, g);
+  return [...seen.values()]
+    .map((g) => {
+      const stops = g.stops
+        .map((st) => `<stop offset="${st.offset}" stop-color="${escapeAttr(st.color)}"${st.opacity !== undefined && st.opacity < 1 ? ` stop-opacity="${st.opacity}"` : ''}/>`)
+        .join('');
+      return g.kind === 'radial'
+        ? `<radialGradient id="${g.id}">${stops}</radialGradient>`
+        : `<linearGradient id="${g.id}" x1="${g.x1 ?? 0}" y1="${g.y1 ?? 0}" x2="${g.x2 ?? 1}" y2="${g.y2 ?? 0}">${stops}</linearGradient>`;
+    })
+    .join('');
+}
+
 export interface ToSVGOptions {
   precision?: number;
 }
@@ -39,7 +55,8 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
   const paths = geo.shapes
     .map((shape) => `  <path d="${toPathData(shape, precision)}"${styleAttrs(shape.style)}/>`)
     .join('\n');
-  return `<svg xmlns="${SVG_NS}" viewBox="${x} ${y} ${w} ${h}">\n${paths}\n</svg>\n`;
+  const defs = gradientDefs(geo);
+  return `<svg xmlns="${SVG_NS}" viewBox="${x} ${y} ${w} ${h}">\n${defs ? `  <defs>${defs}</defs>\n` : ''}${paths}\n</svg>\n`;
 }
 
 /**
@@ -48,6 +65,15 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
  */
 export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }: ToSVGOptions = {}): void {
   svg.setAttribute('viewBox', geo.viewBox.join(' '));
+  // Degradados: un <defs> propio, que solo se reescribe si cambia.
+  const defs = gradientDefs(geo);
+  let defsEl = svg.querySelector(':scope > defs[data-svertik]');
+  if (defs && !defsEl) {
+    defsEl = svg.ownerDocument.createElementNS(SVG_NS, 'defs');
+    defsEl.setAttribute('data-svertik', '');
+    svg.insertBefore(defsEl, svg.firstChild);
+  }
+  if (defsEl && defsEl.innerHTML !== defs) defsEl.innerHTML = defs;
   const paths = Array.from(svg.querySelectorAll(':scope > path[data-svertik]'));
   geo.shapes.forEach((shape, i) => {
     let path = paths[i];
