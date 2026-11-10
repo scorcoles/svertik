@@ -83,6 +83,10 @@
       e.preventDefault();
       const at = locateModifier(editor.scene, editor.selected) ?? locateNode(editor.scene.objects, editor.selected);
       if (at) editor.move(editor.selected, at.index + (e.key === 'ArrowUp' ? -1 : 1));
+    } else if (mod && (e.code === 'BracketRight' || e.code === 'BracketLeft') && !typing(e)) {
+      e.preventDefault();
+      const up = e.code === 'BracketRight';
+      editor.reorder(e.shiftKey ? (up ? 'front' : 'back') : up ? 'forward' : 'backward');
     } else if (mod && e.key.toLowerCase() === 'd' && !typing(e)) {
       e.preventDefault();
       editor.duplicate();

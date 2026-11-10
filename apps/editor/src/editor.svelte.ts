@@ -415,6 +415,34 @@ export class Editor {
     this.record(now);
   }
 
+  /**
+   * Orden de los seleccionados dentro de su lista (el primero de la lista, delante): al frente, subir,
+   * bajar o al fondo. Con varios, se mueven todos y conservan su orden entre ellos.
+   */
+  reorder(how: 'front' | 'forward' | 'backward' | 'back') {
+    if (!this.scene || !this.selectedNodes.length) return;
+    // Por listas (cada uno, en su grupo).
+    const lists = new Map<SceneNode[], SceneNode[]>();
+    for (const n of this.selectedNodes) {
+      const at = locateNode(this.scene.objects, n.id);
+      if (at) lists.set(at.list, [...(lists.get(at.list) ?? []), n]);
+    }
+    for (const [list, picked] of lists) {
+      const set = new Set(picked);
+      if (how === 'front' || how === 'back') {
+        const rest = list.filter((n) => !set.has(n));
+        const moving = list.filter((n) => set.has(n));
+        list.splice(0, list.length, ...(how === 'front' ? [...moving, ...rest] : [...rest, ...moving]));
+      } else if (how === 'forward') {
+        // Hacia delante = hacia el principio de la lista; uno a uno, sin saltarse a otro seleccionado.
+        for (let i = 1; i < list.length; i++) if (set.has(list[i]!) && !set.has(list[i - 1]!)) [list[i - 1], list[i]] = [list[i]!, list[i - 1]!];
+      } else {
+        for (let i = list.length - 2; i >= 0; i--) if (set.has(list[i]!) && !set.has(list[i + 1]!)) [list[i], list[i + 1]] = [list[i + 1]!, list[i]!];
+      }
+    }
+    this.record(true);
+  }
+
   /** Voltea los nodos seleccionados (cada uno alrededor de su centro). */
   flip(axis: 'x' | 'y') {
     if (!this.scene || !this.selectedNodes.length) return;
