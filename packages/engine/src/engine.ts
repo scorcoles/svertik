@@ -97,8 +97,8 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         reusable = false;
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        // Los filtros no cambian la geometría (se aplican al pintar el objeto).
-        if (inst.enabled !== false && def.kind !== 'filter') {
+        // Los filtros y las máscaras no cambian la geometría (se aplican al pintar el objeto).
+        if (inst.enabled !== false && def.kind !== 'filter' && !def.mask) {
           geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, bounds: ref, children: resolveChildren(inst.children) }));
           if (def.reframe) {
             const nb = bounds(geo);
@@ -150,7 +150,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       if (inst.enabled !== false) {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        if (def.kind !== 'filter') {
+        if (def.kind !== 'filter' && !def.mask) {
           geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children) }));
           if (def.reframe) {
             const b = bounds(geo);
@@ -177,7 +177,19 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     );
   }
 
-  const documents = createDocumentEvaluator(runStack, filtersOf);
+  /** La máscara de una pila (la última activa), con sus parámetros. */
+  function maskOf(stack: ModifierInstance[]): { source: string; mode: string; invert: boolean } | null {
+    let out: { source: string; mode: string; invert: boolean } | null = null;
+    for (const inst of stack) {
+      const def = registry.get(inst.type);
+      if (inst.enabled === false || !def?.mask) continue;
+      const p = resolveParams(def.params, inst.params) as Record<string, unknown>;
+      if (p.source) out = { source: String(p.source), mode: String(p.mode ?? 'shape'), invert: !!p.invert };
+    }
+    return out;
+  }
+
+  const documents = createDocumentEvaluator(runStack, filtersOf, { maskOf });
   const evaluateDocument = (scene: SceneV2) => documents.evaluate(scene);
   const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;
 

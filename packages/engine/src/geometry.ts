@@ -38,6 +38,12 @@ export interface Shape {
 export interface FilterDef {
   markup: string;
   region: [number, number, number, number];
+  /**
+   * `mask`: no es un filtro sino una máscara (`<mask>`): `markup` es lo que la dibuja, ya en el documento.
+   * `alpha`: cuenta la forma (su opacidad), no sus colores.
+   */
+  kind?: 'filter' | 'mask';
+  alpha?: boolean;
 }
 
 /** Degradado relativo a la caja de cada forma (objectBoundingBox): sigue a la forma al moverla o escalarla. */

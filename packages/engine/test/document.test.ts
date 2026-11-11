@@ -577,3 +577,39 @@ describe('onlyFor (escena reducida para las estelas)', () => {
     expect(onlyFor(scene, 'inner').objects.map((n) => n.id)).toEqual(['g']);
   });
 });
+
+describe('mask', () => {
+  const scene = (params: Record<string, unknown>, maskVisible = false) => ({
+    version: 2,
+    objects: [
+      { kind: 'object', id: 'a', name: 'a', source: rect(100, 100, '#ff0000'), stack: [{ id: 'm', type: 'mask', params: { source: 'c', ...params } }] },
+      { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 60, height: 60 }, stack: [], visible: maskVisible, transform: { x: 20 } },
+    ],
+  }) as SceneV2;
+
+  it('envuelve el objeto en un <g mask> con la forma del otro (oculto), ya colocada', () => {
+    const svg = engine().toSVG(scene({}));
+    expect(svg).toMatch(/<mask id="sv-m-a--mask" maskUnits="userSpaceOnUse"/);
+    expect(svg).toMatch(/<g mask="url\(#sv-m-a--mask\)">/);
+    // La máscara: el círculo en blanco, centrado en x = 20 (de -10 a 50).
+    const mask = /<mask[^>]*>(.*?)<\/mask>/s.exec(svg)![1]!;
+    expect(mask).toMatch(/fill="#fff"/);
+    expect(mask).toMatch(/M50 0/);
+    // El círculo oculto no se pinta fuera de la máscara.
+    expect((svg.match(/<path/g) ?? []).length).toBe(2);
+  });
+
+  it('invertida: todo blanco y la forma en negro; luminance: con sus colores', () => {
+    const inv = engine().toSVG(scene({ invert: true }));
+    expect(inv).toMatch(/<mask[^>]*><rect[^>]*fill="#fff"\/><path[^>]*fill="#000"/);
+    const lum = engine().toSVG(scene({ mode: 'luminance' }));
+    expect(/<mask[^>]*>(.*?)<\/mask>/s.exec(lum)![1]).toMatch(/fill="#d9d9d9"/);
+  });
+
+  it('sin máscara elegida o apagada, nada cambia', () => {
+    expect(engine().toSVG(scene({ source: '' }))).not.toMatch(/mask/);
+    const off = scene({});
+    (off.objects[0]!.stack[0] as { enabled?: boolean }).enabled = false;
+    expect(engine().toSVG(off)).not.toMatch(/mask/);
+  });
+});

@@ -9,6 +9,7 @@ import { findModifier, sampleScene, trackValue, type Animation, type Track } fro
 import type { Interaction } from './interactions';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
 import type { TrailLookup } from './modifier';
+import { gradientDefs, styleAttrs, toPathData } from './render';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
 export const BLEND_MODES = [
@@ -228,8 +229,9 @@ export type TargetLookup = (id: string) => Geometry | null;
 export function createDocumentEvaluator(
   runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup) => Geometry,
   filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
-  options: { trails?: boolean } = {},
+  options: { trails?: boolean; maskOf?: (stack: ModifierInstance[]) => { source: string; mode: string; invert: boolean } | null } = {},
 ): DocumentEvaluator {
+  const maskOf = options.maskOf ?? (() => null);
   // Estelas (Trace): la escena evaluada en instantes anteriores, con otro evaluador (sin estelas, para no
   // entrar en bucle). Lo calculado se guarda por instante (en una rejilla fija de tiempos): al reproducir,
   // cada fotograma solo calcula el instante nuevo. Se vacía si cambia algo que no sea el tiempo.
@@ -314,6 +316,7 @@ export function createDocumentEvaluator(
     let finalResults = new Map<string, Geometry>();
     let fx = new Map<string, FilterChain>();
     let innerFx = new Map<string, { chain: FilterChain; ref: Bounds; node: string }>();
+    let masked = new Map<string, { source: string; mode: string; invert: boolean }>();
 
     for (let passNo = 0; passNo < 3; passNo++) {
       nodes = new Map<string, NodeInfo>();
@@ -380,6 +383,15 @@ export function createDocumentEvaluator(
         const idOf = (key: string) => `${node.id}--${key}`;
         for (const [key, f] of Object.entries(result.inner)) innerFx.set(idOf(key), { ...f, node: node.id });
         return shapes.map((s) => (s.wrap?.some((w) => w.startsWith('@')) ? { ...s, wrap: s.wrap.map((w) => (w.startsWith('@') ? idOf(w.slice(1)) : w)) } : s));
+      };
+      // Máscaras: el objeto entero (con sus filtros) dentro de un <g mask>; la máscara se hace al final.
+      masked = new Map();
+      const withMask = (node: SceneNode, shapes: Shape[]): Shape[] => {
+        const m = maskOf(stackOf(node));
+        if (!m || !shapes.length || m.source === node.id) return shapes;
+        const id = `${node.id}--mask`;
+        masked.set(id, m);
+        return shapes.map((s) => ({ ...s, wrap: [id, ...(s.wrap ?? [])] }));
       };
       const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
         // Una instancia lleva también los filtros del original (su sombra, su desenfoque…).
@@ -456,7 +468,7 @@ export function createDocumentEvaluator(
           results.set(node.id, entry.result);
           nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: bounds(transformGeo(entry.result, world)) });
           if (node.visible === false) return [];
-          return withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend));
+          return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend)));
         }
         // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
         // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
@@ -496,7 +508,7 @@ export function createDocumentEvaluator(
         results.set(node.id, result);
         nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: bounds(transformGeo(result, world)) });
         if (node.visible === false) return [];
-        return withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes), node.opacity), node.blend));
+        return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes), node.opacity), node.blend)));
       };
 
       // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.
@@ -591,6 +603,34 @@ export function createDocumentEvaluator(
       const info = nodes.get(id);
       return g && info ? transformGeo(g, info.matrix) : null;
     };
+    // Las máscaras: el otro objeto ya colocado (también si está oculto), en el documento. La zona, de sobra.
+    for (const [id, m] of masked) {
+      const content = geometryOf(m.source);
+      if (!content?.shapes.length) continue;
+      const [vx, vy, vw, vh] = viewBox;
+      const cb = bounds(content);
+      const all = union([{ x: vx, y: vy, width: vw, height: vh }, cb]);
+      const region: [number, number, number, number] = [all.x - all.width, all.y - all.height, all.width * 3, all.height * 3];
+      const d = (s: Shape) => toPathData(s, 2);
+      let markup: string;
+      if (m.mode === 'luminance') {
+        // Con sus colores (y sus degradados).
+        const defs = gradientDefs(content);
+        markup = (defs ? `<defs>${defs}</defs>` : '') + content.shapes.map((s) => `<path d="${d(s)}"${styleAttrs(withoutCss(s.style))}/>`).join('');
+      } else {
+        // Su forma: en blanco lo que se ve (o, invertida, todo blanco y la forma en negro).
+        const ink = m.invert ? '#000' : '#fff';
+        const paint = (s: Shape) => {
+          const st = s.style;
+          const fill = st.fill !== 'none' && s.subpaths.some((sp) => sp.closed) ? ink : 'none';
+          const stroke = st.stroke && st.stroke !== 'none' ? ` stroke="${ink}" stroke-width="${st['stroke-width'] ?? 1}" stroke-linecap="${st['stroke-linecap'] ?? 'butt'}" stroke-linejoin="${st['stroke-linejoin'] ?? 'miter'}"` : '';
+          return `<path d="${d(s)}" fill="${fill}"${st['fill-rule'] ? ` fill-rule="${st['fill-rule']}"` : ''}${stroke}/>`;
+        };
+        const [rx, ry, rw, rh] = region;
+        markup = (m.invert ? `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#fff"/>` : '') + content.shapes.map(paint).join('');
+      }
+      (filters ??= {})[id] = { markup, region, kind: 'mask' };
+    }
     return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf };
   }
 
@@ -697,6 +737,12 @@ export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
   }
   return bad;
 }
+
+/** El estilo sin lo que en SVG solo es CSS (una fusión dentro de una máscara no hace nada). */
+const withoutCss = (st: Record<string, string>) => {
+  const { 'mix-blend-mode': _b, isolation: _i, ...rest } = st;
+  return rest;
+};
 
 /** Caja de una caja transformada (las cuatro esquinas). */
 function transformBox(b: Bounds, m: Mat): Bounds {

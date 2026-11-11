@@ -8,7 +8,7 @@ import type { Engine } from './engine';
 import type { Geometry, Shape } from './geometry';
 import type { Mat } from './matrix';
 import { analyzeMotion, type MotionLayer } from './motion';
-import { filterDefs, gradientDefs, styleAttrs, toPathData } from './render';
+import { filterDefs, gradientDefs, styleAttrs, toPathData, wrapAttr } from './render';
 
 export interface AnimatedSVGExport {
   svg: string;
@@ -92,7 +92,10 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport
     let same = 0;
     while (same < open.length && same < wrap.length && open[same] === wrap[same]) same++;
     for (let i = open.length - 1; i >= same; i--) lines.push('</g>');
-    for (let i = same; i < wrap.length; i++) lines.push(`<g filter="url(#sv-f-${wrap[i]})">`);
+    for (let i = same; i < wrap.length; i++) {
+      const [k, v] = wrapAttr({ viewBox: a.viewBox, shapes: [], filters: a.filters }, wrap[i]!);
+      lines.push(`<g ${k}="${v}">`);
+    }
     open = wrap;
     lines.push(layerSVG(l));
   }

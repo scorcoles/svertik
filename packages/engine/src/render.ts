@@ -62,15 +62,21 @@ export function gradientDefs(geo: Geometry): string {
 /** Los filtros que envuelven una forma, solo los que existen (un `@clave` sin colocar en un nodo, fuera). */
 export const wrapOf = (geo: Geometry, shape: Shape): string[] => (shape.wrap ?? []).filter((id) => geo.filters?.[id]);
 
-/** Los filtros de la geometría, como contenido de <defs> (con `prefix` delante de cada id). */
+/** Los filtros (y máscaras) de la geometría, como contenido de <defs> (con `prefix` delante de cada id). */
 export function filterDefs(geo: Geometry, prefix = ''): string {
   return Object.entries(geo.filters ?? {})
     .map(([id, f]) => {
       const [x, y, w, h] = f.region.map((n) => Math.round(n * 100) / 100);
+      if (f.kind === 'mask')
+        return `<mask id="${prefix}sv-m-${id}" maskUnits="userSpaceOnUse" x="${x}" y="${y}" width="${w}" height="${h}"${f.alpha ? ' style="mask-type:alpha"' : ''}>${f.markup}</mask>`;
       return `<filter id="${prefix}sv-f-${id}" filterUnits="userSpaceOnUse" x="${x}" y="${y}" width="${w}" height="${h}" color-interpolation-filters="sRGB">${f.markup}</filter>`;
     })
     .join('');
 }
+
+/** El atributo del grupo que envuelve las formas con un filtro o una máscara: [nombre, valor]. */
+export const wrapAttr = (geo: Geometry, id: string, prefix = ''): [string, string] =>
+  geo.filters?.[id]?.kind === 'mask' ? ['mask', `url(#${prefix}sv-m-${id})`] : ['filter', `url(#${prefix}sv-f-${id})`];
 
 export interface ToSVGOptions {
   precision?: number;
@@ -87,7 +93,10 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
     let same = 0;
     while (same < open.length && same < wrap.length && open[same] === wrap[same]) same++;
     for (let i = open.length - 1; i >= same; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
-    for (let i = same; i < wrap.length; i++) lines.push(`${'  '.repeat(i + 1)}<g filter="url(#sv-f-${wrap[i]})">`);
+    for (let i = same; i < wrap.length; i++) {
+      const [k, v] = wrapAttr(geo, wrap[i]!);
+      lines.push(`${'  '.repeat(i + 1)}<g ${k}="${v}">`);
+    }
     open = wrap;
     lines.push(`${'  '.repeat(wrap.length + 1)}<path d="${toPathData(shape, precision)}"${styleAttrs(shape.style)}/>`);
   }
@@ -145,8 +154,9 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       if (!used.has(g)) {
         place(parent, g);
         used.add(g);
-        const url = `url(#${prefix}sv-f-${id})`;
-        if (g.getAttribute('filter') !== url) g.setAttribute('filter', url);
+        const [k, url] = wrapAttr(geo, id, prefix);
+        if (g.getAttribute(k) !== url) g.setAttribute(k, url);
+        g.removeAttribute(k === 'mask' ? 'filter' : 'mask');
       }
       parent = g;
     }

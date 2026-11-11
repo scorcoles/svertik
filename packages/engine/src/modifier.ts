@@ -84,6 +84,11 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
    * radio, fuerza…) sobre la caja de lo que sale de este, no sobre la del origen.
    */
   reframe?: boolean;
+  /**
+   * Máscara: no cambia la geometría; el documento envuelve el objeto entero (después de su pila y de sus
+   * filtros) en un `<mask>` hecho con otro objeto. Ver modifiers/mask.ts.
+   */
+  mask?: boolean;
   /** Familia (para agruparlos en los menús aunque sean de tipos distintos): 'glitch'. */
   family?: string;
   params: P;
