@@ -3,6 +3,7 @@
   import { modifierTypes, registry, type Editor } from './editor.svelte';
   import AppMenu from './AppMenu.svelte';
   import GroupMenu from './GroupMenu.svelte';
+  import UtilsMenu from './UtilsMenu.svelte';
 
   interface Props {
     editor: Editor;
@@ -63,6 +64,7 @@
     {#each groups as g (g.label)}
       <GroupMenu {editor} label={g.label} icon={g.icon} types={[...g.types]} />
     {/each}
+    <UtilsMenu {editor} />
   </div>
   <span class="spacer"></span>
   <Button label="Copy JSON" disabled={!editor.scene} onclick={oncopyjson} />

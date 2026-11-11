@@ -455,3 +455,55 @@ describe('filtros por zonas', () => {
     expect(decodeURIComponent(markup(one({ area: 'band', angle: 0, radius: 0.2 })))).toMatch(/linearGradient id="m"[^>]*y1="-20"[^>]*y2="20"/);
   });
 });
+
+describe('instance', () => {
+  const orig = (stack: SceneV2['objects'][number]['stack'] = [], transform = {}) =>
+    ({ kind: 'object' as const, id: 'a', name: 'a', source: rect(10, 10), stack, transform });
+  const inst = (extra: Record<string, unknown> = {}) => ({ kind: 'instance' as const, id: 'i', name: 'i', of: 'a', stack: [], transform: { x: 100 }, ...extra });
+
+  it('dibuja el resultado del original (con sus efectos) en su propio sitio, delante o detrás', () => {
+    const stack = [{ id: 't', type: 'transform', params: { scale: 2 } }];
+    for (const objects of [[inst(), orig(stack, { x: -50 })], [orig(stack, { x: -50 }), inst()]]) {
+      const doc = engine().evaluateDocument({ version: 2, objects } as SceneV2);
+      expect(doc.nodes.get('a')!.box).toEqual({ x: -60, y: -10, width: 20, height: 20 });
+      expect(doc.nodes.get('i')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
+      // Sus formas son suyas (al hacer clic, se selecciona la instancia).
+      expect(doc.geometry.shapes.map((s) => s.node).sort()).toEqual(['a', 'i']);
+    }
+  });
+
+  it('sigue al original al cambiarlo; lleva sus propios efectos encima', () => {
+    const e = engine();
+    const scene = { version: 2, objects: [orig(), inst({ stack: [{ id: 'r', type: 'transform', params: { scale: 0.5 } }] })] } as SceneV2;
+    expect(e.evaluateDocument(scene).nodes.get('i')!.box.width).toBeCloseTo(5);
+    (scene.objects[0] as { source: string }).source = rect(40, 40);
+    expect(e.evaluateDocument(scene).nodes.get('i')!.box.width).toBeCloseTo(20);
+  });
+
+  it('se ve aunque el original esté oculto (maestro)', () => {
+    const doc = engine().evaluateDocument({ version: 2, objects: [{ ...orig(), visible: false }, inst()] } as SceneV2);
+    expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['i']);
+  });
+
+  it('una instancia de su propio grupo, o en cadena circular, no dibuja nada (y no se cuelga)', () => {
+    const scene = {
+      version: 2,
+      objects: [
+        { kind: 'group', id: 'g', name: 'g', stack: [], children: [orig(), { ...inst(), of: 'g' }] },
+        { kind: 'instance', id: 'x', name: 'x', of: 'y', stack: [] },
+        { kind: 'instance', id: 'y', name: 'y', of: 'x', stack: [] },
+      ],
+    } as SceneV2;
+    const doc = engine().evaluateDocument(scene);
+    expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['a']);
+  });
+
+  it('de un original que no existe: nada, y validateScene lo avisa', async () => {
+    const { validateScene } = await import('../src/validate');
+    const scene = { version: 2, objects: [{ ...inst(), of: 'nope' }] } as SceneV2;
+    expect(engine().evaluateDocument(scene).geometry.shapes).toHaveLength(0);
+    const r = validateScene(scene);
+    expect(r.errors).toEqual([]);
+    expect(r.warnings.join(' ')).toMatch(/nope/);
+  });
+});

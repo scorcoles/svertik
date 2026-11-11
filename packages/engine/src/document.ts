@@ -74,7 +74,17 @@ export interface GroupNode extends NodeBase {
   children: SceneNode[];
 }
 
-export type SceneNode = ObjectNode | ShapeNode | GroupNode;
+/**
+ * Instancia: dibuja el resultado de otro nodo (`of`, con sus efectos) con su propia colocación y sus propios
+ * efectos encima. Si cambia el original, cambia la instancia. Una instancia que acabaría dependiendo de sí
+ * misma (de su propio grupo, o en cadena) no dibuja nada.
+ */
+export interface InstanceNode extends NodeBase {
+  kind: 'instance';
+  of: string;
+}
+
+export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode;
 
 export interface SceneV2 {
   version: 2;
@@ -112,7 +122,7 @@ export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null):
 
 export interface NodeInfo {
   id: string;
-  kind: 'object' | 'shape' | 'group';
+  kind: 'object' | 'shape' | 'group' | 'instance';
   /** Caja de referencia de los efectos del nodo (fracciones), en sus coordenadas locales. */
   bounds: Bounds;
   /**
@@ -220,6 +230,9 @@ export function createDocumentEvaluator(
   function evaluate(scene: SceneV2): DocumentResult {
     const resolution = scene.resolution ?? 0.01;
     const seen = new Set<string>();
+    const byId = new Map<string, SceneNode>();
+    for (const { node } of walkNodes(scene.objects)) byId.set(node.id, node);
+    const broken = brokenInstances(byId);
     /** Lo de la pasada anterior: matriz y resultado (en el documento) de cada nodo. */
     let known = last;
     // Huella de la geometría de cada nodo conocido (se calcula una vez por pasada).
@@ -268,7 +281,9 @@ export function createDocumentEvaluator(
         return shapes.map((s) => (s.wrap?.some((w) => w.startsWith('@')) ? { ...s, wrap: s.wrap.map((w) => (w.startsWith('@') ? idOf(w.slice(1)) : w)) } : s));
       };
       const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
-        const f = filtersOf(node.stack);
+        // Una instancia lleva también los filtros del original (su sombra, su desenfoque…).
+        const of = node.kind === 'instance' && !broken.has(node.id) ? byId.get(node.of) : undefined;
+        const f = filtersOf(of && of.kind !== 'group' ? [...of.stack, ...node.stack] : node.stack);
         if (!f || !shapes.length) return shapes;
         fx.set(node.id, f);
         return shapes.map((s) => ({ ...s, wrap: [node.id, ...(s.wrap ?? [])] }));
@@ -278,9 +293,31 @@ export function createDocumentEvaluator(
       const evalNode = (node: SceneNode, parentMatrix: Mat): Shape[] => {
         seen.add(node.id);
         const p = placementOf(node);
-        if (node.kind === 'object' || node.kind === 'shape') {
+        if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {
+          // Instancia: su origen es el resultado del original (sin su colocación). Si aún no se ha calculado
+          // en esta pasada, el de la anterior, y se pide otra.
+          let instSrc: { geo: Geometry; key: string } | null = null;
+          if (node.kind === 'instance') {
+            let geo: Geometry | null = null;
+            if (!broken.has(node.id)) {
+              geo = results.get(node.of) ?? null;
+              if (!geo) {
+                const k = known.get(node.of);
+                if (k) geo = transformGeo(k.geo, invert(k.world));
+                if (byId.has(node.of)) {
+                  asked = true;
+                  seenDeps.push({ owner: node.id, id: node.of, h: depOf(node.id, node.of) });
+                }
+              }
+            }
+            const clean: Geometry = { viewBox: geo?.viewBox ?? [0, 0, 0, 0], shapes: (geo?.shapes ?? []).map(({ node: _n, wrap: _w, ...s }) => s) };
+            instSrc = { geo: clean, key: `inst:${node.of}:${hashGeo(clean)}` };
+          }
           // El texto depende de las fuentes registradas: si llega una nueva, se vuelve a dibujar.
-          const key = node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+          const key =
+            node.kind === 'instance'
+              ? JSON.stringify([resolution, node.stack]) + '\n' + instSrc!.key
+              : node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
           // Uno que usa otro objeto vale si lo que ve de él no ha cambiado.
           const fresh = entry && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
@@ -289,10 +326,10 @@ export function createDocumentEvaluator(
             for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
           }
           if (!entry || !fresh) {
-            const sk = node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+            const sk = node.kind === 'instance' ? instSrc!.key : node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
             let src = sources.get(node.id);
             if (!src || src.key !== sk) {
-              src = { key: sk, geo: node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params) };
+              src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params) };
               sources.set(node.id, src);
             }
             const source = src.geo;
@@ -428,6 +465,32 @@ export function createDocumentEvaluator(
   }
 
   return { evaluate };
+}
+
+/**
+ * Instancias que dependerían de sí mismas: de su propio grupo (o de algo que lo contiene), de otra
+ * instancia que acaba en ella… Siguiendo `of` y los hijos de los grupos, se vuelve a ella.
+ */
+export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
+  const bad = new Set<string>();
+  for (const n of byId.values()) {
+    if (n.kind !== 'instance') continue;
+    const todo = [n.of];
+    const visited = new Set<string>();
+    while (todo.length) {
+      const id = todo.pop()!;
+      if (id === n.id) {
+        bad.add(n.id);
+        break;
+      }
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const t = byId.get(id);
+      if (t?.kind === 'instance') todo.push(t.of);
+      else if (t?.kind === 'group') for (const c of t.children) todo.push(c.id);
+    }
+  }
+  return bad;
 }
 
 /** Caja de una caja transformada (las cuatro esquinas). */

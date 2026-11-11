@@ -73,11 +73,15 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
       if (nodes.has(n.id)) warnings.push(`Object id "${n.id}" is used more than once`);
       nodes.set(n.id, n);
-      if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape') {
-        errors.push(`${name(n)}: kind must be "object", "shape" or "group"`);
+      if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape' && n.kind !== 'instance') {
+        errors.push(`${name(n)}: kind must be "object", "shape", "group" or "instance"`);
         continue;
       }
       if (n.kind === 'object' && typeof n.source !== 'string' && !n.packed) errors.push(`${name(n)}: needs a source SVG`);
+      if (n.kind === 'instance') {
+        if (typeof n.of !== 'string' || !n.of) warnings.push(`${name(n)}: is an instance of nothing ("of" is empty)`);
+        else nodeRefs.push({ from: name(n), param: 'of', id: n.of });
+      }
       if (n.kind === 'shape') {
         const def = shapeRegistry.get(n.shape);
         if (!def) errors.push(`${name(n)}: unknown shape "${n.shape}"`);

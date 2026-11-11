@@ -610,3 +610,28 @@ describe('Fuentes', () => {
     expect(nearest(f, 350, false)).toEqual({ weight: 300, italic: false });
   });
 });
+
+describe('Utils: Instance', () => {
+  it('crea la instancia delante del original, desplazada, y se puede cambiar de original y deshacer', () => {
+    const e = fresh();
+    const orig = e.scene!.objects[0]!;
+    e.addInstance();
+    const inst = e.scene!.objects[0]!;
+    expect(inst.kind).toBe('instance');
+    expect(inst.kind === 'instance' && inst.of).toBe(orig.id);
+    expect(e.scene!.objects[1]!.id).toBe(orig.id);
+    expect(inst.name).toBe('grid.svg instance');
+    expect(inst.transform!.x).toBeGreaterThan(0);
+    expect(e.selected).toBe(inst.id);
+
+    e.addShape('star');
+    const star = e.scene!.objects[0]!.id;
+    e.setInstanceOf(inst.id, star);
+    expect(locateNode(e.scene!.objects, inst.id)!.node).toMatchObject({ of: star });
+    // Nunca de sí misma.
+    e.setInstanceOf(inst.id, inst.id);
+    expect(locateNode(e.scene!.objects, inst.id)!.node).toMatchObject({ of: star });
+    e.undo();
+    expect(locateNode(e.scene!.objects, inst.id)!.node).toMatchObject({ of: orig.id });
+  });
+});

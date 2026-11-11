@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BLEND_MODES, EASES, placementOf, shapeRegistry, type Ease, type SceneNode } from '@svertik/engine';
+  import { BLEND_MODES, EASES, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, type Editor } from './editor.svelte';
@@ -11,7 +11,10 @@
   }
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
-  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.packed ? 'pack' : 'object');
+  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.packed ? 'pack' : 'object');
+  // Instancia: de qué objeto (cualquiera menos ella misma).
+  const others = $derived(editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== node.id) : []);
+  const original = $derived(node.kind === 'instance' ? others.find((n) => n.id === node.of) : undefined);
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
   const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
@@ -47,6 +50,25 @@
   <span class="meta">{kindLabel}</span>
 </header>
 <div class="params">
+  {#if node.kind === 'instance'}
+    <Section title="Instance">
+      <ParamRow label="Of">
+        <Select
+          value={original?.name ?? '—'}
+          options={['—', ...others.map((n) => n.name)]}
+          label="Of"
+          onchange={(v) => editor.setInstanceOf(node.id, others.find((n) => n.name === v)?.id ?? '')}
+        />
+      </ParamRow>
+      {#if node.of && !original}<p class="note">The original no longer exists: pick another one.</p>{/if}
+      {#if original}
+        <div class="actions">
+          <Button label="Select original" onclick={() => (editor.selected = original.id)} />
+          <Button label={original.visible === false ? 'Show original' : 'Hide original'} title="A hidden original still feeds its instances: use it as a master." onclick={() => editor.setNode(original.id, 'visible', original.visible === false, true)} />
+        </div>
+      {/if}
+    </Section>
+  {/if}
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
       <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
@@ -199,6 +221,8 @@
   <p class="note">
     {node.kind === 'object' && node.packed
       ? 'Packed: the result is frozen and nothing inside is computed. Effects you add go on top. Unpack to get the original back, with its effects and animation.'
+      : node.kind === 'instance'
+      ? 'A live copy of the original, with its effects: change the original and this changes too. It has its own position and its own effects on top.'
       : node.kind === 'group'
       ? 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
       : 'Effects below apply only to it. Drag it on the canvas to move it.'}

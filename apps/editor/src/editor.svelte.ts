@@ -26,6 +26,7 @@ import {
   type NodeInfo,
   type ModifierDef,
   type ModifierInstance,
+  type InstanceNode,
   type ObjectNode,
   type SceneNode,
   type SceneV2,
@@ -350,6 +351,42 @@ export class Editor {
     }
     this.selected = node.id;
     this.tool = null;
+    this.record(true);
+  }
+
+  // ── Utils
+
+  /**
+   * Instancia del nodo activo: una copia viva de su resultado, justo delante de él y un poco desplazada
+   * (para que se vea), con su misma colocación y sin efectos propios.
+   */
+  addInstance(of = this.activeNode?.id ?? null) {
+    const at = this.scene && of ? locateNode(this.scene.objects, of) : null;
+    if (!at) return;
+    const orig = at.node;
+    const taken = new Set([...walkNodes(this.scene!.objects)].map((x) => x.node.name));
+    let name = `${orig.name} instance`;
+    for (let i = 2; taken.has(name); i++) name = `${orig.name} instance ${i}`;
+    const p = placementOf(orig);
+    const step = Math.max(10, Math.round(Math.max(this.contentBox?.width ?? 0, this.contentBox?.height ?? 0) * 0.05));
+    const node: InstanceNode = {
+      kind: 'instance',
+      id: `instance-${uid()}`,
+      name,
+      of: orig.id,
+      stack: [],
+      transform: { ...orig.transform, x: p.x + step, y: p.y + step },
+    };
+    at.list.splice(at.index, 0, node);
+    this.selected = node.id;
+    this.record(true);
+  }
+
+  /** Cambia el original de una instancia. */
+  setInstanceOf(id: string, of: string) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'instance' || at.node.of === of || id === of) return;
+    at.node.of = of;
     this.record(true);
   }
 
