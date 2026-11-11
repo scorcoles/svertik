@@ -613,3 +613,30 @@ describe('mask', () => {
     expect(engine().toSVG(off)).not.toMatch(/mask/);
   });
 });
+
+describe('filtros nuevos: bevel, thicken, tone', () => {
+  const svgWith = (type: string, params: Record<string, unknown> = {}) =>
+    engine().toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(50, 50, '#ff0000'), stack: [{ id: 'f', type, params }] }] } as SceneV2);
+
+  it('bevel: luz difusa y especular sobre el alfa, recortado al dibujo', () => {
+    const s = svgWith('bevel');
+    expect(s).toMatch(/<feDiffuseLighting[^>]*><feDistantLight azimuth="225" elevation="45"\/><\/feDiffuseLighting>/);
+    expect(s).toMatch(/<feSpecularLighting/);
+    expect(s).toMatch(/<g filter="url\(#sv-f-a\)">/);
+  });
+
+  it('thicken: dilata o erosiona; outline, contorno de color por detrás', () => {
+    expect(svgWith('thicken', { amount: 3 })).toMatch(/operator="dilate" radius="3"/);
+    expect(svgWith('thicken', { amount: -2 })).toMatch(/operator="erode" radius="2"/);
+    const o = svgWith('thicken', { mode: 'outline', amount: 4, color: '#00ff00' });
+    expect(o).toMatch(/<feFlood flood-color="#00ff00"\/>/);
+    expect(o).toMatch(/<feMergeNode in="f-o"|<feMergeNode in="[^"]*-o"\/><feMergeNode/);
+  });
+
+  it('tone: posterize con sus niveles, duotono con sus dos colores, invertir', () => {
+    expect(svgWith('tone', { levels: 3 })).toMatch(/type="discrete" tableValues="0 0.5 1"/);
+    const d = svgWith('tone', { mode: 'duotone', dark: '#000000', light: '#ffffff' });
+    expect(d).toMatch(/<feFuncR type="table" tableValues="0 1"\/>/);
+    expect(svgWith('tone', { mode: 'invert' })).toMatch(/tableValues="1 0"/);
+  });
+});

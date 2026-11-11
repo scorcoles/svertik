@@ -159,3 +159,112 @@ export const displace = defineModifier({
     ),
   filterPad: (p) => p.amount / 2 + 2,
 });
+
+/** Un color como [r, g, b] de 0 a 1 (negro si no se entiende). */
+const rgb01 = (c: string): [number, number, number] => {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim());
+  if (!m) return [0, 0, 0];
+  const h = m[1]!.length === 3 ? [...m[1]!].map((x) => x + x).join('') : m[1]!;
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+};
+
+/**
+ * Relieve (bisel): luz y sombra en los bordes, como si el dibujo tuviera volumen. La luz viene de `angle`
+ * (0, la derecha; -135, arriba a la izquierda) con su `elevation`; `depth`, lo ancho del bisel (px); `height`,
+ * cuánto sobresale; `strength`, cuánto se nota; `shine`, el brillo (reflejo) y `shininess`, lo concentrado.
+ */
+export const bevel = defineModifier({
+  type: 'bevel',
+  label: 'Bevel',
+  kind: 'filter',
+  params: {
+    depth: { type: 'number', default: 4, min: 0.5, max: 60, step: 0.5, unit: 'px', label: 'Depth' },
+    height: { type: 'number', default: 3, min: 0, max: 20, step: 0.1, label: 'Height' },
+    angle: { type: 'angle', default: -135, label: 'Light', ramp: false },
+    elevation: { type: 'number', default: 45, min: 5, max: 85, step: 1, unit: '°', label: 'Elevation', ramp: false },
+    strength: { type: 'number', default: 0.8, min: 0, max: 1, step: 0.01, label: 'Strength' },
+    shine: { type: 'number', default: 0.5, min: 0, max: 2, step: 0.01, label: 'Shine' },
+    shininess: { type: 'number', default: 20, min: 1, max: 128, step: 1, label: 'Shininess', ramp: false },
+  },
+  apply: same,
+  filter: (p, { input, out, id }) => {
+    const az = ((p.angle % 360) + 360) % 360;
+    const light = `<feDistantLight azimuth="${n(az)}" elevation="${n(p.elevation)}"/>`;
+    // Lo plano, con la luz de frente, quedaría más oscuro (seno de la elevación): se compensa.
+    const k = p.strength / Math.max(0.05, Math.sin((p.elevation * Math.PI) / 180));
+    return (
+      `<feGaussianBlur in="SourceAlpha" stdDeviation="${n(Math.max(0.25, p.depth) / 2)}" result="${id}-h"/>` +
+      `<feDiffuseLighting in="${id}-h" surfaceScale="${n(p.height)}" diffuseConstant="1" lighting-color="#fff" result="${id}-d">${light}</feDiffuseLighting>` +
+      `<feSpecularLighting in="${id}-h" surfaceScale="${n(p.height)}" specularConstant="1" specularExponent="${n(Math.max(1, Math.min(128, p.shininess)))}" lighting-color="#fff" result="${id}-s">${light}</feSpecularLighting>` +
+      `<feComposite in="${input}" in2="${id}-d" operator="arithmetic" k1="${n(k)}" k2="${n(1 - p.strength)}" k3="0" k4="0" result="${id}-l"/>` +
+      `<feComposite in="${id}-s" in2="SourceAlpha" operator="in" result="${id}-si"/>` +
+      `<feComposite in="${id}-l" in2="${id}-si" operator="arithmetic" k1="0" k2="1" k3="${n(p.shine)}" k4="0" result="${id}-x"/>` +
+      `<feComposite in="${id}-x" in2="${input}" operator="in" result="${out}"/>`
+    );
+  },
+});
+
+/**
+ * Engordar o adelgazar el dibujo (`amount` px; negativo, adelgaza), o un contorno de color por fuera, como
+ * una pegatina (`outline`). Con el navegador, sobre lo pintado: vale para texto, trazos y lo que sea.
+ */
+export const thicken = defineModifier({
+  type: 'thicken',
+  label: 'Thicken',
+  kind: 'filter',
+  params: {
+    mode: { type: 'enum', default: 'grow', options: ['grow', 'outline'] as const, label: 'Mode', animatable: false },
+    amount: { type: 'number', default: 3, min: -40, max: 40, step: 0.5, unit: 'px', label: 'Amount' },
+    color: { type: 'color', default: '#ffffff', label: 'Color', showIf: { mode: ['outline'] } },
+  },
+  apply: same,
+  filter: (p, { input, out, id }) => {
+    const r = Math.abs(p.amount);
+    if (p.mode === 'outline') {
+      if (p.amount <= 0) return `<feMerge result="${out}"><feMergeNode in="${input}"/></feMerge>`;
+      return (
+        `<feMorphology in="SourceAlpha" operator="dilate" radius="${n(r)}" result="${id}-d"/>` +
+        `<feFlood flood-color="${esc(p.color)}"/>` +
+        `<feComposite in2="${id}-d" operator="in" result="${id}-o"/>` +
+        `<feMerge result="${out}"><feMergeNode in="${id}-o"/><feMergeNode in="${input}"/></feMerge>`
+      );
+    }
+    return `<feMorphology in="${input}" operator="${p.amount < 0 ? 'erode' : 'dilate'}" radius="${n(r)}" result="${out}"/>`;
+  },
+  filterPad: (p) => Math.max(0, p.amount) + 2,
+});
+
+/**
+ * Tono: posterizar (pocos niveles por canal, como un cartel), duotono (las sombras de un color y las luces
+ * de otro) o invertir los colores. Entero o solo en una zona.
+ */
+export const tone = defineModifier({
+  type: 'tone',
+  label: 'Tone',
+  kind: 'filter',
+  params: {
+    mode: { type: 'enum', default: 'posterize', options: ['posterize', 'duotone', 'invert'] as const, label: 'Mode', animatable: false },
+    levels: { type: 'number', default: 4, min: 2, max: 16, step: 1, label: 'Levels', ramp: false, showIf: { mode: ['posterize'] } },
+    dark: { type: 'color', default: '#1b1464', label: 'Shadows', showIf: { mode: ['duotone'] } },
+    light: { type: 'color', default: '#ff4fa3', label: 'Lights', showIf: { mode: ['duotone'] } },
+    ...AREA,
+  },
+  apply: same,
+  filter: (p, io, place) =>
+    withArea(p, place, io, (out) => {
+      const { input, id } = io;
+      if (p.mode === 'invert')
+        return `<feComponentTransfer in="${input}" result="${out}"><feFuncR type="table" tableValues="1 0"/><feFuncG type="table" tableValues="1 0"/><feFuncB type="table" tableValues="1 0"/></feComponentTransfer>`;
+      if (p.mode === 'duotone') {
+        const [a, b] = [rgb01(p.dark), rgb01(p.light)];
+        const f = (c: string, i: number) => `<feFunc${c} type="table" tableValues="${n(a[i]!)} ${n(b[i]!)}"/>`;
+        return (
+          `<feColorMatrix in="${input}" type="matrix" values="0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0" result="${id}-g"/>` +
+          `<feComponentTransfer in="${id}-g" result="${out}">${f('R', 0)}${f('G', 1)}${f('B', 2)}</feComponentTransfer>`
+        );
+      }
+      const k = Math.max(2, Math.min(16, Math.round(p.levels)));
+      const table = Array.from({ length: k }, (_, i) => n(i / (k - 1))).join(' ');
+      return `<feComponentTransfer in="${input}" result="${out}"><feFuncR type="discrete" tableValues="${table}"/><feFuncG type="discrete" tableValues="${table}"/><feFuncB type="discrete" tableValues="${table}"/></feComponentTransfer>`;
+    }),
+});

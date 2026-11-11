@@ -3,7 +3,7 @@ import { envelope } from './envelope';
 import { explosion } from './explosion';
 import { field } from './field';
 import { followpath } from './followpath';
-import { blur, displace, glow, grain, shadow } from './filters';
+import { bevel, blur, displace, glow, grain, shadow, thicken, tone } from './filters';
 import { fractal } from './fractal';
 import { blocks, rgbsplit, scanlines, slices, streaks } from './glitch';
 import { gradient } from './gradient';
@@ -45,7 +45,7 @@ import { transform } from './transform';
 import { twist } from './twist';
 import { wave } from './wave';
 
-export { blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks };
+export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
 export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
@@ -104,4 +104,7 @@ export const builtins = [
   glow,
   grain,
   displace,
+  bevel,
+  thicken,
+  tone,
 ];
