@@ -118,7 +118,7 @@
       <span class="preview" style:background={cssPreview}></span>
     </Popover.Trigger>
     <Popover.Portal>
-      <Popover.Content class="popover" side="bottom" align="start" sideOffset={4}>
+      <Popover.Content class="sv-paint-popover" side="bottom" align="start" sideOffset={4}>
         <div class="modes">
           <Segmented value={grad ? grad.kind : 'solid'} label="Paint" options={[{value:'solid',label:'Solid'},{value:'linear',label:'Linear'},{value:'radial',label:'Radial'}]} onchange={(v) => v === 'solid' ? toSolid() : toGradient(v as 'linear'|'radial')} />
         </div>
@@ -217,7 +217,7 @@
   }
   .preview { position:absolute; inset:0; }
   .label { flex:1; min-width:0; font-size: var(--sv-font-size-10); color: var(--sv-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  :global(.sv-paint .popover) { z-index:50; width: 260px; padding: var(--sv-space-6); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-rule-strong); font-size: var(--sv-font-size-10); display:grid; gap: var(--sv-space-6); }
+  :global(.sv-paint-popover) { z-index:50; width: 260px; padding: var(--sv-space-6); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-rule-strong); font-size: var(--sv-font-size-10); display:grid; gap: var(--sv-space-6); }
   .modes :global(.sv-segmented) { width: 100%; }
   .solid { display:grid; gap: var(--sv-space-6); }
   .hex-in { width: 100%; height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-primary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); outline: none; box-sizing: border-box; }
