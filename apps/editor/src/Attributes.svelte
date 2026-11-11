@@ -1,7 +1,7 @@
 <script lang="ts">
   import DocumentAttributes from './DocumentAttributes.svelte';
   import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
-  import { walkNodes, type ParamSpec } from '@svertik/engine';
+  import { effectDescriptions, walkNodes, type ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
 
@@ -93,6 +93,7 @@
           </div>
         {:else}
           <dl class="info">
+            {#if effectDescriptions[m.type]}<dt>About</dt><dd class="about">{effectDescriptions[m.type]}</dd>{/if}
             <dt>Type</dt><dd>{m.type}</dd>
             <dt>Kind</dt><dd>{def.kind}</dd>
             <dt>Id</dt><dd>{m.id}</dd>
@@ -121,6 +122,7 @@
   .info { display: grid; grid-template-columns: 84px 1fr; gap: var(--sv-space-6) var(--sv-space-8); margin: 0; padding: var(--sv-space-12) var(--sv-space-8); }
   .info dt { color: var(--sv-text-secondary); text-align: right; }
   .info dd { margin: 0; color: var(--sv-text-primary); }
+  .info .about { color: var(--sv-text-secondary); line-height: 1.5; }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
   .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

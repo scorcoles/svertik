@@ -1,6 +1,21 @@
 {
   "name": "@svertik/engine",
   "version": "0.0.1",
+  "description": "Non-destructive SVG effects and motion: a scene in JSON, an effect stack per object, keyframes and interactions, evaluated to plain SVG.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scorcoles/svertik.git",
+    "directory": "packages/engine"
+  },
+  "keywords": [
+    "svg",
+    "effects",
+    "animation",
+    "motion",
+    "generative",
+    "vector"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -20,5 +35,11 @@
     "happy-dom": "^21.0.4",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
-  }
+  },
+  "files": [
+    "src",
+    "docs",
+    "AGENTS.md",
+    "README.md"
+  ]
 }

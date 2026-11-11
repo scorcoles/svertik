@@ -3,8 +3,10 @@
 //                            [--frames carpeta] [--fps n] [--font "Nombre=ruta.ttf"]
 //   svertik info <entrada>
 //   svertik effects [--json]
+//   svertik docs [carpeta]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { generateDocs } from './docs';
 import { describeEffects, describeScene, frameTimes, loadInput, registerBundledFonts, registerFontFile, renderPNG, renderSVG } from './lib';
 
 const HELP = `svertik: dibuja proyectos de svertik (.svrtk, JSON o SVG) sin abrir el editor.
@@ -18,6 +20,7 @@ const HELP = `svertik: dibuja proyectos de svertik (.svrtk, JSON o SVG) sin abri
       --font <Nombre=ruta>  registra una fuente para los textos (se puede repetir)
   svertik info <entrada>        resume objetos, efectos y animación
   svertik effects [--json]      lista los efectos y primitivas con sus parámetros
+  svertik docs [carpeta]        escribe la referencia en Markdown (por defecto, packages/engine/docs)
 `;
 
 // Si la salida se corta (| head), salir sin ruido.
@@ -40,6 +43,9 @@ try {
   const [command, input] = positional;
   if (!command || command === 'help' || args.includes('--help') || args.includes('-h')) {
     process.stdout.write(HELP);
+  } else if (command === 'docs') {
+    const out = input ?? join(import.meta.dirname, '../../engine/docs');
+    process.stdout.write(`${generateDocs(out)} páginas en ${join(out, 'reference')}/\n`);
   } else if (command === 'effects') {
     const d = describeEffects();
     if (args.includes('--json')) process.stdout.write(JSON.stringify(d, null, 2) + '\n');

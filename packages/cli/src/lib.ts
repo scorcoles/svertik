@@ -13,6 +13,8 @@ import {
   shapes,
   type SceneNode,
   type SceneV2,
+  effectDescriptions,
+  shapeDescriptions,
 } from '@svertik/engine';
 
 // El importador de SVG usa DOMParser: en Node, el de happy-dom.
@@ -93,8 +95,8 @@ export function describeEffects() {
       }),
     );
   return {
-    effects: builtins.map((m) => ({ type: m.type, label: m.label, kind: m.kind, params: spec(m.params) })),
-    shapes: shapes.map((s) => ({ type: s.type, label: s.label, params: spec(s.params) })),
+    effects: builtins.map((m) => ({ type: m.type, label: m.label, kind: m.kind, description: effectDescriptions[m.type], params: spec(m.params) })),
+    shapes: shapes.map((s) => ({ type: s.type, label: s.label, description: shapeDescriptions[s.type], params: spec(s.params) })),
   };
 }
 
