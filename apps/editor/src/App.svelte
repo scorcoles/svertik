@@ -9,6 +9,7 @@
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
+  import { providePalettes } from '@svertik/ui';
   import { demoProject, orbitProject, reelProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
@@ -19,6 +20,16 @@
   import Toolbar from './Toolbar.svelte';
 
   const editor = new Editor();
+  // Las paletas del selector de color, para todos los ColorField de la app.
+  providePalettes({
+    get list() {
+      return editor.palettes;
+    },
+    get current() {
+      return editor.paletteName;
+    },
+    select: (name) => editor.selectPalette(name),
+  });
   if (import.meta.env.DEV) (window as unknown as { editor: Editor }).editor = editor;
   const engine = createEngine(builtins);
   let fileInput: HTMLInputElement;

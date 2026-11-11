@@ -38,10 +38,10 @@ Start, End y Offset de Trim admiten peso, con End neutro en 1 (el trazo entero).
 
 Un nodo con Morph sobre otro objeto, puesto a escala 0, obliga a invertir una matriz singular. No falla: `invert` (`packages/engine/src/matrix.ts`) evita la división por cero, no salen NaN y el resultado es correcto a escala 0, 0,5 y 1. Si acaso, añadir un test que lo fije.
 
-## 9. Paletas en el selector de color
+## ~~9. Paletas en el selector de color~~ · hecho
 
 Un menú de paletas dentro del selector de color (`ColorPicker`): elegir una paleta y usar sus muestras, además de las del documento. Guardar las propias (las del documento, como paleta nueva), cargarlas y aplicar una paleta a la escena (cambiar sus colores por los de la paleta). Ver «paletas de color» en `docs/PLAN.md`.
 
 ## Siguiente
 
-Las 8 primeras, hechas. Queda la 9 (paletas) y el test de la escala 0 (arriba) si se quiere fijar.
+La lista está hecha. Queda el test de la escala 0 (arriba) si se quiere fijar.

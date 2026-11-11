@@ -19,3 +19,4 @@ export { default as Slider } from './Slider.svelte';
 export { default as StackItem } from './StackItem.svelte';
 export { default as Tabs } from './Tabs.svelte';
 export * from './scrub';
+export * from './palettes';

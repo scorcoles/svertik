@@ -18,3 +18,4 @@ export { validateScene, type SceneReport } from './validate';
 export * from './modifiers';
 export { rng, noise2D } from './random';
 export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor, rgbToOklab, oklchToRgb } from './color';
+export * from './palettes';

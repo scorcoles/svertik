@@ -692,3 +692,26 @@ describe('Utils: Tracer', () => {
     expect(e.current?.type).toBe('trace');
   });
 });
+
+describe('paletas', () => {
+  it('aplicar una paleta cambia los colores (se deshace); guardar y borrar las propias', () => {
+    const e = new Editor();
+    e.addShape('rectangle', { fillColor: '#ffffff' });
+    e.addShape('ellipse', { fillColor: '#000000' });
+    e.applyPalette('Ember');
+    const fills = () => e.scene!.objects.map((n) => (n.kind === 'shape' ? n.params.fillColor : null));
+    // El blanco, al más claro de Ember; el negro, al más oscuro.
+    expect(fills()).toEqual(['#1c0f13', '#fdebc8']);
+    e.undo();
+    expect(fills()).toEqual(['#000000', '#ffffff']);
+
+    expect(e.savePalette('Mine')).toBe(true);
+    expect(e.palettes.find((p) => p.name === 'Mine')?.colors.length).toBeGreaterThanOrEqual(2);
+    expect(e.paletteName).toBe('Mine');
+    // No se puede pisar una de serie.
+    expect(e.savePalette('Ember')).toBe(false);
+    e.deletePalette('Mine');
+    expect(e.palettes.some((p) => p.name === 'Mine')).toBe(false);
+    expect(e.paletteName).toBe('In this document');
+  });
+});

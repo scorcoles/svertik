@@ -33,6 +33,10 @@ import {
   type SceneV2,
   type ShapeNode,
   validateScene,
+  applyPalette,
+  DOCUMENT_PALETTE,
+  PALETTES,
+  type Palette,
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
@@ -147,6 +151,18 @@ function writePref(key: string, value: string) {
 }
 const uid = () => Math.random().toString(36).slice(2, 8);
 
+/** Paletas propias guardadas (lista de { name, colors }); lo que no se entienda, fuera. */
+function readSaved(): Palette[] {
+  try {
+    const v = JSON.parse(readPref('svertik.palettes') || '[]') as unknown;
+    if (!Array.isArray(v)) return [];
+    return v.filter((p): p is Palette => !!p && typeof p.name === 'string' && Array.isArray(p.colors) && p.colors.every((c: unknown) => typeof c === 'string'));
+  } catch {
+    return [];
+  }
+}
+const writeSaved = (list: Palette[]) => writePref('svertik.palettes', list.length ? JSON.stringify(list) : '');
+
 /** Copia con ids nuevos (también los de sus hijos y sus efectos), para pegar sin repetir. */
 function freshModifier(m: ModifierInstance): ModifierInstance {
   return { ...m, id: `${m.type}-${uid()}`, ...(m.children ? { children: m.children.map(freshModifier) } : {}) };
@@ -162,6 +178,45 @@ export class Editor {
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
   canvas = $state(readPref('svertik.canvas'));
+
+  // ── Paletas: las de serie y las propias (en este navegador, como el color del lienzo)
+
+  savedPalettes = $state<Palette[]>(readSaved());
+  /** La que enseña el selector de color (nombre, o la del documento). */
+  paletteName = $state(readPref('svertik.palette') || DOCUMENT_PALETTE);
+  palettes = $derived([...PALETTES, ...this.savedPalettes]);
+  selectPalette(name: string) {
+    this.paletteName = name;
+    writePref('svertik.palette', name === DOCUMENT_PALETTE ? '' : name);
+  }
+  /** Guarda los colores del documento como paleta (con ese nombre; si ya hay una propia, la sustituye). */
+  savePalette(name: string): boolean {
+    const n = name.trim();
+    const colors = this.docColors;
+    if (!n || !colors.length || PALETTES.some((p) => p.name === n) || n === DOCUMENT_PALETTE) return false;
+    this.savedPalettes = [...this.savedPalettes.filter((p) => p.name !== n), { name: n, colors: [...colors] }];
+    writeSaved(this.savedPalettes);
+    this.selectPalette(n);
+    return true;
+  }
+  deletePalette(name: string) {
+    if (!this.savedPalettes.some((p) => p.name === name)) return;
+    this.savedPalettes = this.savedPalettes.filter((p) => p.name !== name);
+    writeSaved(this.savedPalettes);
+    if (this.paletteName === name) this.selectPalette(DOCUMENT_PALETTE);
+  }
+  /** Cambia los colores del dibujo por los de la paleta (por luminosidad). Se deshace como todo. */
+  applyPalette(name: string) {
+    const p = this.palettes.find((x) => x.name === name);
+    if (!this.scene || !p) return;
+    const n = applyPalette(this.scene, p.colors);
+    if (!n) {
+      this.notice = 'Nothing to change: the drawing already uses those colors.';
+      return;
+    }
+    this.notice = `${n} ${n === 1 ? 'color' : 'colors'} changed to ${p.name}. Undo brings them back.`;
+    this.record(true);
+  }
   /** Lo seleccionado: un nodo (objeto o grupo) o un modificador. Asignarlo deja la selección en uno solo. */
   #selected = $state<string | null>(null);
   get selected() {

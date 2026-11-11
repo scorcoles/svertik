@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Popover } from 'bits-ui';
   import ColorPicker from './ColorPicker.svelte';
+  import { DOCUMENT_PALETTE, usePalettes } from './palettes';
 
   interface Props {
     value: string;
@@ -17,6 +18,13 @@
   // Muestras fijas: blanco, grises y negro.
   const BASE = ['#ffffff', '#d9d9d9', '#a6a6a6', '#737373', '#404040', '#1a1a1a', '#000000'];
   const docSwatches = $derived([...new Set(swatches.map((c) => c.toLowerCase()))].filter((c) => !BASE.includes(c)).slice(0, 21));
+  // Paletas (si la app las da): se elige cuál ver; la del documento, la primera.
+  const palettes = usePalettes();
+  const shown = $derived.by(() => {
+    if (!palettes || palettes.current === DOCUMENT_PALETTE) return { name: DOCUMENT_PALETTE, colors: docSwatches };
+    const p = palettes.list.find((x) => x.name === palettes.current);
+    return p ? { name: p.name, colors: p.colors.map((c) => c.toLowerCase()).slice(0, 21) } : { name: DOCUMENT_PALETTE, colors: docSwatches };
+  });
   let open = $state(false);
 
   let draft = $state('');
@@ -53,13 +61,22 @@
             <button type="button" class="chip" role="option" aria-selected={c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
           {/each}
         </div>
-        {#if docSwatches.length}
-          <p class="head">In this document</p>
-          <div class="grid" role="listbox" aria-label="Document colors">
-            {#each docSwatches as c (c)}
+        {#if palettes}
+          <select class="pal" aria-label="Palette" value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
+            <option value={DOCUMENT_PALETTE}>{DOCUMENT_PALETTE}</option>
+            {#each palettes.list as p (p.name)}<option value={p.name}>{p.name}</option>{/each}
+          </select>
+        {:else if docSwatches.length}
+          <p class="head">{DOCUMENT_PALETTE}</p>
+        {/if}
+        {#if shown.colors.length}
+          <div class="grid" role="listbox" aria-label={shown.name}>
+            {#each shown.colors as c (c)}
               <button type="button" class="chip" role="option" aria-selected={c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
             {/each}
           </div>
+        {:else if palettes}
+          <p class="empty">No colors yet.</p>
         {/if}
       </Popover.Content>
     </Popover.Portal>
@@ -111,6 +128,21 @@
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
   .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .head { margin: var(--sv-space-8) 0 var(--sv-space-4); color: var(--sv-text-muted); }
+  .empty { margin: var(--sv-space-4) 0 0; color: var(--sv-text-disabled); }
+  .pal {
+    width: 100%;
+    height: 20px;
+    margin: var(--sv-space-8) 0 var(--sv-space-6);
+    padding: 0 var(--sv-space-4);
+    font: inherit;
+    color: var(--sv-text-secondary);
+    background: var(--sv-surface-field);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    outline: none;
+    cursor: pointer;
+  }
+  .pal:hover { border-color: var(--sv-rule-strong); }
+  .pal:focus-visible { border-color: var(--sv-accent-fill); }
   .hex-in {
     width: 100%;
     height: 20px;
