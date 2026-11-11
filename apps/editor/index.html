@@ -7,7 +7,7 @@
     <title>svertik</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <style>
-      /* Pantalla de carga: mientras llega el editor (algo más de 1 MB). La quita main.ts al arrancar. */
+      /* Pantalla de carga: mientras llegan los chunks del arranque (core, engine, UI…), en etapas. La quita main.ts al arrancar. */
       html, body { margin: 0; background: #0b0b0b; }
       #boot {
         position: fixed;
@@ -15,20 +15,29 @@
         display: grid;
         place-content: center;
         justify-items: center;
-        gap: 14px;
         color: #ededed;
-        font: 600 13px/1 ui-monospace, 'JetBrains Mono', monospace;
+        font: 600 13px/1.4 ui-monospace, 'JetBrains Mono', monospace;
         letter-spacing: 0.04em;
         transition: opacity 200ms;
       }
-      #boot .bar { position: relative; width: 120px; height: 2px; overflow: hidden; background: #262626; }
-      #boot .bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 40%; background: #09fdd1; animation: boot 1s ease-in-out infinite; }
-      @keyframes boot { from { translate: -100% 0; } to { translate: 250% 0; } }
-      @media (prefers-reduced-motion: reduce) { #boot .bar::after { animation: none; width: 100%; } }
+      #boot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; justify-items: center; }
+      #boot li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        transition: opacity 260ms ease;
+      }
+      #boot li.active, #boot li.done { opacity: 1; }
+      #boot li .status { width: 14px; text-align: center; color: #09fdd1; }
+      #boot li .status::before { content: ''; display: inline-block; width: 8px; height: 8px; border: 1px solid currentColor; border-radius: 50%; animation: boot-spin 0.8s linear infinite; }
+      #boot li.done .status::before { content: '✓'; border: 0; width: auto; height: auto; animation: none; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot { transition: opacity 0ms linear; } #boot li { transition: opacity 0ms linear; } #boot li .status::before { animation: none; } }
     </style>
   </head>
   <body>
-    <div id="boot" role="status" aria-label="Loading svertik">svertik<span class="bar"></span></div>
+    <div id="boot" role="status" aria-label="Loading svertik"><ul></ul></div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

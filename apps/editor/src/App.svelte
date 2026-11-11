@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { Component } from 'svelte';
   import { builtins, createEngine, hasFont, sceneFonts, toAnimatedSVG, toLottie, type SceneV2 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
@@ -7,7 +8,6 @@
   import { Checkbox } from '@svertik/ui';
   import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
-  import CodePanel from './CodePanel.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
   import { demoProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
@@ -20,6 +20,9 @@
   import Toolbar from './Toolbar.svelte';
 
   const editor = new Editor();
+  // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
+  // panel no van en el arranque, sino en la fase de la UI.
+  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void }> | undefined>(undefined);
   // Las paletas del selector de color, para todos los ColorField de la app.
   providePalettes({
     get list() {
@@ -277,6 +280,20 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => ((toast = null), (editor.notice = null)), 5000);
   });
+
+  // El panel de código se carga al abrirse (su propio chunk): CodeMirror y el resto del panel no van
+  // en el arranque, sino en la fase de la UI.
+  $effect(() => {
+    if (!editor.codeOpen || !editor.scene) return;
+    let alive = true;
+    void (async () => {
+      const { default: CodePanelCompCtor } = await import('./CodePanel.svelte');
+      if (alive) CodePanelComp = CodePanelCompCtor;
+    })();
+    return () => {
+      alive = false;
+    };
+  });
 </script>
 
 <svelte:window onkeydown={keydown} onpaste={paste} oncopy={(e) => copySelection(e)} oncut={(e) => copySelection(e, true)} />
@@ -304,10 +321,10 @@
       ].join(' ')}
     >
       <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} />
-      {#if editor.codeOpen && editor.scene}
+      {#if editor.codeOpen && editor.scene && CodePanelComp}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
-        <CodePanel {editor} oncopy={copy} />
+        <CodePanelComp editor={editor} oncopy={copy} />
       {/if}
       {#if editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
