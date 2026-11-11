@@ -556,3 +556,24 @@ describe('effector', () => {
     expect(r.warnings.join(' ')).toMatch(/zzz/);
   });
 });
+
+describe('onlyFor (escena reducida para las estelas)', () => {
+  it('se queda con el nodo, lo que usan sus efectos, su original y sus effectors, y nada más', async () => {
+    const { onlyFor } = await import('../src/document');
+    const o = (id: string, stack: SceneV2['objects'][number]['stack'] = []) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
+    const scene = {
+      version: 2,
+      objects: [
+        o('comet', [{ id: 'f', type: 'followpath', params: { target: 'orbit' } }]),
+        o('orbit'),
+        o('other'),
+        { kind: 'instance', id: 'i', name: 'i', of: 'comet', stack: [] },
+        { kind: 'effector', id: 'e', name: 'e', targets: ['comet'], stack: [{ id: 's', type: 'transform', params: { x: 1 } }] },
+        { kind: 'group', id: 'g', name: 'g', stack: [], children: [o('inner')] },
+      ],
+    } as SceneV2;
+    expect(onlyFor(scene, 'comet').objects.map((n) => n.id)).toEqual(['comet', 'orbit', 'e']);
+    expect(onlyFor(scene, 'i').objects.map((n) => n.id)).toEqual(['comet', 'orbit', 'i', 'e']);
+    expect(onlyFor(scene, 'inner').objects.map((n) => n.id)).toEqual(['g']);
+  });
+});

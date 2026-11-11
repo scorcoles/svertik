@@ -46,7 +46,15 @@ export const metaball = defineModifier({
     for (const shapes of elements.values()) {
       const rings: Ring[] = [];
       for (const s of shapes) {
-        for (const sp of s.subpaths) if (sp.closed) rings.push(ring(sp, step));
+        for (const sp of s.subpaths) {
+          if (!sp.closed) continue;
+          // Una curva grande y suave admite tramos más largos con el mismo error (flecha ≈ tramo² / 8·radio):
+          // con un doceavo de su lado menor, el error sigue por debajo de una celda en un círculo.
+          const pts = [sp.start, ...sp.segs.map((g) => g.p)];
+          const w = Math.max(...pts.map((q) => q[0])) - Math.min(...pts.map((q) => q[0]));
+          const h = Math.max(...pts.map((q) => q[1])) - Math.min(...pts.map((q) => q[1]));
+          rings.push(ring(sp, Math.max(step, Math.min(w, h) / 12)));
+        }
         const open = s.subpaths.filter((sp) => !sp.closed);
         if (open.length) lines.push({ ...s, subpaths: open, clone: 0 });
       }
@@ -63,35 +71,33 @@ export const metaball = defineModifier({
     const field = new Float64Array(nx * ny).fill(Infinity);
     // Lejos de un elemento (más del doble del alcance), su distancia a la caja basta: no cambia el contorno.
     const near = 2 * k + Math.abs(grow) + 2 * cell;
-    // Lo exacto solo hace falta cerca del contorno: a más de `band`, el valor de un elemento no cambia la
-    // forma (dentro, es dentro; y la unión suave con otro que esté en el borde ya es un mínimo normal).
-    // Primero, una rejilla gruesa (cada S nodos); en lo fino, si el nodo grueso más cercano está lejos del
-    // borde, vale su valor (la distancia no cambia más que lo que se mueve el punto).
-    const S = 4;
-    const band = k + Math.abs(grow) + 2 * cell + S * cell;
-    const cx = Math.ceil((nx - 1) / S) + 1, cy = Math.ceil((ny - 1) / S) + 1;
-    const coarse = new Float64Array(cx * cy);
-    for (const el of solids) {
-      const [bx0, by0, bx1, by1] = el.box;
-      const dist = (x: number, y: number) => {
+    const fieldAt = (x: number, y: number) => {
+      let f = Infinity;
+      for (const el of solids) {
+        const [bx0, by0, bx1, by1] = el.box;
         const dx = Math.max(bx0 - x, 0, x - bx1), dy = Math.max(by0 - y, 0, y - by1);
         const boxD = Math.hypot(dx, dy);
-        return boxD > near ? boxD : signedDistance(x, y, el.rings);
-      };
-      for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) coarse[j * cx + i] = dist(gx0 + i * S * cell, gy0 + j * S * cell);
-      for (let j = 0; j < ny; j++) {
-        const y = gy0 + j * cell;
-        const cj = Math.min(cy - 1, Math.round(j / S));
-        for (let i = 0; i < nx; i++) {
-          const ci = Math.min(cx - 1, Math.round(i / S));
-          const c = coarse[cj * cx + ci]!;
-          const d = Math.abs(c) > band ? c : dist(gx0 + i * cell, y);
-          const idx = j * nx + i;
-          field[idx] = smin(field[idx]!, d, k);
-        }
+        f = smin(f, boxD > near ? boxD : signedDistance(x, y, el.rings), k);
+      }
+      return f - grow;
+    };
+    // Lo exacto solo hace falta junto al contorno. Primero el campo en una rejilla gruesa (cada S nodos);
+    // en una celda gruesa con las cuatro esquinas del mismo lado y lejos del contorno (el campo no cambia
+    // más deprisa que la distancia), los nodos finos se interpolan: solo importa de qué lado están.
+    const S = 4;
+    const cx = Math.ceil((nx - 1) / S) + 2, cy = Math.ceil((ny - 1) / S) + 2;
+    const coarse = new Float64Array(cx * cy);
+    for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) coarse[j * cx + i] = fieldAt(gx0 + i * S * cell, gy0 + j * S * cell);
+    const safe = 1.5 * S * cell;
+    for (let j = 0; j < ny; j++) {
+      const cj = Math.min(cy - 2, Math.floor(j / S)), fy = j / S - cj;
+      for (let i = 0; i < nx; i++) {
+        const ci = Math.min(cx - 2, Math.floor(i / S)), fx = i / S - ci;
+        const a = coarse[cj * cx + ci]!, b = coarse[cj * cx + ci + 1]!, c = coarse[(cj + 1) * cx + ci]!, d = coarse[(cj + 1) * cx + ci + 1]!;
+        const far = (a > safe && b > safe && c > safe && d > safe) || (a < -safe && b < -safe && c < -safe && d < -safe);
+        field[j * nx + i] = far ? a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy : fieldAt(gx0 + i * cell, gy0 + j * cell);
       }
     }
-    for (let n = 0; n < field.length; n++) field[n] = field[n]! - grow;
 
     const loops = contour(field, nx, ny, gx0, gy0, cell);
     // Menos puntos (lo que se aparta menos de un tercio de celda) y curvas suaves por ellos.

@@ -1213,3 +1213,20 @@ describe('look at', () => {
     expect(Math.abs(half.width - half.height)).toBeLessThan(1);
   });
 });
+
+describe('trace en bucle', () => {
+  it('al empezar una vuelta, la estela sigue con el final de la anterior', () => {
+    const scene = {
+      version: 2,
+      objects: [
+        { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [] },
+        { kind: 'shape', id: 'l', name: 'l', shape: 'line', params: {}, stack: [{ id: 't', type: 'trace', params: { target: 'b', length: 0.5, samples: 10, smooth: false } }] },
+      ],
+      animation: { duration: 1, loop: true, tracks: [{ id: 'k', node: 'b', on: 'node', param: 'x', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 1, value: 100, ease: 'linear' }] }] },
+    } as never;
+    const geo = createEngine(builtins).evaluateDocument(sampleScene(scene, 0.1)).geometry.shapes.find((s) => s.node === 'l')!;
+    const xs = [geo.subpaths[0]!.start, ...geo.subpaths[0]!.segs.map((g) => g.p)].map((q) => q[0]);
+    expect(Math.max(...xs)).toBeGreaterThan(80);
+    expect(xs[xs.length - 1]).toBeCloseTo(10, 5);
+  });
+});

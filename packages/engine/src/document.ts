@@ -242,7 +242,7 @@ export function createDocumentEvaluator(
     let doc = past.docs.get(t);
     if (!doc) {
       sub ??= createDocumentEvaluator(runStack, filtersOf, { trails: false });
-      doc = sub.evaluate(sampleScene(base, t));
+      doc = sub.evaluate(onlyFor(sampleScene(base, t), id));
       past.docs.set(t, doc);
       if (past.docs.size > 6) past.docs.delete(past.docs.keys().next().value!);
     }
@@ -265,6 +265,7 @@ export function createDocumentEvaluator(
   // `deps`: en los que usan otro objeto, la huella de lo que vieron de cada uno (su geometría y dónde
   // estaban los dos). Mientras no cambie, el resultado vale: no se rehace al tocar otra cosa.
   const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs; volatile?: boolean }>();
+  const groupCache = new Map<string, { key: string; result: Geometry; refs: StackRefs }>();
   /** Lo que salió la última vez (matriz y geometría de cada nodo): la primera pasada parte de ahí. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
 
@@ -354,8 +355,14 @@ export function createDocumentEvaluator(
               const out: [number, number][] = [];
               const first = Math.floor(at / dt + 1e-6) * dt;
               for (let k = n; k >= 0; k--) {
-                const t = Math.round((first - k * dt) * 1e5) / 1e5;
-                if (t < 0 || t >= at - 1e-6) continue;
+                let t = Math.round((first - k * dt) * 1e5) / 1e5;
+                if (t >= at - 1e-6) continue;
+                // En bucle, antes del 0 viene el final de la vuelta anterior; si no, la estela empieza en 0.
+                if (t < 0) {
+                  const d = scene.animation.duration;
+                  if (!scene.animation.loop || !(d > 0)) continue;
+                  t = Math.round((t + d) * 1e5) / 1e5;
+                }
                 const q = pointAt(base, t, id);
                 if (q) out.push(local(q));
               }
@@ -461,8 +468,25 @@ export function createDocumentEvaluator(
         }
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
         const ref = bounds(inner);
-        const refs: StackRefs = {};
-        const result = stack.length ? runStack(inner, stack, ref, resolution, lookupFor(node.id), undefined, refs) : inner;
+        let refs: StackRefs = {};
+        let result = inner;
+        if (stack.length) {
+          // Lo que dio su pila vale mientras no cambien sus hijos (forma y estilo) ni su pila, y no mire otros
+          // objetos (eso se rehace siempre): un Metaball no se repite en cada pasada del mismo fotograma.
+          const gkey = JSON.stringify([resolution, stack]) + '|' + hashGeo(inner) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.node, s.wrap, s.gradients]));
+          const hit = groupCache.get(node.id);
+          if (hit && hit.key === gkey) {
+            result = hit.result;
+            refs = hit.refs;
+          } else {
+            const before = asked;
+            asked = false;
+            result = runStack(inner, stack, ref, resolution, lookupFor(node.id), undefined, refs);
+            if (!asked) groupCache.set(node.id, { key: gkey, result, refs });
+            else groupCache.delete(node.id);
+            asked = asked || before;
+          }
+        }
         const c = centerOf(ref);
         // Agrupar no mueve nada: el centro del grupo se queda donde está.
         const m = placementMatrix(p, ref, c);
@@ -514,6 +538,7 @@ export function createDocumentEvaluator(
       if (entry && info) placedSources.push(...transformGeo(entry.source, info.matrix).shapes.map((s) => ({ ...s, node: node.id })));
     }
     for (const id of [...cache.keys()]) if (!seen.has(id)) cache.delete(id);
+    for (const id of [...groupCache.keys()]) if (!seen.has(id)) groupCache.delete(id);
     for (const map of [sources, memos]) for (const id of [...map.keys()]) if (!seen.has(id)) map.delete(id);
 
     // La zona de cada filtro: la caja del objeto en el documento, más lo que se salga el filtro.
@@ -603,6 +628,48 @@ export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Ma
     }
   }
   return out;
+}
+
+/**
+ * La escena reducida a lo que hace falta para dibujar el nodo `id`: los nodos de arriba que lo contienen y
+ * todo lo que ellos usan (otros objetos en sus efectos, el original de una instancia, los Effectors que los
+ * tocan…), una y otra vez. Para las estelas: no hace falta calcular lo demás en cada instante pasado.
+ * Lo que usa un efecto se reconoce por los textos de sus parámetros que son ids de nodos.
+ */
+export function onlyFor(scene: SceneV2, id: string): SceneV2 {
+  const byId = new Map<string, SceneNode>();
+  const rootOf = new Map<string, SceneNode>();
+  for (const top of scene.objects) for (const { node } of walkNodes([top])) (byId.set(node.id, node), rootOf.set(node.id, top));
+  const effectorsOf = new Map<string, SceneNode[]>();
+  for (const n of byId.values()) if (n.kind === 'effector') for (const t of n.targets ?? []) effectorsOf.set(t, [...(effectorsOf.get(t) ?? []), n]);
+  const roots = new Set<SceneNode>();
+  const seen = new Set<string>();
+  const todo = [id];
+  const refs = (list: ModifierInstance[], out: string[]) => {
+    for (const m of list) {
+      for (const v of Object.values(m.params ?? {})) if (typeof v === 'string' && byId.has(v)) out.push(v);
+      refs(m.children ?? [], out);
+    }
+  };
+  while (todo.length) {
+    const cur = todo.pop()!;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    const root = rootOf.get(cur);
+    if (!root) continue;
+    roots.add(root);
+    // Todo lo que cuelga de su nodo de arriba (está en el mismo cálculo).
+    for (const { node } of walkNodes([root])) {
+      const out: string[] = [];
+      refs(node.stack, out);
+      if (node.kind === 'instance') out.push(node.of);
+      if (node.kind === 'effector') out.push(...(node.targets ?? []));
+      for (const e of effectorsOf.get(node.id) ?? []) out.push(e.id);
+      for (const x of out) if (!seen.has(x)) todo.push(x);
+      if (!seen.has(node.id)) seen.add(node.id);
+    }
+  }
+  return { ...scene, objects: scene.objects.filter((n) => roots.has(n)) };
 }
 
 /**

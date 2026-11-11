@@ -9,7 +9,7 @@
   import Canvas from './Canvas.svelte';
   import CodePanel from './CodePanel.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
-  import { demoProject, reelProject, shatterProject } from './demo';
+  import { demoProject, orbitProject, reelProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Presenter from './Presenter.svelte';
@@ -122,11 +122,11 @@
     }
   }
   // La demo: un proyecto que se abre y se reproduce solo.
-  function openDemo(which: 'intro' | 'shatter' | 'reel' = 'intro') {
+  function openDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' = 'intro') {
     guard(() => startDemo(which));
   }
-  function startDemo(which: 'intro' | 'shatter' | 'reel') {
-    if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : demoProject()))) {
+  function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit') {
+    if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : demoProject()))) {
       editor.selected = null;
       editor.timelineOpen = true;
       editor.setTime(0);

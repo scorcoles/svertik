@@ -360,3 +360,73 @@ export function reelProject() {
     },
   };
 }
+
+// Cuarta demo, «Orbit»: las herramientas de Utils juntas. Un cometa da la vuelta a una órbita (Follow Path)
+// dejando su estela (Tracer); un hilo lo une al sol (Connector), un sol de gotas al que se acerca y se funde
+// una luna (Metaball); cuatro agujas lo siguen con la mirada (una pieza y tres Instances, giradas por un
+// Effector con Look At); el marco, con las esquinas redondeadas (Round Corners). 6 s en bucle.
+export function orbitProject() {
+  const INK = '#f4f4f4', CYAN = '#09fdd1', PINK = '#ff4fa3', DIM = '#2c2c36';
+  const needle = { points: 2, radius: 30, inner: 0.16, rotation: 90, fillColor: INK };
+  return {
+    svertik: 'project',
+    version: 1,
+    name: 'orbit',
+    canvas: '#0d0d10',
+    scene: {
+      version: 2,
+      document: { width: 960, height: 540 },
+      objects: [
+        {
+          kind: 'shape', id: 'caption', name: 'Caption', shape: 'text',
+          params: { text: 'INSTANCE · EFFECTOR · METABALL · FOLLOW PATH · TRACER · CONNECTOR · LOOK AT', font: 'JetBrains Mono', size: 10, tracking: 220, fillColor: '#6a6a78', anchor: 'center' },
+          transform: { y: 238 }, stack: [],
+        },
+        {
+          kind: 'shape', id: 'comet', name: 'Comet', shape: 'ellipse', params: { width: 22, height: 22, fillColor: CYAN },
+          stack: [{ id: 'comet-path', type: 'followpath', params: { target: 'orbit', position: 0, orient: false } }],
+        },
+        {
+          kind: 'shape', id: 'trail', name: 'Comet trace', shape: 'line', params: { strokeColor: CYAN, strokeWidth: 3 }, opacity: 0.55,
+          stack: [{ id: 'trail-trace', type: 'trace', params: { target: 'comet', length: 1.4, samples: 60, smooth: true } }],
+        },
+        {
+          kind: 'shape', id: 'tether', name: 'Connector', shape: 'line', params: { strokeColor: '#4a4a58', strokeWidth: 1.5 },
+          stack: [{ id: 'tether-connect', type: 'connect', params: { from: 'core', to: 'comet', shape: 'straight', edges: true, gap: 8 } }],
+        },
+        { kind: 'shape', id: 'w1', name: 'Watcher', shape: 'star', params: needle, transform: { x: -390, y: -200 }, stack: [] },
+        { kind: 'instance', id: 'w2', name: 'Watcher instance', of: 'w1', transform: { x: 390, y: -200 }, stack: [] },
+        { kind: 'instance', id: 'w3', name: 'Watcher instance 2', of: 'w1', transform: { x: -390, y: 200 }, stack: [] },
+        { kind: 'instance', id: 'w4', name: 'Watcher instance 3', of: 'w1', transform: { x: 390, y: 200 }, stack: [] },
+        {
+          kind: 'effector', id: 'gaze', name: 'Effector', targets: ['w1', 'w2', 'w3', 'w4'],
+          stack: [{ id: 'gaze-look', type: 'lookat', params: { target: 'comet', facing: 0, amount: 1 } }],
+        },
+        {
+          kind: 'group', id: 'core', name: 'Sun',
+          stack: [{ id: 'core-goo', type: 'metaball', params: { reach: 34, grow: 0 } }],
+          children: [
+            { kind: 'shape', id: 'moon', name: 'Moon', shape: 'ellipse', params: { width: 34, height: 34, fillColor: PINK }, transform: { x: 110, y: -20 }, stack: [] },
+            { kind: 'shape', id: 'sun', name: 'Sun', shape: 'ellipse', params: { width: 96, height: 96, fillColor: PINK }, stack: [] },
+          ],
+        },
+        { kind: 'shape', id: 'orbit', name: 'Orbit', shape: 'ellipse', params: { width: 600, height: 300, fill: false, stroke: true, strokeColor: DIM, strokeWidth: 1.5 }, transform: { rotation: -12 }, stack: [] },
+        {
+          kind: 'shape', id: 'frame', name: 'Frame', shape: 'rectangle', params: { width: 920, height: 500, fill: false, stroke: true, strokeColor: DIM, strokeWidth: 1.5 },
+          stack: [{ id: 'frame-round', type: 'roundcorners', params: { radius: 28 } }],
+        },
+      ],
+      animation: {
+        duration: 6,
+        loop: true,
+        fps: 30,
+        tracks: [
+          { id: 'k-comet', node: 'comet', on: 'modifier', modifier: 'comet-path', param: 'position', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 6, value: 1 }] },
+          // La luna se acerca, se funde con el sol y se vuelve a separar.
+          { id: 'k-moon-x', node: 'moon', on: 'node', param: 'x', keys: [{ t: 0, value: 110, ease: 'ease-in-out' }, { t: 3, value: 48, ease: 'ease-in-out' }, { t: 6, value: 110 }] },
+          { id: 'k-moon-y', node: 'moon', on: 'node', param: 'y', keys: [{ t: 0, value: -20, ease: 'ease-in-out' }, { t: 3, value: 26, ease: 'ease-in-out' }, { t: 6, value: -20 }] },
+        ],
+      },
+    },
+  };
+}
