@@ -1230,3 +1230,35 @@ describe('trace en bucle', () => {
     expect(xs[xs.length - 1]).toBeCloseTo(10, 5);
   });
 });
+
+describe('pixelate', () => {
+  const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="#ff0000"/><circle cx="50" cy="50" r="30" fill="#0000ff"/></svg>';
+  const run = (params: Record<string, unknown>, source = two) => createEngine(builtins).evaluateStack({ source, stack: [{ id: 'p', type: 'pixelate', params }] });
+
+  it('cuadraditos del color de lo que hay encima; tiras por fila', () => {
+    const geo = run({ size: 10 });
+    const fills = geo.shapes.map((s) => s.style.fill).sort();
+    expect(fills).toEqual(['#0000ff', '#ff0000']);
+    const blue = geo.shapes.find((s) => s.style.fill === '#0000ff')!;
+    // El centro (50, 50) es azul; la esquina, roja. Todo en múltiplos de 10.
+    for (const sp of blue.subpaths) for (const q of [sp.start, ...sp.segs.map((g) => g.p)]) {
+      expect(q[0] % 10).toBeCloseTo(0);
+      expect(q[1] % 10).toBeCloseTo(0);
+    }
+    // Una tira por fila de color seguido (no un cuadrado por píxel).
+    expect(blue.subpaths.length).toBeLessThanOrEqual(6);
+  });
+
+  it('con gap o puntos, un trazado por píxel; con size 0, nada cambia', () => {
+    expect(run({ size: 10, gap: 2 }).shapes.reduce((n, s) => n + s.subpaths.length, 0)).toBe(100);
+    expect(run({ size: 10, shape: 'dot' }).shapes.reduce((n, s) => n + s.subpaths.length, 0)).toBe(100);
+    expect(run({ size: 0 }).shapes).toHaveLength(2);
+  });
+
+  it('una línea (solo trazo) también se pixela, con su color de trazo', () => {
+    const ln = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><line x1="0" y1="5" x2="100" y2="5" stroke="#00ff00" stroke-width="10"/></svg>';
+    const geo = run({ size: 10 }, ln);
+    expect(geo.shapes).toHaveLength(1);
+    expect(geo.shapes[0]!.style.fill).toBe('#00ff00');
+  });
+});

@@ -16,6 +16,7 @@ import { mosaic } from './mosaic';
 import { paint } from './paint';
 import { pathwrap } from './pathwrap';
 import { perspective } from './perspective';
+import { pixelate } from './pixelate';
 import { range } from './range';
 import { ripple } from './ripple';
 import { roughenModifier as roughen } from './roughen';
@@ -44,7 +45,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks };
-export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, lookat, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, lookat, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -85,6 +86,7 @@ export const builtins = [
   rgbsplit,
   boolean,
   metaball,
+  pixelate,
   step,
   stagger,
   range,
