@@ -430,3 +430,52 @@ export function orbitProject() {
     },
   };
 }
+
+// Quinta demo, «Pointer»: se abre en Play y el dibujo sigue al ratón (o al dedo). Una rejilla de puntos
+// que crecen y se encienden alrededor del puntero (un Field que lo sigue), un aro que lo persigue con
+// inercia y dos agujas que miran al aro (Look At). Sin línea de tiempo: solo interacciones «pointer».
+export function pointerProject() {
+  const INK = '#f4f4f4', CYAN = '#09fdd1', DIM = '#34343f';
+  const needle = { points: 2, radius: 34, inner: 0.16, rotation: 90, fillColor: INK };
+  return {
+    svertik: 'project',
+    version: 1,
+    name: 'pointer',
+    canvas: '#0d0d10',
+    scene: {
+      version: 2,
+      document: { width: 960, height: 540 },
+      objects: [
+        {
+          kind: 'shape', id: 'hint', name: 'Hint', shape: 'text',
+          params: { text: 'MOVE THE POINTER', font: 'JetBrains Mono', size: 11, tracking: 420, fillColor: '#6a6a78', anchor: 'center' },
+          transform: { y: 246 }, stack: [],
+        },
+        {
+          kind: 'shape', id: 'ring', name: 'Ring', shape: 'ellipse', params: { width: 64, height: 64, fill: false, stroke: true, strokeColor: CYAN, strokeWidth: 2 },
+          transform: { x: 0, y: 0 }, stack: [],
+        },
+        { kind: 'shape', id: 'n1', name: 'Needle', shape: 'star', params: needle, transform: { x: -400, y: 220 }, stack: [{ id: 'n1-look', type: 'lookat', params: { target: 'ring', facing: 0, amount: 1 } }] },
+        { kind: 'shape', id: 'n2', name: 'Needle 2', shape: 'star', params: needle, transform: { x: 400, y: 220 }, stack: [{ id: 'n2-look', type: 'lookat', params: { target: 'ring', facing: 0, amount: 1 } }] },
+        {
+          kind: 'shape', id: 'dots', name: 'Dots', shape: 'ellipse', params: { width: 8, height: 8, fillColor: DIM },
+          transform: { y: -14 },
+          stack: [
+            { id: 'dots-grid', type: 'clone', params: { mode: 'grid', columns: 22, rows: 11, spacing: [5, 5] } },
+            {
+              id: 'dots-field', type: 'field', params: { shape: 'circle', center: [0.5, 0.5], radius: 0.2, softness: 1, amount: 1 },
+              children: [
+                { id: 'dots-grow', type: 'transform', params: { scale: 3.2 } },
+                { id: 'dots-tint', type: 'tint', params: { color: CYAN, amount: 1 } },
+              ],
+            },
+          ],
+        },
+      ],
+      interactions: [
+        { id: 'follow-field', node: 'dots', trigger: 'pointer', action: 'follow', target: { node: 'dots', on: 'modifier', modifier: 'dots-field', param: 'center' }, to: null, duration: 0.1, axis: 'both' },
+        { id: 'follow-ring', node: 'ring', trigger: 'pointer', action: 'follow', target: { node: 'ring', on: 'node', param: 'position' }, to: null, duration: 0.3, axis: 'both' },
+      ],
+    },
+  };
+}

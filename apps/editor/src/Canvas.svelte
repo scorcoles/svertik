@@ -16,7 +16,7 @@
     onimport: () => void;
     onfile: (file: File) => void;
     /** Abre una demo (la escena actual se cambia por ella, preguntando si hay cambios). */
-    ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit') => void;
+    ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') => void;
   }
   let { editor, onimport, onfile, ondemo }: Props = $props();
 
@@ -930,6 +930,7 @@
               <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /><span class="label">Shatter: a triangle that explodes</span></DropdownMenu.Item>
               <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('reel')}><Icon name="play" /><span class="label">Reel: motion graphics in three acts</span></DropdownMenu.Item>
               <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('orbit')}><Icon name="play" /><span class="label">Orbit: the Utils working together</span></DropdownMenu.Item>
+              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('pointer')}><Icon name="play" /><span class="label">Pointer: it follows your mouse</span></DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

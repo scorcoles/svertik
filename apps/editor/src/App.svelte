@@ -10,7 +10,7 @@
   import CodePanel from './CodePanel.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
-  import { demoProject, orbitProject, reelProject, shatterProject } from './demo';
+  import { demoProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import StackPanel from './StackPanel.svelte';
   import Presenter from './Presenter.svelte';
@@ -133,15 +133,20 @@
     }
   }
   // La demo: un proyecto que se abre y se reproduce solo.
-  function openDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' = 'intro') {
+  function openDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' = 'intro') {
     guard(() => startDemo(which));
   }
-  function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit') {
-    if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : demoProject()))) {
+  function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') {
+    if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : which === 'pointer' ? pointerProject() : demoProject()))) {
       editor.selected = null;
       editor.timelineOpen = true;
       editor.setTime(0);
       editor.playing = true;
+      // Pointer no tiene línea de tiempo: se ve en Play (donde el puntero hace cosas).
+      if (which === 'pointer') {
+        editor.timelineOpen = false;
+        editor.presenting = true;
+      }
     }
   }
   // Lottie: la animación para apps y webs; lo que no se puede llevar, en un informe al terminar.
