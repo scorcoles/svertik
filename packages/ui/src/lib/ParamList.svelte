@@ -3,7 +3,7 @@
   // (Fill + Fill color, Stroke + Stroke color): así la casilla y la muestra quedan alineadas.
   import type { ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
-  import ColorField from './ColorField.svelte';
+  import PaintField from './PaintField.svelte';
   import ParamControl from './ParamControl.svelte';
   import IconButton from './IconButton.svelte';
   import { proportional } from './link';
@@ -71,7 +71,7 @@
     <ParamRow label={labelOf(it.name, it.spec)} for={`param-${it.name}`} {...k(it.color!, params.find(([n]) => n === it.color)![1])}>
       <Checkbox id={`param-${it.name}`} checked={on} onchange={(v) => onchange(it.name, v)} />
       <span class="color" data-off={!on || undefined}>
-        <ColorField value={values?.[it.color] as string} label={`${labelOf(it.name, it.spec)} color`} {swatches} onchange={(v) => onchange(it.color!, v)} />
+        <PaintField value={values?.[it.color] as any} label={`${labelOf(it.name, it.spec)} color`} {swatches} onchange={(v) => onchange(it.color!, v)} />
       </span>
     </ParamRow>
   {:else if it.pair}

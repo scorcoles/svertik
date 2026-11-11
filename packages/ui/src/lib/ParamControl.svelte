@@ -3,7 +3,7 @@
   import type { ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
   import IconButton from './IconButton.svelte';
-  import ColorField from './ColorField.svelte';
+  import PaintField from './PaintField.svelte';
   import type { IconName } from './icons';
   import NumberField from './NumberField.svelte';
   import ParamRow from './ParamRow.svelte';
@@ -83,7 +83,7 @@
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
   {:else if spec.type === 'color'}
-    <ColorField {id} value={value as string} {label} {swatches} {onchange} />
+    <PaintField {id} value={value as any} {label} {swatches} onchange={(v) => onchange(v)} />
   {:else if spec.type === 'node'}
     <Select
       value={nodeLabels.find((n) => n.id === value)?.label ?? NONE}
