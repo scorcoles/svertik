@@ -2,9 +2,9 @@ import { centroid, mapPoints } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /**
- * Gira el objeto para que mire hacia otro (hacia su centro), sin moverlo: gira sobre `pivot`.
- * `facing`: qué lado del objeto es su frente (0, la derecha; -90, arriba; 90, abajo; 180, la izquierda).
- * `amount`: cuánto gira hacia él (0, nada; 1, del todo). Si el otro se mueve, lo sigue con la mirada.
+ * Turns the object so it faces another one (its centre), without moving it: it turns around `pivot`.
+ * `facing`: which side of the object is its front (0, the right; -90, up; 90, down; 180, the left).
+ * `amount`: how much it turns towards it (0, none; 1, fully). If the other moves, it keeps looking at it.
  */
 export const lookat = defineModifier({
   type: 'lookat',
@@ -24,7 +24,7 @@ export const lookat = defineModifier({
     const o = fromFraction(ctx.bounds, p.pivot);
     const dx = c[0] - o[0], dy = c[1] - o[1];
     if (Math.hypot(dx, dy) < 1e-9) return geo;
-    // El giro más corto desde el frente hasta la dirección del otro.
+    // The shortest turn from the front to the direction of the other.
     let turn = Math.atan2(dy, dx) - deg(p.facing);
     turn = Math.atan2(Math.sin(turn), Math.cos(turn)) * p.amount;
     if (Math.abs(turn) < 1e-12) return geo;

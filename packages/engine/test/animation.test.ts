@@ -14,8 +14,8 @@ const scene = (): SceneV2 => ({
   },
 });
 
-describe('animación', () => {
-  it('interpola números, colores y respeta hold', () => {
+describe('animation', () => {
+  it('interpolates numbers and colours and respects hold', () => {
     const s = sampleScene(scene(), 1);
     const n = s.objects[0]!;
     expect(n.transform?.x).toBeCloseTo(50);
@@ -23,11 +23,11 @@ describe('animación', () => {
     const half = sampleScene(scene(), 0.5).objects[0]!;
     expect(half.kind === 'shape' && half.params.fillColor).toBe('#636363');
     expect(half.stack[0]!.params?.amplitude).toBe(0);
-    // Pasada la última clave, su valor.
+    // Past the last key, its value.
     expect(sampleScene(scene(), 1.5).objects[0]!.stack[0]!.params?.amplitude).toBe(0.2);
   });
 
-  it('no toca la escena original; sin animación, la devuelve tal cual', () => {
+  it('does not touch the original scene; without animation, returns it as is', () => {
     const sc = scene();
     sampleScene(sc, 1);
     expect(sc.objects[0]!.transform).toBeUndefined();
@@ -35,27 +35,27 @@ describe('animación', () => {
     expect(sampleScene(plain, 1)).toBe(plain);
   });
 
-  it('easing por defecto: ease-in-out (despacio al principio y al final)', () => {
+  it('default easing: ease-in-out (slow at the start and the end)', () => {
     const keys = [{ t: 0, value: 0 }, { t: 1, value: 1 }];
     expect(valueAt(keys, 0.1)).toBeLessThan(0.1);
     expect(valueAt(keys, 0.5)).toBeCloseTo(0.5);
   });
 
-  it('setKey sustituye la clave del mismo fotograma y ordena', () => {
+  it('setKey replaces the key on the same frame and sorts', () => {
     let keys = setKey([], 1, 10);
     keys = setKey(keys, 0, 0);
     keys = setKey(keys, 1.01, 20, 30);
     expect(keys).toEqual([{ t: 0, value: 0 }, { t: 1.01, value: 20 }]);
   });
 
-  it('el motor dibuja la escena muestreada', () => {
+  it('the engine draws the sampled scene', () => {
     const doc = createEngine(builtins).evaluateDocument(sampleScene(scene(), 2));
     expect(doc.nodes.get('s')!.box.x).toBeGreaterThan(40);
   });
 });
 
-describe('curvas expo, back, elastic y bounce', () => {
-  it('back y elastic se pasan del destino y vuelven; bounce y expo acaban en 1', () => {
+describe('expo, back, elastic and bounce curves', () => {
+  it('back and elastic overshoot and come back; bounce and expo end at 1', () => {
     const keys = (e: string) => [{ t: 0, value: 0, ease: e as never }, { t: 1, value: 1 }];
     const max = (e: string) => Math.max(...Array.from({ length: 50 }, (_, i) => valueAt(keys(e), i / 50) as number));
     expect(max('back-out')).toBeGreaterThan(1.02);
@@ -65,19 +65,19 @@ describe('curvas expo, back, elastic y bounce', () => {
   });
 });
 
-describe('mezcla de colores (OKLCH)', () => {
+describe('colour mixing (OKLCH)', () => {
   const mid = (a: string, b: string) => toHex(mixColor(parseColor(a)!, parseColor(b)!, 0.5));
   const chroma = (hex: string) => Math.hypot(...rgbToOklab(parseColor(hex)!).slice(1));
-  it('entre dos colores vivos no pasa por gris', () => {
-    // En RGB, de turquesa a coral sale un gris verdoso (croma ~0.07); en OKLCH, un amarillo vivo.
+  it('between two vivid colours it does not go through grey', () => {
+    // In RGB, from turquoise to coral gives a greenish grey (chroma ~0.07); in OKLCH, a vivid yellow.
     expect(chroma(mid('#09fdd1', '#ff6b5e'))).toBeGreaterThan(0.15);
   });
-  it('con un gris, el tono es el del otro color', () => {
+  it('with a grey, the hue is the other colour', () => {
     const [, a, b] = rgbToOklab(parseColor(mid('#ffffff', '#ff0000'))!);
     const [, ra, rb] = rgbToOklab(parseColor('#ff0000')!);
     expect(Math.abs(Math.atan2(b, a) - Math.atan2(rb, ra))).toBeLessThan(0.05);
   });
-  it('los extremos, exactos; fuera de gama, dentro de 0–255', () => {
+  it('the ends are exact; out of gamut, within 0–255', () => {
     expect(mid('#000000', '#ffffff')).toBe('#636363');
     expect(toHex(mixColor(parseColor('#09fdd1')!, parseColor('#ff6b5e')!, 0))).toBe('#09fdd1');
     expect(toHex(mixColor(parseColor('#09fdd1')!, parseColor('#ff6b5e')!, 1))).toBe('#ff6b5e');
@@ -85,22 +85,22 @@ describe('mezcla de colores (OKLCH)', () => {
   });
 });
 
-describe('curvas in', () => {
-  it('son las out al revés: empiezan despacio y llegan a 1', () => {
+describe('in curves', () => {
+  it('they are the out curves reversed: they start slowly and reach 1', () => {
     for (const name of ['expo', 'back', 'elastic', 'bounce'] as const) {
       expect(ease(`${name}-in`, 0)).toBeCloseTo(0);
       expect(ease(`${name}-in`, 1)).toBeCloseTo(1);
       expect(ease(`${name}-in`, 0.3)).toBeCloseTo(1 - ease(`${name}-out`, 0.7));
       expect(ease(`${name}-in`, 0.2)).toBeLessThan(0.2);
     }
-    // back-in toma impulso hacia atrás.
+    // back-in winds up backwards.
     expect(ease('back-in', 0.2)).toBeLessThan(0);
   });
 });
 
-describe('repetir una pista', () => {
+describe('repeating a track', () => {
   const keys = [{ t: 1, value: 0, ease: 'linear' as const }, { t: 2, value: 10 }];
-  it('seguidas: cada vuelta empieza al acabar la anterior; después, el último valor', () => {
+  it('back to back: each lap starts when the previous ends; afterwards, the last value', () => {
     const tr = { keys, repeat: 3 };
     expect(trackTime(tr, 0.5)).toBe(0.5);
     expect(valueAt(keys, trackTime(tr, 1.5))).toBeCloseTo(5);
@@ -108,19 +108,19 @@ describe('repetir una pista', () => {
     expect(valueAt(keys, trackTime(tr, 3.5))).toBeCloseTo(5);
     expect(valueAt(keys, trackTime(tr, 4.5))).toBe(10);
   });
-  it('con every: entre vueltas se queda en el último valor', () => {
+  it('with every: between laps it holds the last value', () => {
     const tr = { keys, repeat: 2, every: 3 };
     expect(valueAt(keys, trackTime(tr, 3))).toBe(10);
     expect(valueAt(keys, trackTime(tr, 4.5))).toBeCloseTo(5);
     expect(valueAt(keys, trackTime(tr, 7.5))).toBe(10);
   });
-  it('0: sin parar', () => {
+  it('0: forever', () => {
     expect(valueAt(keys, trackTime({ keys, repeat: 0 }, 100.5))).toBeCloseTo(5);
   });
 });
 
-describe('encender y apagar un efecto', () => {
-  it('una pista sobre «enabled» lo apaga y lo enciende en cada clave', () => {
+describe('turning an effect on and off', () => {
+  it('a track on enabled turns it off and on at each key', () => {
     const s: SceneV2 = {
       version: 2,
       objects: [{ kind: 'shape', id: 'n', name: 'n', shape: 'rectangle', params: {}, stack: [{ id: 'm', type: 'rgbsplit', params: { distance: 5 } }] }],
@@ -129,7 +129,7 @@ describe('encender y apagar un efecto', () => {
     expect(sampleScene(s, 0.5).objects[0]!.stack[0]!.enabled).toBe(false);
     expect(sampleScene(s, 1.5).objects[0]!.stack[0]!.enabled).toBe(true);
     const engine = createEngine(builtins);
-    // Apagado: solo el rectángulo; encendido: con sus dos copias de color.
+    // Off: only the rectangle; on: with its two coloured copies.
     expect(engine.evaluateDocument(sampleScene(s, 0.5)).geometry.shapes).toHaveLength(1);
     expect(engine.evaluateDocument(sampleScene(s, 1.5)).geometry.shapes).toHaveLength(3);
   });

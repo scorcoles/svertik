@@ -1,4 +1,4 @@
-// Matrices afines 2D en el formato de SVG: [a, b, c, d, e, f].
+// 2D affine matrices in SVG's format: [a, b, c, d, e, f].
 import type { Vec2 } from './geometry';
 
 export type Mat = [number, number, number, number, number, number];

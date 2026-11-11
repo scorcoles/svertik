@@ -1,4 +1,4 @@
-// La escena (lo que se guarda y se exporta como JSON) y el motor que la evalúa.
+// The scene (what is saved and exported as JSON) and the engine that evaluates it.
 
 import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
@@ -8,43 +8,43 @@ import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedMod
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 
 export interface ModifierInstance {
-  /** Identificador estable: servirá para referenciar pistas de animación. */
+  /** Stable id: animation tracks refer to it. */
   id: string;
   type: string;
   enabled?: boolean;
   params?: Record<string, unknown>;
-  /** Modificadores colgados de este (Step los aplica copia a copia). */
+  /** Modifiers nested in this one (Step applies them copy by copy). */
   children?: ModifierInstance[];
 }
 
 /**
- * Una pila de efectos sobre un SVG suelto, sin escena (para probar efectos o enseñar la cadena paso a paso).
- * El resultado queda en las coordenadas del SVG.
+ * A stack of effects on a loose SVG, without a scene (to test effects or show the chain step by step).
+ * The result stays in the SVG's coordinates.
  */
 export interface StackInput {
   source: string;
   stack: ModifierInstance[];
-  /** Longitud máxima de tramo al subdividir, como fracción del tamaño del dibujo. */
+  /** Maximum segment length when subdividing, as a fraction of the drawing size. */
   resolution?: number;
 }
 
 export type { FilterChain } from './chain';
 
 export interface Engine {
-  /** Aplica una pila a un SVG; reutiliza lo calculado si el principio de la pila no ha cambiado. */
+  /** Applies a stack to an SVG; reuses what was computed if the start of the stack hasn't changed. */
   evaluateStack(input: StackInput): Geometry;
-  /** El resultado de cada paso de la pila: [origen, tras el 1.º, tras el 2.º, …]. */
+  /** The result of each step of the stack: [source, after the 1st, after the 2nd, …]. */
   evaluateStackSteps(input: StackInput): Geometry[];
-  /** La escena: el documento entero, el origen colocado y la información de cada nodo. */
+  /** The scene: the whole document, the placed sources and per-node info. */
   evaluateDocument(scene: SceneV2): DocumentResult;
   toSVG(scene: SceneV2, options?: ToSVGOptions): string;
-  /** Pinta la escena en un <svg> y devuelve con qué actualizarla. */
+  /** Draws the scene into an <svg> and returns how to update it. */
   mount(svg: SVGSVGElement, scene: SceneV2, options?: ToSVGOptions): { update(scene: SceneV2): void; doc(): DocumentResult | null };
 }
 
 const DEFAULT_RESOLUTION = 0.01;
 
-/** Lo que guarda `runStack` de un nodo entre evaluaciones: de qué geometría partió y el resultado de cada paso. */
+/** What `runStack` keeps for a node between evaluations: the geometry it started from and each step's result. */
 export interface StepMemo {
   base?: Geometry;
   resolution?: number;
@@ -52,15 +52,15 @@ export interface StepMemo {
 }
 
 /**
- * La caja sobre la que mide cada efecto de una pila (por su id): la del origen o la del último que la cambió.
- * La clave vacía ('') guarda la del final de la pila: la de los filtros, que se aplican después de todo.
+ * The box each effect of a stack measures on (by its id): the source's or that of the last one that changed it.
+ * The empty key ('') holds the one at the end of the stack: the filters', which apply after everything.
  */
 export type StackRefs = Record<string, Bounds>;
 
 export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 
-  // Caché: el origen importado y el resultado de cada paso, con la clave que lo produjo.
+  // Cache: the imported source and the result of each step, with the key that produced it.
   let sourceKey: string | null = null;
   let sourceGeo: Geometry | null = null;
   let steps: { key: string; geo: Geometry; ref: Bounds }[] = [];
@@ -96,8 +96,8 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       } else {
         reusable = false;
         const def = registry.get(inst.type);
-        if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
-        // Los filtros y las máscaras no cambian la geometría (se aplican al pintar el objeto).
+        if (!def) throw new Error(`svertik: unknown modifier "${inst.type}"`);
+        // Filters and masks don't change the geometry (they apply when the object is painted).
         if (inst.enabled !== false && def.kind !== 'filter' && !def.mask) {
           geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, bounds: ref, children: resolveChildren(inst.children) }));
           if (def.reframe) {
@@ -116,7 +116,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   function resolveChildren(children: ModifierInstance[] = []): ResolvedModifier[] {
     return children.map((c) => {
       const def = registry.get(c.type);
-      if (!def) throw new Error(`svertik: modificador desconocido «${c.type}»`);
+      if (!def) throw new Error(`svertik: unknown modifier "${c.type}"`);
       return { def, params: resolveParams(def.params, c.params), enabled: c.enabled !== false, children: resolveChildren(c.children) };
     });
   }
@@ -124,13 +124,13 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const evaluateStack = (input: StackInput) => evaluateStackSteps(input).at(-1)!;
 
   /**
-   * Una pila aplicada a una geometría con su caja de referencia (para objetos y grupos de la v2).
-   * Con `memo`, guarda el resultado de cada paso: si la geometría de partida es la misma y los primeros
-   * efectos no han cambiado, se reutilizan (animar el último de la pila no rehace los de debajo).
-   * Un paso que mira otro objeto no se reutiliza (puede haber cambiado el otro).
+   * A stack applied to a geometry with its reference box (for objects and groups).
+   * With `memo`, it keeps each step's result: if the starting geometry is the same and the first
+   * effects haven't changed, they are reused (animating the last of the stack doesn't redo the ones above).
+   * A step that looks at another object is not reused (the other may have changed).
    */
   function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup): Geometry {
-    // La subdivisión sigue el tamaño del origen; la caja de referencia cambia tras un efecto que reencuadra.
+    // Subdivision follows the size of the source; the reference box changes after an effect that reframes.
     const res = Math.max(ref.width, ref.height) * resolution || 1;
     let reuse = !!memo && memo.base === geo && memo.resolution === resolution;
     if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
@@ -149,7 +149,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       const past: TrailLookup | undefined = trail && ((...args) => ((dynamic = true), trail(...args)));
       if (inst.enabled !== false) {
         const def = registry.get(inst.type);
-        if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
+        if (!def) throw new Error(`svertik: unknown modifier "${inst.type}"`);
         if (def.kind !== 'filter' && !def.mask) {
           geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children) }));
           if (def.reframe) {
@@ -165,8 +165,8 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     return geo;
   }
   /**
-   * Los filtros de una pila (los activos, en orden): cuánto se salen en total y cómo escribir sus
-   * primitivas encadenadas cuando se sepa dónde está el objeto.
+   * The filters of a stack (the active ones, in order): how far they reach in total and how to write their
+   * chained primitives once it is known where the object is.
    */
   function filtersOf(stack: ModifierInstance[]): FilterChain | null {
     return chainFrom(
@@ -177,7 +177,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     );
   }
 
-  /** La máscara de una pila (la última activa), con sus parámetros. */
+  /** The mask of a stack (the last active one), with its parameters. */
   function maskOf(stack: ModifierInstance[]): { source: string; mode: string; invert: boolean } | null {
     let out: { source: string; mode: string; invert: boolean } | null = null;
     for (const inst of stack) {
@@ -199,7 +199,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     evaluateDocument,
     toSVG: (scene, options) => toSVG(flat(scene), options),
     mount(svg, scene, options) {
-      // Lo último que se pintó (para saber dónde está cada objeto: «follow» lo necesita).
+      // The last thing painted (to know where each object is: "follow" needs it).
       let last: DocumentResult | null = null;
       const paint = (s: SceneV2) => {
         last = evaluateDocument(s);

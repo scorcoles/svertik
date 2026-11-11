@@ -1,4 +1,4 @@
-// Primitivas: formas generadas por parámetros, no SVG importados.
+// Primitives: shapes generated from parameters, not imported SVG.
 
 import { line, type Cubic, type Geometry, type Style, type SubPath, type Vec2 } from './geometry';
 import type { Font } from 'opentype.js';
@@ -10,19 +10,19 @@ export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   type: string;
   label: string;
   params: P;
-  /** Geometría centrada en el origen. */
+  /** Geometry centred on the origin. */
   build(p: ParamValues<P>): SubPath[];
-  /** Si la forma tiene varios elementos (Text: una por letra), cada uno por separado (para Step, Color…). */
+  /** If the shape has several elements (Text: one per letter), each one separately (for Step, Color…). */
   buildParts?(p: ParamValues<P>): SubPath[][];
-  /** Marcas de cada pieza (Text: su palabra y su línea), para Range por palabras o líneas. */
+  /** Tags for each piece (Text: its word and line), for Range by words or lines. */
   partTags?(p: ParamValues<P>): { word?: number; line?: number }[];
-  /** El punto que va en la posición del nodo, si no es el centro de su caja (Text con ancla). */
+  /** The point that goes at the node's position, if not the centre of its box (Text with an anchor). */
   origin?(p: ParamValues<P>): Vec2 | null;
 }
 
 const defineShape = <P extends ParamSchema>(d: ShapeDef<P>): ShapeDef<P> => d;
 
-// Estilo común a todas las primitivas.
+// Style shared by all primitives.
 const style: ParamSchema = {
   fill: { type: 'boolean', default: true, group: 'Style', label: 'Fill', animatable: false },
   fillColor: { type: 'color', default: '#d9d9d9', group: 'Style', label: 'Fill color' },
@@ -35,9 +35,9 @@ const style: ParamSchema = {
 };
 
 /**
- * Lo que SVG añade al trazo, para las primitivas y Paint: discontinuo (trazo y hueco en px; 0, continuo),
- * su desplazamiento (animarlo hace correr los trazos) y pintarlo por detrás del relleno (`paint-order`:
- * se ve solo la mitad de fuera, como un borde exterior).
+ * What SVG adds to the stroke, for primitives and Paint: dashes (dash and gap in px; 0, solid), their
+ * offset (animating it makes the dashes run) and painting it behind the fill (`paint-order`: only the
+ * outer half shows, like an outside border).
  */
 export function strokeExtras(group: string): ParamSchema {
   const on = { stroke: ['true'] } as const;
@@ -49,7 +49,7 @@ export function strokeExtras(group: string): ParamSchema {
   };
 }
 
-/** Los atributos de trazo de `strokeExtras` (solo los que cambian algo). */
+/** The stroke attributes of `strokeExtras` (only those that change something). */
 export function strokeExtraStyle(p: Record<string, unknown>): Style {
   const out: Style = {};
   const dash = Number(p.dash) || 0;
@@ -65,7 +65,7 @@ export function strokeExtraStyle(p: Record<string, unknown>): Style {
 
 const closed = (pts: Vec2[]): SubPath => ({ start: pts[0]!, segs: pts.slice(1).concat([pts[0]!]).map((p, i) => line(i === 0 ? pts[0]! : pts[i]!, p)), closed: true });
 
-/** Arco de elipse como cúbicas (cuartos de vuelta). */
+/** An ellipse arc as cubics (quarter turns). */
 function ellipse(rx: number, ry: number): SubPath {
   const k = 0.5522847498;
   const p = (x: number, y: number): Vec2 => [x, y];
@@ -180,7 +180,7 @@ export const spiral = defineShape({
     stroke: { ...style.stroke!, default: true } as ParamSchema[string],
   },
   build: ({ radius, turns }) => {
-    // Espiral de Arquímedes muestreada en tramos cortos.
+    // Archimedean spiral sampled in short segments.
     const steps = Math.max(8, Math.round(turns * 48));
     const pts: Vec2[] = Array.from({ length: steps + 1 }, (_, i) => {
       const t = i / steps;
@@ -191,8 +191,8 @@ export const spiral = defineShape({
   },
 });
 
-// Peón de ajedrez: la «tetera de Utah» de svertik, una forma de prueba con curvas, cuello y base.
-// Perfil de 120 × 200 centrado en el origen (cabeza, collarín, cuerpo cóncavo, anillo y peana).
+// Chess pawn: svertik's "Utah teapot", a test shape with curves, a neck and a base.
+// A 120 × 200 profile centred on the origin (head, collar, concave body, ring and foot).
 const PAWN =
   'M0 -100 A26 26 0 0 1 12 -51 L12 -46 C12 -44 26 -43 26 -38 C26 -33 16 -32 15 -30 ' +
   'C15 -6 26 30 40 52 C44 58 48 60 52 62 C55 63 55 70 52 72 L52 74 C58 75 60 78 60 82 L60 100 ' +
@@ -216,8 +216,8 @@ export const pawn = defineShape({
 });
 
 /**
- * Contorno de un glifo (comandos M L Q C Z de opentype.js) como subtrazados de cúbicas.
- * Los contornos de una fuente siempre son cerrados, lleven o no la «Z» (muchas fuentes no la ponen).
+ * Outline of a glyph (opentype.js M L Q C Z commands) as cubic subpaths.
+ * A font's contours are always closed, with or without the "Z" (many fonts leave it out).
  */
 function glyphSubpaths(commands: { type: string; x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number }[]): SubPath[] {
   const out: SubPath[] = [];
@@ -239,7 +239,7 @@ function glyphSubpaths(commands: { type: string; x?: number; y?: number; x1?: nu
       cur.segs.push(line(p0, [c.x!, c.y!]));
       p0 = [c.x!, c.y!];
     } else if (c.type === 'Q' && cur) {
-      // Cuadrática → cúbica: los controles, a 2/3 del control cuadrático desde cada extremo.
+      // Quadratic → cubic: the controls at 2/3 of the quadratic control from each end.
       const q: Vec2 = [c.x1!, c.y1!], e: Vec2 = [c.x!, c.y!];
       cur.segs.push({ c1: [p0[0] + (2 / 3) * (q[0] - p0[0]), p0[1] + (2 / 3) * (q[1] - p0[1])], c2: [e[0] + (2 / 3) * (q[0] - e[0]), e[1] + (2 / 3) * (q[1] - e[1])], p: e });
       p0 = e;
@@ -264,8 +264,8 @@ export const text = defineShape({
     tracking: { type: 'number', default: 0, min: -500, max: 2000, step: 5, label: 'Tracking', ramp: false },
     lineHeight: { type: 'number', default: 1.2, min: 0.5, max: 4, step: 0.05, label: 'Line height', ramp: false },
     align: { type: 'enum', default: 'center', options: ['left', 'center', 'right'], animatable: false },
-    // Qué punto va en la posición del objeto. ink: el centro de lo que se ve (cambia con cada palabra);
-    // left, center y right: el borde o el centro de la línea según la fuente (no se mueve al cambiar el texto).
+    // Which point goes at the object's position. ink: the centre of what is visible (changes with each word);
+    // left, center and right: the edge or the centre of the line by the font (doesn't move when the text changes).
     anchor: { type: 'enum', default: 'ink', options: ['ink', 'left', 'center', 'right'], label: 'Anchor', animatable: false },
     ...style,
   },
@@ -278,8 +278,8 @@ export const text = defineShape({
 });
 
 /**
- * Opciones de dibujo del texto (con ligaduras). Algunas fuentes traen sustituciones que opentype.js aún
- * no sabe aplicar (y lanza un error): esas se dibujan letra a letra (se prueba una vez por fuente).
+ * Text drawing options (with ligatures). Some fonts carry substitutions opentype.js can't apply yet
+ * (it throws): those are drawn letter by letter (tried once per font).
  */
 const probed = new WeakSet<object>();
 function textOptions(font: Font, text: string, extra: object = {}): object {
@@ -289,7 +289,7 @@ function textOptions(font: Font, text: string, extra: object = {}): object {
     try {
       font.forEachGlyph(`${text} The quick brown fox jumps over the lazy dog fi fl ffi ffl Th 0123`, 0, 0, 10, opts, () => {});
     } catch {
-      // Esa fuente, letra a letra: sin sustituciones (ligaduras, composición), con su avance y su kerning.
+      // That font, letter by letter: no substitutions (ligatures, composition), with its advance and kerning.
       const f = font as unknown as { stringToGlyphs: (s: string) => unknown[]; charToGlyph: (c: string) => unknown };
       f.stringToGlyphs = (str: string) => Array.from(str, (c) => f.charToGlyph(c));
     }
@@ -297,7 +297,7 @@ function textOptions(font: Font, text: string, extra: object = {}): object {
   return opts;
 }
 
-/** Palabra y línea de cada letra visible, en el mismo orden que textParts. */
+/** Word and line of each visible letter, in the same order as textParts. */
 function textTags(p: Record<string, unknown>): { word: number; line: number }[] {
   const found = fontFor(fontKey(String(p.font), Number(p.weight ?? 400), !!p.italic), String(p.font));
   if (!found) return [];
@@ -320,12 +320,12 @@ function textTags(p: Record<string, unknown>): { word: number; line: number }[] 
   return tags;
 }
 
-/** Una pieza por letra (los espacios no cuentan), con kerning; varias líneas con su alineación. */
+/** One piece per letter (spaces don't count), with kerning; several lines with their alignment. */
 const textParts = (p: Record<string, unknown>): SubPath[][] => textLayout(p).parts;
 
 /**
- * Las letras, centradas en el origen por su tinta, y el ancla: el borde izquierdo, el centro o el derecho
- * del bloque (por el avance de las letras) a media altura de sus líneas (por la fuente, no por la tinta).
+ * The letters, centred on the origin by their ink, and the anchor: the left edge, the centre or the right
+ * edge of the block (by the letters' advance) at mid-height of its lines (by the font, not by the ink).
  */
 function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: Vec2 } {
   const found = fontFor(fontKey(String(p.font), Number(p.weight ?? 400), !!p.italic), String(p.font));
@@ -346,14 +346,14 @@ function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: V
       if (sps.length) parts.push(sps);
     });
   });
-  // El ancla, antes de centrar: en horizontal, el bloque va de -maxW/2 a maxW/2; en vertical, de lo alto
-  // de la primera línea a lo bajo de la última (ascendente y descendente de la fuente).
+  // The anchor, before centring: horizontally the block goes from -maxW/2 to maxW/2; vertically, from the
+  // top of the first line to the bottom of the last (the font's ascender and descender).
   const k = size / font.unitsPerEm;
   const top = -font.ascender * k;
   const bottom = (lines.length - 1) * size * Number(p.lineHeight) - font.descender * k;
   const ax = p.anchor === 'left' ? -maxW / 2 : p.anchor === 'right' ? maxW / 2 : 0;
   const anchor: Vec2 = [ax, (top + bottom) / 2];
-  // Centrado en el origen (por la tinta), como las demás primitivas.
+  // Centred on the origin (by the ink), like the other primitives.
   const all = parts.flat();
   if (!all.length) return { parts, origin: anchor };
   const pts = all.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]);
@@ -366,14 +366,14 @@ function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: V
   };
 }
 
-// El peón, siempre el último (es la forma de pruebas).
+// The pawn, always last (it is the test shape).
 export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, text, pawn];
 export const shapeRegistry = new Map<string, ShapeDef>(shapes.map((s) => [s.type, s as ShapeDef]));
 
-/** Geometría de una primitiva, con su estilo. */
+/** A primitive's geometry, with its style. */
 export function buildShape(type: string, given: Record<string, unknown> = {}): Geometry {
   const def = shapeRegistry.get(type);
-  if (!def) throw new Error(`svertik: primitiva desconocida «${type}»`);
+  if (!def) throw new Error(`svertik: unknown primitive "${type}"`);
   const p = resolveParams(def.params, given) as Record<string, unknown>;
   const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
   const st: Style = {

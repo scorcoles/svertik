@@ -2,12 +2,12 @@ import { flatten, line, type Gradient, type Shape, type Style, type SubPath, typ
 import { defineModifier } from '../modifier';
 
 /**
- * Pixelate: todo el dibujo hecho de cuadraditos, como pixel art. Una rejilla de celdas de `size` px; cada
- * celda toma el color de lo que tiene debajo en su centro (el objeto de más arriba: su trazo si pasa por
- * ahí, si no su relleno). Los píxeles seguidos de un mismo color se unen en un solo trazado (pesa poco).
- * `gap`: separación entre píxeles (aspecto de pantalla de LED); `shape`: cuadrados o puntos redondos.
- * Vectorial: nítido a cualquier tamaño. Un degradado cuenta como su primer color; los filtros no se leen.
- * Con `size` a 0, el dibujo queda como estaba (animar de grande a 0: de pixelado a nítido).
+ * Pixelate: the whole drawing made of little squares, like pixel art. A grid of `size` px cells; each
+ * cell takes the colour of what is below its centre (the topmost object: its stroke if it passes there,
+ * otherwise its fill). Runs of pixels of the same colour are merged into one path (it weighs little).
+ * `gap`: space between pixels (an LED-screen look); `shape`: squares or round dots.
+ * Vector: sharp at any size. A gradient counts as its first colour; filters aren't read.
+ * With `size` at 0, the drawing stays as it was (animate from large to 0: from pixelated to sharp).
  */
 export const pixelate = defineModifier({
   type: 'pixelate',
@@ -21,21 +21,21 @@ export const pixelate = defineModifier({
   },
   apply(geo, p, ctx) {
     if (!(p.size >= 0.5) || !geo.shapes.length) return geo;
-    // Cada forma, lista para preguntar «¿cubre este punto?»: sus polígonos (relleno) y sus tramos (trazo).
+    // Each shape, ready to answer "does it cover this point?": its polygons (fill) and its segments (stroke).
     const layers = geo.shapes.map((s) => prepare(s)).filter((l): l is Layer => !!l);
     if (!layers.length) return { viewBox: geo.viewBox, shapes: [] };
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const l of layers) (x0 = Math.min(x0, l.box[0])), (y0 = Math.min(y0, l.box[1])), (x1 = Math.max(x1, l.box[2])), (y1 = Math.max(y1, l.box[3]));
-    // Tope de celdas: con píxeles muy pequeños en un dibujo grande, se agrandan (no se cuelga).
+    // Cell cap: with very small pixels on a large drawing, they grow (so it doesn't hang).
     let size = p.size;
     while (((x1 - x0) / size) * ((y1 - y0) / size) > 60000) size *= 1.25;
-    // La rejilla parte de la esquina del origen (no se mueve al cambiar el dibujo), corrida `offset` celdas.
+    // The grid starts at the source's corner (it doesn't move when the drawing changes), shifted `offset` cells.
     const ox = ctx.bounds.x + (p.offset[0] % 1) * size, oy = ctx.bounds.y + (p.offset[1] % 1) * size;
     const i0 = Math.floor((x0 - ox) / size), i1 = Math.ceil((x1 - ox) / size);
     const j0 = Math.floor((y0 - oy) / size), j1 = Math.ceil((y1 - oy) / size);
     const gap = Math.max(0, Math.min(p.gap, size * 0.9));
     const dot = p.shape === 'dot';
-    // Por color (con su opacidad), las tiras de píxeles seguidos de cada fila.
+    // By colour (with its opacity), the runs of pixels in each row.
     const groups = new Map<string, { style: Style; subpaths: SubPath[] }>();
     for (let j = j0; j < j1; j++) {
       const cy = oy + (j + 0.5) * size;
@@ -46,7 +46,7 @@ export const pixelate = defineModifier({
         if (!g) groups.set(run.key, (g = { style: run.style, subpaths: [] }));
         const y = oy + j * size + gap / 2, h = size - gap;
         if (dot || gap > 0) {
-          // Sueltos: cada píxel, el suyo.
+          // Separate: each pixel its own.
           for (let i = run.from; i < to; i++) g.subpaths.push(dot ? circle(ox + (i + 0.5) * size, cy, h / 2) : rect(ox + i * size + gap / 2, y, size - gap, h));
         } else g.subpaths.push(rect(ox + run.from * size, y, (to - run.from) * size, h));
         run = null;
@@ -76,7 +76,7 @@ interface Layer {
   lines: Vec2[][];
 }
 
-/** El color de una pintura: el suyo o, en un degradado, el primero de sus paradas. */
+/** A paint's colour: its own or, for a gradient, its first stop's. */
 function paint(value: string | undefined, gradients: Gradient[] | undefined): string | null {
   if (!value || value === 'none' || value === 'transparent') return null;
   const m = /^url\(#([^)]+)\)$/.exec(value.trim());
@@ -113,7 +113,7 @@ function prepare(s: Shape): Layer | null {
   };
 }
 
-/** Lo que se ve en el punto: de arriba abajo, el trazo o el relleno de la primera forma que lo cubre. */
+/** What is visible at the point: top down, the stroke or fill of the first shape covering it. */
 function colorAt(layers: Layer[], q: Vec2): { key: string; style: Style } | null {
   for (let n = layers.length - 1; n >= 0; n--) {
     const l = layers[n]!;
@@ -138,7 +138,7 @@ function nearLines(lines: Vec2[][], [x, y]: Vec2, half: number): boolean {
   return false;
 }
 
-/** Dentro del relleno: par-impar o, por defecto (nonzero), por el número de vueltas. */
+/** Inside the fill: even-odd or, by default (nonzero), by the winding number. */
 function insideFill(polys: Vec2[][], [x, y]: Vec2, evenodd: boolean): boolean {
   let wind = 0, odd = false;
   for (const r of polys) {
@@ -158,7 +158,7 @@ const rect = (x: number, y: number, w: number, h: number): SubPath => {
   return { start: a, segs: [line(a, b), line(b, c), line(c, d), line(d, a)], closed: true };
 };
 
-/** Círculo con cuatro cúbicas. */
+/** A circle with four cubics. */
 function circle(cx: number, cy: number, r: number): SubPath {
   const k = 0.5523 * r;
   const P = (x: number, y: number): Vec2 => [cx + x, cy + y];

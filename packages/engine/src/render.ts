@@ -1,4 +1,4 @@
-// Geometry → SVG: como texto (SVG plano) o actualizando un <svg> vivo.
+// Geometry → SVG: as text (a plain SVG) or by updating a live <svg>.
 
 import type { Geometry, Gradient, Shape, Style } from './geometry';
 
@@ -24,7 +24,7 @@ export function toPathData(shape: Shape, precision = 2): string {
 
 const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-/** Propiedades que en SVG solo existen como CSS (no como atributo): van en `style`. */
+/** Properties that only exist as CSS in SVG (not as attributes): they go in `style`. */
 const CSS_ONLY = new Set(['mix-blend-mode', 'isolation']);
 const cssOf = (style: Style) =>
   Object.entries(style)
@@ -32,7 +32,7 @@ const cssOf = (style: Style) =>
     .map(([k, v]) => `${k}:${v}`)
     .join(';');
 
-/** Los atributos de estilo de una forma, como texto (` fill="…" stroke="…"`). */
+/** A shape's style attributes, as text (` fill="…" stroke="…"`). */
 export const styleAttrs = (style: Style) => {
   const css = cssOf(style);
   return (
@@ -43,7 +43,7 @@ export const styleAttrs = (style: Style) => {
   );
 };
 
-/** Los degradados de todas las formas, sin repetir, como contenido de <defs>. */
+/** The gradients of all shapes, without repeats, as <defs> content. */
 export function gradientDefs(geo: Geometry): string {
   const seen = new Map<string, Gradient>();
   for (const s of geo.shapes) for (const g of s.gradients ?? []) seen.set(g.id, g);
@@ -59,10 +59,10 @@ export function gradientDefs(geo: Geometry): string {
     .join('');
 }
 
-/** Los filtros que envuelven una forma, solo los que existen (un `@clave` sin colocar en un nodo, fuera). */
+/** The filters wrapping a shape, only those that exist (an `@key` not yet placed on a node is left out). */
 export const wrapOf = (geo: Geometry, shape: Shape): string[] => (shape.wrap ?? []).filter((id) => geo.filters?.[id]);
 
-/** Los filtros (y máscaras) de la geometría, como contenido de <defs> (con `prefix` delante de cada id). */
+/** The geometry's filters (and masks), as <defs> content (with `prefix` before each id). */
 export function filterDefs(geo: Geometry, prefix = ''): string {
   return Object.entries(geo.filters ?? {})
     .map(([id, f]) => {
@@ -74,7 +74,7 @@ export function filterDefs(geo: Geometry, prefix = ''): string {
     .join('');
 }
 
-/** El atributo del grupo que envuelve las formas con un filtro o una máscara: [nombre, valor]. */
+/** The attribute of the group that wraps shapes with a filter or a mask: [name, value]. */
 export const wrapAttr = (geo: Geometry, id: string, prefix = ''): [string, string] =>
   geo.filters?.[id]?.kind === 'mask' ? ['mask', `url(#${prefix}sv-m-${id})`] : ['filter', `url(#${prefix}sv-f-${id})`];
 
@@ -85,7 +85,7 @@ export interface ToSVGOptions {
 /** SVG plano, autocontenido. */
 export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): string {
   const [x, y, w, h] = geo.viewBox;
-  // Las formas de un objeto con filtros, dentro de su <g filter> (anidados, si hace falta).
+  // The shapes of an object with filters go inside its <g filter> (nested if needed).
   const lines: string[] = [];
   let open: string[] = [];
   for (const shape of geo.shapes) {
@@ -107,14 +107,14 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
 }
 
 /**
- * Pinta la geometría dentro de un <svg> existente, reutilizando los <path>
- * entre llamadas para que la animación no cree nodos en cada fotograma.
+ * Paints the geometry into an existing <svg>, reusing the <path> elements
+ * between calls so the animation doesn't create nodes every frame.
  */
 export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }: ToSVGOptions = {}): void {
   svg.setAttribute('viewBox', geo.viewBox.join(' '));
-  // Ids de filtro propios de este <svg>: en la misma página puede haber otros con los mismos objetos.
+  // Filter ids of this <svg>: the same page may have others with the same objects.
   const prefix = prefixOf(svg);
-  // Degradados y filtros: un <defs> propio, que solo se reescribe si cambia.
+  // Gradients and filters: a <defs> of its own, only rewritten when it changes.
   const defs = gradientDefs(geo) + filterDefs(geo, prefix);
   let defsEl = svg.querySelector(':scope > defs[data-svertik]');
   if (defs && !defsEl) {
@@ -126,7 +126,7 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
   const paths = Array.from(svg.querySelectorAll('path[data-svertik]'));
   const groups = new Map(Array.from(svg.querySelectorAll('g[data-svertik-fx]'), (g) => [g.getAttribute('data-svertik-fx')!, g]));
   const used = new Set<Element>();
-  // Lo último que se ha colocado en cada contenedor: así solo se mueve lo que no está en su sitio.
+  // The last thing placed in each container: so only what is out of place moves.
   const lastIn = new Map<Element, Element | null>();
   const place = (parent: Element, el: Element) => {
     const prev = lastIn.has(parent) ? lastIn.get(parent)! : parent === svg ? (svg.querySelector(':scope > defs[data-svertik]') as Element | null) : null;
@@ -142,7 +142,7 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       path = svg.ownerDocument.createElementNS(SVG_NS, 'path');
       path.setAttribute('data-svertik', '');
     }
-    // Dentro de los grupos con filtro que le tocan (de fuera adentro).
+    // Inside the filter groups that apply to it (from outside in).
     let parent: Element = svg;
     for (const id of wrapOf(geo, shape)) {
       let g = groups.get(id);
@@ -164,8 +164,8 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     path.setAttribute('d', toPathData(shape, precision));
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
-    // Los atributos de estilo que ya no tiene (una opacidad, un trazo…) se quitan: si no, se quedaría
-    // con los del fotograma anterior. Se recuerda cuáles puso el render en data-svertik.
+    // Style attributes it no longer has (an opacity, a stroke…) are removed: otherwise it would keep
+    // the previous frame's. The renderer remembers which ones it set in data-svertik.
     const before = (path.getAttribute('data-svertik') ?? '').split(' ').filter(Boolean);
     const now: string[] = [];
     for (const [k, v] of Object.entries(shape.style)) {
@@ -174,7 +174,7 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       if (path.getAttribute(k) !== v) path.setAttribute(k, v);
     }
     for (const k of before) if (!now.includes(k)) path.removeAttribute(k);
-    // Invisible (opacidad 0): deja pasar el puntero a lo que haya debajo (un destello apagado no tapa los clics).
+    // Invisible (opacity 0): lets the pointer through to what is below (a faded flash doesn't block clicks).
     const hidden = Number(shape.style.opacity ?? 1) <= 0;
     if (hidden !== path.hasAttribute('pointer-events')) {
       if (hidden) path.setAttribute('pointer-events', 'none');

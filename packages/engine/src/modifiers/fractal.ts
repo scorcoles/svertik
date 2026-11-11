@@ -3,17 +3,17 @@ import { bounds, mapPoints, type Geometry, type Shape } from '../geometry';
 import { defineModifier } from '../modifier';
 import { fitViewBox } from './clone';
 
-/** Tope de copias: los fractales crecen exponencialmente (Carpet con 4 niveles ya son 4 096). */
+/** Copy cap: fractals grow exponentially (Carpet at 4 levels is already 4,096). */
 export const FRACTAL_MAX_COPIES = 4096;
 
 /**
- * Repite el dibujo dentro de sí mismo, cada vez más pequeño (sistema de funciones iteradas):
- * - sierpinski: 3 copias a la mitad (triángulo de Sierpinski); se queda el último nivel;
- * - carpet: 8 copias a un tercio alrededor de un hueco (alfombra de Sierpinski); el último nivel;
- * - tree: dos ramas giradas ±`angle` y escaladas `ratio` sobre la cima de cada una; todos los niveles;
- * - spiral: cada copia girada `angle` y escalada `ratio` alrededor de un punto a su derecha; todas.
- * Cada copia es un elemento (Step, Color…), en orden de generación. Si se pasaría del tope, baja la profundidad.
- * Con `fit`, el resultado se encoge hasta caber en la caja del dibujo original (no se sale del lienzo).
+ * Repeats the drawing inside itself, smaller each time (an iterated function system):
+ * - sierpinski: 3 copies at half size (Sierpinski triangle); keeps the last level;
+ * - carpet: 8 copies at a third around a hole (Sierpinski carpet); the last level;
+ * - tree: two branches turned ±`angle` and scaled `ratio` on top of each one; every level;
+ * - spiral: each copy turned `angle` and scaled `ratio` around a point to its right; all of them.
+ * Each copy is an element (Step, Color…), in generation order. If it would exceed the cap, the depth drops.
+ * With `fit`, the result shrinks to fit the original drawing's box (it doesn't leave the canvas).
  */
 export const fractal = defineModifier({
   type: 'fractal',
@@ -41,14 +41,14 @@ export const fractal = defineModifier({
       maps = [];
       for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (i || j) maps.push(scaleAbout(1 / 3, (i * w) / 3, (j * h) / 3));
     } else if (p.preset === 'tree') {
-      // Rama: su base (abajo, centro) va a la cima (arriba, centro) de la madre, girada y escalada.
+      // Branch: its base (bottom centre) goes to the top (top centre) of its parent, turned and scaled.
       const top: [number, number] = [c[0], b.y];
       const base: [number, number] = [c[0], b.y + h];
       const branch = (sign: number) => multiply(translate(top[0], top[1]), multiply(rotateScale(sign * p.angle, p.ratio), translate(-base[0], -base[1])));
       maps = [branch(-1), branch(1)];
       keepAll = true;
     } else if (p.preset === 'spiral') {
-      // Gira y encoge alrededor de un punto a la derecha del dibujo: las copias se enroscan hacia él.
+      // Turns and shrinks around a point to the right of the drawing: the copies coil towards it.
       const pivot: [number, number] = [b.x + w * 1.1, c[1]];
       maps = [at(pivot)(rotateScale(p.angle, p.ratio))];
       keepAll = true;
@@ -56,7 +56,7 @@ export const fractal = defineModifier({
       maps = [scaleAbout(0.5, 0, -h / 4), scaleAbout(0.5, -w / 4, h / 4), scaleAbout(0.5, w / 4, h / 4)];
     }
 
-    // Profundidad que cabe en el tope (spiral crece en línea, el resto en potencia).
+    // Depth that fits within the cap (spiral grows linearly, the rest exponentially).
     const k = maps.length;
     let depth = Math.max(1, Math.round(p.depth));
     const count = (d: number) => (k === 1 ? d + 1 : keepAll ? (k ** (d + 1) - 1) / (k - 1) : k ** d);
@@ -76,7 +76,7 @@ export const fractal = defineModifier({
       shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index })));
     });
     let out: Geometry = { viewBox: geo.viewBox, shapes };
-    // Fit: todo el fractal, encogido (sin deformar) y centrado en la caja del dibujo original.
+    // Fit: the whole fractal, shrunk (undistorted) and centred in the original drawing's box.
     if (p.fit) {
       const r = bounds(out);
       const k = Math.min(1, w / (r.width || 1), h / (r.height || 1));

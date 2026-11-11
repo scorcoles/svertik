@@ -2,8 +2,8 @@ import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
 /**
- * Envuelve el dibujo alrededor de un cilindro vertical (la etiqueta de una lata).
- * `wrap` es la parte de la vuelta que ocupa el dibujo; lo de los lados se comprime y se acerca o aleja.
+ * Wraps the drawing around a vertical cylinder (the label of a can).
+ * `wrap` is the part of the turn the drawing covers; the sides compress and move closer or further away.
  */
 export const cylinder = defineModifier({
   type: 'cylinder',
@@ -19,12 +19,12 @@ export const cylinder = defineModifier({
     const W = b.width || 1;
     const cx = b.x + W / 2;
     const cy = b.y + b.height / 2;
-    // Radio tal que el ancho del dibujo ocupa `wrap` de la circunferencia.
+    // Radius such that the drawing's width covers `wrap` of the circumference.
     const R = W / (2 * Math.PI * Math.max(0.01, p.wrap));
     const rot = deg(p.rotation);
     return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
       const theta = (x - cx) / R + rot;
-      const depth = Math.cos(theta); // 1 delante, −1 detrás
+      const depth = Math.cos(theta); // 1 in front, −1 behind
       const k = 1 + p.perspective * (depth - 1) * 0.5;
       return [cx + R * Math.sin(theta) * k, cy + (y - cy) * k];
     });

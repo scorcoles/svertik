@@ -2,23 +2,23 @@ import { flatten, line, mapSubPaths, type SubPath, type Vec2 } from '../geometry
 import { defineModifier } from '../modifier';
 
 /**
- * Recortar trazados (dibujarlos): de cada trazado queda solo el tramo entre Start y End (fracciones de su
- * longitud), desplazado por Offset; en los cerrados, el tramo da la vuelta. Animando End de 0 a 1, el
- * trazo se dibuja solo. Pensado para trazos (stroke); un relleno recortado se cierra en línea recta.
+ * Trims paths (draws them): of each path only the stretch between Start and End (fractions of its
+ * length) remains, shifted by Offset; in closed paths the stretch wraps around. Animating End from 0 to 1,
+ * the stroke draws itself. Meant for strokes; a trimmed fill closes with a straight line.
  */
 export const trim = defineModifier({
   type: 'trim',
   label: 'Trim',
   kind: 'deformer',
   params: {
-    // Neutros: el trazo entero (start 0, end 1). Dentro de Stagger, Range o Field, cada elemento va de su
-    // trazo entero a estos valores según su peso: con End a 0, las líneas se dibujan una detrás de otra.
+    // Neutral: the whole stroke (start 0, end 1). Inside Stagger, Range or Field, each element goes from its
+    // whole stroke to these values by its weight: with End at 0, the lines draw one after another.
     start: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Start' },
     end: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'End', neutral: 1 },
     offset: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, label: 'Offset' },
   },
   apply(geo, p) {
-    // Las curvas back y elastic de Stagger pueden pasarse de 0–1: el tramo, dentro.
+    // Stagger's back and elastic curves can go beyond 0–1: the stretch, kept inside.
     const clamp = (v: number) => Math.max(0, Math.min(1, v));
     const a = clamp(Math.min(p.start, p.end)), b = clamp(Math.max(p.start, p.end));
     if (a <= 0 && b >= 1 && p.offset === 0) return geo;
@@ -36,7 +36,7 @@ function cut(sp: SubPath, f0: number, f1: number): SubPath | null {
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]));
   const L = cum[cum.length - 1]!;
   if (L <= 0 || f1 - f0 <= 1e-6) return null;
-  // Abiertos: se recorta dentro de [0, 1]. Cerrados: el tramo puede dar la vuelta.
+  // Open: trimmed within [0, 1]. Closed: the stretch can wrap around.
   let s0 = f0 * L, s1 = f1 * L;
   if (!sp.closed) {
     s0 = Math.max(0, s0);
@@ -52,7 +52,7 @@ function cut(sp: SubPath, f0: number, f1: number): SubPath | null {
     const p0 = pts[i - 1]!, p1 = pts[i]!;
     return [p0[0] + (p1[0] - p0[0]) * k, p0[1] + (p1[1] - p0[1]) * k];
   };
-  // Puntos del tramo: el inicio, los vértices de dentro y el final.
+  // Points of the stretch: the start, the inner vertices and the end.
   const span = Math.min(s1 - s0, L);
   const out: Vec2[] = [at(s0)];
   const base = Math.floor(s0 / L) * L;

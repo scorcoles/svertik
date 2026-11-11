@@ -1,15 +1,15 @@
-// Recorrer trazados por su longitud: para repartir copias por un contorno o enrollar un dibujo en él.
+// Walking paths by length: to spread copies along an outline or wrap a drawing along it.
 import { flatten, type Geometry, type Vec2 } from './geometry';
 
 export interface Polyline {
   pts: Vec2[];
-  /** Longitud acumulada hasta cada punto. */
+  /** Accumulated length up to each point. */
   cum: number[];
   closed: boolean;
   length: number;
 }
 
-/** Cada subtrazado como polilínea (los cerrados, con el punto de vuelta al inicio). */
+/** Each subpath as a polyline (closed ones with the point back at the start). */
 export function polylines(geo: Geometry, samples = 16): Polyline[] {
   return geo.shapes.flatMap((s) =>
     s.subpaths.map((sp) => {
@@ -22,12 +22,12 @@ export function polylines(geo: Geometry, samples = 16): Polyline[] {
   ).filter((p) => p.length > 0);
 }
 
-/** Punto y tangente (unitaria) a la distancia `s`. Los cerrados dan la vuelta; los abiertos se prolongan en línea recta. */
+/** Point and (unit) tangent at distance `s`. Closed paths wrap around; open ones extend in a straight line. */
 export function pointAt(pl: Polyline, s: number): { p: Vec2; t: Vec2 } {
   const L = pl.length;
   if (pl.closed) s = ((s % L) + L) % L;
   const n = pl.pts.length;
-  // Fuera de un trazado abierto: sigue la tangente del extremo.
+  // Beyond an open path: follow the end's tangent.
   if (!pl.closed && (s < 0 || s > L)) {
     const [a, b] = s < 0 ? [pl.pts[0]!, pl.pts[1]!] : [pl.pts[n - 2]!, pl.pts[n - 1]!];
     const t = unit([b[0] - a[0], b[1] - a[1]]);
@@ -53,9 +53,9 @@ const unit = ([x, y]: Vec2): Vec2 => {
 };
 
 /**
- * Desplazamiento fractal del punto medio: mientras un lado mida más que `detail`, se parte en dos y el
- * punto nuevo se aparta en perpendicular (hasta `amount` × la mitad de su longitud). Borde rasgado.
- * Con `closed`, el último punto enlaza con el primero; si no, los extremos no se mueven.
+ * Fractal midpoint displacement: while a side is longer than `detail`, it is split in two and the new
+ * point moves sideways (up to `amount` × half its length). A torn edge.
+ * With `closed`, the last point links to the first; otherwise the ends don't move.
  */
 export function tearPolyline(pts: Vec2[], closed: boolean, detail: number, amount: number, rand: () => number, maxPoints = 4000): Vec2[] {
   let cur = pts;

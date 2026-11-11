@@ -3,12 +3,12 @@ import { flatten, line, type Geometry, type Shape, type SubPath, type Vec2 } fro
 import { defineModifier } from '../modifier';
 
 /**
- * Evolución (morph): de este dibujo a la forma de otro objeto. Los trazados se emparejan (el más grande
- * con el más grande…), se reparten en el mismo número de puntos por su longitud y se interpolan.
- * Si uno tiene más trazados que el otro, los que sobran nacen (o se apagan) en un punto. El relleno
- * también pasa de un color al otro. `amount` de 0 a 1: para animarlo.
- * Con `steps`: el original, `steps` formas intermedias y el destino, cada una
- * un elemento (Step, Color, Explosion…). Amount, entonces, dice hasta dónde llega la secuencia.
+ * Morph: from this drawing to the shape of another object. Paths are paired (the largest with the
+ * largest…), resampled to the same number of points along their length and interpolated.
+ * If one has more paths than the other, the extra ones grow from (or shrink to) a point. The fill
+ * also goes from one colour to the other. `amount` from 0 to 1: to animate it.
+ * With `steps`: the original, `steps` in-between shapes and the target, each one
+ * an element (Step, Color, Explosion…). Amount then says how far the sequence goes.
  */
 export const morph = defineModifier({
   type: 'morph',
@@ -37,10 +37,10 @@ export const morph = defineModifier({
     if (!A.length || !B.length) return geo;
     const count = Math.max(A.length, B.length);
     const lastA = A[A.length - 1]!;
-    // Parejas, una vez: de dónde sale cada punto y a dónde va.
+    // Pairs, once: where each point comes from and where it goes.
     const pairs = Array.from({ length: count }, (_, i) => {
       const a = A[i], b = B[i];
-      // Lo que no tiene pareja nace o se apaga en el centro de su contraparte más pequeña.
+      // What has no pair grows or shrinks at the centre of its smallest counterpart.
       const pa = a ? a.pts : collapse(b!.pts, centroid(lastA.pts));
       const pbRaw = b ? b.pts : collapse(a!.pts, centroid(B[B.length - 1]!.pts));
       return { pa, pb: align(pa, pbRaw), owner: (a ?? lastA).shape };
@@ -63,13 +63,13 @@ export const morph = defineModifier({
       });
     };
     const steps = Math.max(0, Math.round(p.steps));
-    // Sin pasos: una forma en `amount`. Con pasos: la secuencia entera, del original (0) hasta `amount`.
+    // Without steps: one shape at `amount`. With steps: the whole sequence, from the original (0) up to `amount`.
     const out: Shape[] = steps === 0 ? at(T) : Array.from({ length: steps + 2 }, (_, i) => at((i / (steps + 1)) * T, i)).flat();
     return { viewBox: geo.viewBox, shapes: out };
   },
 });
 
-/** n puntos repartidos por la longitud del trazado (cerrado o no). */
+/** n points spread along the path's length (closed or not). */
 function resample(sp: SubPath, n: number): Vec2[] {
   const pts = flatten(sp, 12);
   if (sp.closed) pts.push(sp.start);
@@ -90,7 +90,7 @@ function resample(sp: SubPath, n: number): Vec2[] {
   return out;
 }
 
-/** Reordena b (sentido y punto de inicio) para que cada punto vaya al más cercano de a: menos retorcimiento. */
+/** Reorders b (direction and start point) so each point goes to the nearest one of a: less twisting. */
 function align(a: Vec2[], b: Vec2[]): Vec2[] {
   const n = a.length;
   const sameDir = Math.sign(areaOf(a)) === Math.sign(areaOf(b)) || areaOf(b) === 0;

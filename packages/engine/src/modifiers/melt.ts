@@ -2,7 +2,7 @@ import { mapPoints, subdivide } from '../geometry';
 import { defineModifier } from '../modifier';
 import { noise2D } from '../random';
 
-/** Derretir: el dibujo gotea hacia abajo, más cuanto más abajo está; el ruido decide dónde caen las gotas. */
+/** Melt: the drawing drips downwards, more the lower it is; noise decides where the drops fall. */
 export const melt = defineModifier({
   type: 'melt',
   label: 'Melt',
@@ -20,7 +20,7 @@ export const melt = defineModifier({
     const drop = p.amount * b.height;
     return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
       const t = Math.max(0, (y - b.y) / b.height);
-      // Gotas: ruido a lo ancho, afilado para que haya regueros y huecos.
+      // Drops: noise across the width, sharpened so there are trickles and gaps.
       const r = Math.pow((n(((x - b.x) / (b.width || 1)) * p.drips, 0.5) + 1) / 2, p.sharpness);
       return [x, y + drop * r * t * t];
     });

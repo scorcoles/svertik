@@ -1,10 +1,10 @@
-// Paletas: las de serie, los colores que usa una escena y cambiarlos por los de una paleta.
+// Palettes: the built-in ones, the colours a scene uses and swapping them for a palette's.
 
 import { parseColor, rgbToOklab, toHex } from './color';
 import { walkNodes, type SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
 
-/** El nombre de la «paleta» con los colores del documento (en el selector, la primera). */
+/** The name of the "palette" with the document's colours (first in the picker). */
 export const DOCUMENT_PALETTE = 'In this document';
 
 export interface Palette {
@@ -12,7 +12,7 @@ export interface Palette {
   colors: string[];
 }
 
-/** Paletas de serie (de oscuro a claro, más o menos). */
+/** Built-in palettes (dark to light, roughly). */
 export const PALETTES: Palette[] = [
   { name: 'svertik', colors: ['#0d0d10', '#25252d', '#7a7a88', '#8a5cff', '#ff4fa3', '#09fdd1', '#ffd23f', '#f4f4f4'] },
   { name: 'Ember', colors: ['#1c0f13', '#4a1a24', '#8f2d2f', '#d2502f', '#f08a3c', '#f9c46b', '#fdebc8'] },
@@ -27,7 +27,7 @@ export const PALETTES: Palette[] = [
 const HEX = /#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi;
 const full = (m: string) => (m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}` : m).toLowerCase();
 
-/** Cada texto de la escena que puede llevar colores: parámetros, SVG de origen y claves de animación. */
+/** Every string in the scene that may hold colours: parameters, SVG sources and animation keys. */
 function eachText(scene: SceneV2, fn: (value: string, set: (v: string) => void) => void) {
   const visit = (obj: Record<string, unknown>) => {
     for (const [k, v] of Object.entries(obj)) if (typeof v === 'string') fn(v, (nv) => (obj[k] = nv));
@@ -41,7 +41,7 @@ function eachText(scene: SceneV2, fn: (value: string, set: (v: string) => void) 
   for (const tr of scene.animation?.tracks ?? []) for (const k of tr.keys) if (typeof k.value === 'string') fn(k.value, (v) => (k.value = v));
 }
 
-/** Los colores (hex) que usa la escena, sin repetir, en el orden en que aparecen. */
+/** The colours (hex) the scene uses, without repeats, in order of appearance. */
 export function sceneColors(scene: SceneV2): string[] {
   const out = new Set<string>();
   eachText(scene, (v) => {
@@ -56,8 +56,8 @@ const lightness = (hex: string) => {
 };
 
 /**
- * Qué color de la paleta le toca a cada color de la escena: por luminosidad (OKLab), el más oscuro al más
- * oscuro de la paleta y el más claro al más claro, repartidos en proporción. Se conserva el contraste.
+ * Which palette colour each scene colour gets: by lightness (OKLab), darkest to the palette's darkest and
+ * lightest to its lightest, spread in proportion. Contrast is preserved.
  */
 export function paletteMap(colors: string[], palette: string[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -71,7 +71,7 @@ export function paletteMap(colors: string[], palette: string[]): Map<string, str
   return map;
 }
 
-/** Cambia en la escena (en su sitio) los colores por los de la paleta. Devuelve cuántos colores cambiaron. */
+/** Swaps the scene's colours (in place) for the palette's. Returns how many colours changed. */
 export function applyPalette(scene: SceneV2, palette: string[]): number {
   const map = paletteMap(sceneColors(scene), palette);
   let changed = 0;
@@ -84,7 +84,7 @@ export function applyPalette(scene: SceneV2, palette: string[]): number {
   return changed;
 }
 
-/** Un color, normalizado (#rrggbb); null si no lo es. */
+/** A colour, normalised (#rrggbb); null if it isn't one. */
 export const normalizeHex = (c: string): string | null => {
   const p = parseColor(c);
   return p ? toHex([p[0], p[1], p[2], 1]) : null;

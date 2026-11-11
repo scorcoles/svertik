@@ -2,11 +2,11 @@ import { cubicAt, line, mapSubPaths, splitCubic, type Cubic, type SubPath, type 
 import { defineModifier } from '../modifier';
 
 /**
- * Redondea las esquinas: en cada punto donde el trazado cambia de dirección de golpe, corta los dos tramos
- * que llegan y los une con un arco (o con una recta, en `chamfer`). Lo que ya es curva suave no se toca.
- * - radius: el radio del arco, en unidades del dibujo. Si los tramos son cortos, el arco se encoge para
- *   caber (como mucho, la mitad de un tramo que también se redondea por el otro lado).
- * - limit: solo las esquinas con un ángulo interior menor que este (180: todas; 90: solo las agudas y rectas).
+ * Rounds the corners: at every point where the path changes direction sharply, it cuts the two incoming
+ * segments and joins them with an arc (or a straight line, in `chamfer`). Smooth curves aren't touched.
+ * - radius: the arc's radius, in drawing units. If the segments are short, the arc shrinks to
+ *   fit (at most half a segment that is also rounded at its other end).
+ * - limit: only corners with an inner angle below it (180: all; 90: only right and sharp ones).
  */
 export const roundcorners = defineModifier({
   type: 'roundcorners',
@@ -23,7 +23,7 @@ export const roundcorners = defineModifier({
   },
 });
 
-/** Por debajo de este giro, no es una esquina (curvas suaves aproximadas). */
+/** Below this turn it isn't a corner (approximated smooth curves). */
 const MIN_TURN = (1 * Math.PI) / 180;
 const EPS = 1e-6;
 
@@ -34,7 +34,7 @@ interface Seg {
 }
 
 function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: boolean): SubPath {
-  // Tramos con su punto de partida; fuera los de longitud nula. Un cerrado acaba en su inicio.
+  // Segments with their start point; zero-length ones dropped. A closed path ends at its start.
   const segs: Seg[] = [];
   let p0 = sp.start;
   for (const s of sp.segs) {
@@ -46,7 +46,7 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
   const n = segs.length;
   if (n < 2) return sp;
 
-  // Esquinas: la k está entre el tramo k-1 y el k (en un abierto, de 1 a n-1; en un cerrado, todas).
+  // Corners: corner k is between segment k-1 and k (in an open path, 1 to n-1; in a closed one, all).
   const turnLimit = Math.PI - (Math.max(0, Math.min(180, limitDeg)) * Math.PI) / 180;
   const turns: number[] = new Array(n).fill(0);
   for (let k = sp.closed ? 0 : 1; k < n; k++) {
@@ -56,7 +56,7 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
   }
   if (turns.every((t) => t === 0)) return sp;
 
-  // Cuánto se corta a cada lado de cada esquina: R·tan(giro/2), sin pasar de lo que cabe en cada tramo.
+  // How much is cut on each side of each corner: R·tan(turn/2), never more than fits in each segment.
   const room = (i: number, otherEnd: number) => segs[i]!.len * (turns[otherEnd] ? 0.5 : 1) * 0.999;
   const cut: number[] = turns.map((t, k) => {
     if (!t) return 0;
@@ -65,7 +65,7 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
     return Math.min(want, room(prev, prev), room(k, (k + 1) % n));
   });
 
-  // Cada tramo, recortado por sus dos puntas.
+  // Each segment, trimmed at both ends.
   const trimmed: { start: Vec2; s: Cubic }[] = segs.map((g, i) => {
     let from = g.p0;
     let s = g.s;
@@ -85,7 +85,7 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
     return { start: from, s };
   });
 
-  // Arco entre el final de un tramo y el principio del siguiente.
+  // Arc between the end of one segment and the start of the next.
   const arc = (a: { start: Vec2; s: Cubic }, b: { start: Vec2; s: Cubic }): Cubic => {
     const from = a.s.p, to = b.start;
     if (chamfer) return line(from, to);
@@ -93,7 +93,7 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
     const tb = unit(startTangent({ p0: b.start, s: b.s, len: 0 }));
     const turn = angleBetween(ta, tb);
     if (turn < MIN_TURN) return line(from, to);
-    // Radio que pasa por los dos puntos con esas tangentes; asas de un arco circular (4/3·tan(giro/4)).
+    // Radius through both points with those tangents; handles of a circular arc (4/3·tan(turn/4)).
     const r = dist(from, to) / (2 * Math.sin(turn / 2));
     const k = (4 / 3) * Math.tan(turn / 4) * r;
     return { c1: [from[0] + ta[0] * k, from[1] + ta[1] * k], c2: [to[0] - tb[0] * k, to[1] - tb[1] * k], p: to };
@@ -120,12 +120,12 @@ const angleBetween = (a: Vec2, b: Vec2) => {
   return Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / (la * lb))));
 };
 
-/** Dirección al llegar al final del tramo (el control más cercano que no coincida con la punta). */
+/** Direction arriving at the end of the segment (the nearest control that doesn't coincide with the tip). */
 function endTangent({ p0, s }: Seg): Vec2 {
   for (const q of [s.c2, s.c1, p0]) if (dist(q, s.p) > EPS) return sub(s.p, q);
   return [0, 0];
 }
-/** Dirección al salir del principio del tramo. */
+/** Direction leaving the start of the segment. */
 function startTangent({ p0, s }: Seg): Vec2 {
   for (const q of [s.c1, s.c2, s.p]) if (dist(q, p0) > EPS) return sub(q, p0);
   return [0, 0];
@@ -142,7 +142,7 @@ function length(p0: Vec2, s: Cubic): number {
   }
   return len;
 }
-/** El t en que se ha recorrido `d` desde el principio del tramo (por muestras, interpolando). */
+/** The t at which distance `d` has been covered from the start of the segment (by samples, interpolating). */
 function paramAt(p0: Vec2, s: Cubic, d: number): number {
   let acc = 0;
   let prev = p0;

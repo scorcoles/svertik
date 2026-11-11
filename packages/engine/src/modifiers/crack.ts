@@ -7,16 +7,16 @@ import { rng } from '../random';
 
 interface Branch {
   points: Vec2[];
-  /** «Tiempo» de cada punto: pasos desde el impacto. Sirve para hacer crecer la grieta. */
+  /** "Time" of each point: steps from the impact. Used to grow the crack. */
   times: number[];
 }
 
 /**
- * Grietas: líneas ramificadas que nacen de un punto de impacto.
- * - lines: se pintan encima, como una forma nueva de solo trazo (la forma no se toca);
- * - cut: se recortan como huecos de `width` px;
- * - shatter: se recortan y cada trozo suelto se aparta del impacto `separation` px (cada trozo, un elemento).
- * `growth` recorta por «tiempo», así que animarlo hace crecer la grieta sin cambiar su dibujo.
+ * Cracks: branching lines born from an impact point.
+ * - lines: painted on top, as a new stroke-only shape (the shape isn't touched);
+ * - cut: cut out as gaps of `width` px;
+ * - shatter: cut out, and each loose piece moves away from the impact `separation` px (each piece, an element).
+ * `growth` trims by "time", so animating it grows the crack without changing its drawing.
  */
 export const crack = defineModifier({
   type: 'crack',
@@ -40,28 +40,28 @@ export const crack = defineModifier({
     const size = Math.max(b.width, b.height);
     if (size === 0 || p.cracks < 1 || p.length <= 0) return geo;
 
-    // Zona agrietable: las formas con relleno; si no hay, la caja del dibujo.
+    // Crackable area: the filled shapes; if there are none, the drawing's box.
     const filled = geo.shapes.filter((s) => (s.style.fill ?? 'black') !== 'none');
     const polys = filled.length
       ? filled.flatMap((s) => s.subpaths.filter((sp) => sp.closed).map((sp) => flatten(sp)))
       : [[[b.x, b.y], [b.x + b.width, b.y], [b.x + b.width, b.y + b.height], [b.x, b.y + b.height]] as Vec2[]];
     const inside = (pt: Vec2) => insidePolygons(polys, pt);
 
-    // Si el impacto cae en un hueco (entre letras, por ejemplo), se busca el punto con material más cercano.
+    // If the impact lands in a gap (between letters, for instance), the nearest point with material is used.
     let origin = fromFraction(b, p.impact) as Vec2;
     if (!inside(origin)) {
       const found = nearestInside(origin, inside, size);
       if (!found) return geo;
       origin = found;
     }
-    // Al recortar, las grietas siguen aunque crucen un hueco (cortan donde hay material); al pintar, no.
+    // When cutting, cracks carry on across gaps (they cut where there is material); when painting, they don't.
     const cutting = p.mode !== 'lines';
     const box = { x0: b.x - size * 0.05, y0: b.y - size * 0.05, x1: b.x + b.width + size * 0.05, y1: b.y + b.height + size * 0.05 };
     const within = (q: Vec2) => (cutting ? q[0] >= box.x0 && q[0] <= box.x1 && q[1] >= box.y0 && q[1] <= box.y1 : inside(q));
 
     const rand = rng(p.seed);
     const step = size * 0.025;
-    // En shatter, las grietas corren hasta salir del objeto: así siempre se parte en trozos.
+    // In shatter, cracks run until they leave the object: so it always breaks into pieces.
     const maxSteps = p.mode === 'shatter' ? Math.ceil((3 * size) / step) : Math.max(1, Math.round((p.length * size) / step));
     const branches: Branch[] = [];
 
@@ -94,7 +94,7 @@ export const crack = defineModifier({
       grow(origin, 0, angle, Math.round(maxSteps * (0.6 + rand() * 0.4)), 0);
     }
 
-    // Recorte por crecimiento.
+    // Trimming by growth.
     const tMax = Math.max(1, ...branches.flatMap((br) => br.times));
     const limit = p.growth * tMax;
     const subpaths: SubPath[] = [];
@@ -103,7 +103,7 @@ export const crack = defineModifier({
       for (let i = 0; i < br.points.length; i++) {
         const t = br.times[i]!;
         if (t <= limit) { pts.push(br.points[i]!); continue; }
-        // Último tramo, a medias.
+        // Last segment, halfway.
         if (i > 0) {
           const t0 = br.times[i - 1]!;
           const f = (limit - t0) / (t - t0);
@@ -128,7 +128,7 @@ export const crack = defineModifier({
   },
 });
 
-/** Recorta las grietas (bandas de `width`) en las formas rellenas; en shatter, separa los trozos. */
+/** Cuts the cracks (bands of `width`) out of the filled shapes; in shatter, separates the pieces. */
 function cut(geo: Geometry, lines: SubPath[], p: { mode: string; width: number; separation: number; seed: number }, origin: Vec2, resolution: number): Geometry {
   const rand = rngLike(p.seed);
   const holes: MultiPolygon = lines.map((sp) => {
@@ -155,7 +155,7 @@ function cut(geo: Geometry, lines: SubPath[], p: { mode: string; width: number; 
     for (const poly of rest) {
       let pl = poly;
       if (p.mode === 'shatter' && p.separation > 0) {
-        // Cada trozo, alejándose del impacto (desde su centro), un poco al azar.
+        // Each piece, moving away from the impact (from its centre), slightly at random.
         const ring = poly[0]!;
         const cx = ring.reduce((a, q) => a + q[0], 0) / ring.length, cy = ring.reduce((a, q) => a + q[1], 0) / ring.length;
         const dx = cx - origin[0], dy = cy - origin[1];
@@ -170,7 +170,7 @@ function cut(geo: Geometry, lines: SubPath[], p: { mode: string; width: number; 
   return { viewBox: geo.viewBox, shapes: out };
 }
 
-/** El punto con material más cercano a `q` (en espiral, hasta `size`). */
+/** The point with material nearest to `q` (in a spiral, up to `size`). */
 function nearestInside(q: Vec2, inside: (q: Vec2) => boolean, size: number): Vec2 | null {
   for (let r = size * 0.01; r < size; r *= 1.25) {
     for (let k = 0; k < 24; k++) {

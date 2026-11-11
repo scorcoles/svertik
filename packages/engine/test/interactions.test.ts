@@ -14,7 +14,7 @@ const scene = (): SceneV2 => ({
 });
 
 describe('interacciones', () => {
-  it('hover: el grupo crece al pasar por un hijo y vuelve al salir, desde donde esté', () => {
+  it('hover: the group grows when passing over a child and goes back on leave, from wherever it is', () => {
     const sc = scene();
     const it = createInteractions(() => sc);
     it.event('enter', 'a');
@@ -23,11 +23,11 @@ describe('interacciones', () => {
     it.event('leave', null);
     it.step(0.25);
     expect(it.apply(sc).objects[0]!.transform?.scale).toBeCloseTo(1.25);
-    // La escena original no se toca.
+    // The original scene is not touched.
     expect(sc.objects[0]!.transform).toBeUndefined();
   });
 
-  it('clic: alterna entre ir y volver', () => {
+  it('click: alternates between going and coming back', () => {
     const sc = scene();
     const it = createInteractions(() => sc);
     it.event('click', 'b');
@@ -48,7 +48,7 @@ describe('interacciones: acciones', () => {
     interactions,
   });
 
-  it('play: el cabezal recorre el tramo al entrar y vuelve al salir', () => {
+  it('play: the playhead runs the segment on enter and comes back on leave', () => {
     const sc = base([{ id: 'p', node: 'b', trigger: 'hover', action: 'play', target: { node: 'b', on: 'node', param: 'x' }, to: 0, duration: 0, segment: [0.5, 1.5] }]);
     const it = createInteractions(() => sc);
     it.event('enter', 'b');
@@ -61,7 +61,7 @@ describe('interacciones: acciones', () => {
     expect(it.playhead()).toBeCloseTo(1);
   });
 
-  it('seed: una semilla nueva en cada clic; toggle: apaga el efecto', () => {
+  it('seed: a new seed on each click; toggle: turns the effect off', () => {
     const sc = base([
       { id: 's', node: 'b', trigger: 'click', action: 'seed', target: { node: 'b', on: 'modifier', modifier: 'g', param: 'seed' }, to: 0, duration: 0 },
       { id: 't', node: 'b', trigger: 'click', action: 'toggle', target: { node: 'b', on: 'modifier', modifier: 'w', param: '' }, to: 0, duration: 0 },
@@ -75,7 +75,7 @@ describe('interacciones: acciones', () => {
     expect(it.apply(sc).objects[0]!.stack[1]!.enabled ?? true).toBe(true);
   });
 
-  it('enter: se dispara cuando el dibujo entra en pantalla', () => {
+  it('enter: fires when the drawing scrolls into view', () => {
     const sc = base([{ id: 'e', node: 'b', trigger: 'enter', action: 'tween', target: { node: 'b', on: 'node', param: 'scale' }, to: 2, duration: 1, ease: 'linear' }]);
     const it = createInteractions(() => sc);
     it.event('view', null);
@@ -93,7 +93,7 @@ describe('follow (pointer)', () => {
     interactions: [{ id: 'f', node: 'a', trigger: 'pointer', action: 'follow', target: { node: 'a', on: 'node', param: 'position' }, to: null, duration: 0, ...follow }],
   });
 
-  it('la posición va bajo el puntero y vuelve a su sitio al salir', () => {
+  it('the position goes under the pointer and back to its place on leave', () => {
     const sc = base({});
     const it = createInteractions(() => sc);
     it.pointer([40, -20], doc(sc));
@@ -105,7 +105,7 @@ describe('follow (pointer)', () => {
     expect(it.isActive()).toBe(false);
   });
 
-  it('con inercia, se acerca poco a poco; con stay, se queda al salir', () => {
+  it('with lag, it gets closer little by little; with stay, it stays on leave', () => {
     const sc = base({ duration: 0.5, stay: true });
     const it = createInteractions(() => sc);
     it.pointer([90, 0], doc(sc));
@@ -119,19 +119,19 @@ describe('follow (pointer)', () => {
     expect(it.apply(sc).objects[0]!.transform!.x).toBeCloseTo(90, 1);
   });
 
-  it('un punto de un efecto: en fracciones de su caja (el centro de Spherize, bajo el puntero)', () => {
+  it('a point of an effect: in fractions of its box (the Spherize centre, under the pointer)', () => {
     const sc = base({ target: { node: 'a', on: 'modifier', modifier: 'sp', param: 'center' } });
     const it = createInteractions(() => sc);
-    // La caja del rectángulo va de -10 a 10: el puntero en (10, 0) es la fracción (1, 0,5).
+    // The rectangle box goes from -10 to 10: the pointer at (10, 0) is the fraction (1, 0.5).
     it.pointer([10, 0], doc(sc));
     it.step(1 / 30);
     expect((it.apply(sc).objects[0]!.stack[0]!.params as { center: number[] }).center).toEqual([1, 0.5]);
   });
 
-  it('un número recorre su rango a lo ancho del documento (o a lo alto)', () => {
+  it('a number runs through its range across the document (or down)', () => {
     const sc = base({ target: { node: 'a', on: 'node', param: 'rotation' }, range: [0, 180], axis: 'x' });
     const it = createInteractions(() => sc);
-    it.pointer([50, 0], doc(sc)); // de -100 a 100: el 75 %
+    it.pointer([50, 0], doc(sc)); // from -100 to 100: 75 %
     it.step(1 / 30);
     expect(it.apply(sc).objects[0]!.transform!.rotation).toBeCloseTo(135);
   });

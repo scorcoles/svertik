@@ -2,8 +2,8 @@ import { bounds, type Geometry, type Shape } from '../geometry';
 import { weightParams, type ModifierContext } from '../modifier';
 
 /**
- * Aplica los efectos colgados a cada elemento con un peso de 0 a 1 (Range, Field). Con peso 0 el elemento
- * queda como estaba; con 1, recibe los efectos enteros. Las fracciones se miden sobre la caja de cada uno.
+ * Applies the nested effects to each element with a weight from 0 to 1 (Range, Field). With weight 0 the
+ * element stays as it was; with 1, it gets the full effects. Fractions are measured on each one's box.
  */
 export function applyWeighted(
   geo: Geometry,
@@ -11,7 +11,7 @@ export function applyWeighted(
   keyOf: (s: Shape, i: number) => number,
   weightOf: (key: number, index: number, count: number, part: Geometry) => number,
   amount: number,
-  /** Rango del peso: Range y Field van de 0 a 1; Stagger deja pasarse (curvas back, elastic). */
+  /** Weight range: Range and Field go from 0 to 1; Stagger lets it overshoot (back, elastic curves). */
   limits: [number, number] = [0, 1],
 ): Geometry {
   const children = ctx.children.filter((c) => c.enabled);
@@ -26,7 +26,7 @@ export function applyWeighted(
     if (Math.abs(w) > 1e-6) {
       const local: ModifierContext = { ...ctx, bounds: bounds(part), children: [] };
       for (const c of children) part = c.def.apply(part, weightParams(c.def.params, c.params, w), { ...local, children: c.children });
-      // Lo que sale conserva su elemento (y sus marcas de palabra y línea).
+      // What comes out keeps its element (and its word and line tags).
       const tag = own[0]!;
       out.push(...part.shapes.map((s) => ({ ...s, clone: s.clone ?? tag.clone, word: s.word ?? tag.word, line: s.line ?? tag.line })));
       if (part.inner) inner = { ...inner, ...part.inner };
@@ -36,7 +36,7 @@ export function applyWeighted(
   return { viewBox: geo.viewBox, shapes: out, ...(inner ? { inner } : {}) };
 }
 
-/** Elementos: copias o letras (clone); si no hay, cada forma. Por palabras o líneas, si el texto lo marca. */
+/** Elements: copies or letters (clone); without them, each shape. By words or lines, if the text tags them. */
 export function keyFor(geo: Geometry, unit: string): (s: Shape, i: number) => number {
   const has = (f: 'word' | 'line') => geo.shapes.some((s) => s[f] !== undefined);
   if (unit === 'words' && has('word')) return (s) => s.word ?? -1;

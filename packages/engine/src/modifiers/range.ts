@@ -3,10 +3,10 @@ import { rng } from '../random';
 import { applyWeighted, keyFor, smooth } from './weighted';
 
 /**
- * Selector por rango: elige qué elementos (letras, palabras,
- * líneas, copias, teselas, trozos…) reciben los efectos colgados y cuánto, según su orden.
- * Start y End marcan el tramo (0–1 del total) y Offset lo desplaza: animar Offset recorre el texto.
- * La forma dice cómo se reparte el peso dentro del tramo.
+ * Range selector: picks which elements (letters, words,
+ * lines, copies, tiles, pieces…) get the nested effects and how much, by their order.
+ * Start and End mark the range (0–1 of the total) and Offset moves it: animate Offset to sweep the text.
+ * The shape says how the weight is spread within the range.
  */
 export const range = defineModifier({
   type: 'range',
@@ -24,7 +24,7 @@ export const range = defineModifier({
   },
   apply(geo, p, ctx) {
     const keyOf = keyFor(geo, p.unit);
-    // Orden (opcionalmente barajado, con semilla).
+    // Order (optionally shuffled, with a seed).
     const keys = [...new Set(geo.shapes.map(keyOf))].filter((k) => k >= 0).sort((a, b) => a - b);
     const order = new Map(keys.map((k, i) => [k, i]));
     if (p.random) {
@@ -42,7 +42,7 @@ export const range = defineModifier({
       ctx,
       keyOf,
       (key, _i, n) => {
-        // Cada elemento ocupa su franja [i/n, (i+1)/n]; cuenta su centro.
+        // Each element takes its band [i/n, (i+1)/n]; its centre counts.
         const u = (order.get(key)! + 0.5) / n;
         if (u < s0 || u > s1 || s1 <= s0) return 0;
         const t = (u - s0) / (s1 - s0);

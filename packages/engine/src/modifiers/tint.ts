@@ -3,8 +3,8 @@ import type { Style } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Lleva el color hacia un color objetivo. Dentro de Step la cantidad crece copia a copia:
- * con 0.1, la 1.ª se acerca un 10 %, la 2.ª un 20 %… (blanco aclara, negro oscurece).
+ * Pushes the colour towards a target colour. Inside Step the amount grows copy by copy:
+ * with 0.1, the 1st gets 10 % closer, the 2nd 20 %… (white lightens, black darkens).
  */
 export const tint = defineModifier({
   type: 'tint',

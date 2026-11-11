@@ -4,10 +4,10 @@ import { tearPolyline as tear } from '../paths';
 import { rng } from '../random';
 
 /**
- * Bordes fractales, en cualquier dibujo:
- * - organic: borde rasgado (desplazamiento del punto medio), como una costa o papel roto;
- * - koch: cada tramo se convierte en el pico de la curva de Koch, `iterations` veces (tope: 4).
- * Las curvas pasan a tramos rectos (es lo que se rasga). Tope de puntos por trazado para no colgarse.
+ * Fractal edges, on any drawing:
+ * - organic: a torn edge (midpoint displacement), like a coastline or torn paper;
+ * - koch: each segment becomes a Koch curve peak, `iterations` times (cap: 4).
+ * Curves become straight segments (that is what gets torn). Points per path are capped so it doesn't hang.
  */
 export const roughenModifier = defineModifier({
   type: 'roughen',
@@ -24,7 +24,7 @@ export const roughenModifier = defineModifier({
   apply(geo, p, ctx) {
     const size = Math.max(ctx.bounds.width, ctx.bounds.height) || 1;
     const rand = rng(p.seed);
-    // Las curvas, a polilínea fina; los tramos rectos se quedan con sus dos puntos.
+    // Curves, to a fine polyline; straight segments keep their two points.
     const toPts = (sp: SubPath): Vec2[] => {
       const pts: Vec2[] = [sp.start];
       let p0 = sp.start;
@@ -34,7 +34,7 @@ export const roughenModifier = defineModifier({
         pts.push(...sub);
         p0 = g.p;
       }
-      // En los cerrados, el último punto repite el primero.
+      // In closed paths, the last point repeats the first.
       if (sp.closed && pts.length > 1 && same(pts[0]!, pts[pts.length - 1]!)) pts.pop();
       return pts;
     };
@@ -53,7 +53,7 @@ export const roughenModifier = defineModifier({
   },
 });
 
-/** Curva de Koch: cada tramo AB → A, ⅓, pico, ⅔, B. `h`: altura del pico en proporción al tramo. */
+/** Koch curve: each segment AB → A, ⅓, peak, ⅔, B. `h`: the peak's height relative to the segment. */
 function koch(pts: Vec2[], closed: boolean, iterations: number, h: number): Vec2[] {
   let cur = pts;
   for (let it = 0; it < iterations; it++) {

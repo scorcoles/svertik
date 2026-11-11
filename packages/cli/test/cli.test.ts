@@ -16,14 +16,14 @@ const project = JSON.stringify({
   },
 });
 
-describe('herramienta de terminal', () => {
-  it('lee un proyecto .svrtk y un SVG suelto', () => {
+describe('command line tool', () => {
+  it('reads an .svrtk project and a loose SVG', () => {
     expect(loadInput(project, 'demo.svrtk').name).toBe('demo');
     const svg = loadInput('<svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg>', 'logo.svg');
     expect(svg.scene.objects[0]).toMatchObject({ kind: 'object', name: 'logo.svg' });
   });
 
-  it('dibuja a SVG (con fondo) y a PNG', () => {
+  it('draws to SVG (with a background) and to PNG', () => {
     const { scene } = loadInput(project, 'demo.svrtk');
     const svg = renderSVG(scene, 0.5, '#ffffff');
     expect(svg).toContain('<rect');
@@ -32,14 +32,14 @@ describe('herramienta de terminal', () => {
     expect([...png.subarray(1, 4)].map((c) => String.fromCharCode(c)).join('')).toBe('PNG');
   });
 
-  it('fotogramas de la animación y resumen del proyecto', () => {
+  it('animation frames and project summary', () => {
     const { scene } = loadInput(project, 'demo.svrtk');
     expect(frameTimes(scene)).toHaveLength(10);
     expect(describeScene(scene)).toContain('Title [text]: damage');
-    expect(describeScene(scene)).toContain('animación: 1 s');
+    expect(describeScene(scene)).toContain('animation: 1 s');
   });
 
-  it('describe todos los efectos con sus parámetros', () => {
+  it('describes every effect with its parameters', () => {
     const d = describeEffects();
     expect(d.effects.find((e) => e.type === 'spherize')!.params.strength).toMatchObject({ type: 'number', min: -1, max: 1 });
     expect(d.shapes.map((s) => s.type)).toContain('text');

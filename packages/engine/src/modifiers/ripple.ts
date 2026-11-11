@@ -1,7 +1,7 @@
 import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
-/** Ondas concéntricas desde un punto, como una gota en el agua; se apagan con la distancia. */
+/** Concentric waves from a point, like a drop in water; they fade with the distance. */
 export const ripple = defineModifier({
   type: 'ripple',
   label: 'Ripple',

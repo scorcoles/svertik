@@ -3,9 +3,9 @@ import { defineModifier, fromFraction } from '../modifier';
 import { applyWeighted, keyFor, smooth } from './weighted';
 
 /**
- * Campo: los efectos colgados actúan más o menos sobre cada elemento
- * según dónde está su centro respecto a una forma (círculo, plano o caja). Mover el campo recorre el dibujo.
- * Softness: cuánto del borde es transición (0, corte seco; 1, todo degradado).
+ * Field: the nested effects act more or less on each element
+ * depending on where its centre is relative to a shape (circle, plane or box). Moving the field sweeps the drawing.
+ * Softness: how much of the edge is a transition (0, a hard cut; 1, all gradient).
  */
 export const field = defineModifier({
   type: 'field',
@@ -28,7 +28,7 @@ export const field = defineModifier({
     const R = Math.max(1e-6, p.radius * size);
     const a = (p.angle * Math.PI) / 180;
     const [ux, uy] = [Math.cos(a), Math.sin(a)];
-    // Distancia normalizada (0 en el centro de la forma, 1 en su borde) → peso, con el borde suavizado.
+    // Normalised distance (0 at the centre of the shape, 1 at its edge) → weight, with a softened edge.
     const falloff = (d: number) => {
       const inner = 1 - Math.max(0, Math.min(1, p.softness));
       if (d <= inner) return 1;
@@ -44,7 +44,7 @@ export const field = defineModifier({
         const [x, y] = [pb.x + pb.width / 2 - c[0], pb.y + pb.height / 2 - c[1]];
         let d: number;
         if (p.shape === 'linear') {
-          // Plano: pleno detrás de la línea (en la dirección del ángulo) y se apaga a lo largo de Radius.
+          // Plane: full behind the line (in the direction of the angle) and fading over Radius.
           const s = x * ux + y * uy;
           d = s <= 0 ? 0 : s / R;
         } else if (p.shape === 'box') {

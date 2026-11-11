@@ -5,14 +5,14 @@ const rect = (w: number, h: number, fill = '#000') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`;
 const engine = () => createEngine(builtins);
 
-describe('escena v2', () => {
-  it('reconoce una escena (y rechaza lo que no lo es)', () => {
+describe('scene', () => {
+  it('recognises a scene (and rejects what is not one)', () => {
     expect(isScene({ version: 2, objects: [] })).toBe(true);
     expect(isScene({ version: 1, source: rect(10, 10), stack: [] })).toBe(false);
     expect(isScene(null)).toBe(false);
   });
 
-  it('cada objeto queda centrado en el origen y se mueve con su posición', () => {
+  it('each object is centred on the origin and moves with its position', () => {
     const scene: SceneV2 = {
       version: 2,
       objects: [
@@ -23,11 +23,11 @@ describe('escena v2', () => {
     const doc = engine().evaluateDocument(scene);
     expect(doc.nodes.get('a')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
     expect(doc.nodes.get('b')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
-    // El primero de la lista se pinta el último (delante).
+    // The first in the list is painted last (in front).
     expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['b', 'a']);
   });
 
-  it('cada objeto tiene su propia pila y su propia caja de referencia', () => {
+  it('each object has its own stack and its own reference box', () => {
     const scene: SceneV2 = {
       version: 2,
       objects: [
@@ -40,7 +40,7 @@ describe('escena v2', () => {
     expect(doc.nodes.get('b')!.box.width).toBeCloseTo(10);
   });
 
-  it('agrupar no mueve nada; mover el grupo mueve a sus hijos', () => {
+  it('grouping moves nothing; moving the group moves its children', () => {
     const child = (id: string, x: number) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack: [], transform: { x } });
     const loose: SceneV2 = { version: 2, objects: [child('a', 0), child('b', 30)] };
     const grouped: SceneV2 = { version: 2, objects: [{ kind: 'group', id: 'g', name: 'g', stack: [], children: [child('a', 0), child('b', 30)] }] };
@@ -52,7 +52,7 @@ describe('escena v2', () => {
     expect(doc.nodes.get('g')!.box.y).toBeCloseTo(2);
   });
 
-  it('Step sobre un grupo trata cada hijo como un elemento', () => {
+  it('Step on a group treats each child as an element', () => {
     const child = (id: string, x: number) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack: [], transform: { x } });
     const scene: SceneV2 = {
       version: 2,
@@ -68,10 +68,10 @@ describe('escena v2', () => {
     };
     const doc = engine().evaluateDocument(scene);
     const y = (id: string) => bounds({ viewBox: [0, 0, 0, 0], shapes: doc.geometry.shapes.filter((s) => s.node === id) }).y;
-    expect([y('a'), y('b')]).toEqual([5, 15]); // −5 + 10 × 1 y −5 + 10 × 2, en el orden de la lista
+    expect([y('a'), y('b')]).toEqual([5, 15]); // −5 + 10 × 1 and −5 + 10 × 2, in list order
   });
 
-  it('invisible no se pinta; la opacidad se multiplica', () => {
+  it('invisible is not painted; opacity multiplies', () => {
     const scene: SceneV2 = {
       version: 2,
       objects: [
@@ -84,62 +84,62 @@ describe('escena v2', () => {
     expect(doc.geometry.shapes[0]!.style.opacity).toBe('0.5');
   });
 
-  it('el viewBox se ajusta a lo que haya, o al tamaño fijo del documento', () => {
+  it('the viewBox fits what is there, or the fixed document size', () => {
     const one: SceneV2 = { version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(100, 50), stack: [] }] };
     expect(engine().evaluateDocument(one).geometry.viewBox).toEqual([-55, -30, 110, 60]);
     expect(engine().evaluateDocument({ ...one, document: { width: 400, height: 300 } }).geometry.viewBox).toEqual([-200, -150, 400, 300]);
   });
 
-  it('toSVG y mount aceptan las dos versiones', () => {
+  it('toSVG and mount accept a scene', () => {
     const e = engine();
     expect(e.toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('<path');
     expect(e.toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('viewBox="-5.5 -5.5 11 11"');
   });
 });
 
-describe('primitivas', () => {
+describe('primitives', () => {
   const shape = (s: string, params: Record<string, unknown> = {}, extra: object = {}): SceneV2 => ({
     version: 2,
     objects: [{ kind: 'shape', id: 's', name: s, shape: s, params, stack: [], ...extra }],
   });
 
-  it('todas se generan con sus valores por defecto', async () => {
+  it('all generate with their defaults', async () => {
     const { shapes } = await import('../src');
     for (const def of shapes) expect(() => engine().evaluateDocument(shape(def.type))).not.toThrow();
   });
 
-  it('el rectángulo mide lo que dice y queda centrado (o donde diga su posición)', () => {
+  it('the rectangle measures what it says and is centred (or where its position says)', () => {
     expect(engine().evaluateDocument(shape('rectangle', { width: 100, height: 40 })).nodes.get('s')!.box).toEqual({ x: -50, y: -20, width: 100, height: 40 });
     const moved = engine().evaluateDocument(shape('rectangle', { width: 100, height: 40 }, { transform: { x: 200, y: 50 } }));
     expect(moved.nodes.get('s')!.box).toEqual({ x: 150, y: 30, width: 100, height: 40 });
   });
 
-  it('estilo: relleno y trazo según los parámetros', () => {
+  it('style: fill and stroke from the parameters', () => {
     const doc = engine().evaluateDocument(shape('star', { fillColor: '#ff0000', stroke: true, strokeColor: '#000000', strokeWidth: 3 }));
     expect(doc.geometry.shapes[0]!.style).toMatchObject({ fill: '#ff0000', stroke: '#000000', 'stroke-width': '3' });
     expect(engine().evaluateDocument(shape('line')).geometry.shapes[0]!.style.fill).toBe('none');
   });
 
-  it('el polígono tiene tantos lados como se pida; la estrella, el doble de vértices que puntas', () => {
+  it('the polygon has as many sides as asked; the star, twice as many vertices as points', () => {
     const poly = engine().evaluateDocument(shape('polygon', { sides: 7 })).geometry.shapes[0]!.subpaths[0]!;
     expect(poly.segs).toHaveLength(7);
     const st = engine().evaluateDocument(shape('star', { points: 6 })).geometry.shapes[0]!.subpaths[0]!;
     expect(st.segs).toHaveLength(12);
   });
 
-  it('una primitiva lleva su pila de efectos', () => {
+  it('a primitive carries its effect stack', () => {
     const doc = engine().evaluateDocument(shape('rectangle', { width: 100, height: 100 }, { stack: [{ id: 't', type: 'transform', params: { scale: 2 } }] }));
     expect(doc.nodes.get('s')!.box.width).toBeCloseTo(200);
   });
 });
 
-describe('reflejo de nodos', () => {
-  it('flipX refleja alrededor del centro del nodo sin moverlo', () => {
+describe('node flips', () => {
+  it('flipX mirrors around the node centre without moving it', () => {
     const tri = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L10 0L0 10Z"/></svg>';
     const scene: SceneV2 = { version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: tri, stack: [], transform: { flipX: true } }] };
     const doc = engine().evaluateDocument(scene);
     expect(doc.nodes.get('a')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
-    // El vértice del ángulo recto pasa de la izquierda (−5, −5) a la derecha (5, −5).
+    // The right-angle vertex goes from the left (−5, −5) to the right (5, −5).
     const pts = doc.geometry.shapes[0]!.subpaths[0]!.segs.map((s) => s.p.map((v) => Math.round(v)));
     expect(pts).toContainEqual([5, 5]);
     expect(pts).not.toContainEqual([-5, 5]);
@@ -158,21 +158,21 @@ describe('boolean', () => {
   const run = (mode: string) =>
     engine().evaluateDocument({
       version: 2,
-      // Dos cuadrados de 10 solapados a la mitad: el primero de la lista, delante.
+      // Two 10 squares overlapping by half: the first in the list, in front.
       objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'b', type: 'boolean', params: { mode } }], children: [at('front', 5), at('back', 0)] }],
     }).geometry;
 
-  it('une, resta, intersecta y excluye', () => {
+  it('unites, subtracts, intersects and excludes', () => {
     expect(area(run('union'))).toBeCloseTo(150);
     expect(area(run('intersect'))).toBeCloseTo(50);
     expect(area(run('exclude'))).toBeCloseTo(100);
-    // Al de atrás se le quita lo que tiene delante: queda su mitad izquierda.
+    // What is in front is removed from the back one: its left half remains.
     const sub = run('subtract');
     expect(area(sub)).toBeCloseTo(50);
     expect(bounds(sub).x).toBeCloseTo(-5);
   });
-  it('las líneas no se pierden: enteras al unir, recortadas al intersectar', () => {
-    // Una línea que atraviesa los dos cuadrados, de −20 a 20 en y = 0, dentro del de atrás.
+  it('lines are not lost: whole when uniting, clipped when intersecting', () => {
+    // A line crossing both squares, from −20 to 20 at y = 0, inside the back one.
     const lined = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -5 10 10"><rect x="-5" y="-5" width="10" height="10"/><path d="M-20 0 L20 0" fill="none" stroke="#000"/></svg>`;
     const go = (mode: string) =>
       engine().evaluateDocument({
@@ -181,42 +181,42 @@ describe('boolean', () => {
       }).geometry;
     const lineOf = (geo: Geometry) => geo.shapes.find((s) => s.subpaths.some((sp) => !sp.closed));
     expect(bounds({ viewBox: [0, 0, 1, 1], shapes: [lineOf(go('union'))!] }).width).toBeCloseTo(40);
-    // Lo común es x de 0 a 5: la línea, recortada a eso.
+    // What they share is x from 0 to 5: the line, clipped to that.
     const cut = bounds({ viewBox: [0, 0, 1, 1], shapes: [lineOf(go('intersect'))!] });
     expect(cut.x).toBeCloseTo(0, 0);
     expect(cut.width).toBeCloseTo(5, 0);
   });
 
-  it('sin elementos marcados, cada forma es uno', () => {
+  it('without tagged elements, each shape is one', () => {
     const two = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="10" height="10"/><rect x="5" width="10" height="10"/></svg>`;
     const geo = engine().evaluateDocument({ version: 2, objects: [{ kind: 'object', id: 'o', name: 'o', source: two, stack: [{ id: 'b', type: 'boolean', params: { mode: 'intersect' } }] }] }).geometry;
     expect(area(geo)).toBeCloseTo(50);
   });
 });
 
-describe('efectos que usan otro objeto', () => {
+describe('effects that use another object', () => {
   const dot = (id: string, stack: SceneV2['objects'][number]['stack']) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
   const path = { kind: 'shape' as const, id: 'p', name: 'p', shape: 'line', params: { length: 200, angle: 0 }, stack: [], transform: { x: 50, y: 30 } };
 
-  it('Clone sobre el contorno: las copias, repartidas por el trazado del otro objeto', () => {
+  it('Clone on the outline: the copies, spread along the other object path', () => {
     const doc = engine().evaluateDocument({
       version: 2,
       objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'p', count: 5, align: false } }]), path],
     });
     const box = doc.nodes.get('d')!.box;
-    // La línea va de x = −50 a 150 en y = 30: copias de 10 × 10 centradas en sus extremos y entre medias.
+    // The line goes from x = −50 to 150 at y = 30: 10 × 10 copies centred on its ends and in between.
     expect(box.x).toBeCloseTo(-55);
     expect(box.width).toBeCloseTo(210);
     expect(box.y).toBeCloseTo(25);
     expect(doc.geometry.shapes.filter((s) => s.node === 'd')).toHaveLength(5);
   });
 
-  it('Clone sin objeto (o con uno que no existe) deja el dibujo como estaba', () => {
+  it('Clone without an object (or with one that does not exist) leaves the drawing as it was', () => {
     const doc = engine().evaluateDocument({ version: 2, objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'nope' } }])] });
     expect(doc.nodes.get('d')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
   });
 
-  it('Path Wrap estira el dibujo a lo largo del trazado', () => {
+  it('Path Wrap stretches the drawing along the path', () => {
     const doc = engine().evaluateDocument({ version: 2, objects: [dot('d', [{ id: 'w', type: 'pathwrap', params: { target: 'p' } }]), path] });
     const box = doc.nodes.get('d')!.box;
     expect(box.x).toBeCloseTo(-50);
@@ -225,20 +225,20 @@ describe('efectos que usan otro objeto', () => {
   });
 });
 
-describe('pivote', () => {
+describe('pivot', () => {
   const sq = (transform: object) => engine().evaluateDocument({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [], transform }] }).nodes.get('a')!.box;
-  it('cambiar el pivote, sin giro ni escala, no mueve el objeto', () => {
+  it('changing the pivot, without rotation or scale, does not move the object', () => {
     expect(sq({ pivot: [0, 0] })).toEqual({ x: -5, y: -5, width: 10, height: 10 });
   });
-  it('gira alrededor del pivote (la esquina superior izquierda)', () => {
+  it('turns around the pivot (the top left corner)', () => {
     const b = sq({ pivot: [0, 0], rotation: 180 });
     expect(b.x).toBeCloseTo(-15);
     expect(b.y).toBeCloseTo(-15);
   });
 });
 
-describe('modos de fusión', () => {
-  it('el modo va en style (es CSS, no un atributo de SVG); el del hijo manda sobre el del grupo', () => {
+describe('blend modes', () => {
+  it('the mode goes in style (it is CSS, not an SVG attribute); the child mode wins over the group', () => {
     const e = engine();
     const scene: SceneV2 = {
       version: 2,
@@ -259,7 +259,7 @@ describe('modos de fusión', () => {
   });
 });
 
-describe('morph y explosion', () => {
+describe('morph and explosion', () => {
   const area = (geo: Geometry) =>
     geo.shapes.flatMap((s) => s.subpaths).reduce((sum, sp) => {
       const pts = [sp.start, ...sp.segs.map((g) => g.p)];
@@ -274,11 +274,11 @@ describe('morph y explosion', () => {
       { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 50, height: 50 }, stack: [], visible: false },
     ],
   });
-  it('morph: de cuadrado (amount 0) a círculo (amount 1)', () => {
+  it('morph: from square (amount 0) to circle (amount 1)', () => {
     expect(area(engine().evaluateDocument(scene(0)).geometry)).toBeCloseTo(10000, -2);
     expect(area(engine().evaluateDocument(scene(1)).geometry)).toBeCloseTo(Math.PI * 25 * 25, -2);
   });
-  it('explosion: los trozos se alejan del centro', () => {
+  it('explosion: the pieces move away from the centre', () => {
     const e = engine();
     const base: SceneV2 = { version: 2, objects: [{ kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'mo', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0] } }] }] };
     const before = e.evaluateDocument(base).nodes.get('r')!.box;
@@ -288,8 +288,8 @@ describe('morph y explosion', () => {
   });
 });
 
-describe('morph con pasos', () => {
-  it('el original, los pasos y el destino: cada uno, un elemento', () => {
+describe('morph with steps', () => {
+  it('the original, the steps and the target: each one an element', () => {
     const scene: SceneV2 = {
       version: 2,
       objects: [
@@ -302,8 +302,8 @@ describe('morph con pasos', () => {
   });
 });
 
-describe('render en vivo', () => {
-  it('quita los atributos de estilo que la forma ya no tiene', async () => {
+describe('live render', () => {
+  it('removes style attributes the shape no longer has', async () => {
     const { Window } = await import('happy-dom');
     const win = new Window();
     const svg = win.document.createElementNS('http://www.w3.org/2000/svg', 'svg') as unknown as SVGSVGElement;
@@ -315,8 +315,8 @@ describe('render en vivo', () => {
   });
 });
 
-describe('caché de los que usan otro objeto', () => {
-  // Un efecto de prueba que cuenta cuántas veces se calcula y copia la caja del otro objeto.
+describe('cache of effects that use another object', () => {
+  // A test effect that counts how many times it is computed and copies the other object box.
   let calls = 0;
   const spy = {
     type: 'spy',
@@ -338,7 +338,7 @@ describe('caché de los que usan otro objeto', () => {
     ],
   });
 
-  it('no se rehace al tocar otra cosa; sí al cambiar el objeto al que mira', () => {
+  it('is not redone when something else changes; it is when the object it looks at changes', () => {
     const e = createEngine([...builtins, spy]);
     calls = 0;
     const first = e.evaluateDocument(scene(0, 20));
@@ -346,10 +346,10 @@ describe('caché de los que usan otro objeto', () => {
     calls = 0;
     e.evaluateDocument(scene(0, 20));
     expect(calls).toBe(0);
-    // Mover un tercero no le afecta.
+    // Moving a third one does not affect it.
     e.evaluateDocument(scene(50, 20));
     expect(calls).toBe(0);
-    // Cambiar el otro, sí; y con el resultado bueno.
+    // Changing the other does; and with the right result.
     const after = e.evaluateDocument(scene(50, 40));
     expect(calls).toBeGreaterThan(0);
     expect(after.nodes.get('a')!.box.width).toBeCloseTo(40);
@@ -357,8 +357,8 @@ describe('caché de los que usan otro objeto', () => {
   });
 });
 
-describe('caché por pasos', () => {
-  it('cambiar el último efecto de la pila no rehace los de debajo', () => {
+describe('step cache', () => {
+  it('changing the last effect of the stack does not redo the ones above it', () => {
     let calls = 0;
     const heavy = {
       type: 'heavy',
@@ -384,7 +384,7 @@ describe('caché por pasos', () => {
   });
 });
 
-describe('filtros', () => {
+describe('filters', () => {
   const scene = (stack: SceneV2['objects'][number]['stack'], extra: Partial<SceneV2> = {}): SceneV2 => ({
     version: 2,
     objects: [
@@ -394,7 +394,7 @@ describe('filtros', () => {
     ...extra,
   });
 
-  it('no tocan la geometría; agrupan las formas del objeto en un <g filter>', () => {
+  it('they do not touch the geometry; they group the object shapes in a <g filter>', () => {
     const e = engine();
     const plain = e.evaluateDocument(scene([]));
     const doc = e.evaluateDocument(scene([{ id: 's', type: 'shadow', params: { offset: [0, 30], blur: 0 } }]));
@@ -405,11 +405,11 @@ describe('filtros', () => {
     expect(svg).toContain('<filter id="sv-f-a"');
     expect(svg).toContain('<feDropShadow');
     expect(svg.match(/<g filter="url\(#sv-f-a\)">/g)).toHaveLength(1);
-    // El encuadre automático cuenta la sombra (30 hacia abajo): no se corta.
+    // The automatic framing counts the shadow (30 down): it is not clipped.
     expect(doc.geometry.viewBox[3]).toBeGreaterThan(plain.geometry.viewBox[3] + 25);
   });
 
-  it('se encadenan en el orden de la pila; apagados no cuentan', () => {
+  it('they chain in stack order; disabled ones do not count', () => {
     const doc = engine().evaluateDocument(scene([
       { id: 'b1', type: 'blur', params: { amount: 4 } },
       { id: 'g1', type: 'glow', enabled: false },
@@ -421,7 +421,7 @@ describe('filtros', () => {
     expect(f).not.toContain('feFlood');
   });
 
-  it('en el lienzo vivo: los grupos aparecen y desaparecen sin perder los trazados', () => {
+  it('on the live canvas: groups appear and disappear without losing the paths', () => {
     const e = engine();
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as unknown as SVGSVGElement;
     renderInto(svg, e.evaluateDocument(scene([{ id: 's', type: 'shadow' }])).geometry);
@@ -434,23 +434,23 @@ describe('filtros', () => {
   });
 });
 
-describe('filtros por zonas', () => {
+describe('zoned filters', () => {
   const one = (params: Record<string, unknown>, transform = {}): SceneV2 => ({
     version: 2,
     objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(100, 50), stack: [{ id: 'b', type: 'blur', params }], transform }],
   });
   const markup = (s: SceneV2) => engine().evaluateDocument(s).geometry.filters!.a!.markup;
 
-  it('entero, sin máscara; con zona, una máscara con el degradado y el original fuera de ella', () => {
+  it('whole, without a mask; with an area, a mask with the gradient and the original outside it', () => {
     expect(markup(one({}))).not.toContain('feImage');
     const m = markup(one({ area: 'radial', center: [0, 0.5], radius: 0.5 }));
     expect(m).toContain('<feImage href="data:image/svg+xml');
     expect(m).toContain('operator="out"');
-    // El centro, en el documento: el objeto (100 × 50) queda centrado en el origen → x = −50.
+    // The centre, in the document: the object (100 × 50) is centred on the origin → x = −50.
     expect(decodeURIComponent(m)).toContain('cx="-50" cy="0" r="50"');
   });
 
-  it('la zona sigue al objeto movido; la franja lleva un degradado lineal', () => {
+  it('the area follows the moved object; the band carries a linear gradient', () => {
     expect(decodeURIComponent(markup(one({ area: 'radial', center: [0.5, 0.5] }, { x: 200 })))).toContain('cx="200"');
     expect(decodeURIComponent(markup(one({ area: 'band', angle: 0, radius: 0.2 })))).toMatch(/linearGradient id="m"[^>]*y1="-20"[^>]*y2="20"/);
   });
@@ -461,18 +461,18 @@ describe('instance', () => {
     ({ kind: 'object' as const, id: 'a', name: 'a', source: rect(10, 10), stack, transform });
   const inst = (extra: Record<string, unknown> = {}) => ({ kind: 'instance' as const, id: 'i', name: 'i', of: 'a', stack: [], transform: { x: 100 }, ...extra });
 
-  it('dibuja el resultado del original (con sus efectos) en su propio sitio, delante o detrás', () => {
+  it('draws the original result (with its effects) in its own place, in front or behind', () => {
     const stack = [{ id: 't', type: 'transform', params: { scale: 2 } }];
     for (const objects of [[inst(), orig(stack, { x: -50 })], [orig(stack, { x: -50 }), inst()]]) {
       const doc = engine().evaluateDocument({ version: 2, objects } as SceneV2);
       expect(doc.nodes.get('a')!.box).toEqual({ x: -60, y: -10, width: 20, height: 20 });
       expect(doc.nodes.get('i')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
-      // Sus formas son suyas (al hacer clic, se selecciona la instancia).
+      // Its shapes are its own (clicking selects the instance).
       expect(doc.geometry.shapes.map((s) => s.node).sort()).toEqual(['a', 'i']);
     }
   });
 
-  it('sigue al original al cambiarlo; lleva sus propios efectos encima', () => {
+  it('follows the original when it changes; carries its own effects on top', () => {
     const e = engine();
     const scene = { version: 2, objects: [orig(), inst({ stack: [{ id: 'r', type: 'transform', params: { scale: 0.5 } }] })] } as SceneV2;
     expect(e.evaluateDocument(scene).nodes.get('i')!.box.width).toBeCloseTo(5);
@@ -480,12 +480,12 @@ describe('instance', () => {
     expect(e.evaluateDocument(scene).nodes.get('i')!.box.width).toBeCloseTo(20);
   });
 
-  it('se ve aunque el original esté oculto (maestro)', () => {
+  it('shows even if the original is hidden (a master)', () => {
     const doc = engine().evaluateDocument({ version: 2, objects: [{ ...orig(), visible: false }, inst()] } as SceneV2);
     expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['i']);
   });
 
-  it('una instancia de su propio grupo, o en cadena circular, no dibuja nada (y no se cuelga)', () => {
+  it('an instance of its own group, or in a circular chain, draws nothing (and does not hang)', () => {
     const scene = {
       version: 2,
       objects: [
@@ -498,7 +498,7 @@ describe('instance', () => {
     expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['a']);
   });
 
-  it('de un original que no existe: nada, y validateScene lo avisa', async () => {
+  it('of an original that does not exist: nothing, and validateScene warns', async () => {
     const { validateScene } = await import('../src/validate');
     const scene = { version: 2, objects: [{ ...inst(), of: 'nope' }] } as SceneV2;
     expect(engine().evaluateDocument(scene).geometry.shapes).toHaveLength(0);
@@ -514,7 +514,7 @@ describe('effector', () => {
     kind: 'effector' as const, id: 'e', name: 'e', targets: ['a', 'b'], stack: [{ id: 's', type: 'transform', params: { scale: 2 } }], ...extra,
   });
 
-  it('aplica sus efectos a cada target por separado (cada uno sobre su propia caja) y no dibuja nada', () => {
+  it('applies its effects to each target separately (each on its own box) and draws nothing', () => {
     const doc = engine().evaluateDocument({ version: 2, objects: [eff(), obj('a', 0), obj('b', 100), obj('c', 200)] } as SceneV2);
     expect(doc.nodes.get('a')!.box).toEqual({ x: -10, y: -10, width: 20, height: 20 });
     expect(doc.nodes.get('b')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
@@ -522,17 +522,17 @@ describe('effector', () => {
     expect(doc.geometry.shapes.map((s) => s.node).sort()).toEqual(['a', 'b', 'c']);
   });
 
-  it('va después de la pila propia del target; oculto no hace nada', () => {
+  it('goes after the target own stack; hidden it does nothing', () => {
     const own = { ...obj('a', 0), stack: [{ id: 'o', type: 'transform', params: { scale: 0.5 } }] };
     const move = { stack: [{ id: 's', type: 'transform', params: { x: 10 } }], targets: ['a'] };
     const e = engine();
-    // Primero la suya (escala 0,5 alrededor del centro: 2,5–7,5), luego la del effector (+10): 12,5–17,5,
-    // que colocado (centro del origen en 0) queda en 7,5. Al revés quedaría en 2,5.
+    // First its own (scale 0.5 around the centre: 2.5–7.5), then the effector one (+10): 12.5–17.5,
+    // which once placed (source centre at 0) ends at 7.5. The other way round it would be 2.5.
     expect(e.evaluateDocument({ version: 2, objects: [eff(move), own] } as SceneV2).nodes.get('a')!.box.x).toBeCloseTo(7.5);
     expect(e.evaluateDocument({ version: 2, objects: [eff({ visible: false }), obj('a', 0)] } as SceneV2).nodes.get('a')!.box.width).toBe(10);
   });
 
-  it('delay: cada target ve la animación del effector un poco más tarde', async () => {
+  it('delay: each target sees the effector animation a little later', async () => {
     const { sampleScene } = await import('../src/animation');
     const scene = {
       version: 2,
@@ -540,16 +540,16 @@ describe('effector', () => {
       animation: { duration: 2, tracks: [{ id: 't', node: 'e', on: 'modifier', modifier: 's', param: 'scale', keys: [{ t: 0, value: 1, ease: 'linear' }, { t: 1, value: 3, ease: 'linear' }] }] },
     } as SceneV2;
     const at = (t: number) => engine().evaluateDocument(sampleScene(scene, t)).nodes;
-    // En 0,5 s: a, a mitad (escala 2); b, aún al principio (escala 1).
+    // At 0.5 s: a, halfway (scale 2); b, still at the start (scale 1).
     expect(at(0.5).get('a')!.box.width).toBeCloseTo(20);
     expect(at(0.5).get('b')!.box.width).toBeCloseTo(10);
-    // En 1,5 s: los dos al final.
+    // At 1.5 s: both at the end.
     expect(at(1.5).get('b')!.box.width).toBeCloseTo(30);
-    // Sin instante (la escena tal cual), todos iguales.
+    // Without a time (the scene as it is), all the same.
     expect(engine().evaluateDocument(scene).nodes.get('b')!.box.width).toBeCloseTo(20);
   });
 
-  it('validateScene acepta el effector y avisa de targets que no existen', async () => {
+  it('validateScene accepts the effector and warns about targets that do not exist', async () => {
     const { validateScene } = await import('../src/validate');
     const r = validateScene({ version: 2, objects: [eff({ targets: ['a', 'zzz'] }), obj('a', 0)] } as SceneV2);
     expect(r.errors).toEqual([]);
@@ -557,8 +557,8 @@ describe('effector', () => {
   });
 });
 
-describe('onlyFor (escena reducida para las estelas)', () => {
-  it('se queda con el nodo, lo que usan sus efectos, su original y sus effectors, y nada más', async () => {
+describe('onlyFor (reduced scene for trails)', () => {
+  it('keeps the node, what its effects use, its original and its effectors, and nothing else', async () => {
     const { onlyFor } = await import('../src/document');
     const o = (id: string, stack: SceneV2['objects'][number]['stack'] = []) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
     const scene = {
@@ -587,26 +587,26 @@ describe('mask', () => {
     ],
   }) as SceneV2;
 
-  it('envuelve el objeto en un <g mask> con la forma del otro (oculto), ya colocada', () => {
+  it('wraps the object in a <g mask> with the other (hidden) shape, already placed', () => {
     const svg = engine().toSVG(scene({}));
     expect(svg).toMatch(/<mask id="sv-m-a--mask" maskUnits="userSpaceOnUse"/);
     expect(svg).toMatch(/<g mask="url\(#sv-m-a--mask\)">/);
-    // La máscara: el círculo en blanco, centrado en x = 20 (de -10 a 50).
+    // The mask: the circle in white, centred at x = 20 (from -10 to 50).
     const mask = /<mask[^>]*>(.*?)<\/mask>/s.exec(svg)![1]!;
     expect(mask).toMatch(/fill="#fff"/);
     expect(mask).toMatch(/M50 0/);
-    // El círculo oculto no se pinta fuera de la máscara.
+    // The hidden circle is not painted outside the mask.
     expect((svg.match(/<path/g) ?? []).length).toBe(2);
   });
 
-  it('invertida: todo blanco y la forma en negro; luminance: con sus colores', () => {
+  it('inverted: everything white and the shape black; luminance: with its colours', () => {
     const inv = engine().toSVG(scene({ invert: true }));
     expect(inv).toMatch(/<mask[^>]*><rect[^>]*fill="#fff"\/><path[^>]*fill="#000"/);
     const lum = engine().toSVG(scene({ mode: 'luminance' }));
     expect(/<mask[^>]*>(.*?)<\/mask>/s.exec(lum)![1]).toMatch(/fill="#d9d9d9"/);
   });
 
-  it('sin máscara elegida o apagada, nada cambia', () => {
+  it('without a chosen mask, or disabled, nothing changes', () => {
     expect(engine().toSVG(scene({ source: '' }))).not.toMatch(/mask/);
     const off = scene({});
     (off.objects[0]!.stack[0] as { enabled?: boolean }).enabled = false;
@@ -614,18 +614,18 @@ describe('mask', () => {
   });
 });
 
-describe('filtros nuevos: bevel, thicken, tone', () => {
+describe('bevel, thicken and tone filters', () => {
   const svgWith = (type: string, params: Record<string, unknown> = {}) =>
     engine().toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(50, 50, '#ff0000'), stack: [{ id: 'f', type, params }] }] } as SceneV2);
 
-  it('bevel: luz difusa y especular sobre el alfa, recortado al dibujo', () => {
+  it('bevel: diffuse and specular light on the alpha, clipped to the drawing', () => {
     const s = svgWith('bevel');
     expect(s).toMatch(/<feDiffuseLighting[^>]*><feDistantLight azimuth="225" elevation="45"\/><\/feDiffuseLighting>/);
     expect(s).toMatch(/<feSpecularLighting/);
     expect(s).toMatch(/<g filter="url\(#sv-f-a\)">/);
   });
 
-  it('thicken: dilata o erosiona; outline, contorno de color por detrás', () => {
+  it('thicken: dilates or erodes; outline, a coloured contour behind', () => {
     expect(svgWith('thicken', { amount: 3 })).toMatch(/operator="dilate" radius="3"/);
     expect(svgWith('thicken', { amount: -2 })).toMatch(/operator="erode" radius="2"/);
     const o = svgWith('thicken', { mode: 'outline', amount: 4, color: '#00ff00' });
@@ -633,7 +633,7 @@ describe('filtros nuevos: bevel, thicken, tone', () => {
     expect(o).toMatch(/<feMergeNode in="f-o"|<feMergeNode in="[^"]*-o"\/><feMergeNode/);
   });
 
-  it('tone: posterize con sus niveles, duotono con sus dos colores, invertir', () => {
+  it('tone: posterize with its levels, duotone with its two colours, invert', () => {
     expect(svgWith('tone', { levels: 3 })).toMatch(/type="discrete" tableValues="0 0.5 1"/);
     const d = svgWith('tone', { mode: 'duotone', dark: '#000000', light: '#ffffff' });
     expect(d).toMatch(/<feFuncR type="table" tableValues="0 1"\/>/);

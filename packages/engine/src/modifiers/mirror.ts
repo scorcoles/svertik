@@ -3,9 +3,9 @@ import { defineModifier } from '../modifier';
 import { fitViewBox } from './clone';
 
 /**
- * Refleja el dibujo en un eje. `keep`: se conserva el original y se añade su reflejo (simetría);
- * `transform`: el dibujo pasa a ser su reflejo.
- * El eje es una línea vertical (reflejo horizontal) u horizontal (vertical), a una fracción de la caja.
+ * Reflects the drawing on an axis. `keep`: the original stays and its reflection is added (symmetry);
+ * `transform`: the drawing becomes its reflection.
+ * The axis is a vertical line (horizontal flip) or a horizontal one (vertical flip), at a fraction of the box.
  */
 export const mirror = defineModifier({
   type: 'mirror',
@@ -22,7 +22,7 @@ export const mirror = defineModifier({
     const horizontal = p.axis !== 'vertical';
     const line = horizontal ? b.x + p.position * b.width : b.y + p.position * b.height;
     const reflected = mapPoints(geo, ([x, y]) => (horizontal ? [2 * line - x, y] : [x, 2 * line - y]));
-    // Cada mitad, un elemento distinto (para Step y Color): el original en pares, el reflejo en impares.
+    // Each half, a different element (for Step and Color): the original on even numbers, the reflection on odd ones.
     const shapes = [
       ...(p.original !== 'transform' ? geo.shapes.map((s) => ({ ...s, clone: (s.clone ?? 0) * 2 })) : []),
       ...reflected.shapes.map((s) => ({ ...s, clone: (s.clone ?? 0) * 2 + 1 })),

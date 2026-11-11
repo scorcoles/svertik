@@ -1,7 +1,7 @@
 import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
-/** Remolino: gira más cuanto más cerca del centro; en el borde del radio, nada. */
+/** Whirl: turns more the closer to the centre; at the edge of the radius, nothing. */
 export const twist = defineModifier({
   type: 'twist',
   label: 'Twist',
@@ -22,7 +22,7 @@ export const twist = defineModifier({
       const r = Math.hypot(dx, dy);
       if (r >= R) return [x, y];
       const t = 1 - r / R;
-      const th = a * t * t * (3 - 2 * t); // suavizado en el borde
+      const th = a * t * t * (3 - 2 * t); // smoothed at the edge
       const c = Math.cos(th);
       const s = Math.sin(th);
       return [cx + dx * c - dy * s, cy + dx * s + dy * c];

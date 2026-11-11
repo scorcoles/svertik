@@ -4,8 +4,8 @@ import { defineModifier, type ParamSpec } from '../modifier';
 import { strokeExtras, strokeExtraStyle } from '../shapes';
 
 /**
- * Relleno y trazo: superpone un color al relleno (cantidad 1 = lo sustituye) y añade o cambia el trazo.
- * Las formas sin relleno (líneas) se quedan sin él salvo que se pida «Fill empty».
+ * Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke.
+ * Unfilled shapes (lines) stay unfilled unless "Fill empty" is on.
  */
 export const paint = defineModifier({
   type: 'paint',
@@ -21,7 +21,7 @@ export const paint = defineModifier({
     strokeColor: { type: 'color', default: '#000000', label: 'Color', group: 'Stroke' },
     strokeWidth: { type: 'number', default: 1, min: 0, max: 20, step: 0.1, unit: 'px', label: 'Width', group: 'Stroke', random: [0.5, 6] },
     strokeOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Opacity', group: 'Stroke', ramp: false, random: [0.4, 1] },
-    // Esquinas y extremos del trazo; «keep» respeta lo que traiga el dibujo.
+    // Stroke joins and caps; "keep" respects what the drawing has.
     strokeJoin: { type: 'enum', default: 'keep', options: ['keep', 'miter', 'round', 'bevel'] as const, label: 'Join', group: 'Stroke', animatable: false },
     strokeCap: { type: 'enum', default: 'keep', options: ['keep', 'butt', 'round', 'square'] as const, label: 'Cap', group: 'Stroke', animatable: false },
     ...(strokeExtras('Stroke') as Record<'dash' | 'gap' | 'dashOffset' | 'behind', ParamSpec>),
@@ -34,7 +34,7 @@ export const paint = defineModifier({
         const current = style.fill;
         const empty = current === 'none' || current === 'transparent';
         if (!empty || p.fillEmpty) {
-          // Sin relleno declarado, el SVG pinta en negro; «none» se trata como transparente.
+          // Without a declared fill, SVG paints black; "none" counts as transparent.
           const base = parseColor(empty ? undefined : (current ?? '#000000'));
           style.fill = toHex(base ? mixColor(base, overlay, Math.max(0, Math.min(1, p.fillAmount))) : overlay);
           if (p.fillOpacity < 1) style['fill-opacity'] = String(p.fillOpacity);

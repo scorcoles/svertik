@@ -1,10 +1,10 @@
-// Animación: pistas de fotogramas clave sobre cualquier parámetro (de un efecto, de una primitiva o de la
-// colocación de un nodo). `sampleScene` da la escena en un instante: lo demás del motor no cambia.
+// Animation: keyframe tracks on any parameter (of an effect, of a primitive or of a node's
+// placement). `sampleScene` gives the scene at a time: the rest of the engine doesn't change.
 import { mixColor, parseColor, toHex } from './color';
 import type { SceneNode, SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
 
-/** Curva desde una clave hasta la siguiente. `hold`: se mantiene hasta la siguiente (salto). */
+/** Curve from one key to the next. `hold`: keeps the value until the next one (a jump). */
 export type Ease =
   | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
   | 'expo-in' | 'expo-out' | 'back-in' | 'back-out' | 'elastic-in' | 'elastic-out' | 'bounce-in' | 'bounce-out'
@@ -16,41 +16,41 @@ export const EASES: Ease[] = [
 ];
 
 export interface Keyframe {
-  /** Instante, en segundos. */
+  /** Time, in seconds. */
   t: number;
   value: unknown;
   ease?: Ease;
 }
 
 /**
- * Qué anima una pista:
- * - `node`: la colocación o la visibilidad del nodo (x, y, scale, rotation, opacity);
- * - `shape`: un parámetro de la primitiva (radius, text, fillColor…);
- * - `modifier`: un parámetro de un efecto de su pila (por su id).
+ * What a track animates:
+ * - `node`: the node's placement or visibility (x, y, scale, rotation, opacity);
+ * - `shape`: a parameter of the primitive (radius, text, fillColor…);
+ * - `modifier`: a parameter of an effect in its stack (by its id).
  */
 export interface Track {
   id: string;
   node: string;
   on: 'node' | 'shape' | 'modifier';
   modifier?: string;
-  /** En `modifier`, también `enabled`: encender y apagar el efecto (true / false, salta en cada clave). */
+  /** With `modifier`, also `enabled`: turns the effect on and off (true / false, jumps at each key). */
   param: string;
   keys: Keyframe[];
   /**
-   * Cuántas veces se reproducen sus claves, una detrás de otra (por defecto, 1). 0: sin parar.
-   * Cada vuelta empieza `every` segundos después de la anterior (por defecto, lo que duran las claves).
+   * How many times its keys play, one after another (1 by default). 0: forever.
+   * Each lap starts `every` seconds after the previous one (by default, the length of the keys).
    */
   repeat?: number;
   every?: number;
 }
 
 export interface Animation {
-  /** Duración en segundos. */
+  /** Duration in seconds. */
   duration: number;
   loop?: boolean;
-  /** Arranca sola al cargar (por defecto, sí). Sin autoplay, solo la mueven las interacciones «play». */
+  /** Starts by itself on load (yes by default). Without autoplay, only "play" interactions move it. */
   autoplay?: boolean;
-  /** Fotogramas por segundo para encajar las claves (24, 25, 30, 60…). */
+  /** Frames per second keys snap to (24, 25, 30, 60…). */
   fps?: number;
   tracks: Track[];
 }
@@ -60,8 +60,8 @@ const EASE_OUT: Record<'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'expo
   'ease-in': (x) => x * x * x,
   'ease-out': (x) => 1 - (1 - x) ** 3,
   'ease-in-out': (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2),
-  // expo (arranque muy rápido), back (se pasa un poco y vuelve), elastic (muelle)
-  // y bounce (rebota contra el final). back y elastic salen de 0–1 a propósito. Sus «in», más abajo.
+  // expo (very fast start), back (overshoots a little and comes back), elastic (spring)
+  // and bounce (bounces against the end). back and elastic leave 0–1 on purpose. Their "in" versions, below.
   'expo-out': (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x)),
   'back-out': (x) => {
     const c = 1.8;
@@ -76,7 +76,7 @@ const EASE_OUT: Record<'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'expo
     return n * (x -= 2.625 / d) * x + 0.984375;
   },
 };
-/** La versión «in» de una curva «out»: la misma, al revés (arranca despacio y acaba de golpe). */
+/** The "in" version of an "out" curve: the same, reversed (starts slowly and ends abruptly). */
 const inOf = (out: (x: number) => number) => (x: number) => 1 - out(1 - x);
 const EASE: Record<Ease, (x: number) => number> = {
   ...EASE_OUT,
@@ -88,7 +88,7 @@ const EASE: Record<Ease, (x: number) => number> = {
 };
 export const ease = (name: Ease | undefined, x: number) => (EASE[name ?? 'ease-in-out'] ?? EASE.linear)(Math.max(0, Math.min(1, x)));
 
-/** Mezcla dos valores: números, puntos y colores se interpolan; lo demás (modos, textos…) se mantiene hasta la clave siguiente. */
+/** Blends two values: numbers, points and colours interpolate; the rest (modes, texts…) holds until the next key. */
 export function lerpValue(a: unknown, b: unknown, k: number): unknown {
   if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * k;
   if (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v) => typeof v === 'number')) {
@@ -96,13 +96,13 @@ export function lerpValue(a: unknown, b: unknown, k: number): unknown {
   }
   if (typeof a === 'string' && typeof b === 'string' && a.startsWith('#') && b.startsWith('#')) {
     const ca = parseColor(a), cb = parseColor(b);
-    // Los colores no se pasan (back, elastic): se quedan entre los dos.
+    // Colours don't overshoot (back, elastic): they stay between the two.
     if (ca && cb) return toHex(mixColor(ca, cb, Math.max(0, Math.min(1, k))));
   }
   return k < 1 ? a : b;
 }
 
-/** Valor de una pista en el instante `t`. Antes de la primera clave, la primera; después de la última, la última. */
+/** A track's value at time `t`. Before the first key, the first; after the last, the last. */
 export function valueAt(keys: Keyframe[], t: number): unknown {
   if (!keys.length) return undefined;
   const ks = keys.length > 1 ? [...keys].sort((x, y) => x.t - y.t) : keys;
@@ -118,8 +118,8 @@ export function valueAt(keys: Keyframe[], t: number): unknown {
 }
 
 /**
- * El instante de las claves de una pista que toca en `t`, con sus repeticiones: dentro de cada vuelta,
- * lo que corresponde de la primera; entre vueltas (si `every` es más largo que las claves), el último valor.
+ * The time within a track's keys that applies at `t`, with its repeats: inside each lap, the
+ * matching time of the first; between laps (if `every` is longer than the keys), the last value.
  */
 export function trackTime(tr: Pick<Track, 'keys' | 'repeat' | 'every'>, t: number): number {
   const times = tr.keys.map((k) => k.t);
@@ -133,10 +133,10 @@ export function trackTime(tr: Pick<Track, 'keys' | 'repeat' | 'every'>, t: numbe
   return Math.min(last, first + (t - first - n * period));
 }
 
-/** Valor de una pista en el instante `t` (con sus repeticiones). */
+/** A track's value at time `t` (with its repeats). */
 export const trackValue = (tr: Track, t: number): unknown => valueAt(tr.keys, trackTime(tr, t));
 
-/** Busca un efecto por id en una pila (también dentro de Step). */
+/** Finds an effect by id in a stack (also inside Step and the like). */
 export function findModifier(stack: ModifierInstance[], id: string): ModifierInstance | null {
   for (const m of stack) {
     if (m.id === id) return m;
@@ -156,7 +156,7 @@ function findNode(nodes: SceneNode[], id: string): SceneNode | null {
   return null;
 }
 
-/** El valor que tiene ahora (sin animar) lo que apunta una pista. */
+/** The current (unanimated) value of what a track points at. */
 export function readTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'modifier' | 'param'>): unknown {
   const n = findNode(scene.objects, tr.node);
   if (!n) return undefined;
@@ -182,18 +182,18 @@ export function writeTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'mod
   }
 }
 
-/** La escena en el instante `t` (segundos): una copia con los valores de las pistas puestos. */
+/** The scene at time `t` (seconds): a copy with the tracks' values set. */
 export function sampleScene(scene: SceneV2, t: number): SceneV2 {
   const anim = scene.animation;
   if (!anim?.tracks.length) return scene;
   const out = structuredClone(scene) as SceneV2;
   for (const tr of anim.tracks) writeTarget(out, tr, trackValue(tr, t));
-  // El instante, para lo que va con retraso (Delay de Effector): no se guarda, solo vale para evaluar.
+  // The time, for what is delayed (Effector's Delay): not saved, only used to evaluate.
   out.at = t;
   return out;
 }
 
-/** Pone (o sustituye) una clave en `t`; las claves a menos de medio fotograma se consideran la misma. */
+/** Sets (or replaces) a key at `t`; keys less than half a frame apart count as the same one. */
 export function setKey(keys: Keyframe[], t: number, value: unknown, fps = 30): Keyframe[] {
   const eps = 0.5 / fps;
   const rest = keys.filter((k) => Math.abs(k.t - t) > eps);

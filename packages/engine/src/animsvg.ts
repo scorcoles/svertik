@@ -1,7 +1,7 @@
-// SVG animado: un solo archivo .svg que se anima solo (CSS dentro del propio SVG), sin JavaScript.
-// Parte del mismo análisis que Lottie (motion.ts): lo que solo se mueve, gira, escala o se desvanece va con
-// animaciones de `transform` y `opacity` (suaves; el navegador las acelera); lo que cambia de forma, por
-// tramos que se encienden y se apagan. Los filtros sí van (son SVG); las interacciones, no.
+// Animated SVG: a single .svg file that animates by itself (CSS inside the SVG), without JavaScript.
+// Built on the same analysis as Lottie (motion.ts): what only moves, turns, scales or fades uses
+// `transform` and `opacity` animations (smooth; the browser accelerates them); what changes shape, in
+// segments that switch on and off. Filters do go (they are SVG); interactions don't.
 
 import type { SceneV2 } from './document';
 import type { Engine } from './engine';
@@ -12,7 +12,7 @@ import { filterDefs, gradientDefs, styleAttrs, toPathData, wrapAttr } from './re
 
 export interface AnimatedSVGExport {
   svg: string;
-  /** Lo que no se ha exportado o lo que conviene saber (en inglés: lo enseña el editor). */
+  /** What wasn't exported or is worth knowing (shown by the editor). */
   warnings: string[];
   frames: number;
 }
@@ -30,8 +30,8 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport
   let count = 0;
 
   /**
-   * Una animación de transform y opacidad, fotograma a fotograma desde `from`; solo las claves donde el
-   * movimiento deja de ser recto. null si no cambia nada (entonces va como atributo, sin animación).
+   * A transform and opacity animation, frame by frame from `from`; only the keys where the motion stops
+   * being straight. null if nothing changes (then it goes as an attribute, without animation).
    */
   function motion(ms: Mat[], opacity: number[], from: number): string | null {
     const vals = ms.map((m, i) => [...m, opacity[i] ?? 1]);
@@ -44,14 +44,14 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport
     });
     const name = `m${++count}`;
     const steps = vals.flatMap((v, i) => (keep[i] ? [`${pct(from + i)}{transform:${matrixCSS(v.slice(0, 6) as Mat)};opacity:${n4(v[6]!)}}`] : []));
-    // Antes y después del tramo, quieto en su primer y su último valor.
+    // Before and after the segment, still at its first and last value.
     const first = vals[0]!, last = vals[vals.length - 1]!;
     if (from > 0) steps.unshift(`0%{transform:${matrixCSS(first.slice(0, 6) as Mat)};opacity:${n4(first[6]!)}}`);
     steps.push(`100%{transform:${matrixCSS(last.slice(0, 6) as Mat)};opacity:${n4(last[6]!)}}`);
     css.push(`@keyframes ${name}{${steps.join('')}}`);
     return name;
   }
-  /** Que solo se vea en su tramo de fotogramas [ip, op). null si se ve siempre. */
+  /** Only visible during its frames [ip, op). null if always visible. */
   function span(ip: number, op: number): string | null {
     if (ip <= 0 && op >= frames) return null;
     const name = `v${++count}`;
@@ -63,7 +63,7 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport
   }
   const path = (s: Shape) => `<path d="${toPathData(s, 2)}"${styleAttrs(s.style)}/>`;
   const anim = (name: string | null, cls: string) => (name ? ` class="${cls}" style="animation-name:${name}"` : '');
-  // Sin animación: la colocación y la opacidad, como atributos.
+  // Without animation: placement and opacity, as attributes.
   const attr = (m: Mat, o: number) => ` transform="${matrixCSS(m)}"${o < 1 ? ` opacity="${n4(o)}"` : ''}`;
 
   function layerSVG(l: MotionLayer): string {
@@ -84,7 +84,7 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport
     return vis ? `<g${anim(vis, 'v')}>${body}</g>` : l.kind === 'frame' && l.shapes.length > 1 ? `<g>${body}</g>` : body;
   }
 
-  // Las capas, de atrás adelante; las de un objeto con filtros, dentro de su <g filter> (anidados).
+  // The layers, back to front; those of an object with filters, inside its <g filter> (nested).
   const lines: string[] = [];
   let open: string[] = [];
   for (const l of a.layers) {
@@ -108,12 +108,12 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport
     css.length === 0
       ? ''
       : `<style>` +
-        // Transformaciones en el sistema del viewBox (desde su origen), como el resto del SVG.
+        // Transforms in the viewBox system (from its origin), like the rest of the SVG.
         `.m,.v{animation-duration:${n4(duration)}s;animation-iteration-count:${loop};animation-fill-mode:both}` +
         `.m{transform-box:view-box;transform-origin:0 0;animation-timing-function:linear}` +
         `.v{animation-timing-function:step-end}` +
         css.join('') +
-        // Con «reducir movimiento», quieto.
+        // With "reduced motion", still.
         `@media (prefers-reduced-motion:reduce){.m,.v{animation-play-state:paused}}` +
         `</style>`;
   const [x, y, w, h] = a.viewBox;

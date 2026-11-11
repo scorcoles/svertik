@@ -14,11 +14,11 @@ const base = () => ({
 }) as any;
 
 describe('validateScene', () => {
-  it('una escena correcta: ni errores ni avisos', () => {
+  it('a correct scene: no errors and no warnings', () => {
     expect(validateScene(base())).toEqual({ errors: [], warnings: [] });
   });
 
-  it('errores: lo que impide usarla', () => {
+  it('errors: what prevents using it', () => {
     expect(validateScene(null).errors).toHaveLength(1);
     expect(validateScene({ version: 1, objects: [] }).errors).toEqual(['version must be 2']);
     const s = base();
@@ -27,7 +27,7 @@ describe('validateScene', () => {
     expect(validateScene(s).errors).toEqual(['"A": unknown modifier "nope"', '"B": unknown shape "blob"']);
   });
 
-  it('avisos: parámetros mal escritos y referencias a nada', () => {
+  it('warnings: misspelt parameters and references to nothing', () => {
     const s = base();
     s.objects[0].params.widht = 3;
     s.objects[0].stack[0].params.amout = 1;
@@ -38,7 +38,7 @@ describe('validateScene', () => {
     expect(w).toContain('"A" › Morph (m): "target" points to "zzz", which does not exist');
   });
 
-  it('avisos: pistas que no apuntan a nada', () => {
+  it('warnings: tracks that point at nothing', () => {
     const s = base();
     s.animation.tracks.push(
       { id: 'x1', node: 'ghost', on: 'node', param: 'x', keys: [{ t: 0, value: 0 }] },
@@ -57,7 +57,7 @@ describe('validateScene', () => {
     expect(w[4]).toContain('cannot animate "skew"');
   });
 
-  it('avisos: ids repetidos', () => {
+  it('warnings: repeated ids', () => {
     const s = base();
     s.objects[1].id = 'a';
     expect(validateScene(s).warnings).toContain('Object id "a" is used more than once');

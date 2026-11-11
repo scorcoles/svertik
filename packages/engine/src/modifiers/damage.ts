@@ -6,9 +6,9 @@ import { tearPolyline } from '../paths';
 import { rng } from '../random';
 
 /**
- * Desgaste: grietas que entran desde los bordes, desconchones en el borde y motas, recortados
- * como agujeros (por ellos asoma el fondo). Todo sale de una semilla; `growth` hace avanzar las grietas.
- * Solo superficies (como Boolean): las curvas pasan a tramos rectos.
+ * Wear: cracks coming in from the edges, chips on the edge and specks, cut out
+ * as holes (the background shows through them). Everything comes from a seed; `growth` advances the cracks.
+ * Surfaces only (like Boolean): curves become straight segments.
  */
 export const damage = defineModifier({
   type: 'damage',
@@ -48,20 +48,20 @@ export const damage = defineModifier({
     const growth = Math.max(0, Math.min(1, p.growth));
     const crackLines: Vec2[][] = [];
 
-    // ── Grietas: desde un punto del borde, hacia dentro, con zigzag; más anchas al empezar.
+    // ── Cracks: from a point on the edge, inwards, zigzagging; wider where they start.
     for (let i = 0; i < Math.round(p.cracks); i++) {
       const { at, inward } = edges();
-      // Rumbo general de la grieta; el trazo vuelve a él tras cada quiebro (recta en conjunto, con dientes).
+      // The crack's general heading; the line returns to it after each kink (straight overall, with teeth).
       const heading = Math.atan2(inward[1], inward[0]) + (rand() - 0.5) * 1.6;
       let a = heading;
-      // Siempre la grieta entera (mismos números al azar sea cual sea Growth); luego se recorta.
+      // Always the whole crack (the same random numbers whatever Growth is); trimmed afterwards.
       const L = p.length * size * (0.55 + rand() * 0.7);
       const seg = size * 0.012;
       const pts: Vec2[] = [[at[0] - inward[0] * seg, at[1] - inward[1] * seg]];
       let q = at;
       pts.push(q);
       for (let d = 0; d < L; ) {
-        // Quiebros secos de vez en cuando; si no, un leve temblor que tira hacia el rumbo.
+        // Sharp kinks now and then; otherwise a slight tremble pulling towards the heading.
         if (rand() < 0.18 + p.jagged * 0.25) a += (rand() - 0.5) * (0.6 + p.jagged * 2.2);
         else a += (rand() - 0.5) * p.jagged * 0.3;
         a = a * 0.75 + heading * 0.25;
@@ -69,7 +69,7 @@ export const damage = defineModifier({
         q = [q[0] + Math.cos(a) * s, q[1] + Math.sin(a) * s];
         pts.push(q);
         d += s;
-        // Si sale de la forma, la ha atravesado: ahí termina (un poco más allá, para cortar limpio).
+        // If it leaves the shape, it went through it: it ends there (a little beyond, for a clean cut).
         if (!inside(q)) {
           pts.push([q[0] + Math.cos(a) * seg, q[1] + Math.sin(a) * seg]);
           break;
@@ -77,15 +77,15 @@ export const damage = defineModifier({
       }
       if (pts.length < 3) continue;
       crackLines.push(pts);
-      // Anchura de cada punto, calculada una vez sobre la grieta entera; Growth solo enseña el tramo inicial.
+      // Width at each point, computed once on the whole crack; Growth only shows the first part.
       const half = halfWidths(pts, p.width * size, p.taper, rand);
       const grownBand = growing(pts, half, growth);
       if (grownBand) holes.push([grownBand]);
-      // Donde empieza, a veces, un desconchón.
+      // Where it starts, sometimes, a chip.
       if (rand() < 0.6) holes.push([blob(at, p.chipSize * size * (0.5 + rand() * 0.6), 7, rand)]);
     }
 
-    // ── Grietas pasantes: de un lado de la caja al opuesto, cortando todo lo que encuentran (parten el objeto).
+    // ── Through cracks: from one side of the box to the opposite one, cutting everything they meet (they split the object).
     for (let i = 0; i < Math.round(p.through); i++) {
       const horizontal = rand() < 0.5;
       const m = size * 0.03;
@@ -95,14 +95,14 @@ export const damage = defineModifier({
       const seg = size * 0.012;
       const pts: Vec2[] = [from];
       let q = from, a = heading;
-      // Avanza hasta haber recorrido (en la dirección del destino) la parte que diga `growth`.
+      // Advances until it has covered (in the direction of the target) the part `growth` says.
       const total = Math.hypot(to[0] - from[0], to[1] - from[1]);
       const goal = total;
       const [ux, uy] = [(to[0] - from[0]) / total, (to[1] - from[1]) / total];
       for (let guard = 0; (q[0] - from[0]) * ux + (q[1] - from[1]) * uy < goal && guard < 4000; guard++) {
         if (rand() < 0.18 + p.jagged * 0.25) a += (rand() - 0.5) * (0.6 + p.jagged * 2.2);
         else a += (rand() - 0.5) * p.jagged * 0.3;
-        // Tira hacia el punto de destino: siempre llega al otro lado.
+        // Pulls towards the target point: it always reaches the other side.
         const toward = Math.atan2(to[1] - q[1], to[0] - q[0]);
         a = a * 0.7 + toward * 0.3;
         const st = seg * (0.5 + rand());
@@ -116,13 +116,13 @@ export const damage = defineModifier({
       if (grownT) holes.push([grownT]);
     }
 
-    // ── Desconchones sueltos en el borde.
+    // ── Loose chips on the edge.
     for (let i = 0; i < Math.round(p.chips); i++) {
       const { at } = edges();
       holes.push([blob(at, p.chipSize * size * (0.4 + rand() * 0.9), 6 + Math.floor(rand() * 4), rand)]);
     }
 
-    // ── Motas: cerca de los bordes o de las grietas (según `edgeBias`) o en cualquier sitio.
+    // ── Specks: near the edges or the cracks (by `edgeBias`) or anywhere.
     for (let i = 0, tries = 0; i < Math.round(p.specks) && tries < p.specks * 20; tries++) {
       let q: Vec2;
       const r = rand();
@@ -142,17 +142,17 @@ export const damage = defineModifier({
       i++;
     }
     if (!holes.length) return geo;
-    // Bordes orgánicos: cada agujero, rasgado (los lados largos se parten y se desplazan al azar).
+    // Organic edges: each hole, torn (long sides are split and moved at random).
     if (p.roughness > 0) {
       const detail = size * 0.006;
       holes.forEach((h, i) => {
-        // Cada agujero, con su propio azar: así el rasgado de uno no cambia al crecer otro.
+        // Each hole with its own randomness: so tearing one doesn't change when another grows.
         const r = tearPolyline(h[0]!.slice(0, -1) as Vec2[], true, detail, p.roughness, rngFrom(p.seed * 1000 + i)) as Pair[];
         h[0] = [...r, r[0]!];
       });
     }
 
-    // Cada forma conserva su estilo: se le restan los agujeros.
+    // Each shape keeps its style: the holes are subtracted from it.
     const out: Shape[] = [];
     let piece = 0;
     for (const s of geo.shapes) {
@@ -168,7 +168,7 @@ export const damage = defineModifier({
       } catch {
         return geo;
       }
-      // Cada trozo que queda suelto (un polígono con sus agujeros), un elemento: Step lo trata por separado.
+      // Each loose piece left (a polygon with its holes), an element: Step treats it separately.
       for (const pl of cut) {
         const subpaths = pl.map(toSubPath).filter((x) => x !== null);
         if (subpaths.length) out.push({ ...s, subpaths, clone: piece++ });
@@ -178,14 +178,14 @@ export const damage = defineModifier({
   },
 });
 
-/** Media anchura en cada punto de la grieta: más ancha al nacer y afilándose (taper), con algo de ruido. */
+/** Half width at each point of the crack: wider at birth and tapering, with some noise. */
 function halfWidths(pts: Vec2[], w: number, taper: number, rand: () => number): number[] {
   return pts.map((_, i) => (w / 2) * (1 - taper * (i / (pts.length - 1))) * (0.5 + rand()));
 }
 
 /**
- * La banda de la grieta hasta la fracción `f` de su longitud, con las anchuras de siempre y la punta afilada.
- * Así, al animar Growth, la grieta avanza por su camino en vez de cambiar de forma.
+ * The crack's band up to fraction `f` of its length, with the usual widths and a sharp tip.
+ * So when Growth is animated, the crack advances along its path instead of changing shape.
  */
 function growing(pts: Vec2[], half: number[], f: number): Pair[] | null {
   if (f <= 0) return null;
@@ -197,7 +197,7 @@ function growing(pts: Vec2[], half: number[], f: number): Pair[] | null {
     const a = tr[Math.max(0, i - 1)]!, c = tr[Math.min(n - 1, i + 1)]!;
     const dx = c[0] - a[0], dy = c[1] - a[1];
     const l = Math.hypot(dx, dy) || 1;
-    // El último punto, en crecimiento, es la punta: anchura casi nula.
+    // The last point, while growing, is the tip: almost zero width.
     const hw = f < 1 && i === n - 1 ? (half[Math.min(i, half.length - 1)] ?? 0) * 0.15 : (half[Math.min(i, half.length - 1)] ?? 0);
     const [nx, ny] = [-dy / l, dx / l];
     left.push([tr[i]![0] + nx * hw, tr[i]![1] + ny * hw]);
@@ -207,7 +207,7 @@ function growing(pts: Vec2[], half: number[], f: number): Pair[] | null {
   return [...ring, ring[0]!];
 }
 
-/** El tramo inicial de una polilínea: la fracción `f` de su longitud (para que Growth haga crecer la grieta). */
+/** The first part of a polyline: fraction `f` of its length (so Growth grows the crack). */
 function trim(pts: Vec2[], f: number): Vec2[] {
   if (f >= 1) return pts;
   if (f <= 0) return [];
@@ -229,14 +229,14 @@ function trim(pts: Vec2[], f: number): Vec2[] {
   return out;
 }
 
-/** Azar propio para las bandas recortadas (no gasta del azar común: así nada más cambia con Growth). */
+/** Separate randomness for the cut bands (doesn't use the shared one: so nothing else changes with Growth). */
 const rngFrom = (seed: number) => rng(seed * 2654435761);
 
-/** Puntos al azar en el contorno (por longitud), con la normal hacia dentro. */
+/** Random points on the outline (by length), with the normal pointing inwards. */
 function edgeSampler(outer: Pair[][], rand: () => number) {
   const segs: { a: Vec2; b: Vec2; len: number; inward: Vec2 }[] = [];
   for (const ring of outer) {
-    // Sentido del anillo, para saber hacia dónde es «dentro».
+    // The ring's winding, to know which way is "inside".
     let area = 0;
     for (let i = 0; i < ring.length - 1; i++) area += ring[i]![0] * ring[i + 1]![1] - ring[i + 1]![0] * ring[i]![1];
     const sgn = area > 0 ? 1 : -1;
@@ -256,7 +256,7 @@ function edgeSampler(outer: Pair[][], rand: () => number) {
   };
 }
 
-/** Banda alrededor de una línea: ancho `w`, que se afila hacia el final (`taper`), con algo de ruido. */
+/** A band around a line: width `w`, tapering towards the end (`taper`), with some noise. */
 export function band(pts: Vec2[], w: number, taper: number, rand: () => number): Pair[] {
   const left: Pair[] = [], right: Pair[] = [];
   const n = pts.length;
@@ -274,7 +274,7 @@ export function band(pts: Vec2[], w: number, taper: number, rand: () => number):
   return [...ring, ring[0]!];
 }
 
-/** Mancha irregular de radio aproximado `r`. */
+/** An irregular blot of roughly radius `r`. */
 function blob(c: Vec2, r: number, n: number, rand: () => number): Pair[] {
   const a0 = rand() * Math.PI * 2;
   const pts = Array.from({ length: n }, (_, i) => {

@@ -4,9 +4,9 @@ import { builtins, createEngine, toLottie, type SceneV2 } from '../src';
 const scene: SceneV2 = {
   version: 2,
   objects: [
-    // Solo se mueve y gira: una capa, con claves de colocación.
+    // It only moves and turns: one layer, with placement keys.
     { kind: 'shape', id: 'a', name: 'Mover', shape: 'star', params: {}, stack: [], transform: { x: 0 } },
-    // Su forma cambia (un efecto animado): fotograma a fotograma. Con sombra: aviso.
+    // Its shape changes (an animated effect): frame by frame. With a shadow: a warning.
     { kind: 'shape', id: 'b', name: 'Wavy', shape: 'rectangle', params: {}, stack: [{ id: 'w', type: 'wave', params: { amplitude: 0.1 } }, { id: 's', type: 'shadow' }], transform: { x: 300 } },
   ],
   animation: {
@@ -25,37 +25,37 @@ describe('Lottie', () => {
   const out = toLottie(createEngine(builtins), scene, { name: 'test' });
   const layers = out.data.layers as { nm: string; ip: number; op: number; ks: { p: { a: number; k: unknown[] } }; shapes: { it: { ty: string }[] }[] }[];
 
-  it('cabecera: fotogramas, tamaño y nombre', () => {
+  it('header: frames, size and name', () => {
     expect(out.data).toMatchObject({ fr: 10, ip: 0, op: 10, nm: 'test' });
     expect(out.frames).toBe(10);
   });
 
-  it('lo que solo se mueve: una capa con claves de posición (las de una recta, fuera)', () => {
+  it('what only moves: one layer with position keys (those on a straight line, dropped)', () => {
     const mover = layers.filter((l) => l.nm === 'Mover');
     expect(mover).toHaveLength(1);
     expect(mover[0]!.ks.p.a).toBe(1);
-    // Movimiento lineal: basta con la primera y la última.
+    // Linear motion: the first and the last are enough.
     expect(mover[0]!.ks.p.k).toHaveLength(2);
     expect(mover[0]!.shapes[0]!.it.map((x) => x.ty)).toEqual(['sh', 'fl', 'tr']);
   });
 
-  it('lo que cambia de forma: una capa por fotograma; y los avisos', () => {
+  it('what changes shape: one layer per frame; and the warnings', () => {
     const wavy = layers.filter((l) => l.nm === 'Wavy');
     expect(wavy.length).toBeGreaterThan(1);
-    // Entre todas, cubren los 10 fotogramas, sin huecos.
+    // Together they cover the 10 frames, without gaps.
     expect(wavy.reduce((sum, l) => sum + l.op - l.ip, 0)).toBe(10);
     expect(out.warnings.join('\n')).toMatch(/Filters/);
     expect(out.warnings.join('\n')).toMatch(/Interactions/);
     expect(out.warnings.join('\n')).toMatch(/frame by frame.*Wavy/);
   });
 
-  it('sin animación: un fotograma, sin avisos de peso', () => {
+  it('without animation: one frame, no weight warnings', () => {
     const still = toLottie(createEngine(builtins), { version: 2, objects: [scene.objects[0]!] });
     expect(still.data).toMatchObject({ op: 1 });
     expect(still.warnings).toEqual([]);
   });
 
-  it('los trozos de una explosión (que solo se mueven, giran y encogen): una capa con sus claves, no fotograma a fotograma', () => {
+  it('the pieces of an explosion (they only move, turn and shrink): one layer with its keys, not frame by frame', () => {
     const boom: SceneV2 = {
       version: 2,
       objects: [{ kind: 'shape', id: 'p', name: 'Pieces', shape: 'rectangle', params: {}, stack: [{ id: 'c', type: 'clone', params: { mode: 'grid', columns: 3, rows: 2 } }, { id: 'x', type: 'explosion', params: { amount: 0 } }] }],
@@ -64,15 +64,15 @@ describe('Lottie', () => {
     const out = toLottie(createEngine(builtins), boom);
     const ls = out.data.layers as { shapes: { it: { ty: string; p?: { a: number } }[] }[] }[];
     expect(ls).toHaveLength(1);
-    // Cada trozo, un grupo con su transformación animada.
+    // Each piece, a group with its animated transform.
     expect(ls[0]!.shapes).toHaveLength(6);
     expect(ls[0]!.shapes.every((g) => g.it.at(-1)!.ty === 'tr' && g.it.at(-1)!.p!.a === 1)).toBe(true);
     expect(out.warnings).toEqual([]);
   });
 });
 
-describe('Lottie: lo que entra desde invisible', () => {
-  it('un texto (o pieza) que aparece: relleno al 100 % y la opacidad animada desde 0, con las claves en su tiempo', () => {
+describe('Lottie: what comes in from invisible', () => {
+  it('a text (or piece) that appears: fill at 100 % and opacity animated from 0, with the keys at their time', () => {
     const fade: SceneV2 = {
       version: 2,
       objects: [{ kind: 'shape', id: 'r', name: 'Fade', shape: 'rectangle', params: {}, stack: [{ id: 'c', type: 'clone', params: { mode: 'grid', columns: 2, rows: 1 } }, { id: 'o', type: 'opacity', params: { opacity: 0 } }, { id: 'x', type: 'explosion', params: { amount: 0 } }] }],
@@ -81,19 +81,19 @@ describe('Lottie: lo que entra desde invisible', () => {
         fps: 10,
         tracks: [
           { id: 'a', node: 'r', on: 'modifier', modifier: 'o', param: 'opacity', keys: [{ t: 0, value: 0 }, { t: 0.5, value: 1 }] },
-          // La explosión empieza a mitad: su tramo no empieza en el fotograma 0.
+          // The explosion starts halfway: its segment does not start at frame 0.
           { id: 'b', node: 'r', on: 'modifier', modifier: 'x', param: 'amount', keys: [{ t: 0, value: 0 }, { t: 1, value: 0, ease: 'linear' }, { t: 2, value: 1 }] },
         ],
       },
     };
     const ls = toLottie(createEngine(builtins), fade).data.layers as { ip: number; shapes: { it: { ty: string; o: { a: number; k: unknown } }[] }[] }[];
-    // La del principio (las capas van de delante a atrás: la primera es el último tramo).
+    // The one at the start (layers go front to back: the first is the last segment).
     const first = ls.find((l) => l.ip === 0)!;
     const fill = first.shapes[0]!.it.find((x) => x.ty === 'fl')!;
     expect(fill.o).toEqual({ a: 0, k: 100 });
     const tr = first.shapes[0]!.it.find((x) => x.ty === 'tr')! as unknown as { o: { a: number; k: { t: number; s: number[] }[] }; p: { k: { t: number }[] } };
     expect(tr.o.k[0]!.s[0]).toBe(0);
-    // Todas las claves de cada capa caen dentro de su tramo.
+    // All the keys of each layer fall within its segment.
     for (const l of ls as unknown as { ip: number; op: number; shapes: { it: { ty: string; p?: { a: number; k: { t: number }[] } }[] }[] }[]) {
       for (const g of l.shapes) {
         const p = g.it.at(-1)!.p!;

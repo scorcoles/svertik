@@ -1,9 +1,9 @@
-// SVG → Geometry. Formas y trazados con sus transformaciones ya aplicadas; el resto se ignora.
+// SVG → Geometry. Shapes and paths with their transforms already applied; the rest is ignored.
 
 import svgpath from 'svgpath';
 import { line, type Cubic, type Geometry, type Shape, type Style, type SubPath, type Vec2 } from './geometry';
 
-/** Propiedades de estilo que se conservan; las heredables pasan de los grupos a los hijos. */
+/** Style properties that are kept; the inheritable ones pass from groups to children. */
 const INHERITED = [
   'fill',
   'fill-rule',
@@ -18,14 +18,25 @@ const INHERITED = [
 ];
 const OWN = ['opacity'];
 
-const CONTAINERS = new Set(['svg', 'g', 'a', 'switch']);
+const CONTAINERS = new Set(['svg', 'g', 'a', 'switch', 'symbol']);
+
+const XLINK = 'http://www.w3.org/1999/xlink';
+
+/** Reference of a <use>: SVG 2's href or the classic xlink:href. */
+const hrefOf = (el: Element) => el.getAttribute('href') ?? el.getAttributeNS(XLINK, 'href') ?? el.getAttribute('xlink:href');
+
+/** Opacity of a style, as a number between 0 and 1. */
+const opacityOf = (style: Style) => {
+  const v = parseFloat(style.opacity ?? '1');
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 1;
+};
 
 const num = (el: Element, name: string, fallback = 0) => {
   const v = parseFloat(el.getAttribute(name) ?? '');
   return Number.isFinite(v) ? v : fallback;
 };
 
-/** Reglas CSS sencillas de los <style> del SVG: por clase, id o etiqueta. */
+/** Simple CSS rules from the SVG's <style>: by class, id or tag. */
 type Rule = { selector: string; decls: [string, string][] };
 
 function parseStyleSheets(root: Element): Rule[] {
@@ -43,7 +54,7 @@ function parseStyleSheets(root: Element): Rule[] {
   return rules;
 }
 
-/** ¿Encaja un selector simple (.a, #b, path, path.a, .a.b) con el elemento? */
+/** Does a simple selector (.a, #b, path, path.a, .a.b) match the element? */
 function matches(el: Element, selector: string): boolean {
   const m = /^([a-zA-Z][\w-]*)?((?:[.#][\w-]+)*)$/.exec(selector);
   if (!m) return false;
@@ -60,7 +71,7 @@ let sheet: Rule[] = [];
 
 function readStyle(el: Element, inherited: Style): Style {
   const style: Style = { ...inherited };
-  // Orden de prioridad: atributos sueltos < hoja de estilo < atributo style.
+  // Priority order: loose attributes < style sheet < style attribute.
   const fromAttr = (names: string[]) => {
     for (const n of names) {
       const v = el.getAttribute(n);
@@ -69,7 +80,7 @@ function readStyle(el: Element, inherited: Style): Style {
   };
   fromAttr([...INHERITED, ...OWN]);
   for (const rule of sheet) if (matches(el, rule.selector)) for (const [k, v] of rule.decls) style[k] = v;
-  // El atributo style manda sobre los atributos sueltos y la hoja de estilo.
+  // The style attribute wins over loose attributes and the style sheet.
   for (const decl of (el.getAttribute('style') ?? '').split(';')) {
     const i = decl.indexOf(':');
     if (i < 0) continue;
@@ -92,7 +103,7 @@ const pointsAttr = (el: Element) => {
   return pts;
 };
 
-/** Cada forma básica, como datos de trazado SVG. */
+/** Each basic shape, as SVG path data. */
 function shapeToPathData(el: Element): string | null {
   switch (el.localName) {
     case 'path':
@@ -136,7 +147,7 @@ function shapeToPathData(el: Element): string | null {
   }
 }
 
-/** Datos de trazado (ya con su transformación) → subtrazados de cúbicas. */
+/** Path data (with its transform applied) → cubic subpaths. */
 export function parsePathData(d: string, transform = ''): SubPath[] {
   const subpaths: SubPath[] = [];
   let current: SubPath | null = null;
@@ -189,7 +200,7 @@ export function parsePathData(d: string, transform = ''): SubPath[] {
         case 'z': {
           const sp = current as SubPath | null;
           if (sp) {
-            // Si el último punto no es el inicio, el cierre es una recta.
+            // If the last point isn't the start, the closing segment is a straight line.
             const last = sp.segs.length ? sp.segs[sp.segs.length - 1]!.p : sp.start;
             if (last[0] !== sp.start[0] || last[1] !== sp.start[1]) sp.segs.push(line(last, sp.start));
             sp.closed = true;
@@ -209,25 +220,54 @@ function readViewBox(svg: Element): [number, number, number, number] {
   return [0, 0, num(svg, 'width', 100), num(svg, 'height', 100)];
 }
 
-/** Importa un SVG (texto) a geometría. */
+/** Imports an SVG (text) into geometry. */
 export function importSVG(source: string): Geometry {
   const doc = new DOMParser().parseFromString(source, 'image/svg+xml');
   const root = doc.documentElement;
   if (!root || root.localName !== 'svg') throw new Error('svertik: el origen no es un SVG');
 
   sheet = parseStyleSheets(root);
+
+  // Elements that <use> may point at, by id.
+  const byId = new Map<string, Element>();
+  for (const el of Array.from(root.getElementsByTagName('*'))) {
+    const id = el.getAttribute('id');
+    if (id) byId.set(id, el);
+  }
+
   const shapes: Shape[] = [];
-  const walk = (el: Element, transform: string, inherited: Style) => {
-    const style = readStyle(el, inherited);
-    const t = el === root ? transform : `${transform} ${el.getAttribute('transform') ?? ''}`.trim();
-    if (CONTAINERS.has(el.localName)) {
-      for (const child of Array.from(el.children)) walk(child, t, inheritable(style));
-      return;
+  // `alpha` accumulates the opacity of groups and <use> elements above the shape (opacity doesn't inherit).
+  // `active` holds the elements being expanded, so a <use> chain that points back doesn't loop forever.
+  const walk = (el: Element, transform: string, inherited: Style, alpha = 1, active: Set<Element> = new Set(), referenced = false) => {
+    // A whole <symbol> only draws when a <use> pulls it in.
+    if (el.localName === 'symbol' && !referenced) return;
+    active.add(el);
+    try {
+      const style = readStyle(el, inherited);
+      const a = alpha * opacityOf(style);
+      const t = el === root ? transform : `${transform} ${el.getAttribute('transform') ?? ''}`.trim();
+      if (el.localName === 'use') {
+        const href = hrefOf(el) ?? '';
+        const target = href.startsWith('#') ? byId.get(href.slice(1)) : undefined;
+        if (target && !active.has(target)) {
+          const x = num(el, 'x');
+          const y = num(el, 'y');
+          const useT = x || y ? `${t} translate(${x} ${y})`.trim() : t;
+          walk(target, useT, inheritable(style), a, active, true);
+        }
+        return;
+      }
+      if (CONTAINERS.has(el.localName)) {
+        for (const child of Array.from(el.children)) walk(child, t, inheritable(style), a, active, referenced);
+        return;
+      }
+      const d = shapeToPathData(el);
+      if (!d) return;
+      const subpaths = parsePathData(d, t);
+      if (subpaths.length) shapes.push({ subpaths, style: alpha === 1 ? style : { ...style, opacity: String(a) } });
+    } finally {
+      active.delete(el);
     }
-    const d = shapeToPathData(el);
-    if (!d) return;
-    const subpaths = parsePathData(d, t);
-    if (subpaths.length) shapes.push({ subpaths, style });
   };
   walk(root, '', {});
 

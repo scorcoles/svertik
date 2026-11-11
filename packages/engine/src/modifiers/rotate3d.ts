@@ -2,8 +2,8 @@ import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /**
- * Gira el dibujo en 3D (X, Y, Z) alrededor de un pivote y lo proyecta con perspectiva.
- * Inclinar en X o en Y da el «tilt»; Z es un giro plano.
+ * Rotates the drawing in 3D (X, Y, Z) around a pivot and projects it with perspective.
+ * Tilting on X or Y gives the "tilt"; Z is a flat spin.
  */
 export const rotate3d = defineModifier({
   type: 'rotate3d',
@@ -31,7 +31,7 @@ export const rotate3d = defineModifier({
       [x, y] = [x * cz - y * sz, x * sz + y * cz];
       [y, z] = [y * cx - z * sx, y * sx + z * cx];
       [x, z] = [x * cy + z * sy, -x * sy + z * cy];
-      // Perspectiva: la cámara está a distancia d, mirando al plano z = 0. z > 0 se acerca.
+      // Perspective: the camera is at distance d, looking at the plane z = 0. z > 0 comes closer.
       const f = d / Math.max(d - z, d * 0.05);
       return [px + x * f, py + y * f];
     });

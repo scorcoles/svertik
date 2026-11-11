@@ -1,7 +1,7 @@
 import { mapPoints, subdivide, type Vec2 } from '../geometry';
 import { defineModifier, fromFraction, type ParamSpec } from '../modifier';
 
-// Malla de 3×3 puntos de control (superficie de Bézier cuadrática). Por defecto, la propia caja: sin cambios.
+// A 3×3 mesh of control points (a quadratic Bézier surface). By default, the box itself: no change.
 const NAMES = ['p00', 'p10', 'p20', 'p01', 'p11', 'p21', 'p02', 'p12', 'p22'] as const;
 const LABELS = ['Top left', 'Top', 'Top right', 'Left', 'Middle', 'Right', 'Bottom left', 'Bottom', 'Bottom right'];
 
@@ -16,7 +16,7 @@ const params = Object.fromEntries(
 
 const bern = (t: number): [number, number, number] => [(1 - t) * (1 - t), 2 * t * (1 - t), t * t];
 
-/** Envolvente: arrastra los nueve puntos de la malla y el dibujo se deforma con ella. */
+/** Envelope: drag the nine points of the mesh and the drawing bends with it. */
 export const envelope = defineModifier({
   type: 'envelope',
   label: 'Envelope',

@@ -23,7 +23,7 @@ const round = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x 
 const strip = (shapes: { node?: string; clone?: number }[]) => shapes.map(({ node: _n, clone: _c, ...s }) => s);
 
 describe('pack', () => {
-  it('el paquete se ve igual que el original, dentro de un grupo girado y escalado', () => {
+  it('the pack looks the same as the original, inside a turned and scaled group', () => {
     const e = createEngine(builtins);
     const s = scene();
     const before = e.evaluateDocument(s);
@@ -31,13 +31,13 @@ describe('pack', () => {
     expect(r?.animated).toBe(true);
     const after = e.evaluateDocument(s);
     expect(round(strip(after.geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
-    // Su animación y sus interacciones se van dentro; las de otros, no.
+    // Its animation and interactions go inside; those of others do not.
     expect(s.animation!.tracks).toHaveLength(0);
     expect(s.interactions).toHaveLength(1);
     expect(s.objects[0]!.kind === 'group' && s.objects[0]!.children[0]!.id).toBe('star');
   });
 
-  it('desempaquetar devuelve el original, con lo que se haya movido el paquete', () => {
+  it('unpacking gives back the original, moved as much as the pack moved', () => {
     const e = createEngine(builtins);
     const s = scene();
     packNode(s, 'star', e.evaluateDocument(s), 'k1');
@@ -53,7 +53,7 @@ describe('pack', () => {
     expect(s.animation!.tracks.map((t) => t.id)).toEqual(['tr']);
   });
 
-  it('lo que lo usaba de referencia lo sigue encontrando', () => {
+  it('what used it as a reference still finds it', () => {
     const e = createEngine(builtins);
     const s: SceneV2 = {
       version: 2,
@@ -68,7 +68,7 @@ describe('pack', () => {
     expect(round(strip(after.geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
   });
 
-  it('un paquete duplicado: al desempaquetar los dos, el segundo recibe ids nuevos', () => {
+  it('a duplicated pack: when both are unpacked, the second gets new ids', () => {
     const e = createEngine(builtins);
     const s = scene();
     packNode(s, 'star', e.evaluateDocument(s), 'k1');
@@ -83,8 +83,8 @@ describe('pack', () => {
   });
 });
 
-describe('convertir en trazados', () => {
-  it('la primitiva pasa a ser un objeto de trazados que se ve igual, con sus efectos', () => {
+describe('convert to outlines', () => {
+  it('the primitive becomes an object of paths that looks the same, with its effects', () => {
     const e = createEngine(builtins);
     const s: SceneV2 = {
       version: 2,
@@ -102,12 +102,12 @@ describe('convertir en trazados', () => {
     expect(n.opacity).toBe(0.7);
     expect(s.animation!.tracks.map((t) => t.id)).toEqual(['b']);
     const after = e.evaluateDocument(s);
-    // El SVG guarda los números con dos decimales: igual a una centésima.
+    // The SVG keeps numbers with two decimals: equal to a hundredth.
     const a = after.nodes.get('st')!.box, b = before.nodes.get('st')!.box;
     for (const k of ['x', 'y', 'width', 'height'] as const) expect(a[k]).toBeCloseTo(b[k], 1);
   });
 
-  it('un objeto (no primitiva) no se convierte', () => {
+  it('an object (not a primitive) is not converted', () => {
     const s = scene();
     expect(outlineNode(s, 'g')).toBeNull();
   });

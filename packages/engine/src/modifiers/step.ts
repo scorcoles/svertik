@@ -2,11 +2,11 @@ import { bounds, type Geometry, type Shape } from '../geometry';
 import { defineModifier, rampParams, type ModifierContext } from '../modifier';
 
 /**
- * Efector incremental: aplica los modificadores que cuelgan de él
- * a cada elemento por separado, con sus números multiplicados por la posición del elemento.
- * Un Twist de 10° debajo de Step: el primero gira 10°, el segundo 20°…
- * Los elementos son las copias de Clone; sin Clone, cada forma del SVG.
- * Dentro de cada elemento, las fracciones (centro, pivote…) se miden sobre su propia caja.
+ * Incremental effector: applies the modifiers nested in it
+ * to each element separately, with their numbers multiplied by the element's position.
+ * A 10° Twist under Step: the first turns 10°, the second 20°…
+ * The elements are the Clone copies; without Clone, each shape of the SVG.
+ * Within each element, fractions (centre, pivot…) are measured on its own box.
  */
 export const step = defineModifier({
   type: 'step',
@@ -20,7 +20,7 @@ export const step = defineModifier({
     const children = ctx.children.filter((c) => c.enabled);
     if (!children.length) return geo;
 
-    // Elementos: por número de copia si los hay; si no, una forma = un elemento.
+    // Elements: by copy number if there are any; otherwise one shape = one element.
     const tagged = geo.shapes.some((s) => s.clone !== undefined);
     const keyOf = (s: Shape, i: number) => (tagged ? (s.clone ?? -1) : i);
     const keys = [...new Set(geo.shapes.map(keyOf))].filter((k) => k >= 0).sort((a, b) => a - b);
@@ -29,7 +29,7 @@ export const step = defineModifier({
 
     const out: Shape[] = [];
     const untouched: Shape[] = [];
-    // Los filtros internos que traigan los trozos (RGB Split dentro de Step).
+    // The inner filters the pieces bring (RGB Split inside Step).
     let inner = geo.inner;
     for (const key of keys) {
       const own = geo.shapes.filter((s, i) => keyOf(s, i) === key);

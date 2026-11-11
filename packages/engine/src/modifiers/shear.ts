@@ -1,7 +1,7 @@
 import { mapPoints } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
-/** Inclina: X se desplaza según la altura y Y según la anchura, alrededor del centro. */
+/** Slants: X shifts with the height and Y with the width, around the centre. */
 export const shear = defineModifier({
   type: 'shear',
   label: 'Shear',

@@ -4,11 +4,11 @@ import { rng } from '../random';
 import { applyWeighted, keyFor } from './weighted';
 
 /**
- * Escalonado: cada elemento hace su propia transición, con su curva, un poco
- * después del anterior. Progress (0–1) es la animación entera: anímalo con dos claves.
- * - in: los elementos empiezan con los efectos colgados puestos y acaban en su sitio (entradas);
- * - out: empiezan en su sitio y acaban con los efectos (salidas).
- * Stagger: 0, todos a la vez; 1, uno detrás de otro sin solaparse.
+ * Stagger: each element makes its own transition, with its curve, a little
+ * after the previous one. Progress (0–1) is the whole animation: animate it with two keys.
+ * - in: elements start with the nested effects applied and end at their place (entrances);
+ * - out: they start at their place and end with the effects (exits).
+ * Stagger: 0, all at once; 1, one after another without overlapping.
  */
 export const stagger = defineModifier({
   type: 'stagger',
@@ -28,7 +28,7 @@ export const stagger = defineModifier({
     const keys = [...new Set(geo.shapes.map(keyOf))].filter((k) => k >= 0).sort((a, b) => a - b);
     const n = keys.length;
     if (!n) return geo;
-    // Turno de cada elemento (0 = el primero en moverse).
+    // Each element's turn (0 = the first to move).
     const turn = new Map<number, number>();
     if (p.order === 'random') {
       const rand = rng(p.seed);
@@ -46,7 +46,7 @@ export const stagger = defineModifier({
       });
     }
     const last = Math.max(...turn.values()) || 1;
-    // Cada elemento dura L; el siguiente empieza `stagger` de L después (sin solapar con stagger 1).
+    // Each element lasts L; the next starts `stagger` × L later (no overlap with stagger 1).
     const s = Math.max(0, Math.min(1, p.stagger));
     const L = 1 / (1 + last * s);
     const e = p.ease as Ease;
@@ -58,7 +58,7 @@ export const stagger = defineModifier({
         const start = turn.get(key)! * s * L;
         const local = Math.max(0, Math.min(1, (p.progress - start) / L));
         const done = ease(e, local);
-        // in: con el efecto al principio (peso 1) y en su sitio al final (0); out, al revés.
+        // in: with the effect at the start (weight 1) and at its place at the end (0); out, the other way.
         return p.direction === 'out' ? done : 1 - done;
       },
       1,

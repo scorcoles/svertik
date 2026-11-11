@@ -1,7 +1,7 @@
 import { mapPoints } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
-/** Mover, girar y escalar todo el dibujo. Desplazamiento en unidades del SVG. */
+/** Move, rotate and scale the whole drawing. Offsets in SVG units. */
 export const transform = defineModifier({
   type: 'transform',
   label: 'Transform',

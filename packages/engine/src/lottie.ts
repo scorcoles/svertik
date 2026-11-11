@@ -1,8 +1,8 @@
-// Exportar a Lottie (JSON de animación vectorial para apps y webs).
-// La escena se evalúa fotograma a fotograma. Cada objeto cuya forma no cambia (solo se mueve, gira, escala o
-// se desvanece) se exporta una vez, con fotogramas clave nativos de su colocación y su opacidad; el que
-// cambia de forma (efectos animados: Damage, Explosion, deformaciones…), fotograma a fotograma, que pesa más.
-// Lo que Lottie no tiene (filtros, interacciones) no se exporta, y los avisos lo dicen.
+// Export to Lottie (vector animation JSON for apps and websites).
+// The scene is evaluated frame by frame. Each object whose shape doesn't change (it only moves, turns, scales
+// or fades) is exported once, with native keyframes for its placement and opacity; one that changes shape
+// (animated effects: Damage, Explosion, deformations…), frame by frame, which weighs more.
+// What Lottie doesn't have (filters, masks, interactions) isn't exported, and the warnings say so.
 
 import { parseColor } from './color';
 import type { SceneV2 } from './document';
@@ -12,9 +12,9 @@ import type { Mat } from './matrix';
 import { analyzeMotion } from './motion';
 
 export interface LottieExport {
-  /** El JSON de Lottie (objeto; `JSON.stringify` para guardarlo). */
+  /** The Lottie JSON (an object; `JSON.stringify` it to save it). */
   data: Record<string, unknown>;
-  /** Lo que no se ha exportado o lo que conviene saber (en inglés: lo enseña el editor). */
+  /** What wasn't exported or is worth knowing (shown by the editor). */
   warnings: string[];
   frames: number;
 }
@@ -24,7 +24,7 @@ const BLEND: Record<string, number> = {
   'soft-light': 9, difference: 10, exclusion: 11, hue: 12, saturation: 13, color: 14, luminosity: 15,
 };
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
-/** Coordenadas, con dos decimales (de sobra en pantalla; el archivo pesa mucho menos). */
+/** Coordinates with two decimals (plenty on screen; the file weighs much less). */
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const apply = (m: Mat, [x, y]: readonly [number, number]): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 
@@ -32,7 +32,7 @@ export function toLottie(engine: Engine, scene: SceneV2, options: { name?: strin
   const a = analyzeMotion(engine, scene);
   const [vx, vy, vw, vh] = a.viewBox;
   const toDoc = (p: readonly [number, number]): [number, number] => [r2(p[0] - vx), r2(p[1] - vy)];
-  // Las matrices de las piezas son del documento; Lottie dibuja con el origen en la esquina del viewBox.
+  // The pieces' matrices are in the document; Lottie draws with the origin at the viewBox corner.
   const shift = (m: Mat): Mat => [m[0], m[1], m[2], m[3], m[4] + m[0] * vx + m[2] * vy - vx, m[5] + m[1] * vx + m[3] * vy - vy];
 
   const layers = a.layers.map((l) => {
@@ -45,7 +45,7 @@ export function toLottie(engine: Engine, scene: SceneV2, options: { name?: strin
     }
     return layer(l.name, lottieShapes(l.shapes, toDoc), staticTransform(), l.ip, l.op, blendOf(l.shapes));
   });
-  // En Lottie, la primera capa es la de delante.
+  // In Lottie, the first layer is the front one.
   layers.reverse().forEach((l, i) => (l.ind = i + 1));
 
   const warnings: string[] = [];
@@ -67,16 +67,16 @@ function layer(nm: string, shapes: unknown[], ks: unknown, ip: number, op: numbe
 const staticTransform = () => ({ o: { a: 0, k: 100 }, r: { a: 0, k: 0 }, p: { a: 0, k: [0, 0, 0] }, a: { a: 0, k: [0, 0, 0] }, s: { a: 0, k: [100, 100, 100] } });
 
 /**
- * Colocación y opacidad, fotograma a fotograma, a partir de la matriz de cada uno; se quitan las claves que
- * sobran (donde el movimiento es una recta). Interpolación lineal entre las que quedan.
+ * Placement and opacity, frame by frame, from each one's matrix; redundant keys are dropped (where the
+ * motion is a straight line). Linear interpolation between the ones left.
  */
 function transformKeys(ms: Mat[], anchor: [number, number], opacity: number[], vx: number, vy: number) {
-  // Posición: dónde cae el punto de anclaje en cada fotograma.
+  // Position: where the anchor point falls in each frame.
   const pos = ms.map((m) => {
     const [x, y] = apply(m, anchor);
     return [r3(x - vx), r3(y - vy), 0];
   });
-  // Giro continuo (sin saltos de 360°).
+  // Continuous rotation (no 360° jumps).
   let prev = 0;
   const rot = ms.map((m, i) => {
     let a = (Math.atan2(m[1], m[0]) * 180) / Math.PI;
@@ -97,7 +97,7 @@ function transformKeys(ms: Mat[], anchor: [number, number], opacity: number[], v
 function keys(values: number[][], scalar = false, from = 0) {
   const same = values.every((v) => v.every((x, i) => Math.abs(x - values[0]![i]!) < 1e-3));
   if (same) return { a: 0, k: scalar ? values[0]![0] : values[0] };
-  // Se quedan las claves donde el movimiento deja de ser recto.
+  // Keys stay where the motion stops being straight.
   const keep = values.map((v, i) => {
     if (i === 0 || i === values.length - 1) return true;
     const a = values[i - 1]!, b = values[i + 1]!;
@@ -107,7 +107,7 @@ function keys(values: number[][], scalar = false, from = 0) {
   return { a: 1, k: values.flatMap((v, t) => (keep[t] ? [{ t: t + from, s: v, ...lin }] : [])) };
 }
 
-/** Las formas, como grupos de Lottie (la de delante, la primera). */
+/** The shapes, as Lottie groups (the front one first). */
 function lottieShapes(shapes: Shape[], at: (p: readonly [number, number]) => [number, number], trOf?: (index: number) => unknown): unknown[] {
   return [...shapes].reverse().map((s, i) => {
     const index = shapes.length - 1 - i;
@@ -126,7 +126,7 @@ function lottieShapes(shapes: Shape[], at: (p: readonly [number, number]) => [nu
         lc: { butt: 1, round: 2, square: 3 }[s.style['stroke-linecap'] ?? 'butt'] ?? 1,
         lj: { miter: 1, round: 2, bevel: 3 }[s.style['stroke-linejoin'] ?? 'miter'] ?? 1,
         ml: 4,
-        // Discontinuo: trazo, hueco y desplazamiento, como en SVG.
+        // Dashes: dash, gap and offset, as in SVG.
         ...(() => {
           const da = (s.style['stroke-dasharray'] ?? '').split(/[\s,]+/).map(Number).filter((n) => n > 0);
           if (!da.length) return {};
@@ -140,11 +140,11 @@ function lottieShapes(shapes: Shape[], at: (p: readonly [number, number]) => [nu
   });
 }
 
-/** Un subtrazado como trazado de Lottie: vértices y tiradores (relativos a cada vértice). */
+/** A subpath as a Lottie path: vertices and handles (relative to each vertex). */
 function pathOf(sp: SubPath, at: (p: readonly [number, number]) => [number, number]) {
   const segs = sp.segs;
   const last = segs[segs.length - 1];
-  // Cerrado y con el último tramo de vuelta al principio: ese tramo es el que cierra.
+  // Closed, with the last segment going back to the start: that segment is the one that closes it.
   const closesOnStart = sp.closed && last && Math.hypot(last.p[0] - sp.start[0], last.p[1] - sp.start[1]) < 1e-6;
   const pts = [sp.start, ...segs.map((g) => g.p)];
   if (closesOnStart) pts.pop();
@@ -173,7 +173,7 @@ function paintOf(paint: string | undefined, s: Shape, at: (p: readonly [number, 
   return { ty: 'fl', c: { a: 0, k: [c[0] / 255, c[1] / 255, c[2] / 255, 1] }, o: { a: 0, k: r3(c[3] * opacity * 100) }, r: rule };
 }
 
-/** Degradado (relativo a la caja de la forma, como en svertik) → puntos de inicio y fin en coordenadas. */
+/** Gradient (relative to the shape's box, as in svertik) → start and end points in coordinates. */
 function gradientFill(g: Gradient, s: Shape, at: (p: readonly [number, number]) => [number, number], opacity: number, rule: number) {
   const pts = s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((x) => x.p)]).map(at);
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
@@ -191,10 +191,10 @@ function gradientFill(g: Gradient, s: Shape, at: (p: readonly [number, number]) 
   return { ty: 'gf', t: radial ? 2 : 1, s: { a: 0, k: start }, e: { a: 0, k: end }, g: { p: g.stops.length, k: { a: 0, k: [...colors, ...alphas] } }, o: { a: 0, k: r3(opacity * 100) }, r: rule };
 }
 
-// ── Piezas rígidas
+// ── Rigid pieces
 
 
-/** El movimiento de una pieza (matrices desde su primer fotograma) como transformación de su grupo en Lottie. */
+/** A piece's motion (matrices from its first frame) as the transform of its Lottie group. */
 function groupTransform(ms: Mat[], opacity: number[], from: number) {
   let prev = 0;
   const pos: number[][] = [], rot: number[][] = [], scale: number[][] = [];
@@ -209,6 +209,6 @@ function groupTransform(ms: Mat[], opacity: number[], from: number) {
     rot.push([r3(a)]);
     scale.push([r3(sx * 100), r3(sy * 100)]);
   });
-  // Las claves, en el tiempo de la animación (el tramo empieza en `from`).
+  // The keys, in animation time (the segment starts at `from`).
   return { ty: 'tr', p: keys(pos, false, from), a: { a: 0, k: [0, 0] }, s: keys(scale, false, from), r: keys(rot, true, from), o: keys(opacity.map((o) => [r3(o * 100)]), true, from) };
 }

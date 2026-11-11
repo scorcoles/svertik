@@ -2,8 +2,8 @@ import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
 /**
- * Curva el dibujo como una lámina: el eje elegido se convierte en un arco de `angle` grados.
- * Ángulo positivo: los extremos bajan (∩); negativo: suben (∪).
+ * Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees.
+ * Positive angle: the ends go down (∩); negative: they go up (∪).
  */
 export const bend = defineModifier({
   type: 'bend',
@@ -23,7 +23,7 @@ export const bend = defineModifier({
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
     return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
-      // u: a lo largo del eje; v: perpendicular.
+      // u: along the axis; v: across it.
       const u = horizontal ? x - cx : y - cy;
       const v = horizontal ? y - cy : cx - x;
       const phi = u / R;

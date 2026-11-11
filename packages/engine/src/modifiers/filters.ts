@@ -1,6 +1,6 @@
-// Filtros de SVG: no cambian la geometría; se aplican al objeto entero al pintarlo (sombra, desenfoque,
-// resplandor, grano, desplazamiento). Los calcula el navegador: baratos de ajustar, pero un desenfoque
-// grande o animado cuesta al pintar, sobre todo en el móvil. Unidades: las del documento (px).
+// SVG filters: they don't change the geometry; they apply to the whole object when it is painted (shadow,
+// blur, glow, grain, displacement…). The browser computes them: cheap to tweak, but a large or animated
+// blur costs when painting, especially on phones. Units: the document's (px).
 import type { Geometry } from '../geometry';
 import { defineModifier, type FilterPlace, type ParamSpec } from '../modifier';
 
@@ -8,7 +8,7 @@ const same = (geo: Geometry) => geo;
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const n = (v: number) => String(Math.round(v * 1000) / 1000);
 
-// ── Zona: el filtro entero, o solo en un círculo o en una franja (con su paso suave al original).
+// ── Area: the whole filter, or only inside a circle or a band (with a soft transition to the original).
 const zoned = { area: ['radial', 'band'] } as const;
 const AREA = {
   area: { type: 'enum', default: 'all', options: ['all', 'radial', 'band'] as const, label: 'Area', group: 'Area', animatable: false },
@@ -21,8 +21,8 @@ const AREA = {
 type AreaParams = { area: string; center: [number, number]; radius: number; falloff: number; angle: number; invert: boolean };
 
 /**
- * El efecto (que escribe en `<id>-e`) solo donde dice la zona: una máscara con un degradado (radial, o una
- * franja), dentro del propio filtro como imagen; donde es opaca, el efecto; donde no, el original.
+ * The effect (written into `<id>-e`) only where the area says: a mask with a gradient (radial, or a
+ * band), inside the filter itself as an image; where it is opaque, the effect; where not, the original.
  */
 function withArea(p: AreaParams, place: FilterPlace, io: { input: string; out: string; id: string }, effect: (out: string) => string): string {
   if (p.area !== 'radial' && p.area !== 'band') return effect(io.out);
@@ -36,7 +36,7 @@ function withArea(p: AreaParams, place: FilterPlace, io: { input: string; out: s
   if (p.area === 'radial') {
     grad = `<radialGradient id="m" gradientUnits="userSpaceOnUse" cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}">${stop(1 - f, on)}${stop(1, off)}</radialGradient>`;
   } else {
-    // Franja a lo largo de `angle` (más el giro del objeto); su ancho, 2 × radio.
+    // Band along `angle` (plus the object's rotation); its width, 2 × radius.
     const a = ((p.angle + place.rotation) * Math.PI) / 180;
     const [nx, ny] = [-Math.sin(a), Math.cos(a)];
     grad = `<linearGradient id="m" gradientUnits="userSpaceOnUse" x1="${n(cx - nx * r)}" y1="${n(cy - ny * r)}" x2="${n(cx + nx * r)}" y2="${n(cy + ny * r)}">${stop(0, off)}${stop(f / 2, on)}${stop(1 - f / 2, on)}${stop(1, off)}</linearGradient>`;
@@ -52,7 +52,7 @@ function withArea(p: AreaParams, place: FilterPlace, io: { input: string; out: s
   );
 }
 
-/** Sombra: una copia desenfocada y desplazada, de un color, detrás. */
+/** Shadow: a blurred, shifted copy behind, in one colour. */
 export const shadow = defineModifier({
   type: 'shadow',
   label: 'Shadow',
@@ -69,7 +69,7 @@ export const shadow = defineModifier({
   filterPad: (p) => Math.max(Math.abs(p.offset[0]), Math.abs(p.offset[1])) + p.blur * 1.5 + 2,
 });
 
-/** Desenfoque: en las dos direcciones, o solo en una (sensación de movimiento); entero o solo en una zona. */
+/** Blur: in both directions, or only one (a sense of motion); whole or only in an area. */
 export const blur = defineModifier({
   type: 'blur',
   label: 'Blur',
@@ -88,7 +88,7 @@ export const blur = defineModifier({
   filterPad: (p) => p.amount * 1.5 + 2,
 });
 
-/** Resplandor: un halo de color alrededor (por detrás del dibujo). */
+/** Glow: a coloured halo around (behind the drawing). */
 export const glow = defineModifier({
   type: 'glow',
   label: 'Glow',
@@ -100,7 +100,7 @@ export const glow = defineModifier({
   },
   apply: same,
   filter: (p, { input, out, id }) => {
-    // Más de 1: el halo se suma a sí mismo (más intenso, sin crecer).
+    // Above 1: the halo adds to itself (more intense, without growing).
     const layers = Math.max(1, Math.ceil(p.strength));
     const each = Math.min(1, p.strength / layers);
     const halo = Array.from({ length: layers }, () => `<feMergeNode in="${id}-c"/>`).join('');
@@ -114,7 +114,7 @@ export const glow = defineModifier({
   filterPad: (p) => p.size * 1.5 + 2,
 });
 
-/** Grano: ruido fino sobre el dibujo (solo dentro de él), como de película o de impresión. */
+/** Grain: fine noise over the drawing (only inside it), like film or print. */
 export const grain = defineModifier({
   type: 'grain',
   label: 'Grain',
@@ -130,16 +130,16 @@ export const grain = defineModifier({
     const { input, id } = io;
     return withArea(p, place, io, (out) =>
       `<feTurbulence type="fractalNoise" baseFrequency="${n(0.9 / Math.max(0.25, p.size))}" numOctaves="2" seed="${Math.round(p.seed)}" result="${id}-n"/>` +
-      // En gris y opaco (el ruido trae su propia transparencia, que oscurecería la mezcla).
+      // Grey and opaque (the noise brings its own transparency, which would darken the blend).
       `<feColorMatrix in="${id}-n" type="matrix" values="0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0 0 0 0 1" result="${id}-g"/>` +
-      // Gris del ruido centrado en 0: aclara y oscurece por igual.
+      // The noise's grey centred on 0: lightens and darkens equally.
       `<feComposite in="${input}" in2="${id}-g" operator="arithmetic" k1="0" k2="1" k3="${n(p.amount)}" k4="${n(-p.amount / 2)}" result="${id}-m"/>` +
       `<feComposite in="${id}-m" in2="${input}" operator="in" result="${out}"/>`,
     );
   },
 });
 
-/** Desplazamiento: los bordes tiemblan u ondulan con un ruido orgánico. Anima Amount o la semilla. */
+/** Displacement: the edges tremble or ripple with organic noise. Animate Amount or the seed. */
 export const displace = defineModifier({
   type: 'displace',
   label: 'Displace',
@@ -160,7 +160,7 @@ export const displace = defineModifier({
   filterPad: (p) => p.amount / 2 + 2,
 });
 
-/** Un color como [r, g, b] de 0 a 1 (negro si no se entiende). */
+/** A colour as [r, g, b] from 0 to 1 (black if not understood). */
 const rgb01 = (c: string): [number, number, number] => {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim());
   if (!m) return [0, 0, 0];
@@ -169,9 +169,9 @@ const rgb01 = (c: string): [number, number, number] => {
 };
 
 /**
- * Relieve (bisel): luz y sombra en los bordes, como si el dibujo tuviera volumen. La luz viene de `angle`
- * (0, la derecha; -135, arriba a la izquierda) con su `elevation`; `depth`, lo ancho del bisel (px); `height`,
- * cuánto sobresale; `strength`, cuánto se nota; `shine`, el brillo (reflejo) y `shininess`, lo concentrado.
+ * Relief (bevel): light and shade on the edges, as if the drawing had volume. The light comes from `angle`
+ * (0, the right; -135, top left) at its `elevation`; `depth`, the bevel width (px); `height`, how much it
+ * stands out; `strength`, how visible it is; `shine`, the highlight and `shininess`, how concentrated.
  */
 export const bevel = defineModifier({
   type: 'bevel',
@@ -190,7 +190,7 @@ export const bevel = defineModifier({
   filter: (p, { input, out, id }) => {
     const az = ((p.angle % 360) + 360) % 360;
     const light = `<feDistantLight azimuth="${n(az)}" elevation="${n(p.elevation)}"/>`;
-    // Lo plano, con la luz de frente, quedaría más oscuro (seno de la elevación): se compensa.
+    // Flat areas, with the light in front, would come out darker (sine of the elevation): compensated.
     const k = p.strength / Math.max(0.05, Math.sin((p.elevation * Math.PI) / 180));
     return (
       `<feGaussianBlur in="SourceAlpha" stdDeviation="${n(Math.max(0.25, p.depth) / 2)}" result="${id}-h"/>` +
@@ -205,8 +205,8 @@ export const bevel = defineModifier({
 });
 
 /**
- * Engordar o adelgazar el dibujo (`amount` px; negativo, adelgaza), o un contorno de color por fuera, como
- * una pegatina (`outline`). Con el navegador, sobre lo pintado: vale para texto, trazos y lo que sea.
+ * Makes the drawing thicker or thinner (`amount` px; negative, thinner), or a coloured outline around it, like
+ * a sticker (`outline`). Done by the browser on what is painted: works for text, strokes and anything else.
  */
 export const thicken = defineModifier({
   type: 'thicken',
@@ -235,8 +235,8 @@ export const thicken = defineModifier({
 });
 
 /**
- * Tono: posterizar (pocos niveles por canal, como un cartel), duotono (las sombras de un color y las luces
- * de otro) o invertir los colores. Entero o solo en una zona.
+ * Tone: posterize (few levels per channel, like a poster), duotone (shadows in one colour and lights in
+ * another) or invert the colours. Whole or only in an area.
  */
 export const tone = defineModifier({
   type: 'tone',

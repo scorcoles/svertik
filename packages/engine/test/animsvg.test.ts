@@ -21,22 +21,22 @@ const scene: SceneV2 = {
 describe('SVG animado', () => {
   const out = toAnimatedSVG(createEngine(builtins), scene);
 
-  it('un solo SVG con su CSS: duración, bucle y «reducir movimiento»', () => {
+  it('a single SVG with its CSS: duration, loop and reduced motion', () => {
     expect(out.svg).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" viewBox=/);
     expect(out.svg).toContain('animation-duration:1s');
     expect(out.svg).toContain('animation-iteration-count:infinite');
     expect(out.svg).toContain('prefers-reduced-motion');
   });
 
-  it('lo que se mueve: una animación de transform (solo las claves necesarias); lo quieto, sin animación', () => {
+  it('what moves: a transform animation (only the keys needed); what is still, no animation', () => {
     const mover = /@keyframes m\d+\{([^}]*\}){1,}?\}/.exec(out.svg)![0];
-    // Movimiento lineal: el primer fotograma, el último y el 100 %.
+    // Linear motion: the first frame, the last and 100 %.
     expect(mover.match(/%\{/g)).toHaveLength(3);
-    // La elipse quieta, con su colocación como atributo.
+    // The still ellipse, with its placement as an attribute.
     expect(out.svg).toMatch(/<g transform="matrix\(1,0,0,1,-300,0\)"><path/);
   });
 
-  it('los filtros sí van; lo que cambia de forma, por tramos que se encienden y apagan', () => {
+  it('filters do go; what changes shape, in segments that switch on and off', () => {
     expect(out.svg).toContain('<filter id="sv-f-a"');
     expect(out.svg).toContain('<g filter="url(#sv-f-a)">');
     expect(out.svg).toMatch(/@keyframes v\d+\{0%\{visibility:hidden\}/);

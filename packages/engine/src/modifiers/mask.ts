@@ -1,12 +1,12 @@
 import { defineModifier } from '../modifier';
 
 /**
- * Máscara: el objeto solo se ve donde lo deja otro (`source`), con la máscara nativa de SVG (`<mask>`).
- * - shape: se ve lo que cae dentro de la forma de la máscara (`invert`: lo de fuera).
- * - luminance: sus colores deciden: blanco, se ve; negro, no; los grises, a medias. Con un degradado de
- *   blanco a negro salen fundidos suaves.
- * La máscara se lee ya colocada, con sus efectos y su animación: moverla es mover la ventana. Suele ir
- * oculta (el ojo): oculta, sigue sirviendo. Se aplica al objeto entero, después de toda su pila.
+ * Mask: the object only shows where another one lets it (`source`), with SVG's native mask (`<mask>`).
+ * - shape: what falls inside the mask's shape shows (`invert`: what is outside).
+ * - luminance: its colours decide: white shows; black doesn't; greys, partly. A gradient from
+ *   white to black gives soft fades.
+ * The mask is read already placed, with its effects and animation: moving it moves the window. It is
+ * usually hidden (the eye): hidden, it still works. It applies to the whole object, after its whole stack.
  */
 export const mask = defineModifier({
   type: 'mask',

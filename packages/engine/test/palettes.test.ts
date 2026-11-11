@@ -10,19 +10,19 @@ const scene = (): SceneV2 => ({
   animation: { duration: 1, tracks: [{ id: 'k', node: 'a', on: 'shape', param: 'fillColor', keys: [{ t: 0, value: '#000000' }, { t: 1, value: '#808080' }] }] },
 });
 
-describe('paletas', () => {
-  it('sceneColors: de parámetros, efectos, SVG de origen y claves, normalizados', () => {
+describe('palettes', () => {
+  it('sceneColors: from parameters, effects, SVG sources and keys, normalised', () => {
     expect(sceneColors(scene()).sort()).toEqual(['#000000', '#808080', '#ff0000', '#ffffff']);
   });
 
-  it('paletteMap: por luminosidad, de lo oscuro a lo claro', () => {
+  it('paletteMap: by lightness, dark to light', () => {
     const m = paletteMap(['#ffffff', '#000000', '#808080'], ['#eeeeee', '#111111', '#777777']);
     expect(m.get('#000000')).toBe('#111111');
     expect(m.get('#808080')).toBe('#777777');
     expect(m.get('#ffffff')).toBe('#eeeeee');
   });
 
-  it('applyPalette cambia los colores en todas partes (también las claves y el SVG)', () => {
+  it('applyPalette changes the colours everywhere (also the keys and the SVG)', () => {
     const s = scene();
     const n = applyPalette(s, ['#101010', '#202020', '#303030', '#f0f0f0']);
     expect(n).toBeGreaterThan(0);
@@ -32,7 +32,7 @@ describe('paletas', () => {
     expect((s.objects[1] as { source: string }).source).not.toMatch(/#f00\b/);
   });
 
-  it('las de serie: todas con colores válidos y sin nombres repetidos', () => {
+  it('built-in ones: all with valid colours and no repeated names', () => {
     expect(new Set(PALETTES.map((p) => p.name)).size).toBe(PALETTES.length);
     for (const p of PALETTES) for (const c of p.colors) expect(c).toMatch(/^#[0-9a-f]{6}$/);
   });

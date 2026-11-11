@@ -1,12 +1,12 @@
 import { defineModifier } from '../modifier';
 
-/** Opacidad: hace transparente el dibujo. Con Range o Field, letras o trozos que aparecen o se desvanecen. */
+/** Opacity: makes the drawing transparent. With Range or Field, letters or pieces that appear or fade away. */
 export const opacity = defineModifier({
   type: 'opacity',
   label: 'Opacity',
   kind: 'style',
   params: {
-    // Neutro 1 (opaco): con Range/Field, peso 0 = como estaba; peso 1 = esta opacidad.
+    // Neutral 1 (opaque): with Range/Field, weight 0 = as it was; weight 1 = this opacity.
     opacity: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, neutral: 1, label: 'Opacity' },
   },
   apply(geo, p) {

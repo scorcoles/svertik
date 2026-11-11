@@ -1,7 +1,7 @@
 import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
-/** Ondula el dibujo: desplaza cada punto en perpendicular a la dirección de la onda. */
+/** Makes the drawing wavy: moves each point across the direction of the wave. */
 export const wave = defineModifier({
   type: 'wave',
   label: 'Wave',

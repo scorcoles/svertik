@@ -1,14 +1,14 @@
-// Análisis del movimiento de una escena, para exportarla como animación (Lottie, SVG animado).
-// Se evalúa fotograma a fotograma y se decide, objeto a objeto, la forma más ligera de contarlo:
-// - object: su forma no cambia (vista desde el propio objeto): la forma una vez, y su matriz y su opacidad;
-// - pieces: por tramos, cada pieza conserva sus puntos y solo se mueve, gira o escala (trozos de una
-//   explosión, letras de un escalonado): cada pieza una vez, con su movimiento;
-// - frame: lo que cambia de forma de verdad: las formas tal cual, en su tramo de fotogramas.
-// Todo en coordenadas del documento.
+// Motion analysis of a scene, to export it as an animation (Lottie, animated SVG).
+// It is evaluated frame by frame and, object by object, the lightest way to describe it is chosen:
+// - object: its shape doesn't change (seen from the object itself): the shape once, plus its matrix and opacity;
+// - pieces: in segments, each piece keeps its points and only moves, turns or scales (pieces of an
+//   explosion, letters of a stagger): each piece once, with its motion;
+// - frame: what really changes shape: the shapes as they are, over their range of frames.
+// Everything in document coordinates.
 
 import { sampleScene } from './animation';
 
-/** Separa, en la clave de una capa, el objeto de sus filtros. */
+/** Separates, in a layer key, the object from its filters. */
 const LAYER_SEP = '\u0001';
 import type { SceneV2 } from './document';
 import type { Engine } from './engine';
@@ -19,13 +19,13 @@ const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const apply = (m: Mat, [x, y]: readonly [number, number]): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 
 interface LayerBase {
-  /** Id del objeto (vacío: formas sin objeto, como las rayas de Streaks). */
+  /** Object id (empty: shapes without an object, like Streaks' streaks). */
   id: string;
   name: string;
-  /** Tramo de fotogramas en que se ve: [ip, op). */
+  /** Frames where it is visible: [ip, op). */
   ip: number;
   op: number;
-  /** Grupos con filtro que la envuelven (del primer fotograma). */
+  /** Filter groups wrapping it (from the first frame). */
   wrap?: string[];
 }
 export type MotionLayer =
@@ -39,12 +39,12 @@ export interface MotionAnalysis {
   viewBox: [number, number, number, number];
   loop: boolean;
   autoplay: boolean;
-  /** Capas, de atrás adelante. */
+  /** Layers, back to front. */
   layers: MotionLayer[];
-  /** Filtros del primer fotograma (por id) y si cambian a lo largo de la animación. */
+  /** Filters of the first frame (by id) and whether they change over the animation. */
   filters: Record<string, FilterDef>;
   filtersChange: boolean;
-  /** Objetos que van (en parte) fotograma a fotograma: pesan más. */
+  /** Objects that go (partly) frame by frame: they weigh more. */
   heavy: string[];
 }
 
@@ -53,7 +53,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
   const fps = anim?.fps ?? 30;
   const frames = anim ? Math.max(1, Math.round(anim.duration * fps)) : 1;
 
-  // Cada fotograma: las formas de cada objeto (en el documento), su matriz y su punto de anclaje.
+  // Each frame: each object's shapes (in the document), its matrix and its anchor point.
   type Frame = { byNode: Map<string, Shape[]>; matrix: Map<string, Mat>; anchor: Map<string, [number, number]>; order: string[] };
   const evaluated: Frame[] = [];
   let viewBox: [number, number, number, number] = [0, 0, 1, 1];
@@ -66,7 +66,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
       viewBox = doc.geometry.viewBox;
       filters = structuredClone(doc.geometry.filters ?? {});
     } else {
-      // La zona de cada filtro, la de todo su recorrido; sus valores, los del primer fotograma.
+      // Each filter's area, that of its whole run; its values, the first frame's.
       for (const [id, fd] of Object.entries(doc.geometry.filters ?? {})) {
         const cur = filters[id];
         if (!cur) continue;
@@ -79,7 +79,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
     const byNode = new Map<string, Shape[]>();
     const order: string[] = [];
     for (const s of doc.geometry.shapes) {
-      // Una capa por objeto y por filtros: las copias de RGB Split con desenfoque, aparte del dibujo.
+      // One layer per object and per filters: RGB Split copies with blur, apart from the drawing.
       const id = (s.node ?? '') + (s.wrap?.length ? LAYER_SEP + s.wrap.join(',') : '');
       if (!byNode.has(id)) (byNode.set(id, []), order.push(id));
       byNode.get(id)!.push(s);
@@ -88,14 +88,14 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
     const anchor = new Map<string, [number, number]>();
     for (const [id, info] of doc.nodes) {
       matrix.set(id, info.matrix);
-      // El pivote del objeto (en sus coordenadas): alrededor de él gira y escala.
+      // The object's pivot (in its coordinates): it turns and scales around it.
       const [fx, fy] = pivots.get(id) ?? [0.5, 0.5];
       anchor.set(id, [info.bounds.x + fx * info.bounds.width, info.bounds.y + fy * info.bounds.height]);
     }
     evaluated.push({ byNode, matrix, anchor, order });
   }
 
-  // Los objetos, en el orden en que se pintan (el primero, el de más atrás).
+  // The objects, in paint order (the first, the furthest back).
   const ids: string[] = [];
   for (const fr of evaluated) for (const id of fr.order) if (!ids.includes(id)) ids.push(id);
   const nodeOf = (key: string) => key.split(LAYER_SEP)[0]!;
@@ -111,7 +111,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
     const name = nameOf(id);
     const perFrame = evaluated.map((fr) => ({ shapes: fr.byNode.get(id) ?? [], m: fr.matrix.get(nodeOf(id)), a: fr.anchor.get(nodeOf(id)) ?? ([0, 0] as [number, number]) }));
     const wrapOf = (shapes: Shape[]) => (shapes[0]?.wrap?.length ? { wrap: shapes[0].wrap } : {});
-    // ¿La forma es la misma en todos los fotogramas, vista desde el propio objeto?
+    // Is the shape the same in every frame, seen from the object itself?
     const local = perFrame.map(({ shapes, m }) => {
       if (!m || !shapes.length) return null;
       const inv = invert(m);
@@ -126,7 +126,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
       layers.push({ kind: 'object', id, name, ip: 0, op: frames, shapes, matrices: perFrame.map((x) => x.m!), opacity: present.map((x) => x.opacity), anchor: perFrame[0]!.a, ...wrapOf(perFrame[0]!.shapes) });
       continue;
     }
-    // Por tramos (ver arriba).
+    // In segments (see above).
     let f = 0;
     let loose = 0;
     while (f < frames) {
@@ -135,8 +135,8 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
         continue;
       }
       const sig = topology(perFrame[f]!.shapes);
-      // La referencia: el primer fotograma del tramo en que todas las piezas tienen tamaño (si empiezan a
-      // escala 0, como las letras que entran, desde ahí no se puede calcular su movimiento).
+      // The reference: the first frame of the segment where every piece has a size (if they start at
+      // scale 0, like letters coming in, their motion can't be computed from there).
       let r = f;
       for (let k = f; k < Math.min(frames, f + 120) && topology(perFrame[k]!.shapes) === sig; k++) {
         if (perFrame[k]!.shapes.every((sh) => spanOf(pointsOf(sh)) > 1e-3)) {
@@ -157,14 +157,14 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
         g++;
       }
       if (g === f) {
-        // Ni siquiera el primero encaja con la referencia: este fotograma, tal cual.
+        // Not even the first fits the reference: this frame, as it is.
         layers.push({ kind: 'frame', id, name, ip: f, op: f + 1, shapes: perFrame[f]!.shapes, ...wrapOf(perFrame[f]!.shapes) });
         if (frames > 1) loose++;
         f++;
         continue;
       }
       if (g - f === 1 && frames > 1) loose++;
-      // La opacidad de cada pieza, aparte (en valor absoluto: puede empezar en 0); la forma, opaca.
+      // Each piece's opacity, separately (absolute: it may start at 0); the shape, opaque.
       layers.push({
         kind: 'pieces',
         id,
@@ -190,7 +190,7 @@ function* walk(nodes: SceneV2['objects']): Generator<{ node: SceneV2['objects'][
 }
 
 
-/** Huella de unas formas (redondeadas): su trazado y su estilo, con la opacidad relativa a la primera. */
+/** Fingerprint of some shapes (rounded): their path and style, with the opacity relative to the first. */
 const keyOf = (shapes: Shape[], base: number) =>
   JSON.stringify(
     shapes.map((s) => [
@@ -200,37 +200,37 @@ const keyOf = (shapes: Shape[], base: number) =>
   );
 
 
-/** La forma, llevada con la matriz `m` (al propio objeto, o a ninguna parte). */
+/** The shape, carried by matrix `m` (to the object itself, or nowhere). */
 function mapShape(s: Shape, m: Mat): Shape {
   const f = (p: readonly [number, number]) => apply(m, p);
   return { ...s, subpaths: s.subpaths.map((sp) => ({ start: f(sp.start), closed: sp.closed, segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })) })) };
 }
 const withOpacity = (s: Shape, o: number): Shape => ({ ...s, style: { ...s.style, opacity: String(o) } });
 
-// ── Piezas rígidas
+// ── Rigid pieces
 
-/** Lo que mide una nube de puntos (su lado mayor). */
+/** The size of a point cloud (its longest side). */
 function spanOf(pts: (readonly [number, number])[]): number {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of pts) (x0 = Math.min(x0, x)), (y0 = Math.min(y0, y)), (x1 = Math.max(x1, x)), (y1 = Math.max(y1, y));
   return Math.max(x1 - x0, y1 - y0);
 }
 
-/** Todos los puntos de una forma (vértices y tiradores), en orden. */
+/** Every point of a shape (vertices and handles), in order. */
 const pointsOf = (s: Shape): (readonly [number, number])[] => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.flatMap((g) => [g.c1, g.c2, g.p])]);
 
-/** Lo que no puede cambiar dentro de un tramo: cuántas piezas, sus tramos y su estilo (sin la opacidad). */
+/** What can't change within a segment: how many pieces, their segments and their style (without opacity). */
 const topology = (shapes: Shape[]) =>
   JSON.stringify(shapes.map((s) => [s.subpaths.map((sp) => [sp.segs.length, sp.closed]), { ...s.style, opacity: undefined }]));
 
 /**
- * La matriz que lleva los puntos P a Q, si es un movimiento sin deformar: mover, girar y escalar
- * (también distinto en X y en Y, o con reflejo), sin sesgo. null si la pieza ha cambiado de forma.
+ * The matrix that takes points P to Q, if it is an undistorted motion: move, rotate and scale (also
+ * different in X and Y, or flipped), without shear. null if the piece changed shape.
  */
 function fitRigid(P: (readonly [number, number])[], Q: (readonly [number, number])[], tol = 0.05): Mat | null {
   const n = P.length;
   if (!n || n !== Q.length) return null;
-  // Tres puntos bien separados (el triángulo más grande que se encuentre deprisa).
+  // Three well-separated points (the largest triangle found quickly).
   const d2 = (a: readonly [number, number], b: readonly [number, number]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
   let i1 = 0;
   for (let k = 1; k < n; k++) if (d2(P[k]!, P[0]!) > d2(P[i1]!, P[0]!)) i1 = k;
@@ -239,7 +239,7 @@ function fitRigid(P: (readonly [number, number])[], Q: (readonly [number, number
   for (let k = 1; k < n; k++) if (area(k) > area(i2)) i2 = k;
   let m: Mat;
   if (area(i2) > 1e-6) {
-    // Afín por tres puntos.
+    // Affine from three points.
     const [x0, y0] = P[0]!, [x1, y1] = P[i1]!, [x2, y2] = P[i2]!;
     const det = x0 * (y1 - y2) - x1 * (y0 - y2) + x2 * (y0 - y1);
     const solve = (u0: number, u1: number, u2: number): [number, number, number] => [
@@ -251,7 +251,7 @@ function fitRigid(P: (readonly [number, number])[], Q: (readonly [number, number
     const [b, d, f] = solve(Q[0]![1], Q[i1]![1], Q[i2]![1]);
     m = [a, b, c, d, e, f];
   } else if (i1 !== 0 && d2(P[i1]!, P[0]!) > 1e-9) {
-    // Todos en línea: semejanza por dos puntos.
+    // All on a line: similarity from two points.
     const [px, py] = [P[i1]![0] - P[0]![0], P[i1]![1] - P[0]![1]];
     const [qx, qy] = [Q[i1]![0] - Q[0]![0], Q[i1]![1] - Q[0]![1]];
     const den = px * px + py * py;
@@ -260,8 +260,8 @@ function fitRigid(P: (readonly [number, number])[], Q: (readonly [number, number
   } else {
     m = [1, 0, 0, 1, Q[0]![0] - P[0]![0], Q[0]![1] - P[0]![1]];
   }
-  // Lo más cercano sin sesgo (girar y escalar en X e Y), que es lo que Lottie puede animar; con el mismo
-  // centro (la media de los puntos). Vale si lleva cada punto a su sitio.
+  // The closest without shear (rotate and scale in X and Y), which is what Lottie can animate; with the same
+  // centre (the mean of the points). Valid if it takes every point to its place.
   const [a, b] = m;
   const sx = Math.hypot(a, b);
   const sy = sx > 1e-12 ? (m[0] * m[3] - m[1] * m[2]) / sx : 0;

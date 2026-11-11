@@ -1,4 +1,4 @@
-// svertik sin navegador: leer proyectos, dibujarlos a SVG o PNG y describir los efectos.
+// svertik without a browser: read projects, draw them to SVG or PNG and describe the effects.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { Resvg } from '@resvg/resvg-js';
@@ -17,14 +17,14 @@ import {
   shapeDescriptions,
 } from '@svertik/engine';
 
-// El importador de SVG usa DOMParser: en Node, el de happy-dom.
+// The SVG importer uses DOMParser: in Node, happy-dom's.
 const g = globalThis as unknown as { DOMParser?: unknown };
 g.DOMParser ??= new Window().DOMParser;
 
 const require = createRequire(import.meta.url);
 const engine = createEngine(builtins);
 
-/** Las fuentes que trae el editor (JetBrains Mono normal y negrita), para los textos. */
+/** The fonts the editor ships (JetBrains Mono regular and bold), for texts. */
 export function registerBundledFonts() {
   if (hasFont('JetBrains Mono')) return;
   const load = (w: number) => {
@@ -35,10 +35,10 @@ export function registerBundledFonts() {
   registerFont('JetBrains Mono Bold', load(700));
 }
 
-/** Registra una fuente propia (por si el proyecto usa una del sistema): nombre=ruta. */
+/** Registers a font of your own (in case the project uses a system font): name=path. */
 export function registerFontFile(spec: string) {
   const [name, path] = spec.split('=');
-  if (!name || !path) throw new Error(`--font espera nombre=ruta («${spec}»)`);
+  if (!name || !path) throw new Error(`--font expects name=path ("${spec}")`);
   const b = readFileSync(path);
   registerFont(name, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
 }
@@ -48,7 +48,7 @@ export interface Loaded {
   name: string;
 }
 
-/** Un .svrtk, el JSON de una escena o un SVG (que pasa a ser un objeto sin efectos). */
+/** An .svrtk, a scene's JSON or an SVG (which becomes an object without effects). */
 export function loadInput(text: string, fileName: string): Loaded {
   const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(svrtk|json|svg)$/i, '');
   if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
@@ -56,11 +56,11 @@ export function loadInput(text: string, fileName: string): Loaded {
   }
   const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: unknown };
   const scene = data.svertik === 'project' ? data.scene : data;
-  if (!isScene(scene)) throw new Error(`${fileName} no es un proyecto de svertik ni un SVG`);
+  if (!isScene(scene)) throw new Error(`${fileName} is neither an svertik project nor an SVG`);
   return { scene, name: data.name ?? base };
 }
 
-/** El SVG plano del instante `t` (s); con `background`, un rectángulo de fondo. */
+/** The plain SVG at time `t` (s); with `background`, a background rectangle. */
 export function renderSVG(scene: SceneV2, t = 0, background?: string): string {
   const svg = engine.toSVG(sampleScene(scene, t));
   if (!background) return svg;
@@ -68,13 +68,13 @@ export function renderSVG(scene: SceneV2, t = 0, background?: string): string {
   return svg.replace(/(<svg[^>]*>)/, `$1\n  <rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="${background}"/>`);
 }
 
-/** SVG → PNG con resvg, a `scale` píxeles por unidad. */
+/** SVG → PNG with resvg, at `scale` pixels per unit. */
 export function renderPNG(svg: string, scale = 2): Buffer {
   const r = new Resvg(svg, { fitTo: { mode: 'zoom', value: scale }, font: { loadSystemFonts: false } });
   return r.render().asPng();
 }
 
-/** Los fotogramas de la animación: instantes de 0 a la duración, a `fps`. */
+/** The animation's frames: times from 0 to the duration, at `fps`. */
 export function frameTimes(scene: SceneV2, fps?: number): number[] {
   const anim = scene.animation;
   if (!anim) return [0];
@@ -83,7 +83,7 @@ export function frameTimes(scene: SceneV2, fps?: number): number[] {
   return Array.from({ length: n }, (_, i) => i / f);
 }
 
-/** Los efectos y primitivas, con sus parámetros: lo que necesita un agente para escribir escenas. */
+/** The effects and primitives, with their parameters: what an agent needs to write scenes. */
 export function describeEffects() {
   const spec = (params: Record<string, unknown>) =>
     Object.fromEntries(
@@ -100,7 +100,7 @@ export function describeEffects() {
   };
 }
 
-/** Resumen de un proyecto: objetos, sus efectos y la animación. */
+/** Summary of a project: objects, their effects and the animation. */
 export function describeScene(scene: SceneV2): string {
   const lines: string[] = [];
   const walk = (nodes: SceneNode[], depth: number) => {
@@ -113,6 +113,6 @@ export function describeScene(scene: SceneV2): string {
   };
   walk(scene.objects, 0);
   const a = scene.animation;
-  if (a?.tracks.length) lines.push(`animación: ${a.duration} s${a.loop === false ? '' : ', en bucle'}, ${a.tracks.length} pistas (${a.tracks.map((t) => t.param).join(', ')})`);
+  if (a?.tracks.length) lines.push(`animation: ${a.duration} s${a.loop === false ? '' : ', looping'}, ${a.tracks.length} tracks (${a.tracks.map((t) => t.param).join(', ')})`);
   return lines.join('\n');
 }

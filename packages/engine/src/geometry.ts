@@ -1,9 +1,9 @@
 import type { FilterChain } from './chain';
-// Geometría interna: todo es curva cúbica. Una forma tiene subtrazados y un estilo.
+// Internal geometry: everything is a cubic curve. A shape has subpaths and a style.
 
 export type Vec2 = readonly [number, number];
 
-/** Un tramo cúbico; su punto de partida es el final del tramo anterior (o `start`). */
+/** A cubic segment; its start point is the end of the previous segment (or `start`). */
 export interface Cubic {
   c1: Vec2;
   c2: Vec2;
@@ -21,42 +21,42 @@ export type Style = Record<string, string>;
 export interface Shape {
   subpaths: SubPath[];
   style: Style;
-  /** Número de copia que le dio Clone (para efectores como Step). */
+  /** Copy number given by Clone (for effectors like Step). */
   clone?: number;
-  /** En un texto: a qué palabra y a qué línea pertenece la letra (para Range por palabras o líneas). */
+  /** In a text: which word and which line the letter belongs to (for Range by words or lines). */
   word?: number;
   line?: number;
-  /** Objeto de la escena del que sale (para seleccionarlo en el lienzo). */
+  /** Scene object it comes from (to select it on the canvas). */
   node?: string;
-  /** Degradados que usa su estilo (`fill="url(#id)"`); el render los escribe en <defs>. */
+  /** Gradients its style uses (`fill="url(#id)"`); the renderer writes them in <defs>. */
   gradients?: Gradient[];
-  /** Grupos con filtro que la envuelven, de fuera adentro (ids de `Geometry.filters`). */
+  /** Filter groups wrapping it, from outside in (ids of `Geometry.filters`). */
   wrap?: string[];
 }
 
-/** Un filtro de SVG para un grupo de formas: sus primitivas y la zona que ocupa (en el documento). */
+/** An SVG filter for a group of shapes: its primitives and the area it covers (in the document). */
 export interface FilterDef {
   markup: string;
   region: [number, number, number, number];
   /**
-   * `mask`: no es un filtro sino una máscara (`<mask>`): `markup` es lo que la dibuja, ya en el documento.
-   * `alpha`: cuenta la forma (su opacidad), no sus colores.
+   * `mask`: not a filter but a mask (`<mask>`): `markup` is what draws it, already in the document.
+   * `alpha`: the shape counts (its opacity), not its colours.
    */
   kind?: 'filter' | 'mask';
   alpha?: boolean;
 }
 
-/** Degradado relativo a la caja de cada forma (objectBoundingBox): sigue a la forma al moverla o escalarla. */
+/** Gradient relative to each shape's box (objectBoundingBox): it follows the shape when moved or scaled. */
 export interface Gradient {
   id: string;
   kind: 'linear' | 'radial';
   stops: { offset: number; color: string; opacity?: number }[];
-  /** Lineal: de (x1, y1) a (x2, y2), en fracciones de la caja. */
+  /** Linear: from (x1, y1) to (x2, y2), in fractions of the box. */
   x1?: number;
   y1?: number;
   x2?: number;
   y2?: number;
-  /** Radial: centro, radio y foco (el punto de más intensidad), en fracciones de la caja. */
+  /** Radial: centre, radius and focus (the brightest point), in fractions of the box. */
   cx?: number;
   cy?: number;
   r?: number;
@@ -66,24 +66,24 @@ export interface Gradient {
 
 export interface Geometry {
   shapes: Shape[];
-  /** viewBox del SVG de origen: [x, y, ancho, alto]. */
+  /** viewBox of the source SVG: [x, y, width, height]. */
   viewBox: [number, number, number, number];
-  /** Filtros de SVG (sombra, desenfoque…) de los objetos que los llevan, por id. Ver `Shape.wrap`. */
+  /** SVG filters (shadow, blur…) of the objects that have them, by id. See `Shape.wrap`. */
   filters?: Record<string, FilterDef>;
   /**
-   * Solo en el origen de un nodo: el punto que se coloca en su posición (x, y). Sin él, el centro de su
-   * caja. Un texto anclado a la izquierda no se mueve al cambiar de palabra.
+   * Only in a node's source: the point placed at its position (x, y). Without it, the centre of its
+   * box. A left-anchored text doesn't move when its words change.
    */
   origin?: Vec2;
   /**
-   * Filtros que solo van sobre parte del dibujo (lo que hay dentro de RGB Split: las copias de color), por
-   * clave. Las formas que los llevan tienen `@clave` en su `wrap`; al colocar el nodo se convierten en
-   * filtros de verdad (con su id y su zona). `ref`: la caja de esa parte, para los filtros por zonas.
+   * Filters that only go on part of the drawing (what is inside RGB Split: the coloured copies), by
+   * key. The shapes that carry them have `@key` in their `wrap`; when the node is placed they become
+   * real filters (with their id and area). `ref`: the box of that part, for zoned filters.
    */
   inner?: Record<string, { chain: FilterChain; ref: Bounds }>;
 }
 
-/** Los filtros internos de `before` que `after` no trae (un efecto que rehízo la geometría): se conservan. */
+/** The inner filters of `before` that `after` lacks (an effect that rebuilt the geometry): they are kept. */
 export function keepInner(before: Geometry, after: Geometry): Geometry {
   if (!before.inner || after === before) return after;
   return { ...after, inner: { ...before.inner, ...after.inner } };
@@ -100,10 +100,10 @@ export const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => [a[0] + (b[0] - a[0])
 
 const dist = (a: Vec2, b: Vec2) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 
-/** Recta como cúbica (controles a un tercio y dos tercios). */
+/** A straight line as a cubic (controls at one and two thirds). */
 export const line = (a: Vec2, b: Vec2): Cubic => ({ c1: lerp(a, b, 1 / 3), c2: lerp(a, b, 2 / 3), p: b });
 
-/** Parte una cúbica en t (de Casteljau). */
+/** Splits a cubic at t (de Casteljau). */
 export function splitCubic(p0: Vec2, s: Cubic, t: number): [Cubic, Cubic] {
   const a = lerp(p0, s.c1, t);
   const b = lerp(s.c1, s.c2, t);
@@ -117,12 +117,12 @@ export function splitCubic(p0: Vec2, s: Cubic, t: number): [Cubic, Cubic] {
   ];
 }
 
-/** Longitud aproximada por el polígono de control (cota superior, basta para subdividir). */
+/** Approximate length from the control polygon (an upper bound, enough to subdivide). */
 const hullLength = (p0: Vec2, s: Cubic) => dist(p0, s.c1) + dist(s.c1, s.c2) + dist(s.c2, s.p);
 
 /**
- * Subdivide cada tramo hasta que ninguno mida más que `maxLength`.
- * Hace falta antes de deformar: una curva larga con solo dos controles no se dobla.
+ * Subdivides every segment until none is longer than `maxLength`.
+ * Needed before deforming: a long curve with only two controls doesn't bend.
  */
 export function subdivide(geo: Geometry, maxLength: number): Geometry {
   return mapSubPaths(geo, (sp) => {
@@ -152,7 +152,7 @@ export function mapSubPaths(geo: Geometry, fn: (sp: SubPath, shape: Shape) => Su
   };
 }
 
-/** Aplica una función a todos los puntos (anclas y controles). */
+/** Applies a function to every point (anchors and controls). */
 export function mapPoints(geo: Geometry, fn: (p: Vec2) => Vec2): Geometry {
   return mapSubPaths(geo, (sp) => ({
     start: fn(sp.start),
@@ -161,7 +161,7 @@ export function mapPoints(geo: Geometry, fn: (p: Vec2) => Vec2): Geometry {
   }));
 }
 
-/** Caja que contiene todos los puntos (controles incluidos). */
+/** Box containing every point (controls included). */
 export function bounds(geo: Geometry): Bounds {
   let x0 = Infinity;
   let y0 = Infinity;
@@ -187,7 +187,7 @@ export function bounds(geo: Geometry): Bounds {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
 
-/** Cúbica evaluada en t. */
+/** Cubic evaluated at t. */
 export function cubicAt(p0: Vec2, s: Cubic, t: number): Vec2 {
   const u = 1 - t;
   const a = u * u * u;
@@ -200,7 +200,7 @@ export function cubicAt(p0: Vec2, s: Cubic, t: number): Vec2 {
   ];
 }
 
-/** Subtrazado → polilínea (muestras fijas por tramo; basta para pruebas de dentro/fuera). */
+/** Subpath → polyline (fixed samples per segment; enough for inside/outside tests). */
 export function flatten(sp: SubPath, samplesPerSegment = 8): Vec2[] {
   const pts: Vec2[] = [sp.start];
   let p0 = sp.start;
@@ -211,7 +211,7 @@ export function flatten(sp: SubPath, samplesPerSegment = 8): Vec2[] {
   return pts;
 }
 
-/** Punto dentro de un conjunto de polígonos, con la regla par-impar (respeta agujeros). */
+/** Point inside a set of polygons, by the even-odd rule (respects holes). */
 export function insidePolygons(polys: Vec2[][], [x, y]: Vec2): boolean {
   let inside = false;
   for (const poly of polys) {
@@ -225,8 +225,8 @@ export function insidePolygons(polys: Vec2[][], [x, y]: Vec2): boolean {
 }
 
 /**
- * Centro de un dibujo que no cambia al girarlo: el centroide de sus superficies (cerradas; los agujeros
- * restan si van en sentido contrario) o, si no tiene, la media de sus puntos. Null si está vacío.
+ * Centre of a drawing that doesn't change when it turns: the centroid of its surfaces (closed; holes
+ * subtract if they wind the other way) or, without any, the mean of its points. Null if empty.
  */
 export function centroid(geo: Geometry): Vec2 | null {
   let a = 0, cx = 0, cy = 0, n = 0, sx = 0, sy = 0;

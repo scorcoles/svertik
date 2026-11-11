@@ -2,7 +2,7 @@ import { mapPoints, subdivide } from '../geometry';
 import { defineModifier } from '../modifier';
 import { noise2D } from '../random';
 
-/** Desplaza cada punto con ruido suave: aspecto orgánico o de dibujo a mano. */
+/** Moves each point with smooth noise: an organic or hand-drawn look. */
 export const noise = defineModifier({
   type: 'noise',
   label: 'Noise',

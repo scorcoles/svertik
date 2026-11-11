@@ -1,5 +1,5 @@
-// Pack: congela un nodo (con sus efectos) en un objeto que solo dibuja el resultado.
-// El original va dentro, con lo que lo animaba o lo hacía reaccionar; Unpack lo devuelve tal cual.
+// Pack: freezes a node (with its effects) into an object that only draws the result.
+// The original goes inside, with what animated it or made it react; Unpack gives it back as it was.
 
 import { bounds, mapPoints, type Geometry, type Shape } from './geometry';
 import { buildShape } from './shapes';
@@ -8,7 +8,7 @@ import { invert, type Mat } from './matrix';
 import { walkNodes, type DocumentResult, type GroupNode, type ObjectNode, type SceneNode, type SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
 
-/** Dónde está un nodo: su lista y su posición, y el grupo que lo contiene. */
+/** Where a node is: its list and position, and the group containing it. */
 function locate(list: SceneNode[], id: string, parent: GroupNode | null = null): { list: SceneNode[]; index: number; parent: GroupNode | null } | null {
   for (let i = 0; i < list.length; i++) {
     const n = list[i]!;
@@ -21,7 +21,7 @@ function locate(list: SceneNode[], id: string, parent: GroupNode | null = null):
   return null;
 }
 
-/** Los ids de un nodo y todo lo que cuelga de él (hijos y efectos). */
+/** The ids of a node and everything under it (children and effects). */
 function idsOf(node: SceneNode): Set<string> {
   const out = new Set<string>();
   const mods = (list: ModifierInstance[]) => list.forEach((m) => (out.add(m.id), mods(m.children ?? [])));
@@ -36,10 +36,10 @@ const apply = (geo: Geometry, m: Mat): Geometry => mapPoints(geo, ([x, y]) => [m
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 /**
- * Empaqueta el nodo `id` con el resultado que da `doc` (la evaluación de esta misma escena).
- * Cambia la escena: el nodo pasa a ser un paquete en su mismo sitio y con su mismo id (así lo que lo
- * usaba de referencia, como Mosaic o Clone, lo sigue encontrando). Devuelve el paquete y si
- * estaba animado (su animación queda dentro y no se ve hasta desempaquetarlo), o null si no se puede.
+ * Packs node `id` with the result `doc` gives (the evaluation of this same scene).
+ * Changes the scene: the node becomes a pack in the same place and with the same id (so whatever used it
+ * as a reference, like Mosaic or Clone, still finds it). Returns the pack and whether it was animated
+ * (its animation stays inside and isn't seen until it is unpacked), or null if it can't be done.
  */
 export function packNode(scene: SceneV2, id: string, doc: DocumentResult, key: string): { node: ObjectNode; animated: boolean } | null {
   const at = locate(scene.objects, id);
@@ -47,19 +47,19 @@ export function packNode(scene: SceneV2, id: string, doc: DocumentResult, key: s
   if (!at || !world) return null;
   const node = at.list[at.index]!;
   if (node.kind === 'object' && node.packed) return null;
-  // En las coordenadas del padre (dentro de un grupo, las del grupo).
+  // In the parent's coordinates (inside a group, the group's).
   const parentWorld = at.parent ? doc.nodes.get(at.parent.id)?.matrix : null;
   const local = parentWorld ? apply(world, invert(parentWorld)) : world;
-  // Sin a quién pertenecían sus formas (el paquete es un solo objeto); sí con sus elementos, para los efectos.
+  // Without who its shapes belonged to (the pack is one object); with its elements, for the effects.
   const geometry: Geometry = clone({ viewBox: local.viewBox, shapes: local.shapes.map(({ node: _n, ...s }) => s) });
   if (!geometry.shapes.length) return null;
   const xs = geometry.shapes.flatMap((s) => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p), ...sp.segs.flatMap((g) => [g.c1, g.c2])]));
   const [x0, x1] = [Math.min(...xs.map((q) => q[0])), Math.max(...xs.map((q) => q[0]))];
   const [y0, y1] = [Math.min(...xs.map((q) => q[1])), Math.max(...xs.map((q) => q[1]))];
-  // Un objeto pone el centro de su origen en (x, y): así el paquete queda justo donde estaba.
+  // An object puts the centre of its source at (x, y): so the pack stays exactly where it was.
   const centre = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
 
-  // Lo que anima o hace reaccionar al nodo (o a algo de dentro) se va con él.
+  // What animates or makes the node react (or something inside it) goes with it.
   const ids = idsOf(node);
   const anim = scene.animation;
   const tracks = anim?.tracks.filter((t) => ids.has(t.node)) ?? [];
@@ -92,10 +92,10 @@ export function packNode(scene: SceneV2, id: string, doc: DocumentResult, key: s
 }
 
 /**
- * Desempaqueta: el original vuelve a su sitio, movido lo que se haya movido el paquete, con la opacidad,
- * la fusión y la visibilidad del paquete y, encima de su pila, los efectos que se le pusieron al paquete.
- * Si algún id ya existe en la escena (un paquete duplicado), lo de dentro recibe ids nuevos.
- * Devuelve el id del nodo restaurado, o null.
+ * Unpacks: the original goes back to its place, moved as much as the pack moved, with the pack's opacity,
+ * blend and visibility and, on top of its stack, the effects that were put on the pack.
+ * If any id already exists in the scene (a duplicated pack), what is inside gets new ids.
+ * Returns the id of the restored node, or null.
  */
 export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) => string): string | null {
   const at = locate(scene.objects, id);
@@ -104,7 +104,7 @@ export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) =>
   const data = clone(pack.packed);
   let node = data.original!;
 
-  // Ids que ya están en la escena (sin contar el paquete): los de dentro, nuevos.
+  // Ids already in the scene (not counting the pack): the inner ones get new ones.
   const taken = new Set<string>();
   const mods = (list: ModifierInstance[]) => list.forEach((m) => (taken.add(m.id), mods(m.children ?? [])));
   for (const { node: n } of walkNodes(scene.objects)) {
@@ -115,14 +115,14 @@ export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) =>
   const map = new Map<string, string>();
   for (const x of idsOf(node)) if (taken.has(x)) map.set(x, freshId(x));
   if (map.size) {
-    // Cualquier texto que sea uno de esos ids (el propio id, o un parámetro que apunta a otro nodo).
+    // Any string that is one of those ids (the id itself, or a parameter pointing at another node).
     const re = (_k: string, v: unknown) => (typeof v === 'string' && map.has(v) ? map.get(v) : v);
     node = JSON.parse(JSON.stringify(node), re) as SceneNode;
     data.tracks = data.tracks && JSON.parse(JSON.stringify(data.tracks), re);
     data.interactions = data.interactions && JSON.parse(JSON.stringify(data.interactions), re);
   }
 
-  // Lo que se movió el paquete, al original.
+  // How far the pack moved, onto the original.
   const t = { x: 0, y: 0, scale: 1, rotation: 0, ...node.transform };
   const p = { x: 0, y: 0, scale: 1, rotation: 0, ...pack.transform };
   node.transform = { ...node.transform, x: t.x + (p.x - data.at.x), y: t.y + (p.y - data.at.y), rotation: t.rotation + p.rotation, scale: t.scale * p.scale };
@@ -145,10 +145,10 @@ export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) =>
 }
 
 /**
- * Convierte una primitiva (un texto, una estrella…) en un objeto de trazados: el SVG de su forma, en su mismo
- * sitio, con su id, su pila de efectos, su colocación y su aspecto. Cada pieza (cada letra) es un trazado aparte.
- * Lo que animaba parámetros de la forma (el tamaño, el propio texto…) ya no tiene a qué aplicarse y se quita.
- * Devuelve cuántas pistas o interacciones se quitaron, o null si el nodo no es una primitiva.
+ * Turns a primitive (a text, a star…) into an object made of paths: the SVG of its shape, in the same
+ * place, with its id, its effect stack, its placement and its look. Each piece (each letter) is a separate path.
+ * What animated the shape's parameters (the size, the text itself…) has nothing left to apply to and is removed.
+ * Returns how many tracks or interactions were removed, or null if the node is not a primitive.
  */
 export function outlineNode(scene: SceneV2, id: string): { removed: number } | null {
   const at = locate(scene.objects, id);

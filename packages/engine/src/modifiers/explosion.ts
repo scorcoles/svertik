@@ -3,9 +3,9 @@ import { defineModifier, fromFraction } from '../modifier';
 import { rng } from '../random';
 
 /**
- * Explosión: cada elemento (trozo de Damage o Crack, tesela de Mosaic, franja de Glitch, copia de Clone,
- * letra de Text…) sale despedido desde un centro: se aleja, gira y encoge un poco, cada uno a su manera.
- * Sin elementos marcados, cada forma es uno. `amount` de 0 a 1 hace avanzar la explosión (para animarla).
+ * Explosion: each element (a piece of Damage or Crack, a Mosaic tile, a Glitch band, a Clone copy,
+ * a letter of Text…) flies away from a centre: it moves out, turns and shrinks a little, each in its own way.
+ * Without tagged elements, each shape is one. `amount` from 0 to 1 advances the explosion (to animate it).
  */
 export const explosion = defineModifier({
   type: 'explosion',
@@ -26,7 +26,7 @@ export const explosion = defineModifier({
     const c = fromFraction(b, p.center);
     const t = Math.max(0, Math.min(1, p.amount));
     if (t === 0) return geo;
-    // Agrupar por elemento.
+    // Group by element.
     const tagged = geo.shapes.some((s) => s.clone !== undefined);
     const groups = new Map<number, Shape[]>();
     geo.shapes.forEach((s, i) => {
@@ -41,12 +41,12 @@ export const explosion = defineModifier({
       const pc: [number, number] = [pb.x + pb.width / 2, pb.y + pb.height / 2];
       let dx = pc[0] - c[0], dy = pc[1] - c[1];
       const d = Math.hypot(dx, dy);
-      // Lo que está justo en el centro sale en una dirección al azar.
+      // What is right at the centre flies off in a random direction.
       if (d < 1e-6) {
         const a = rand() * Math.PI * 2;
         [dx, dy] = [Math.cos(a), Math.sin(a)];
       } else [dx, dy] = [dx / d, dy / d];
-      // Algo de desvío en la dirección y en la fuerza, según el caos.
+      // Some deviation in direction and force, by the chaos.
       const dev = (rand() - 0.5) * p.chaos * 1.2;
       const [ux, uy] = [dx * Math.cos(dev) - dy * Math.sin(dev), dx * Math.sin(dev) + dy * Math.cos(dev)];
       const dist = p.force * size * t * (1 - p.chaos * 0.5 + rand() * p.chaos);

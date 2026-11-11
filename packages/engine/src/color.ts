@@ -1,4 +1,4 @@
-// Colores CSS ↔ RGB ↔ HSL ↔ OKLCH, sin DOM (el motor también corre en workers y en Node).
+// CSS colours ↔ RGB ↔ HSL ↔ OKLCH, without the DOM (the engine also runs in workers and in Node).
 
 export type RGBA = [number, number, number, number];
 
@@ -9,7 +9,7 @@ const NAMED: Record<string, string> = {
   maroon: '#800000', olive: '#808000', silver: '#c0c0c0', brown: '#a52a2a',
 };
 
-/** Hex (#rgb, #rrggbb, #rrggbbaa), rgb()/rgba() o un nombre común. null si no se entiende (none, url()…). */
+/** Hex (#rgb, #rrggbb, #rrggbbaa), rgb()/rgba() or a common name. null if not understood (none, url()…). */
 export function parseColor(input: string | undefined): RGBA | null {
   if (!input) return null;
   let s = input.trim().toLowerCase();
@@ -36,7 +36,7 @@ export function toHex([r, g, b, a]: RGBA): string {
   return `#${h(r)}${h(g)}${h(b)}${a < 1 ? h(a * 255) : ''}`;
 }
 
-/** RGB 0–255 → HSL (h en grados, s y l en 0–1). */
+/** RGB 0–255 → HSL (h in degrees, s and l in 0–1). */
 export function rgbToHsl([r, g, b]: RGBA): [number, number, number] {
   const R = r / 255, G = g / 255, B = b / 255;
   const max = Math.max(R, G, B), min = Math.min(R, G, B);
@@ -59,7 +59,7 @@ export function hslToRgb(h: number, s: number, l: number, a = 1): RGBA {
   return [(r + m) * 255, (g + m) * 255, (b + m) * 255, a];
 }
 
-// ── OKLCH: luminosidad, croma y tono percibidos. Mezclar ahí no pasa por gris entre dos colores vivos.
+// ── OKLCH: perceived lightness, chroma and hue. Mixing there doesn't go through grey between two vivid colours.
 
 const lin = (c: number) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const gam = (c: number) => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
@@ -77,7 +77,7 @@ export function rgbToOklab([r, g, b]: RGBA): [number, number, number] {
   ];
 }
 
-/** OKLab → sRGB lineal (sin recortar: puede salirse de 0–1). */
+/** OKLab → linear sRGB (unclipped: may go beyond 0–1). */
 function oklabToLinear(L: number, A: number, B: number): [number, number, number] {
   const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
   const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
@@ -89,7 +89,7 @@ function oklabToLinear(L: number, A: number, B: number): [number, number, number
   ];
 }
 
-/** OKLCH (h en radianes) → sRGB 0–255. Fuera de gama, baja el croma hasta que cabe (no recorta canales). */
+/** OKLCH (h in radians) → sRGB 0–255. Out of gamut, it lowers the chroma until it fits (doesn't clip channels). */
 export function oklchToRgb(L: number, C: number, h: number, alpha = 1): RGBA {
   const fits = (c: number) => oklabToLinear(L, c * Math.cos(h), c * Math.sin(h)).every((v) => v >= -1e-4 && v <= 1 + 1e-4);
   let c = C;
@@ -106,13 +106,13 @@ export function oklchToRgb(L: number, C: number, h: number, alpha = 1): RGBA {
   return [r!, g!, b!, alpha];
 }
 
-/** Por debajo de este croma, un color se trata como gris: su tono no cuenta. */
+/** Below this chroma a colour counts as grey: its hue doesn't matter. */
 const GRAY = 0.02;
 
 /**
- * Mezcla dos colores en OKLCH, con el tono por el camino más corto: de turquesa a coral pasa por
- * amarillo, no por gris. Si uno de los dos es gris (o blanco, o negro), se usa el tono del otro.
- * El alfa, lineal.
+ * Mixes two colours in OKLCH, with the hue along the short way: from turquoise to coral it goes through
+ * yellow, not grey. If one of them is grey (or white, or black), the other's hue is used.
+ * Alpha, linear.
  */
 export function mixColor(a: RGBA, b: RGBA, t: number): RGBA {
   if (t <= 0) return a;

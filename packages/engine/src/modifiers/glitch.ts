@@ -1,10 +1,10 @@
-// Glitch: distorsión de señal rota, en piezas sueltas que se combinan (cada una, solo lo suyo):
-// - Slices: franjas horizontales; unas cuantas se corren a izquierda o derecha;
-// - Blocks: trozos rectangulares que salen desplazados (dejan su hueco);
-// - Scanlines: rayitas horizontales recortadas dentro;
-// - Streaks: rayas finas que se escapan por los lados;
-// - RGB Split: dos copias del dibujo, de color y desplazadas (detrás o delante, con su modo de fusión).
-// Las formas con relleno se cortan como superficies; las de solo trazo (sin relleno), como líneas.
+// Glitch: broken-signal distortion, in separate pieces that combine (each one only does its own thing):
+// - Slices: horizontal bands; a few of them shift left or right;
+// - Blocks: rectangular chunks that come out displaced (leaving their gap);
+// - Scanlines: thin horizontal lines cut out inside;
+// - Streaks: thin streaks escaping sideways;
+// - RGB Split: two coloured, shifted copies of the drawing (behind or in front, with their blend mode).
+// Filled shapes are cut as surfaces; stroke-only ones (no fill), as lines.
 import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
 import { bounds, flatten, keepInner, line, type Geometry, type Shape, type Vec2 } from '../geometry';
@@ -13,7 +13,7 @@ import { BLEND_MODES } from '../document';
 import { defineModifier, deg } from '../modifier';
 import { rng } from '../random';
 
-/** Cada forma con relleno, como superficie (con su caja); las demás, fuera. */
+/** Each filled shape, as a surface (with its box); the others, left out. */
 function regions(geo: Geometry, resolution: number) {
   const step = Math.max(resolution, 1e-3);
   return geo.shapes
@@ -24,9 +24,9 @@ function regions(geo: Geometry, resolution: number) {
 }
 type Piece = ReturnType<typeof regions>[number];
 
-// ── Trazos sin relleno: polilíneas que se recortan con rectángulos.
+// ── Strokes without fill: polylines clipped with rectangles.
 
-/** Una línea: con trazo y, o sin relleno, o sin ningún trazado cerrado (un <line> no tiene superficie). */
+/** A line: stroked and either unfilled or with no closed path at all (a <line> has no surface). */
 const isLine = (s: Shape) =>
   !!s.style.stroke && s.style.stroke !== 'none' && ((s.style.fill ?? 'black') === 'none' || s.subpaths.every((sp) => !sp.closed));
 
@@ -34,7 +34,7 @@ interface LinePiece {
   shape: Shape;
   lines: Vec2[][];
   box: Box;
-  /** Aún sin cortar: se devuelve la forma original (con sus curvas). */
+  /** Not cut yet: the original shape is returned (with its curves). */
   whole: boolean;
 }
 function linePieces(geo: Geometry): LinePiece[] {
@@ -57,7 +57,7 @@ function boxOfLines(lines: Vec2[][]): Box {
   }
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
-/** Parte cada polilínea en los tramos dentro y fuera de una caja (Liang–Barsky, tramo a tramo). */
+/** Splits each polyline into the parts inside and outside a box (Liang–Barsky, segment by segment). */
 function clipLines(lines: Vec2[][], r: Box): { inside: Vec2[][]; outside: Vec2[][] } {
   const inside: Vec2[][] = [], outside: Vec2[][] = [];
   const at = (a: Vec2, b: Vec2, t: number): Vec2 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -138,7 +138,7 @@ export const slices = defineModifier({
       for (let i = 0; i < n; i++) {
         if (cuts[i + 1]! < pc.box.y || cuts[i]! > pc.box.y + pc.box.h) continue;
         const cut = intersection(pc.poly, [rect(b.x - size, cuts[i]!, b.width + 2 * size, cuts[i + 1]! - cuts[i]!)]);
-        // Cada franja, un elemento (Step, Color… la tratan aparte).
+        // Each band, an element (Step, Color… treat it separately).
         const sh = cut.length && toShape(pc, dx[i] ? move(cut, dx[i]!, 0) : cut, { clone: i });
         if (sh) out.push(sh);
       }
@@ -174,7 +174,7 @@ export const blocks = defineModifier({
     let pieces = regions(geo, ctx.resolution);
     let lines = linePieces(geo);
     if (!pieces.length && !lines.length) return geo;
-    // Lo que cae dentro de cada bloque sale desplazado; en su sitio queda el hueco.
+    // What falls inside each block comes out displaced; the gap stays in its place.
     for (let k = 0; k < Math.round(p.count); k++) {
       const bw = p.size * size * (0.5 + rand() * 1.5);
       const bh = p.size * size * (0.25 + rand() * 0.6);
@@ -183,7 +183,7 @@ export const blocks = defineModifier({
       const oy = (rand() * 2 - 1) * p.shift * size * 0.15;
       const bb = boxOf([B]);
       pieces = pieces.flatMap((pc) => {
-        // Sin tocarse las cajas, no hay nada que recortar (evita miles de recortes inútiles).
+        // If the boxes don't touch, there's nothing to cut (avoids thousands of useless cuts).
         if (!overlaps(pc.box, bb)) return [pc];
         const inside = intersection(pc.poly, B);
         if (!inside.length) return [pc];
@@ -220,19 +220,19 @@ export const scanlines = defineModifier({
   apply(geo, p, ctx) {
     const b = bounds(geo);
     if (b.width <= 0 || b.height <= 0) return geo;
-    // Tope: entre línea y línea queda al menos tanto material como hueco.
+    // Cap: between lines there is at least as much material as gap.
     const m = Math.max(1, Math.min(Math.round(p.count), Math.floor(b.height / (2 * p.width))));
     const gap = b.height / m;
     const out: Shape[] = [];
     for (const pc of regions(geo, ctx.resolution)) {
-      // Solo las líneas que pasan por la altura de la pieza.
+      // Only the lines crossing the piece's height.
       const lines: MultiPolygon = [];
       const i0 = Math.max(0, Math.floor((pc.box.y - b.y) / gap - 1)), i1 = Math.min(m - 1, Math.ceil((pc.box.y + pc.box.h - b.y) / gap));
       for (let i = i0; i <= i1; i++) lines.push([rect(pc.box.x - 1, b.y + (i + 0.5) * gap - p.width / 2, pc.box.w + 2, p.width)]);
       const sh = toShape(pc, lines.length ? difference(pc.poly, lines) : pc.poly);
       if (sh) out.push(sh);
     }
-    // Trazos: se quitan los tramos que caen en cada rayita.
+    // Strokes: the parts falling on each little line are removed.
     for (const lp of linePieces(geo)) {
       let rest = lp.lines;
       for (let i = 0; i < m; i++) {
@@ -248,9 +248,9 @@ export const scanlines = defineModifier({
 });
 
 /**
- * Rayas que se escapan por los lados, saliendo del borde real de la forma. Con Bite, como si la franja
- * se hubiera corrido: lo que asoma por un lado falta por el otro, a la misma altura. Bite es el tamaño
- * de ese hueco frente a la raya: 0, sin hueco; 1, igual; menos, más pequeño; más, más grande.
+ * Streaks escaping sideways, leaving from the real edge of the shape. With Bite, as if the band had
+ * shifted: what sticks out on one side is missing on the other, at the same height. Bite is the size
+ * of that gap relative to the streak: 0, no gap; 1, the same; less, smaller; more, larger.
  */
 export const streaks = defineModifier({
   type: 'streaks',
@@ -269,10 +269,10 @@ export const streaks = defineModifier({
     if (b.width <= 0 || b.height <= 0) return geo;
     const size = Math.max(b.width, b.height);
     const rand = rng(p.seed);
-    // Del color del dibujo (el de la primera forma con relleno o, si no hay, el de su trazo).
+    // In the drawing's colour (the first filled shape's or, if none, its stroke's).
     const fill = geo.shapes.find((s) => s.style.fill && s.style.fill !== 'none')?.style.fill ?? geo.shapes.find(isLine)?.style.stroke ?? '#000000';
-    // El contorno de lo que se ve, como polilíneas: cada raya sale del borde real de la forma a su altura
-    // (no de la caja, que en una forma redonda o en un anillo queda lejos).
+    // The outline of what is visible, as polylines: each streak leaves from the shape's real edge at its height
+    // (not from the box, which in a round shape or a ring is far away).
     const outline = geo.shapes
       .filter((s) => (s.style.fill ?? 'black') !== 'none' || isLine(s))
       .flatMap((s) => s.subpaths.map((sp) => {
@@ -283,7 +283,7 @@ export const streaks = defineModifier({
     const bars: Shape[] = [];
     const bites: Box[] = [];
     for (let k = 0; k < Math.round(p.count); k++) {
-      // Una altura por la que pase la forma (unos cuantos intentos; un anillo tiene huecos).
+      // A height the shape passes through (a few attempts; a ring has gaps).
       let y = 0, span: [number, number] | null = null;
       for (let tries = 0; tries < 12 && !span; tries++) {
         y = b.y + rand() * b.height;
@@ -294,15 +294,15 @@ export const streaks = defineModifier({
       if (!span) continue;
       const deep = Math.max(0, p.bite) * len;
       const edge = left ? span[0] : span[1];
-      // Sin hueco, la raya se mete un poco en la forma (para que se vea pegada); con hueco, sale del borde.
+      // Without a gap, the streak goes a little into the shape (so it looks attached); with a gap, it leaves from the edge.
       const inside = deep > 0 ? 0 : len * 0.3;
       const x0 = left ? edge - len + inside : edge - inside;
       const sp = toSubPath(rect(x0, y, len, p.width));
       if (sp) bars.push({ subpaths: [sp], style: { fill } });
-      // El hueco, en el borde contrario: sale por la izquierda, falta por la derecha (y al revés).
+      // The gap, on the opposite edge: it sticks out on the left, missing on the right (and vice versa).
       if (deep > 0) bites.push({ x: left ? span[1] - deep : span[0], y, w: deep, h: p.width });
     }
-    // Los bocados: se quitan de las formas que tocan; las demás se quedan como estaban (con sus curvas).
+    // The bites: removed from the shapes they touch; the others stay as they were (with their curves).
     let shapes = geo.shapes;
     if (bites.length) {
       const cutPolys: MultiPolygon = bites.map((r) => [rect(r.x, r.y, r.w, r.h)]);
@@ -331,7 +331,7 @@ export const streaks = defineModifier({
   },
 });
 
-/** Dónde corta la horizontal `y` al contorno: el primer y el último punto, o null si no lo toca. */
+/** Where the horizontal `y` crosses the outline: the first and last points, or null if it doesn't touch it. */
 function spanAt(lines: Vec2[][], y: number): [number, number] | null {
   let x0 = Infinity, x1 = -Infinity;
   for (const pts of lines) {
@@ -364,13 +364,13 @@ const rect = (x: number, y: number, w: number, h: number): Pair[] => [[x, y], [x
 const move = (m: MultiPolygon, dx: number, dy: number): MultiPolygon => m.map((poly) => poly.map((ring) => ring.map(([x, y]) => [x + dx, y + dy] as Pair)));
 
 /**
- * Separación RGB: dos copias del dibujo, una de cada color, desplazadas a cada lado (Distance, en la
- * dirección de Angle). Son geometría, no un filtro: dentro de Step, Range o Field cada elemento (letra,
- * copia, trozo) tiene su propia distancia, y se exporta a Lottie. Las copias van detrás o delante del
- * dibujo, con su modo de fusión (screen o multiply mezclan los colores donde se cruzan).
- * Lo que va dentro de RGB Split (como en Step) se aplica solo a las copias: Blur o Glow las desenfocan,
- * Transform o Step las mueven, un Glitch las rompe… El dibujo se queda como está.
- * Sin Original, el dibujo desaparece y solo quedan las copias.
+ * RGB split: two copies of the drawing, one of each colour, shifted to each side (Distance, in the
+ * direction of Angle). Geometry, not a filter: inside Step, Range or Field each element (letter,
+ * copy, piece) gets its own distance, and it exports to Lottie. The copies go behind or in front of the
+ * drawing, with their blend mode (screen or multiply mix the colours where they cross).
+ * What goes inside RGB Split (as in Step) applies only to the copies: Blur or Glow blur them,
+ * Transform or Step move them, a Glitch breaks them… The drawing stays as it is.
+ * Without Original, the drawing disappears and only the copies remain.
  */
 export const rgbsplit = defineModifier({
   type: 'rgbsplit',
@@ -406,9 +406,9 @@ export const rgbsplit = defineModifier({
           ...(p.blend !== 'normal' ? { 'mix-blend-mode': p.blend } : {}),
         },
       }));
-    // Lo primero de la lista se pinta antes (queda detrás).
+    // The first in the list is painted first (it ends up behind).
     let copies: Geometry = { viewBox: geo.viewBox, shapes: [...copy(p.colorA, -dx, -dy), ...copy(p.colorB, dx, dy)] };
-    // Lo de dentro, solo sobre las copias: primero los efectos de geometría, en orden; los filtros, al pintar.
+    // What is inside, only on the copies: geometry effects first, in order; filters, when painting.
     const children = ctx.children.filter((c) => c.enabled);
     for (const c of children) {
       if (c.def.kind === 'filter') continue;
@@ -417,19 +417,19 @@ export const rgbsplit = defineModifier({
     const chain = chainFrom(children.map((c) => ({ def: c.def, params: c.params })));
     let inner = geo.inner;
     if (chain) {
-      // La clave sale de los filtros y sus valores: los mismos filtros, el mismo <filter>.
+      // The key comes from the filters and their values: the same filters, the same <filter>.
       const key = `rgb${hashText(JSON.stringify(children.filter((c) => c.def.kind === 'filter').map((c) => [c.def.type, c.params])))}`;
       copies = { ...copies, shapes: copies.shapes.map((s) => ({ ...s, wrap: [...(s.wrap ?? []), `@${key}`] })) };
       inner = { ...inner, ...copies.inner, [key]: { chain, ref: bounds(copies) } };
     } else if (copies.inner) inner = { ...inner, ...copies.inner };
-    // Sin el original: solo las copias.
+    // Without the original: only the copies.
     const base = p.original ? geo.shapes : [];
     const shapes = p.layer === 'front' ? [...base, ...copies.shapes] : [...copies.shapes, ...base];
     return { viewBox: geo.viewBox, shapes, ...(inner ? { inner } : {}) };
   },
 });
 
-/** Huella corta de un texto (FNV-1a), para nombrar filtros. */
+/** A short fingerprint of a string (FNV-1a), to name filters. */
 function hashText(text: string): string {
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) {

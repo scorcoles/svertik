@@ -2,8 +2,8 @@ import { mapPoints, subdivide } from '../geometry';
 import { defineModifier, fromFraction } from '../modifier';
 
 /**
- * Abomba (fuerza > 0) o encoge (fuerza < 0) lo que cae dentro de un círculo.
- * El borde del círculo no se mueve, así que no hay saltos con lo de fuera.
+ * Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle.
+ * The circle's edge doesn't move, so there are no jumps with what is outside.
  */
 export const spherize = defineModifier({
   type: 'spherize',
@@ -19,7 +19,7 @@ export const spherize = defineModifier({
     const R = p.radius * Math.max(ctx.bounds.width, ctx.bounds.height);
     if (R <= 0 || p.strength === 0) return geo;
     const k = Math.min(1, Math.abs(p.strength));
-    // Perfil radial: d ∈ [0, 1] → d' ∈ [0, 1], monótono y con f(1) = 1.
+    // Radial profile: d ∈ [0, 1] → d' ∈ [0, 1], monotonic and with f(1) = 1.
     const profile =
       p.strength > 0
         ? (d: number) => d + (Math.sin((d * Math.PI) / 2) - d) * k

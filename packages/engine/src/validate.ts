@@ -1,7 +1,7 @@
-// Validación de una escena: lo que llega de un archivo, del panel de código o de un enlace.
-// - errores: la escena no se puede usar (falta algo imprescindible o hay un tipo desconocido);
-// - avisos: se puede usar, pero algo se va a ignorar en silencio (un parámetro mal escrito, una pista
-//   que apunta a un efecto que no existe…).
+// Scene validation: what comes from a file, the code panel or a link.
+// - errors: the scene can't be used (something essential is missing or a type is unknown);
+// - warnings: it can be used, but something will be silently ignored (a misspelt parameter, a track
+//   pointing at an effect that doesn't exist…).
 import type { SceneNode, SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
 import type { ModifierDef, ParamSchema } from './modifier';
@@ -13,12 +13,12 @@ export interface SceneReport {
   warnings: string[];
 }
 
-/** Lo que una pista `on: 'node'` puede animar. */
+/** What an `on: 'node'` track can animate. */
 const NODE_PARAMS = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'pivot']);
 
 /**
- * Revisa una escena. No la cambia (salvo completar `stack` y `params` vacíos, como haría el motor).
- * Con errores, no hay que usarla; con avisos, sí.
+ * Checks a scene. Doesn't change it (except filling in empty `stack` and `params`, as the engine would).
+ * With errors, don't use it; with warnings, you can.
  */
 export function validateScene(value: unknown, modifiers: readonly ModifierDef<any>[] = builtins): SceneReport {
   const errors: string[] = [];
@@ -30,13 +30,13 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   const scene = raw as SceneV2;
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 
-  // Todos los nodos y efectos, por id (para las referencias), y los ids repetidos.
+  // Every node and effect, by id (for references), and repeated ids.
   const nodes = new Map<string, SceneNode>();
   const mods = new Map<string, { inst: ModifierInstance; node: SceneNode }>();
   const nodeRefs: { from: string; param: string; id: string }[] = [];
   const name = (n: SceneNode) => `"${n.name || n.id}"`;
 
-  /** Parámetros que el esquema no conoce (erratas) y referencias a otros nodos. */
+  /** Parameters the schema doesn't know (typos) and references to other nodes. */
   const checkParams = (schema: ParamSchema, params: Record<string, unknown> | undefined, where: string) => {
     for (const [k, v] of Object.entries(params ?? {})) {
       const spec = schema[k];
@@ -107,7 +107,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
 
   for (const r of nodeRefs) if (!nodes.has(r.id)) warnings.push(`${r.from}: "${r.param}" points to "${r.id}", which does not exist`);
 
-  // Pistas: su nodo, su efecto y su parámetro.
+  // Tracks: their node, their effect and their parameter.
   for (const tr of scene.animation?.tracks ?? []) {
     const label = `Track "${tr.id}"`;
     const n = nodes.get(tr.node);
@@ -135,7 +135,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
     } else warnings.push(`${label}: "on" must be "node", "shape" or "modifier"`);
   }
 
-  // Interacciones: quién las dispara y sobre qué actúan.
+  // Interactions: who fires them and what they act on.
   for (const it of scene.interactions ?? []) {
     const label = `Interaction "${it.id}"`;
     if (it.trigger !== 'enter' && !nodes.has(it.node)) warnings.push(`${label}: object "${it.node}" does not exist`);

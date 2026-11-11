@@ -4,8 +4,8 @@ import { defineModifier } from '../modifier';
 import { rng } from '../random';
 
 /**
- * Variación de color, por elemento (copias de Clone; sin Clone, cada forma):
- * shift gira el tono y ajusta saturación y luz; gradient reparte un degradado; random varía al azar.
+ * Colour variation per element (Clone copies; without Clone, each shape):
+ * shift rotates the hue and adjusts saturation and lightness; gradient spreads a gradient; random varies at random.
  */
 export const color = defineModifier({
   type: 'color',
@@ -33,7 +33,7 @@ export const color = defineModifier({
     const to = parseColor(p.to) ?? [255, 255, 255, 1];
 
     const recolor = (value: string | undefined, prop: string, i: number, key: number): string | undefined => {
-      // Sin relleno declarado, el SVG pinta en negro.
+      // Without a declared fill, SVG paints black.
       const c = parseColor(value ?? (prop === 'fill' ? '#000000' : undefined));
       if (!c) return value;
       if (p.mode === 'gradient') return toHex(mixColor(from, to, n > 1 ? i / (n - 1) : 0));

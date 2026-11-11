@@ -2,13 +2,13 @@ import { bounds, cubicAt, flatten, insidePolygons, splitCubic, type Cubic, type 
 import { defineModifier, fromFraction } from '../modifier';
 
 /**
- * Une dos objetos con un trazo que los sigue cuando se mueven: el dibujo pasa a ser el tramo entre el
- * punto `fromAnchor` de uno y `toAnchor` del otro (fracciones de su caja), con el estilo que tenía (la
- * línea de Utils → Connector: su color, grosor, extremos…).
- * - shape: straight (recto), arc (curvado a un lado, `bend` del largo), horizontal o vertical (sale y llega
- *   en esa dirección, como en un diagrama de nodos; `bend`, cuánto).
- * - edges: empieza y acaba en el borde de cada objeto, no en su punto; `gap` (px) lo separa algo más.
- * - arrow: punta al final, al principio o en los dos, de `arrowSize` px.
+ * Joins two objects with a line that follows them when they move: the drawing becomes the stretch between
+ * point `fromAnchor` of one and `toAnchor` of the other (fractions of their box), keeping its style (the
+ * line from Utils → Connector: its colour, width, caps…).
+ * - shape: straight, arc (curved to one side, `bend` of the length), horizontal or vertical (leaves and
+ *   arrives in that direction, as in a node diagram; `bend`, how much).
+ * - edges: starts and ends at the edge of each object, not at its point; `gap` (px) moves it a bit further.
+ * - arrow: a head at the end, the start or both, of `arrowSize` px.
  */
 export const connect = defineModifier({
   type: 'connect',
@@ -38,7 +38,7 @@ export const connect = defineModifier({
     if (len < 1e-6) return { viewBox: geo.viewBox, shapes: [] };
     let curve: Cubic;
     if (p.shape === 'arc') {
-      // Normal a la izquierda del sentido de A a B.
+      // Normal to the left of the direction from A to B.
       const n: Vec2 = [-dy / len, dx / len];
       const h = p.bend * len;
       curve = { c1: [a[0] + dx / 3 + n[0] * h, a[1] + dy / 3 + n[1] * h], c2: [a[0] + (2 * dx) / 3 + n[0] * h, a[1] + (2 * dy) / 3 + n[1] * h], p: b };
@@ -48,7 +48,7 @@ export const connect = defineModifier({
       curve = h ? { c1: [a[0] + dx * k, a[1]], c2: [b[0] - dx * k, b[1]], p: b } : { c1: [a[0], a[1] + dy * k], c2: [b[0], b[1] - dy * k], p: b };
     } else curve = { c1: [a[0] + dx / 3, a[1] + dy / 3], c2: [a[0] + (2 * dx) / 3, a[1] + (2 * dy) / 3], p: b };
 
-    // Dónde sale de A y dónde entra en B (por muestras y luego afinando), más el hueco.
+    // Where it leaves A and where it enters B (by samples, then refined), plus the gap.
     const N = 200;
     const pts = Array.from({ length: N + 1 }, (_, i) => cubicAt(a, curve, i / N));
     const cum = [0];
@@ -61,9 +61,9 @@ export const connect = defineModifier({
       while (i0 < N && inA(pts[i0]!)) i0++;
       let i1 = N;
       while (i1 > 0 && inB(pts[i1]!)) i1--;
-      // Afinar el borde entre la muestra de dentro y la de fuera.
+      // Refine the edge between the inside sample and the outside one.
       const edge = (i: number, j: number, inside: (q: Vec2) => boolean) => {
-        let lo = i / N, hi = j / N; // lo: dentro; hi: fuera
+        let lo = i / N, hi = j / N; // lo: inside; hi: outside
         for (let k = 0; k < 24; k++) {
           const mid = (lo + hi) / 2;
           if (inside(cubicAt(a, curve, mid))) lo = mid;
@@ -86,13 +86,13 @@ export const connect = defineModifier({
       return (i - 1 + f) / N;
     };
     const t0 = tOf(s0), t1 = tOf(s1);
-    // El tramo de t0 a t1.
+    // The stretch from t0 to t1.
     let [, rest] = splitCubic(a, curve, t0);
     const start = cubicAt(a, curve, t0);
     [rest] = splitCubic(start, rest, (t1 - t0) / (1 - t0 || 1));
     const subpaths: SubPath[] = [{ start, segs: [rest], closed: false }];
 
-    // Puntas: dos patas desde el extremo, hacia atrás según la tangente.
+    // Heads: two legs from the tip, backwards along the tangent.
     const head = (tip: Vec2, dir: Vec2) => {
       const l = Math.hypot(dir[0], dir[1]) || 1;
       const u: Vec2 = [dir[0] / l, dir[1] / l];
@@ -114,9 +114,9 @@ export const connect = defineModifier({
 
 const straight = (a: Vec2, b: Vec2): Cubic => ({ c1: [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3], c2: [a[0] + (2 * (b[0] - a[0])) / 3, a[1] + (2 * (b[1] - a[1])) / 3], p: b });
 
-/** ¿Un punto cae dentro del objeto? Por sus formas cerradas (las abiertas, por su caja si no hay cerradas). */
+/** Does a point fall inside the object? By its closed shapes (open ones, by its box if there are no closed ones). */
 function solidTest(geo: Geometry): (q: Vec2) => boolean {
-  // Cada forma, par-impar entre sus subtrazados (sus agujeros); entre formas, basta con estar en una.
+  // Each shape, even-odd between its subpaths (its holes); across shapes, being in one is enough.
   const polys = geo.shapes.map((s) => s.subpaths.filter((sp) => sp.closed).map((sp) => flatten(sp, 8))).filter((x) => x.length);
   if (polys.length) return (q) => polys.some((own) => insidePolygons(own, q));
   const b = bounds(geo);

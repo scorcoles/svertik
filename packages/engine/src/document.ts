@@ -1,4 +1,4 @@
-// Escena v2: varios objetos y grupos, cada uno con su pila de efectos y su posición.
+// Scene: several objects and groups, each with its own effect stack and placement.
 
 import { bounds, centroid, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
 import { importSVG } from './import';
@@ -11,7 +11,7 @@ import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engin
 import type { TrailLookup } from './modifier';
 import { gradientDefs, styleAttrs, toPathData } from './render';
 
-/** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
+/** Blend modes from CSS Compositing and Blending (they work in SVG). */
 export const BLEND_MODES = [
   'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn',
   'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity',
@@ -23,21 +23,21 @@ export interface Placement {
   y: number;
   scale: number;
   rotation: number;
-  /** Reflejo horizontal (espejo izquierda ↔ derecha) y vertical, alrededor del centro del nodo. */
+  /** Horizontal flip (mirror left ↔ right) and vertical flip, around the node's centre. */
   flipX?: boolean;
   flipY?: boolean;
-  /** Centro de transformación (giro, escala, reflejo), en fracciones de la caja del nodo. Por defecto, el centro. */
+  /** Transform origin (rotation, scale, flip), in fractions of the node's box. The centre by default. */
   pivot?: [number, number];
 }
 
 interface NodeBase {
   id: string;
   name: string;
-  /** Efectos del nodo. En un grupo, se aplican al conjunto de sus hijos. */
+  /** The node's effects. In a group, they apply to all its children together. */
   stack: ModifierInstance[];
   transform?: Partial<Placement>;
   opacity?: number;
-  /** Modo de fusión con lo de detrás (`mix-blend-mode`); sin él, normal. En un grupo, se aplica a cada hijo. */
+  /** Blend with what is behind (`mix-blend-mode`); normal without it. In a group, it applies to each child. */
   blend?: BlendMode;
   visible?: boolean;
 }
@@ -45,26 +45,26 @@ interface NodeBase {
 export interface ObjectNode extends NodeBase {
   kind: 'object';
   source: string;
-  /** Paquete: el resultado congelado de otro nodo. Se dibuja `geometry` y no se calcula nada más. */
+  /** Pack: the frozen result of another node. `geometry` is drawn and nothing else is computed. */
   packed?: Pack;
 }
 
 /**
- * Lo que guarda un paquete. `geometry` es el resultado del nodo original, ya colocado (en las coordenadas
- * de su padre); `original`, el nodo tal cual, con lo que lo animaba o lo hacía reaccionar, para desempaquetarlo.
- * `at`: la colocación del paquete al crearlo (al desempaquetar, lo que se haya movido se suma al original).
+ * What a pack keeps. `geometry` is the original node's result, already placed (in its parent's
+ * coordinates); `original`, the node as it was, with what animated it or made it react, to unpack it.
+ * `at`: the pack's placement when it was made (when unpacking, how far it moved is added to the original).
  */
 export interface Pack {
   key: string;
   geometry: Geometry;
-  /** Sin él (en el código exportado, por ejemplo), el paquete no se puede desempaquetar. */
+  /** Without it (in exported code, for instance), the pack can't be unpacked. */
   original?: SceneNode;
   at: { x: number; y: number };
   tracks?: Track[];
   interactions?: Interaction[];
 }
 
-/** Primitiva: forma generada por parámetros (rectángulo, estrella…), con su propia pila. */
+/** Primitive: a shape generated from parameters (rectangle, star…), with its own stack. */
 export interface ShapeNode extends NodeBase {
   kind: 'shape';
   shape: string;
@@ -77,9 +77,9 @@ export interface GroupNode extends NodeBase {
 }
 
 /**
- * Instancia: dibuja el resultado de otro nodo (`of`, con sus efectos) con su propia colocación y sus propios
- * efectos encima. Si cambia el original, cambia la instancia. Una instancia que acabaría dependiendo de sí
- * misma (de su propio grupo, o en cadena) no dibuja nada.
+ * Instance: draws another node's result (`of`, with its effects) with its own placement and its own
+ * effects on top. If the original changes, the instance changes. An instance that would end up depending
+ * on itself (on its own group, or in a chain) draws nothing.
  */
 export interface InstanceNode extends NodeBase {
   kind: 'instance';
@@ -87,9 +87,9 @@ export interface InstanceNode extends NodeBase {
 }
 
 /**
- * Effector: no dibuja nada. Su pila de efectos se añade al final de la de cada uno de sus `targets`, a cada
- * uno por separado. `delay` (segundos): el target n ve la animación de esos efectos n × delay más tarde.
- * Oculto, no hace nada.
+ * Effector: draws nothing. Its effect stack is appended to that of each of its `targets`, to each one
+ * separately. `delay` (seconds): target n sees the animation of those effects n × delay later.
+ * Hidden, it does nothing.
  */
 export interface EffectorNode extends NodeBase {
   kind: 'effector';
@@ -101,27 +101,27 @@ export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode | Effe
 
 export interface SceneV2 {
   version: 2;
-  /** Como en las capas de los editores: el primero de la lista está delante. */
+  /** As in the layers of design tools: the first one in the list is in front. */
   objects: SceneNode[];
-  /** Longitud máxima de tramo al subdividir, como fracción del tamaño de cada objeto. */
+  /** Maximum segment length when subdividing, as a fraction of each object's size. */
   resolution?: number;
-  /** Tamaño fijo del documento, centrado en (x, y) (por defecto, el origen). Sin él, se ajusta a lo que haya. */
+  /** Fixed document size, centred at (x, y) (the origin by default). Without it, it fits whatever is drawn. */
   document?: { width: number; height: number; x?: number; y?: number } | null;
-  /** Animación (opcional): pistas de fotogramas clave. Ver animation.ts. */
+  /** Animation (optional): keyframe tracks. See animation.ts. */
   animation?: Animation;
-  /** Interacciones (opcional): hover y clic sobre los objetos. Ver interactions.ts. */
+  /** Interactions (optional): hover, click, scroll and pointer. See interactions.ts. */
   interactions?: Interaction[];
   /**
-   * El instante (segundos) al que corresponde la escena, si es un fotograma de la animación (`sampleScene`
-   * lo pone; el editor, al evaluar). No se guarda: solo lo usa lo que va con retraso (Delay de Effector).
+   * The time (seconds) the scene corresponds to, if it is a frame of the animation (`sampleScene` sets it;
+   * the editor, when evaluating). Not saved: only what is delayed uses it (Effector's Delay).
    */
   at?: number;
 }
 
-/** La escena (lo que se guarda y se exporta). */
+/** The scene (what is saved and exported). */
 export type Scene = SceneV2;
 
-/** ¿Es una escena de svertik? (para lo que llega de un archivo, del portapapeles o de la URL) */
+/** Is it an svertik scene? (for what comes from a file, the clipboard or the URL) */
 export function isScene(value: unknown): value is SceneV2 {
   const s = value as Partial<SceneV2> | null;
   return !!s && s.version === 2 && Array.isArray(s.objects);
@@ -130,7 +130,7 @@ export function isScene(value: unknown): value is SceneV2 {
 export const DEFAULT_PLACEMENT: Placement = { x: 0, y: 0, scale: 1, rotation: 0 };
 
 
-/** Recorre el árbol: cada nodo con su padre. */
+/** Walks the tree: each node with its parent. */
 export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null): Generator<{ node: SceneNode; parent: GroupNode | null }> {
   for (const node of nodes) {
     yield { node, parent };
@@ -141,24 +141,24 @@ export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null):
 export interface NodeInfo {
   id: string;
   kind: 'object' | 'shape' | 'group' | 'instance' | 'effector';
-  /** Caja de referencia de los efectos del nodo (fracciones), en sus coordenadas locales. */
+  /** Reference box of the node's effects (fractions), in its local coordinates. */
   bounds: Bounds;
   /**
-   * La caja sobre la que mide cada efecto de su pila (por id), si no es `bounds`: tras un Clone o un
-   * Mirror, los de debajo miden sobre lo que estos generan.
+   * The box each effect of its stack measures on (by id), if not `bounds`: after a Clone or a
+   * Mirror, the ones below measure on what those generate.
    */
   refs?: StackRefs;
-  /** De coordenadas locales del nodo a coordenadas del documento. */
+  /** From the node's local coordinates to document coordinates. */
   matrix: Mat;
-  /** Caja del resultado del nodo, ya en el documento (para seleccionarlo). */
+  /** Box of the node's result, already in the document (to select it). */
   box: Bounds;
 }
 
 export interface DocumentResult {
   geometry: Geometry;
-  /** El resultado de un nodo (con sus efectos), en el documento; sin su opacidad ni su fusión. */
+  /** The result of a node (with its effects), in the document; without its opacity or blend. */
   geometryOf(id: string): Geometry | null;
-  /** El origen de cada objeto, colocado en el documento (para verlo en fantasma). */
+  /** The source of each object, placed in the document (to show it as a ghost). */
   sources: Geometry;
   nodes: Map<string, NodeInfo>;
 }
@@ -166,21 +166,21 @@ export interface DocumentResult {
 export const placementOf = (n: NodeBase): Placement => ({ ...DEFAULT_PLACEMENT, ...n.transform });
 
 /**
- * Matriz de un nodo: gira y escala alrededor de su pivote, y su origen (por defecto, el centro de su caja)
- * acaba en (x, y) + `anchor`.
+ * A node's matrix: rotates and scales around its pivot, and its origin (by default, the centre of its box)
+ * ends up at (x, y) + `anchor`.
  */
 function placementMatrix(p: Placement, ref: Bounds, anchor: [number, number], origin: Vec2 = centerOf(ref)): Mat {
-  // Con el pivote fuera del centro, el ancla se mueve lo mismo: sin giro ni escala, el nodo no cambia de sitio.
+  // With the pivot off-centre, the anchor moves the same: with no rotation or scale, the node doesn't move.
   const c = origin;
   const pv = pivotPoint(ref, p.pivot);
   const a: [number, number] = [anchor[0] + pv[0] - c[0], anchor[1] + pv[1] - c[1]];
   return multiply(translate(a[0] + p.x, a[1] + p.y), multiply(linearOf(p), translate(-pv[0], -pv[1])));
 }
 
-/** La parte lineal de la colocación: giro, escala y reflejo. */
+/** The linear part of the placement: rotation, scale and flip. */
 export const linearOf = (p: Placement): Mat => multiply(rotateScale(p.rotation, p.scale), [p.flipX ? -1 : 1, 0, 0, p.flipY ? -1 : 1, 0, 0]);
 
-/** El pivote en coordenadas locales del nodo. */
+/** The pivot in the node's local coordinates. */
 export const pivotPoint = (ref: Bounds, pivot: [number, number] | undefined): [number, number] => {
   const [fx, fy] = pivot ?? [0.5, 0.5];
   return [ref.x + fx * ref.width, ref.y + fy * ref.height];
@@ -191,7 +191,7 @@ const transformGeo = (geo: Geometry, m: Mat): Geometry => {
   return mapPoints(geo, ([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
 };
 
-/** Fusión del nodo en sus formas; la que ya traiga una forma (de un hijo) manda. */
+/** The node's blend on its shapes; one a shape already has (from a child) wins. */
 const withBlend = (shapes: Shape[], blend: BlendMode | undefined): Shape[] =>
   !blend || blend === 'normal' ? shapes : shapes.map((s) => (s.style['mix-blend-mode'] ? s : { ...s, style: { ...s.style, 'mix-blend-mode': blend } }));
 
@@ -216,15 +216,15 @@ export interface DocumentEvaluator {
   evaluate(scene: SceneV2): DocumentResult;
 }
 
-/** Geometría de otro nodo, ya en las coordenadas de la pila que la pide (o null si aún no se sabe). */
+/** Geometry of another node, already in the coordinates of the stack asking for it (or null if not known yet). */
 export type TargetLookup = (id: string) => Geometry | null;
 
 /**
- * Evalúa el árbol. `runStack` aplica una pila a una geometría con su caja de referencia;
- * los objetos guardan en caché su origen importado y el resultado de su pila.
+ * Evaluates the tree. `runStack` applies a stack to a geometry with its reference box;
+ * objects cache their imported source and the result of their stack.
  *
- * Efectos que usan otro objeto (Clone sobre un objeto, Path wrap…): una primera pasada sin ellos
- * y, si alguno lo pidió, otra con lo que salió de la primera. Esos nodos no se guardan en caché.
+ * Effects that use another object (Clone on an object, Path Wrap…): a first pass without them
+ * and, if any asked, another one with what came out of the first. Those nodes are not cached.
  */
 export function createDocumentEvaluator(
   runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup) => Geometry,
@@ -232,9 +232,9 @@ export function createDocumentEvaluator(
   options: { trails?: boolean; maskOf?: (stack: ModifierInstance[]) => { source: string; mode: string; invert: boolean } | null } = {},
 ): DocumentEvaluator {
   const maskOf = options.maskOf ?? (() => null);
-  // Estelas (Trace): la escena evaluada en instantes anteriores, con otro evaluador (sin estelas, para no
-  // entrar en bucle). Lo calculado se guarda por instante (en una rejilla fija de tiempos): al reproducir,
-  // cada fotograma solo calcula el instante nuevo. Se vacía si cambia algo que no sea el tiempo.
+  // Trails (Trace): the scene evaluated at earlier times, with another evaluator (without trails, so it
+  // doesn't loop). Results are kept per time (on a fixed grid of times): while playing, each frame only
+  // computes the new time. Cleared when anything but the time changes.
   const withTrails = options.trails !== false;
   let sub: DocumentEvaluator | null = null;
   const past = { key: '', points: new Map<string, Vec2 | null>(), docs: new Map<number, DocumentResult>() };
@@ -255,8 +255,8 @@ export function createDocumentEvaluator(
     return q;
   };
 
-  // El origen de cada nodo (SVG importado o primitiva), por su propia clave: no se rehace si solo
-  // cambian sus efectos. Y lo que va dando su pila, paso a paso (ver runStack).
+  // Each node's source (imported SVG or primitive), by its own key: not rebuilt when only its effects
+  // change. And what its stack produces, step by step (see runStack).
   const sources = new Map<string, { key: string; geo: Geometry }>();
   const memos = new Map<string, StepMemo>();
   const memoOf = (id: string) => {
@@ -264,11 +264,11 @@ export function createDocumentEvaluator(
     if (!m) memos.set(id, (m = { steps: [] }));
     return m;
   };
-  // `deps`: en los que usan otro objeto, la huella de lo que vieron de cada uno (su geometría y dónde
-  // estaban los dos). Mientras no cambie, el resultado vale: no se rehace al tocar otra cosa.
+  // `deps`: for the ones that use another object, a fingerprint of what they saw of each (its geometry and
+  // where both were). While it doesn't change, the result holds: touching something else doesn't redo it.
   const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs; volatile?: boolean }>();
   const groupCache = new Map<string, { key: string; result: Geometry; refs: StackRefs }>();
-  /** Lo que salió la última vez (matriz y geometría de cada nodo): la primera pasada parte de ahí. */
+  /** What came out last time (matrix and geometry of each node): the first pass starts from there. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
 
   function evaluate(scene: SceneV2): DocumentResult {
@@ -277,7 +277,7 @@ export function createDocumentEvaluator(
     const byId = new Map<string, SceneNode>();
     for (const { node } of walkNodes(scene.objects)) byId.set(node.id, node);
     const broken = brokenInstances(byId);
-    // Para las estelas: la escena sin el instante (lo animado, a su valor en 0), como clave de la caché.
+    // For trails: the scene without the time (animated values at their value at 0), as the cache key.
     let pastBase: SceneV2 | null = null;
     const baseScene = () => {
       if (pastBase) return pastBase;
@@ -291,22 +291,22 @@ export function createDocumentEvaluator(
       }
       return pastBase;
     };
-    // Lo que añaden los Effectors a cada nodo (al final de su pila, en el orden de la escena).
+    // What Effectors add to each node (at the end of its stack, in scene order).
     const extra = effectorStacks(scene, byId);
     const stackOf = (node: SceneNode) => {
       const more = extra.get(node.id);
       return more ? [...node.stack, ...more] : node.stack;
     };
-    /** Lo de la pasada anterior: matriz y resultado (en el documento) de cada nodo. */
+    /** From the previous pass: matrix and result (in the document) of each node. */
     let known = last;
-    // Huella de la geometría de cada nodo conocido (se calcula una vez por pasada).
+    // Fingerprint of the geometry of each known node (computed once per pass).
     let prints = new Map<string, number>();
     const printOf = (id: string) => {
       let h = prints.get(id);
       if (h === undefined) prints.set(id, (h = known.has(id) ? hashGeo(known.get(id)!.geo) : -1));
       return h;
     };
-    /** Lo que `ownerId` ve de `id`: cambia si cambia el otro o si se mueve cualquiera de los dos. */
+    /** What `ownerId` sees of `id`: changes if the other changes or if either of them moves. */
     const depOf = (ownerId: string, id: string) => {
       const owner = known.get(ownerId);
       return owner && known.has(id) ? mix(printOf(id), owner.world) : -1;
@@ -322,7 +322,7 @@ export function createDocumentEvaluator(
       nodes = new Map<string, NodeInfo>();
       const results = new Map<string, Geometry>();
       let asked = false;
-      // Lo que se pidió en esta pasada, para saber si la siguiente hace falta.
+      // What was asked in this pass, to know whether the next one is needed.
       const seenDeps: { owner: string; id: string; h: number }[] = [];
       const lookupFor = (ownerId: string, deps?: [string, number][]): TargetLookup => (id) => {
         if (!id || id === ownerId) return null;
@@ -335,7 +335,7 @@ export function createDocumentEvaluator(
         return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
       };
 
-      // Estelas: del más antiguo al de ahora, en una rejilla fija de instantes; el último, el de ahora.
+      // Trails: oldest first, on a fixed grid of times; the last one, now.
       let usedTrail = false;
       const trailFor = (ownerId: string): TrailLookup | undefined =>
         withTrails
@@ -344,7 +344,7 @@ export function createDocumentEvaluator(
               asked = true;
               const owner = known.get(ownerId);
               const now = known.get(id);
-              // Lo que se vio del objeto (de la pasada anterior): si en esta ha cambiado, otra pasada.
+              // What was seen of the object (from the previous pass): if it changed in this one, another pass.
               seenDeps.push({ owner: ownerId, id, h: owner && now ? depOf(ownerId, id) : -2 });
               if (!owner || !now) return null;
               const toOwner = invert(owner.world);
@@ -360,7 +360,7 @@ export function createDocumentEvaluator(
               for (let k = n; k >= 0; k--) {
                 let t = Math.round((first - k * dt) * 1e5) / 1e5;
                 if (t >= at - 1e-6) continue;
-                // En bucle, antes del 0 viene el final de la vuelta anterior; si no, la estela empieza en 0.
+                // In a loop, before 0 comes the end of the previous lap; otherwise the trail starts at 0.
                 if (t < 0) {
                   const d = scene.animation.duration;
                   if (!scene.animation.loop || !(d > 0)) continue;
@@ -374,9 +374,9 @@ export function createDocumentEvaluator(
             }
           : undefined;
 
-      // Filtros (sombra, desenfoque…): sus formas van dentro de un grupo con el filtro del nodo.
+      // Filters (shadow, blur…): their shapes go inside a group with the node's filter.
       fx = new Map();
-      // Filtros de una parte del dibujo (lo de dentro de RGB Split): `@clave` pasa a `<nodo>--<clave>`.
+      // Filters on part of the drawing (what is inside RGB Split): `@key` becomes `<node>--<key>`.
       innerFx = new Map();
       const adoptInner = (node: SceneNode, result: Geometry, shapes: Shape[]): Shape[] => {
         if (!result.inner) return shapes;
@@ -384,7 +384,7 @@ export function createDocumentEvaluator(
         for (const [key, f] of Object.entries(result.inner)) innerFx.set(idOf(key), { ...f, node: node.id });
         return shapes.map((s) => (s.wrap?.some((w) => w.startsWith('@')) ? { ...s, wrap: s.wrap.map((w) => (w.startsWith('@') ? idOf(w.slice(1)) : w)) } : s));
       };
-      // Máscaras: el objeto entero (con sus filtros) dentro de un <g mask>; la máscara se hace al final.
+      // Masks: the whole object (with its filters) inside a <g mask>; the mask is built at the end.
       masked = new Map();
       const withMask = (node: SceneNode, shapes: Shape[]): Shape[] => {
         const m = maskOf(stackOf(node));
@@ -394,7 +394,7 @@ export function createDocumentEvaluator(
         return shapes.map((s) => ({ ...s, wrap: [id, ...(s.wrap ?? [])] }));
       };
       const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
-        // Una instancia lleva también los filtros del original (su sombra, su desenfoque…).
+        // An instance also carries the original's filters (its shadow, its blur…).
         const of = node.kind === 'instance' && !broken.has(node.id) ? byId.get(node.of) : undefined;
         const f = filtersOf(of && of.kind !== 'group' ? [...stackOf(of), ...stackOf(node)] : stackOf(node));
         if (!f || !shapes.length) return shapes;
@@ -402,15 +402,15 @@ export function createDocumentEvaluator(
         return shapes.map((s) => ({ ...s, wrap: [node.id, ...(s.wrap ?? [])] }));
       };
 
-      // Devuelve la geometría del nodo en coordenadas de su padre.
+      // Returns the node's geometry in its parent's coordinates.
       const evalNode = (node: SceneNode, parentMatrix: Mat): Shape[] => {
         seen.add(node.id);
         if (node.kind === 'effector') return [];
         const stack = stackOf(node);
         const p = placementOf(node);
         if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {
-          // Instancia: su origen es el resultado del original (sin su colocación). Si aún no se ha calculado
-          // en esta pasada, el de la anterior, y se pide otra.
+          // Instance: its source is the original's result (without its placement). If not computed yet in
+          // this pass, the previous pass's, and another pass is asked for.
           let instSrc: { geo: Geometry; key: string } | null = null;
           if (node.kind === 'instance') {
             let geo: Geometry | null = null;
@@ -428,14 +428,14 @@ export function createDocumentEvaluator(
             const clean: Geometry = { viewBox: geo?.viewBox ?? [0, 0, 0, 0], shapes: (geo?.shapes ?? []).map(({ node: _n, wrap: _w, ...s }) => s) };
             instSrc = { geo: clean, key: `inst:${node.of}:${hashGeo(clean)}` };
           }
-          // El texto depende de las fuentes registradas: si llega una nueva, se vuelve a dibujar.
+          // Text depends on the registered fonts: when a new one arrives, it is drawn again.
           const key =
             node.kind === 'instance'
               ? JSON.stringify([resolution, stack]) + '\n' + instSrc!.key
               : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
-          // Uno que usa otro objeto vale si lo que ve de él no ha cambiado.
-          // Una estela depende del instante: no se guarda.
+          // One that uses another object is valid if what it sees of it hasn't changed.
+          // A trail depends on the time: it is not cached.
           const fresh = entry && !entry.volatile && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
           if (entry && fresh && entry.dynamic) {
             asked = true;
@@ -461,7 +461,7 @@ export function createDocumentEvaluator(
             cache.set(node.id, entry);
           }
           const ref = bounds(entry.source);
-          // Un objeto importado queda centrado en el origen (o, si lo trae, en su punto de origen: Text con ancla).
+          // An imported object is centred on the origin (or on its own origin point if it has one: Text with an anchor).
           const m = placementMatrix(p, ref, [0, 0], entry.source.origin);
           const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
@@ -470,9 +470,9 @@ export function createDocumentEvaluator(
           if (node.visible === false) return [];
           return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend)));
         }
-        // Grupo: los hijos en sus posiciones; luego la pila del grupo sobre el conjunto; luego su posición.
-        // Se pintan de abajo arriba (el primero de la lista, delante); para Step, Color…
-        // cada hijo es un elemento numerado en el orden de la lista (respetando sus copias).
+        // Group: the children at their places; then the group's stack on all of them; then its placement.
+        // They are painted bottom up (the first in the list, in front); for Step, Color…
+        // each child is an element numbered in list order (keeping its copies).
         const childShapes: Shape[] = [];
         for (let i = node.children.length - 1; i >= 0; i--) {
           const out = evalNode(node.children[i]!, IDENTITY);
@@ -483,8 +483,8 @@ export function createDocumentEvaluator(
         let refs: StackRefs = {};
         let result = inner;
         if (stack.length) {
-          // Lo que dio su pila vale mientras no cambien sus hijos (forma y estilo) ni su pila, y no mire otros
-          // objetos (eso se rehace siempre): un Metaball no se repite en cada pasada del mismo fotograma.
+          // What its stack produced holds while its children (shape and style) and its stack don't change, and
+          // it doesn't look at other objects (that is always redone): a Metaball isn't repeated in every pass of a frame.
           const gkey = JSON.stringify([resolution, stack]) + '|' + hashGeo(inner) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.node, s.wrap, s.gradients]));
           const hit = groupCache.get(node.id);
           if (hit && hit.key === gkey) {
@@ -500,10 +500,10 @@ export function createDocumentEvaluator(
           }
         }
         const c = centerOf(ref);
-        // Agrupar no mueve nada: el centro del grupo se queda donde está.
+        // Grouping moves nothing: the group's centre stays where it is.
         const m = placementMatrix(p, ref, c);
         const world = multiply(parentMatrix, m);
-        // Los hijos ya están en coordenadas del grupo: su matriz real es la del grupo por la suya.
+        // The children are already in group coordinates: their real matrix is the group's times theirs.
         for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
         results.set(node.id, result);
         nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: bounds(transformGeo(result, world)) });
@@ -511,7 +511,7 @@ export function createDocumentEvaluator(
         return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes), node.opacity), node.blend)));
       };
 
-      // Al evaluar un hijo dentro de un grupo se usó la identidad: aquí se le compone la del grupo.
+      // A child inside a group was evaluated with the identity: here the group's matrix is composed in.
       const reparent = (node: SceneNode, groupWorld: Mat) => {
         const info = nodes.get(node.id)!;
         info.matrix = multiply(groupWorld, info.matrix);
@@ -519,9 +519,9 @@ export function createDocumentEvaluator(
         if (node.kind === 'group') for (const c of node.children) reparent(c, groupWorld);
       };
 
-      // El primero de la lista se pinta el último: queda delante.
+      // The first in the list is painted last: it ends up in front.
       shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
-      // Un Effector se mide sobre su primer target (sus tiradores van ahí); no tiene caja propia que arrastrar.
+      // An Effector measures on its first target (its handles go there); it has no box of its own to drag.
       for (const n of byId.values()) {
         if (n.kind !== 'effector') continue;
         const first = n.targets.map((id) => nodes.get(id)).find(Boolean);
@@ -529,7 +529,7 @@ export function createDocumentEvaluator(
         results.set(n.id, { viewBox: [0, 0, 0, 0], shapes: [] });
       }
       finalResults = results;
-      // Nadie pidió otro objeto: no hace falta otra pasada.
+      // Nobody asked for another object: no need for another pass.
       if (!asked) {
         last = new Map();
         break;
@@ -537,11 +537,11 @@ export function createDocumentEvaluator(
       known = new Map([...nodes].map(([id, info]) => [id, { world: info.matrix, geo: transformGeo(results.get(id)!, info.matrix) }]));
       prints = new Map();
       last = known;
-      // Si con lo que salió ahora se vería lo mismo que se vio, ya está: otra pasada daría lo mismo.
+      // If what came out now would look the same as what was seen, done: another pass would give the same.
       if (seenDeps.every((d) => depOf(d.owner, d.id) === d.h)) break;
     }
 
-    // El origen de cada objeto, con su matriz final (la de sus grupos incluida).
+    // The source of each object, with its final matrix (its groups' included).
     const placedSources: Shape[] = [];
     for (const { node } of walkNodes(scene.objects)) {
       if (node.kind === 'group' || node.kind === 'effector' || node.visible === false) continue;
@@ -553,14 +553,14 @@ export function createDocumentEvaluator(
     for (const id of [...groupCache.keys()]) if (!seen.has(id)) groupCache.delete(id);
     for (const map of [sources, memos]) for (const id of [...map.keys()]) if (!seen.has(id)) map.delete(id);
 
-    // La zona de cada filtro: la caja del objeto en el documento, más lo que se salga el filtro.
+    // The area of each filter: the object's box in the document, plus how far the filter reaches.
     let filters: Record<string, FilterDef> | undefined;
     for (const [id, f] of fx) {
       const info = nodes.get(id);
       if (!info) continue;
       const b = info.box;
       const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
-      // Dónde está el objeto (su caja de referencia con su matriz): los filtros por zonas siguen al objeto.
+      // Where the object is (its reference box with its matrix): zoned filters follow the object.
       const m = info.matrix, r = info.refs?.[''] ?? info.bounds;
       const scale = Math.hypot(m[0], m[1]);
       const place = {
@@ -571,8 +571,8 @@ export function createDocumentEvaluator(
       };
       (filters ??= {})[id] = { markup: f.markup(id, place), region };
     }
-    // Los internos: su zona, la de las formas que los llevan (ya en el documento) más lo que se salen;
-    // su lugar, la caja de esa parte (en el nodo) con la matriz del nodo.
+    // Inner ones: their area, that of the shapes that carry them (already in the document) plus their reach;
+    // their place, the box of that part (in the node) with the node's matrix.
     for (const [id, f] of innerFx) {
       const info = nodes.get(f.node);
       const mine = shapes.filter((s) => s.wrap?.includes(id));
@@ -588,7 +588,7 @@ export function createDocumentEvaluator(
       };
       (filters ??= {})[id] = { markup: f.chain.markup(id, place), region };
     }
-    // Lo que ocupa todo, contando lo que se salen los filtros (una sombra larga no se corta).
+    // What everything takes up, counting how far filters reach (a long shadow isn't clipped).
     const all = union([bounds({ viewBox: [0, 0, 0, 0], shapes }), ...Object.values(filters ?? {}).map(({ region: [x, y, width, height] }) => ({ x, y, width, height }))]);
     let viewBox: [number, number, number, number];
     if (scene.document) {
@@ -603,7 +603,7 @@ export function createDocumentEvaluator(
       const info = nodes.get(id);
       return g && info ? transformGeo(g, info.matrix) : null;
     };
-    // Las máscaras: el otro objeto ya colocado (también si está oculto), en el documento. La zona, de sobra.
+    // Masks: the other object already placed (even if hidden), in the document. A generous area.
     for (const [id, m] of masked) {
       const content = geometryOf(m.source);
       if (!content?.shapes.length) continue;
@@ -614,11 +614,11 @@ export function createDocumentEvaluator(
       const d = (s: Shape) => toPathData(s, 2);
       let markup: string;
       if (m.mode === 'luminance') {
-        // Con sus colores (y sus degradados).
+        // With its colours (and its gradients).
         const defs = gradientDefs(content);
         markup = (defs ? `<defs>${defs}</defs>` : '') + content.shapes.map((s) => `<path d="${d(s)}"${styleAttrs(withoutCss(s.style))}/>`).join('');
       } else {
-        // Su forma: en blanco lo que se ve (o, invertida, todo blanco y la forma en negro).
+        // Its shape: what shows, in white (or, inverted, everything white and the shape in black).
         const ink = m.invert ? '#000' : '#fff';
         const paint = (s: Shape) => {
           const st = s.style;
@@ -638,8 +638,8 @@ export function createDocumentEvaluator(
 }
 
 /**
- * La pila que cada Effector (visible) añade a cada uno de sus targets. Con `delay` y la escena en un instante
- * (`at`), el target n lleva sus efectos con las pistas del Effector leídas n × delay antes.
+ * The stack each (visible) Effector adds to each of its targets. With `delay` and the scene at a time
+ * (`at`), target n gets its effects with the Effector's tracks read n × delay earlier.
  */
 export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Map<string, ModifierInstance[]> {
   const out = new Map<string, ModifierInstance[]>();
@@ -671,10 +671,10 @@ export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Ma
 }
 
 /**
- * La escena reducida a lo que hace falta para dibujar el nodo `id`: los nodos de arriba que lo contienen y
- * todo lo que ellos usan (otros objetos en sus efectos, el original de una instancia, los Effectors que los
- * tocan…), una y otra vez. Para las estelas: no hace falta calcular lo demás en cada instante pasado.
- * Lo que usa un efecto se reconoce por los textos de sus parámetros que son ids de nodos.
+ * The scene reduced to what is needed to draw node `id`: the top-level nodes that contain it and
+ * everything they use (other objects in their effects, an instance's original, the Effectors that
+ * touch them…), again and again. For trails: no need to compute the rest at each past time.
+ * What an effect uses is recognised by its parameter strings that are node ids.
  */
 export function onlyFor(scene: SceneV2, id: string): SceneV2 {
   const byId = new Map<string, SceneNode>();
@@ -698,7 +698,7 @@ export function onlyFor(scene: SceneV2, id: string): SceneV2 {
     const root = rootOf.get(cur);
     if (!root) continue;
     roots.add(root);
-    // Todo lo que cuelga de su nodo de arriba (está en el mismo cálculo).
+    // Everything under its top-level node (it is part of the same computation).
     for (const { node } of walkNodes([root])) {
       const out: string[] = [];
       refs(node.stack, out);
@@ -713,8 +713,8 @@ export function onlyFor(scene: SceneV2, id: string): SceneV2 {
 }
 
 /**
- * Instancias que dependerían de sí mismas: de su propio grupo (o de algo que lo contiene), de otra
- * instancia que acaba en ella… Siguiendo `of` y los hijos de los grupos, se vuelve a ella.
+ * Instances that would depend on themselves: on their own group (or something containing it), on another
+ * instance that ends up in them… Following `of` and group children leads back to them.
  */
 export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
   const bad = new Set<string>();
@@ -738,13 +738,13 @@ export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
   return bad;
 }
 
-/** El estilo sin lo que en SVG solo es CSS (una fusión dentro de una máscara no hace nada). */
+/** The style without what is CSS-only in SVG (a blend inside a mask does nothing). */
 const withoutCss = (st: Record<string, string>) => {
   const { 'mix-blend-mode': _b, isolation: _i, ...rest } = st;
   return rest;
 };
 
-/** Caja de una caja transformada (las cuatro esquinas). */
+/** Box of a transformed box (its four corners). */
 function transformBox(b: Bounds, m: Mat): Bounds {
   const pts: [number, number][] = [
     [b.x, b.y],
@@ -759,7 +759,7 @@ function transformBox(b: Bounds, m: Mat): Bounds {
 
 export { union as unionBounds };
 
-/** Huella numérica de una geometría (sus puntos, redondeados): para saber si ha cambiado. */
+/** Numeric fingerprint of a geometry (its points, rounded): to know whether it changed. */
 function hashGeo(geo: Geometry): number {
   let h = 2166136261;
   const add = (v: number) => {
@@ -780,7 +780,7 @@ function hashGeo(geo: Geometry): number {
   return h >>> 0;
 }
 
-/** La huella de la geometría, junto con la matriz del que la mira. */
+/** The geometry's fingerprint, together with the matrix of whoever looks at it. */
 function mix(h: number, m: Mat): number {
   for (const v of m) {
     h ^= Math.round(v * 1000) | 0;
@@ -789,7 +789,7 @@ function mix(h: number, m: Mat): number {
   return h >>> 0;
 }
 
-/** Las fuentes que usan los textos de la escena (también los de dentro de un paquete). */
+/** The fonts used by the scene's texts (also those inside a pack). */
 export function sceneFonts(scene: SceneV2) {
   const params: Record<string, unknown>[] = [];
   const visit = (nodes: SceneNode[]) => {
@@ -802,7 +802,7 @@ export function sceneFonts(scene: SceneV2) {
   return fontsOf(params);
 }
 
-/** Baja de Fontsource las fuentes que usa la escena y aún no están registradas. */
+/** Downloads from Fontsource the fonts the scene uses that aren't registered yet. */
 export async function loadFonts(scene: SceneV2): Promise<void> {
   await Promise.all(sceneFonts(scene).filter((f) => !hasFont(f.key)).map((f) => loadFont(f.family, f.weight, f.italic)));
 }

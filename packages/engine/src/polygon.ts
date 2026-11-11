@@ -1,4 +1,4 @@
-// polygon-clipping, igual en el navegador (módulo ES) y en Node (CommonJS, todo dentro de `default`).
+// polygon-clipping, the same in the browser (ES module) and in Node (CommonJS, all inside `default`).
 import * as pc from 'polygon-clipping';
 
 type PC = typeof import('polygon-clipping');

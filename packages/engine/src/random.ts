@@ -1,6 +1,6 @@
 // Azar determinista: misma semilla, mismo resultado.
 
-/** Generador mulberry32: rápido y suficiente para efectos visuales. */
+/** mulberry32 generator: fast and good enough for visual effects. */
 export function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -12,7 +12,7 @@ export function rng(seed: number): () => number {
   };
 }
 
-/** Ruido de gradiente 2D (tipo Perlin), en [-1, 1] aprox. */
+/** 2D gradient noise (Perlin-like), in about [-1, 1]. */
 export function noise2D(seed: number): (x: number, y: number) => number {
   const rand = rng(seed);
   const perm = new Uint8Array(512);

@@ -2,9 +2,9 @@ import type { Cubic, SubPath, Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Estela: el dibujo pasa a ser el camino que ha seguido el centro de otro objeto (su centroide) durante los últimos `length` segundos de la animación, con el estilo que tenía (la línea de
- * Utils → Tracer). `samples`: cuántos puntos guarda; `smooth`: curva suave entre ellos o tramos rectos.
- * Se ve al reproducir o al mover el cabezal; quieta, no hay estela.
+ * Trail: the drawing becomes the path another object's centre (its centroid) followed during the last `length` seconds of the animation, keeping its style (the line from
+ * Utils → Tracer). `samples`: how many points it keeps; `smooth`: a smooth curve between them or straight segments.
+ * Shown while playing or scrubbing; when still, there is no trail.
  */
 export const trace = defineModifier({
   type: 'trace',
@@ -21,7 +21,7 @@ export const trace = defineModifier({
     if (!p.target || !ctx.trail) return geo;
     const pts = ctx.trail(p.target, p.length, p.samples);
     const style = { ...(geo.shapes[0]?.style ?? { stroke: '#ededed', 'stroke-width': '2' }), fill: 'none' };
-    // Sin puntos repetidos (un objeto quieto no deja tramos de longitud nula).
+    // No repeated points (a still object leaves no zero-length segments).
     const clean: Vec2[] = [];
     for (const q of pts ?? []) {
       const last = clean[clean.length - 1];
@@ -35,7 +35,7 @@ export const trace = defineModifier({
 
 const straight = (a: Vec2, b: Vec2): Cubic => ({ c1: [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3], c2: [a[0] + (2 * (b[0] - a[0])) / 3, a[1] + (2 * (b[1] - a[1])) / 3], p: b });
 
-/** Por los puntos, con curvas (Catmull-Rom); en los extremos, el vecino se repite. */
+/** Through the points, with curves (Catmull-Rom); at the ends, the neighbour is repeated. */
 function catmull(pts: Vec2[]): Cubic[] {
   const n = pts.length;
   const P = (i: number) => pts[Math.max(0, Math.min(n - 1, i))]!;

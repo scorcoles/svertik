@@ -1,7 +1,7 @@
 import { mapPoints, subdivide } from '../geometry';
 import { defineModifier } from '../modifier';
 
-/** Estrecha (o ensancha) un extremo: el ancho perpendicular cambia a lo largo del eje. */
+/** Narrows (or widens) one end: the width across the axis changes along it. */
 export const taper = defineModifier({
   type: 'taper',
   label: 'Taper',
@@ -18,7 +18,7 @@ export const taper = defineModifier({
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
     return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
-      // t ∈ [0, 1] a lo largo del eje; con amount > 0 se estrecha hacia el final.
+      // t ∈ [0, 1] along the axis; with amount > 0 it narrows towards the end.
       const t = vertical ? (y - b.y) / (b.height || 1) : (x - b.x) / (b.width || 1);
       const shaped = p.curve === 0 ? t : Math.pow(Math.max(0, t), Math.pow(2, -p.curve * 2));
       const f = Math.max(0, 1 - p.amount * shaped);

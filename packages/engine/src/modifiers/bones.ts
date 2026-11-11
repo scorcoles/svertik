@@ -2,12 +2,12 @@ import { mapPoints, subdivide, type Bounds, type Vec2 } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /**
- * Huesos: una cadena de 2 a 6 huesos iguales que recorre el dibujo de Start a End. Cada hueso gira sobre su
- * articulación (su ángulo, relativo al anterior) y arrastra lo que tiene alrededor; en cada articulación, el
- * paso de un hueso al otro es suave (Smooth). Cada punto pertenece al hueso que tiene a su altura de la
- * cadena, así que no hay pesos que pintar.
- * Con IK, los ángulos se calculan para que la punta llegue a Target (los ángulos que haya dicen hacia dónde
- * se dobla). El motor lo calcula en directo: la escena solo guarda los ángulos (o el objetivo) y sus claves.
+ * Bones: a chain of 2 to 6 equal bones running through the drawing from Start to End. Each bone turns on its
+ * joint (its angle, relative to the previous one) and drags what is around it; at each joint the change
+ * from one bone to the next is smooth (Smooth). Each point belongs to the bone at its height along the
+ * chain, so there are no weights to paint.
+ * With IK, the angles are solved so the tip reaches Target (the current angles say which way it
+ * bends). The engine solves it live: the scene only stores the angles (or the target) and their keys.
  */
 export const bones = defineModifier({
   type: 'bones',
@@ -32,22 +32,22 @@ export const bones = defineModifier({
     if (!chain || chain.rel.every((a) => Math.abs(a) < 1e-9)) return geo;
     const { A, n, seg, rest, pose, turn } = chain;
     const [ux, uy] = [Math.cos(chain.base), Math.sin(chain.base)];
-    // Lo que hace el hueso k con un punto: girarlo sobre su articulación y llevarlo a la de la pose.
+    // What bone k does to a point: turn it on its joint and carry it to the posed joint.
     const move = (k: number, x: number, y: number): Vec2 => {
       const [jx, jy] = rest[k]!, [px, py] = pose[k]!;
       const [c, s] = [Math.cos(turn[k]!), Math.sin(turn[k]!)];
       const [dx, dy] = [x - jx, y - jy];
       return [px + dx * c - dy * s, py + dx * s + dy * c];
     };
-    // Media anchura de la zona de paso en cada articulación, en huesos (0 = sin paso; 0,5 = medio hueso).
+    // Half width of the blend zone at each joint, in bones (0 = no blend; 0.5 = half a bone).
     const w = Math.max(1e-6, Math.min(1, p.smooth) * 0.5);
     const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
     return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
-      // A qué altura de la cadena está (en huesos: 0 en Start, n en End); fuera, el primero o el último.
+      // How far along the chain it is (in bones: 0 at Start, n at End); outside, the first or the last.
       const t = ((x - A[0]) * ux + (y - A[1]) * uy) / seg;
       const k = Math.max(0, Math.min(n - 1, Math.floor(t)));
-      // Cerca de una articulación, mezcla de los dos huesos.
+      // Near a joint, a blend of the two bones.
       const joint = Math.max(1, Math.min(n - 1, Math.round(t)));
       const d = t - joint;
       if (Math.abs(d) < w) {
@@ -59,14 +59,14 @@ export const bones = defineModifier({
       return move(k, x, y);
     });
   },
-  // En el lienzo: la cadena en su pose (los huesos y sus articulaciones).
+  // On the canvas: the chain in its pose (the bones and their joints).
   guides(p, b) {
     const chain = chainOf(p, b);
     return chain ? { lines: [chain.pose], points: chain.pose } : { lines: [], points: [] };
   },
 });
 
-/** La cadena en pose: articulaciones en reposo (sobre la recta) y en pose, y el giro acumulado de cada hueso. */
+/** The posed chain: joints at rest (on the line) and posed, and each bone's accumulated rotation. */
 function chainOf(
   p: { start: [number, number]; end: [number, number]; segments: number; ik: boolean; target: [number, number]; angle1: number; angle2: number; angle3: number; angle4: number; angle5: number; angle6: number },
   b: Bounds,
@@ -78,7 +78,7 @@ function chainOf(
   const n = Math.max(2, Math.min(6, Math.round(p.segments)));
   const seg = L / n;
   const base = Math.atan2(B[1] - A[1], B[0] - A[0]);
-  // Ángulos de cada hueso (relativos al anterior): los del panel, o los que llevan la punta al objetivo.
+  // Each bone's angle (relative to the previous one): the panel's, or the ones that take the tip to the target.
   let rel = [p.angle1, p.angle2, p.angle3, p.angle4, p.angle5, p.angle6].slice(0, n).map(deg);
   if (p.ik) rel = solveIK(A, base, seg, rel, fromFraction(b, p.target));
   const rest: Vec2[] = Array.from({ length: n + 1 }, (_, k) => [A[0] + Math.cos(base) * seg * k, A[1] + Math.sin(base) * seg * k]);
@@ -95,9 +95,9 @@ function chainOf(
 }
 
 /**
- * IK por FABRIK: la punta de la cadena (raíz fija en A) hacia el objetivo, en unas pocas pasadas. Parte de la
- * pose de los ángulos dados (si están todos a 0, de una curva leve), para que la cadena se doble hacia ese lado.
- * Devuelve los ángulos relativos de cada hueso.
+ * IK by FABRIK: the chain's tip (root fixed at A) towards the target, in a few passes. It starts from the
+ * pose of the given angles (if they are all 0, from a slight curve), so the chain bends that way.
+ * Returns each bone's relative angle.
  */
 function solveIK(A: Vec2, base: number, seg: number, start: number[], target: Vec2): number[] {
   const n = start.length;
@@ -114,14 +114,14 @@ function solveIK(A: Vec2, base: number, seg: number, start: number[], target: Ve
     return [from[0] + ((to[0] - from[0]) / d) * seg, from[1] + ((to[1] - from[1]) / d) * seg];
   };
   for (let it = 0; it < 24; it++) {
-    // De la punta a la raíz, y de la raíz a la punta.
+    // From tip to root, and from root to tip.
     pts[n] = [target[0], target[1]];
     for (let k = n - 1; k >= 0; k--) pts[k] = toward(pts[k + 1]!, pts[k]!);
     pts[0] = [A[0], A[1]];
     for (let k = 1; k <= n; k++) pts[k] = toward(pts[k - 1]!, pts[k]!);
     if (Math.hypot(pts[n]![0] - target[0], pts[n]![1] - target[1]) < seg * 1e-3) break;
   }
-  // Ángulos relativos, sin saltos de una vuelta.
+  // Relative angles, without full-turn jumps.
   const out: number[] = [];
   let prev = base;
   for (let k = 0; k < n; k++) {

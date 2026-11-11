@@ -4,9 +4,9 @@ import { rng } from '../random';
 import { defineModifier, deg } from '../modifier';
 
 /**
- * Duplica el dibujo: en rejilla, en círculo o en línea.
- * Las copias se reparten alrededor del original y el viewBox crece para que quepan.
- * En modo `object`, sobre otro objeto: por su contorno, en sus vértices o dentro (al azar, con semilla).
+ * Duplicates the drawing: in a grid, a circle or a line.
+ * The copies spread around the original and the viewBox grows to fit them.
+ * In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed).
  */
 export const clone = defineModifier({
   type: 'clone',
@@ -38,7 +38,7 @@ export const clone = defineModifier({
     const H = ctx.bounds.height;
     const size = Math.max(W, H);
 
-    // Cada copia: desplazamiento, giro y escala alrededor del centro del dibujo.
+    // Each copy: offset, rotation and scale around the centre of the drawing.
     const copies: { dx: number; dy: number; rot: number; scale: number }[] = [];
     if (p.mode === 'grid') {
       const cols = Math.max(1, Math.round(p.columns));
@@ -59,12 +59,12 @@ export const clone = defineModifier({
       const target = p.target ? ctx.target?.(p.target) : null;
       if (!target) return geo;
       const n = Math.max(1, Math.round(p.count));
-      // Las copias van centradas en cada punto (el centro del dibujo pasa al punto).
+      // The copies are centred on each point (the drawing's centre goes to the point).
       const at = (q: Vec2, rot = 0) => copies.push({ dx: q[0] - cx, dy: q[1] - cy, rot, scale: 1 });
       if (p.place === 'vertices') {
         for (const s of target.shapes) for (const sp of s.subpaths) {
           at(sp.start);
-          // En los cerrados, el último vértice repite el primero.
+          // In closed paths the last vertex repeats the first.
           sp.segs.forEach((g, i) => (!sp.closed || i < sp.segs.length - 1) && at(g.p));
         }
       } else if (p.place === 'inside') {
@@ -76,7 +76,7 @@ export const clone = defineModifier({
           if (insidePolygons(polys, q)) at(q);
         }
       } else {
-        // Contorno: repartidas a distancias iguales por todos sus trazados, como si fueran uno.
+        // Outline: spread at equal distances along all its paths, as if they were one.
         const lines = polylines(target);
         const total = lines.reduce((sum, l) => sum + l.length, 0);
         const open = lines.length === 1 && !lines[0]!.closed;
@@ -93,8 +93,8 @@ export const clone = defineModifier({
       const ox = p.offset[0] * W, oy = p.offset[1] * H;
       const d = Math.hypot(ox, oy);
       if (p.even && d > 0 && n > 1) {
-        // Huecos iguales entre copias de distinto tamaño: cada paso es el hueco (el de escala 1)
-        // más media copia de cada lado, a su escala. Luego se centra el conjunto.
+        // Equal gaps between copies of different sizes: each step is the gap (the scale-1 one)
+        // plus half a copy on each side, at its scale. Then the whole set is centred.
         const [ux, uy] = [ox / d, oy / d];
         const extent = Math.abs(ux) * b.width + Math.abs(uy) * b.height;
         const gap = d - extent;
@@ -128,7 +128,7 @@ export const clone = defineModifier({
   },
 });
 
-/** Amplía el viewBox lo justo para que quepa todo, con un margen del 5 %. */
+/** Grows the viewBox just enough to fit everything, with a 5 % margin. */
 export function fitViewBox([x, y, w, h]: [number, number, number, number], b: { x: number; y: number; width: number; height: number }): [number, number, number, number] {
   const m = Math.max(b.width, b.height) * 0.05;
   const x0 = Math.min(x, b.x - m);

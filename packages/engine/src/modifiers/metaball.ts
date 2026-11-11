@@ -4,11 +4,11 @@ import type { Cubic, Shape, SubPath, Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Metaball: los elementos (hijos de un grupo, copias de un Clone…; sin marcar, cada forma) se funden como
- * gotas al acercarse. Cada uno da su distancia con signo (negativa dentro); se unen con una unión suave de
- * alcance `reach` (px): a más de `reach` no se tocan; más cerca, crece un cuello entre ellos. El contorno
- * (donde el campo vale `grow`) sale como trazado de verdad, con curvas suaves; se le puede poner trazo,
- * degradado o más efectos encima. Estilo: el del elemento de delante. Las líneas abiertas se quedan igual.
+ * Metaball: the elements (children of a group, copies of a Clone…; untagged, each shape) melt like drops
+ * when they get close. Each one gives its signed distance (negative inside); they join with a smooth union
+ * of reach `reach` (px): further than `reach` they don't touch; closer, a neck grows between them. The outline
+ * (where the field equals `grow`) comes out as a real path, with smooth curves; it can take a stroke,
+ * a gradient or more effects. Style: the front element's. Open lines stay as they were.
  */
 export const metaball = defineModifier({
   type: 'metaball',
@@ -26,7 +26,7 @@ export const metaball = defineModifier({
       const k = tagged ? (s.clone ?? -1) : i;
       elements.set(k, [...(elements.get(k) ?? []), s]);
     });
-    // Caja de todo: para la rejilla y la medida de los anillos.
+    // Box of everything: for the grid and to size the rings.
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const s of geo.shapes) for (const sp of s.subpaths) for (const q of [sp.start, ...sp.segs.map((g) => g.p)]) {
       x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]);
@@ -37,10 +37,10 @@ export const metaball = defineModifier({
     const grow = p.grow;
     const pad = k + Math.max(0, grow) + 2;
     const cell = Math.max(x1 - x0, y1 - y0, 1) / quality;
-    // Los anillos, con tramos de unas tres celdas: el error en una curva es mucho menor que una celda.
+    // The rings, with segments of about three cells: the error on a curve is much smaller than a cell.
     const step = cell * 3;
 
-    // Cada elemento: sus anillos (los cerrados) y su caja.
+    // Each element: its (closed) rings and its box.
     const solids: { shapes: Shape[]; rings: Ring[]; box: [number, number, number, number] }[] = [];
     const lines: Shape[] = [];
     for (const shapes of elements.values()) {
@@ -48,8 +48,8 @@ export const metaball = defineModifier({
       for (const s of shapes) {
         for (const sp of s.subpaths) {
           if (!sp.closed) continue;
-          // Una curva grande y suave admite tramos más largos con el mismo error (flecha ≈ tramo² / 8·radio):
-          // con un doceavo de su lado menor, el error sigue por debajo de una celda en un círculo.
+          // A large, smooth curve allows longer segments with the same error (sagitta ≈ segment² / 8·radius):
+          // at a twelfth of its shorter side, the error stays below a cell on a circle.
           const pts = [sp.start, ...sp.segs.map((g) => g.p)];
           const w = Math.max(...pts.map((q) => q[0])) - Math.min(...pts.map((q) => q[0]));
           const h = Math.max(...pts.map((q) => q[1])) - Math.min(...pts.map((q) => q[1]));
@@ -65,11 +65,11 @@ export const metaball = defineModifier({
     }
     if (!solids.length) return geo;
 
-    // Rejilla con margen: los bordes quedan fuera de todo (el contorno siempre se cierra).
+    // Grid with a margin: the edges are outside everything (the outline always closes).
     const gx0 = x0 - pad - cell, gy0 = y0 - pad - cell;
     const nx = Math.ceil((x1 - x0 + 2 * pad) / cell) + 3, ny = Math.ceil((y1 - y0 + 2 * pad) / cell) + 3;
     const field = new Float64Array(nx * ny).fill(Infinity);
-    // Lejos de un elemento (más del doble del alcance), su distancia a la caja basta: no cambia el contorno.
+    // Far from an element (more than twice the reach), its distance to the box is enough: the outline doesn't change.
     const near = 2 * k + Math.abs(grow) + 2 * cell;
     const fieldAt = (x: number, y: number) => {
       let f = Infinity;
@@ -81,9 +81,9 @@ export const metaball = defineModifier({
       }
       return f - grow;
     };
-    // Lo exacto solo hace falta junto al contorno. Primero el campo en una rejilla gruesa (cada S nodos);
-    // en una celda gruesa con las cuatro esquinas del mismo lado y lejos del contorno (el campo no cambia
-    // más deprisa que la distancia), los nodos finos se interpolan: solo importa de qué lado están.
+    // Exact values are only needed near the outline. First the field on a coarse grid (every S nodes);
+    // in a coarse cell with its four corners on the same side and far from the outline (the field changes no
+    // faster than the distance), the fine nodes are interpolated: only which side they are on matters.
     const S = 4;
     const cx = Math.ceil((nx - 1) / S) + 2, cy = Math.ceil((ny - 1) / S) + 2;
     const coarse = new Float64Array(cx * cy);
@@ -100,7 +100,7 @@ export const metaball = defineModifier({
     }
 
     const loops = contour(field, nx, ny, gx0, gy0, cell);
-    // Menos puntos (lo que se aparta menos de un tercio de celda) y curvas suaves por ellos.
+    // Fewer points (those straying less than a third of a cell) and smooth curves through them.
     const rings = simplify([loops.map((l) => [...l, l[0]!] as Ring)], cell * 0.25)[0] ?? [];
     const subpaths = orient(rings.map((r) => r.slice(0, -1) as Pair[])).map(smooth);
     const front = solids[solids.length - 1]!.shapes;
@@ -110,7 +110,7 @@ export const metaball = defineModifier({
   },
 });
 
-/** Unión suave (polinómica): igual que min si a y b se llevan más de k. */
+/** Smooth (polynomial) union: the same as min if a and b differ by more than k. */
 function smin(a: number, b: number, k: number): number {
   if (!isFinite(a)) return b;
   if (k <= 0) return Math.min(a, b);
@@ -118,7 +118,7 @@ function smin(a: number, b: number, k: number): number {
   return Math.min(a, b) - h * h * k * 0.25;
 }
 
-/** Distancia a los anillos, negativa dentro (par-impar entre ellos). */
+/** Distance to the rings, negative inside (even-odd between them). */
 function signedDistance(x: number, y: number, rings: Ring[]): number {
   let best = Infinity;
   let inside = false;
@@ -137,10 +137,10 @@ function signedDistance(x: number, y: number, rings: Ring[]): number {
   return inside ? -d : d;
 }
 
-/** Marching squares: los contornos donde el campo pasa por 0, como anillos (sin repetir el primero). */
+/** Marching squares: the contours where the field crosses 0, as rings (without repeating the first point). */
 function contour(f: Float64Array, nx: number, ny: number, ox: number, oy: number, cell: number): Pair[][] {
   const at = (i: number, j: number) => f[j * nx + i]!;
-  // Punto de corte en cada arista, por su clave: «h,i,j» entre (i,j)-(i+1,j); «v,i,j» entre (i,j)-(i,j+1).
+  // Crossing point on each edge, by its key: "h,i,j" between (i,j)-(i+1,j); "v,i,j" between (i,j)-(i,j+1).
   const point = (key: string): Pair => {
     const [kind, si, sj] = key.split(',');
     const i = Number(si), j = Number(sj);
@@ -167,7 +167,7 @@ function contour(f: Float64Array, nx: number, ny: number, ox: number, oy: number
         case 4: case 11: link(right, bottom); break;
         case 6: case 9: link(top, bottom); break;
         case 7: case 8: link(left, bottom); break;
-        // Esquinas opuestas: el centro decide si se unen.
+        // Opposite corners: the centre decides whether they join.
         case 5: if (centre) { link(left, bottom); link(top, right); } else { link(left, top); link(right, bottom); } break;
         case 10: if (centre) { link(left, top); link(right, bottom); } else { link(left, bottom); link(top, right); } break;
       }
@@ -191,7 +191,7 @@ function contour(f: Float64Array, nx: number, ny: number, ox: number, oy: number
   return loops;
 }
 
-/** Los de fuera, en un sentido; los agujeros (dentro de un número impar de otros), en el contrario. */
+/** Outer ones one way; holes (inside an odd number of others) the other way. */
 function orient(loops: Pair[][]): Pair[][] {
   const area = (l: Pair[]) => l.reduce((s, q, i) => { const r = l[(i + 1) % l.length]!; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2;
   const inLoop = ([x, y]: Pair, l: Pair[]) => {
@@ -209,7 +209,7 @@ function orient(loops: Pair[][]): Pair[][] {
   });
 }
 
-/** Anillo de puntos → curva cerrada suave (Catmull-Rom pasada a cúbicas). */
+/** Ring of points → a smooth closed curve (Catmull-Rom turned into cubics). */
 function smooth(pts: Pair[]): SubPath {
   const n = pts.length;
   const P = (i: number) => pts[((i % n) + n) % n]!;

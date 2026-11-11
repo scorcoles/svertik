@@ -1,14 +1,14 @@
-// Filtros encadenados: los de una pila (o los que van dentro de RGB Split), en orden, cada uno leyendo lo
-// que dejó el anterior. Las primitivas se escriben cuando se sabe dónde está el objeto (`place`).
+// Chained filters: those of a stack (or those inside RGB Split), in order, each one reading what the
+// previous one left. The primitives are written once it is known where the object is (`place`).
 import type { FilterPlace, ModifierDef } from './modifier';
 
 export interface FilterChain {
-  /** Cuánto se salen en total de la caja del objeto, en unidades del documento. */
+  /** How far they reach beyond the object's box in total, in document units. */
   pad: number;
   markup(id: string, place: FilterPlace): string;
 }
 
-/** La cadena de una lista de filtros (con sus parámetros ya resueltos), o null si no hay ninguno. */
+/** The chain of a list of filters (with their parameters resolved), or null if there are none. */
 export function chainFrom(list: { def: ModifierDef<any>; params: Record<string, unknown> }[]): FilterChain | null {
   const filters = list.filter((f) => f.def.kind === 'filter' && f.def.filter);
   if (!filters.length) return null;

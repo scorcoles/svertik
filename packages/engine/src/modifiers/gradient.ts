@@ -3,9 +3,9 @@ import type { Gradient } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /**
- * Degradado en el relleno o en el trazo de cada forma: lineal (con ángulo) o radial (centro, radio y foco),
- * con un color de paso opcional (`via`).
- * Va relativo a la caja de cada forma, así que la sigue al moverla o escalarla.
+ * A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus),
+ * with an optional middle colour (`via`).
+ * It is relative to each shape's box, so it follows the shape when moved or scaled.
  */
 export const gradient = defineModifier({
   type: 'gradient',
@@ -27,7 +27,7 @@ export const gradient = defineModifier({
     apply: { type: 'enum', default: 'fill', options: ['fill', 'stroke'] as const, label: 'Apply to', animatable: false },
   },
   apply(geo, p) {
-    // De ángulo a extremos en la caja unidad: la línea pasa por el centro y llega a los bordes.
+    // From angle to end points in the unit box: the line goes through the centre and reaches the edges.
     const a = (p.angle * Math.PI) / 180;
     const [dx, dy] = [Math.cos(a), Math.sin(a)];
     const k = 0.5 / Math.max(Math.abs(dx), Math.abs(dy), 1e-9);
@@ -36,7 +36,7 @@ export const gradient = defineModifier({
       kind: p.kind === 'radial' ? 'radial' : 'linear',
       stops: [
         { offset: 0, color: p.from, opacity: p.fromOpacity },
-        // Punto medio (donde diga `midpoint`): el color de paso (`via`) o, sin él, la mezcla de los dos.
+        // Middle point (where `midpoint` says): the middle colour (`via`) or, without it, the mix of both.
         { offset: r(p.midpoint), color: p.via ? p.viaColor : mid(p.from, p.to), opacity: r((p.fromOpacity + p.toOpacity) / 2) },
         { offset: 1, color: p.to, opacity: p.toOpacity },
       ],
@@ -44,7 +44,7 @@ export const gradient = defineModifier({
         ? { x1: r(0.5 - dx * k), y1: r(0.5 - dy * k), x2: r(0.5 + dx * k), y2: r(0.5 + dy * k) }
         : { cx: r(p.center[0]), cy: r(p.center[1]), r: r(p.radius), fx: r(p.focus[0]), fy: r(p.focus[1]) }),
     };
-    // Mismo degradado, mismo id: así el SVG no repite definiciones.
+    // Same gradient, same id: so the SVG doesn't repeat definitions.
     const id = `svk-${hash(JSON.stringify(g))}`;
     const def: Gradient = { id, ...g };
     return {

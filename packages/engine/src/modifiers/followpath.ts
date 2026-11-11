@@ -3,10 +3,10 @@ import { defineModifier, deg, fromFraction } from '../modifier';
 import { pointAt, polylines } from '../paths';
 
 /**
- * Lleva el objeto entero a un punto del trazado de otro objeto (su trazado más largo), sin deformarlo:
- * `position` es la fracción del recorrido (0, el principio; 1, el final; en uno cerrado, da la vuelta).
- * `anchor` es el punto del objeto que va sobre el trazado. Con `orient`, gira con la dirección del trazado.
- * `offset` lo aparta hacia un lado del trazado; `angle`, un giro de más.
+ * Moves the whole object to a point on another object's path (its longest one), without bending it:
+ * `position` is the fraction of the way (0, the start; 1, the end; on a closed path it loops).
+ * `anchor` is the point of the object that sits on the path. With `orient`, it turns with the path's direction.
+ * `offset` moves it to one side of the path; `angle`, an extra turn.
  */
 export const followpath = defineModifier({
   type: 'followpath',
@@ -27,13 +27,13 @@ export const followpath = defineModifier({
     const line = polylines(target).sort((a, b) => b.length - a.length)[0];
     if (!line) return geo;
     const L = line.length;
-    // En uno abierto, de punta a punta (sin prolongarlo); en uno cerrado, vueltas.
+    // On an open path, end to end (without extending it); on a closed one, laps.
     const s = line.closed ? p.position * L : Math.max(0, Math.min(1, p.position)) * L;
     const { p: q, t } = pointAt(line, s);
     const a = fromFraction(ctx.bounds, p.anchor);
     const turn = (p.orient ? Math.atan2(t[1], t[0]) : 0) + deg(p.angle);
     const cos = Math.cos(turn), sin = Math.sin(turn);
-    // Hacia un lado: la normal del trazado (la tangente girada 90°).
+    // To one side: the path's normal (the tangent turned 90°).
     const at: Vec2 = [q[0] - t[1] * p.offset, q[1] + t[0] * p.offset];
     return mapPoints(geo, ([x, y]) => {
       const dx = x - a[0], dy = y - a[1];
