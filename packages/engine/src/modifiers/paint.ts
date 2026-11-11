@@ -1,6 +1,7 @@
 import { mixColor, parseColor, toHex } from '../color';
 import type { Style } from '../geometry';
-import { defineModifier } from '../modifier';
+import { defineModifier, type ParamSpec } from '../modifier';
+import { strokeExtras, strokeExtraStyle } from '../shapes';
 
 /**
  * Relleno y trazo: superpone un color al relleno (cantidad 1 = lo sustituye) y añade o cambia el trazo.
@@ -23,6 +24,7 @@ export const paint = defineModifier({
     // Esquinas y extremos del trazo; «keep» respeta lo que traiga el dibujo.
     strokeJoin: { type: 'enum', default: 'keep', options: ['keep', 'miter', 'round', 'bevel'] as const, label: 'Join', group: 'Stroke', animatable: false },
     strokeCap: { type: 'enum', default: 'keep', options: ['keep', 'butt', 'round', 'square'] as const, label: 'Cap', group: 'Stroke', animatable: false },
+    ...(strokeExtras('Stroke') as Record<'dash' | 'gap' | 'dashOffset' | 'behind', ParamSpec>),
   },
   apply(geo, p) {
     const overlay = parseColor(p.fillColor);
@@ -45,6 +47,7 @@ export const paint = defineModifier({
         if (p.strokeJoin !== 'keep') style['stroke-linejoin'] = p.strokeJoin;
         else style['stroke-linejoin'] ??= 'round';
         if (p.strokeCap !== 'keep') style['stroke-linecap'] = p.strokeCap;
+        Object.assign(style, strokeExtraStyle(p as Record<string, unknown>));
       }
       return { ...shape, style };
     });

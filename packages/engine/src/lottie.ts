@@ -126,6 +126,13 @@ function lottieShapes(shapes: Shape[], at: (p: readonly [number, number]) => [nu
         lc: { butt: 1, round: 2, square: 3 }[s.style['stroke-linecap'] ?? 'butt'] ?? 1,
         lj: { miter: 1, round: 2, bevel: 3 }[s.style['stroke-linejoin'] ?? 'miter'] ?? 1,
         ml: 4,
+        // Discontinuo: trazo, hueco y desplazamiento, como en SVG.
+        ...(() => {
+          const da = (s.style['stroke-dasharray'] ?? '').split(/[\s,]+/).map(Number).filter((n) => n > 0);
+          if (!da.length) return {};
+          const off = Number(s.style['stroke-dashoffset'] ?? 0) || 0;
+          return { d: [{ n: 'd', nm: 'dash', v: { a: 0, k: r3(da[0]!) } }, { n: 'g', nm: 'gap', v: { a: 0, k: r3(da[1] ?? da[0]!) } }, { n: 'o', nm: 'offset', v: { a: 0, k: r3(off) } }] };
+        })(),
       });
     }
     items.push(trOf?.(index) ?? { ty: 'tr', p: { a: 0, k: [0, 0] }, a: { a: 0, k: [0, 0] }, s: { a: 0, k: [100, 100] }, r: { a: 0, k: 0 }, o: { a: 0, k: 100 } });

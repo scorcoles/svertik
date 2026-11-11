@@ -1262,3 +1262,18 @@ describe('pixelate', () => {
     expect(geo.shapes[0]!.style.fill).toBe('#00ff00');
   });
 });
+
+describe('trazo discontinuo y por detrás', () => {
+  it('primitivas y Paint escriben dasharray, dashoffset y paint-order solo si hace falta', async () => {
+    const { buildShape } = await import('../src/shapes');
+    const st = (p: Record<string, unknown>) => buildShape('rectangle', { stroke: true, ...p }).shapes[0]!.style;
+    expect(st({})['stroke-dasharray']).toBeUndefined();
+    expect(st({ dash: 6 })['stroke-dasharray']).toBe('6 6');
+    expect(st({ dash: 6, gap: 2, dashOffset: 3 })).toMatchObject({ 'stroke-dasharray': '6 2', 'stroke-dashoffset': '3' });
+    expect(st({ behind: true })['paint-order']).toBe('stroke');
+    // Sin trazo, nada.
+    expect(buildShape('rectangle', { dash: 6 }).shapes[0]!.style['stroke-dasharray']).toBeUndefined();
+    const geo = createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'p', type: 'paint', params: { stroke: true, dash: 4, behind: true } }] });
+    expect(geo.shapes[0]!.style).toMatchObject({ 'stroke-dasharray': '4 4', 'paint-order': 'stroke' });
+  });
+});

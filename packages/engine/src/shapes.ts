@@ -31,7 +31,37 @@ const style: ParamSchema = {
   strokeWidth: { type: 'number', default: 2, min: 0, max: 40, step: 0.5, unit: 'px', group: 'Style', label: 'Stroke width' },
   strokeJoin: { type: 'enum', default: 'round', options: ['miter', 'round', 'bevel'], group: 'Style', label: 'Join', animatable: false },
   strokeCap: { type: 'enum', default: 'round', options: ['butt', 'round', 'square'], group: 'Style', label: 'Cap', animatable: false },
+  ...strokeExtras('Style'),
 };
+
+/**
+ * Lo que SVG añade al trazo, para las primitivas y Paint: discontinuo (trazo y hueco en px; 0, continuo),
+ * su desplazamiento (animarlo hace correr los trazos) y pintarlo por detrás del relleno (`paint-order`:
+ * se ve solo la mitad de fuera, como un borde exterior).
+ */
+export function strokeExtras(group: string): ParamSchema {
+  const on = { stroke: ['true'] } as const;
+  return {
+    dash: { type: 'number', default: 0, min: 0, max: 400, step: 0.5, unit: 'px', group, label: 'Dash', showIf: on, random: false },
+    gap: { type: 'number', default: 0, min: 0, max: 400, step: 0.5, unit: 'px', group, label: 'Gap', showIf: on, random: false },
+    dashOffset: { type: 'number', default: 0, min: -10000, max: 10000, step: 1, unit: 'px', group, label: 'Dash offset', showIf: on, random: false },
+    behind: { type: 'boolean', default: false, group, label: 'Behind fill', showIf: on, animatable: false },
+  };
+}
+
+/** Los atributos de trazo de `strokeExtras` (solo los que cambian algo). */
+export function strokeExtraStyle(p: Record<string, unknown>): Style {
+  const out: Style = {};
+  const dash = Number(p.dash) || 0;
+  if (dash > 0) {
+    const gap = Number(p.gap) || dash;
+    out['stroke-dasharray'] = `${dash} ${gap}`;
+    const off = Number(p.dashOffset) || 0;
+    if (off) out['stroke-dashoffset'] = String(off);
+  }
+  if (p.behind) out['paint-order'] = 'stroke';
+  return out;
+}
 
 const closed = (pts: Vec2[]): SubPath => ({ start: pts[0]!, segs: pts.slice(1).concat([pts[0]!]).map((p, i) => line(i === 0 ? pts[0]! : pts[i]!, p)), closed: true });
 
@@ -348,7 +378,7 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
   const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
   const st: Style = {
     fill: p.fill ? String(p.fillColor) : 'none',
-    ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round') } : {}),
+    ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round'), ...strokeExtraStyle(p) } : {}),
   };
   const tags = def.partTags?.(p as never) ?? [];
   const origin = def.origin?.(p as never);
