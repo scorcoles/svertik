@@ -5,7 +5,7 @@
   import { builtins, createEngine, createPlayer, type SceneV2 } from '@svertik/engine';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
-  import type { Editor } from './editor.svelte';
+  import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
   import { createFpsMeter, type FpsMeter } from './fpsmeter';
 
   let { editor }: { editor: Editor } = $props();
@@ -63,7 +63,7 @@
   }}
 />
 
-<div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || '#0b0b0b'}>
+<div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || DEFAULT_CANVAS}>
   <svg bind:this={svg} class="stage" aria-label="svertik scene"></svg>
   <div class="tools">
     <button type="button" onclick={share} aria-label="Share a link to this scene" title="Share a link to this scene">

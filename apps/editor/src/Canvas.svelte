@@ -3,7 +3,7 @@
   import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { DropdownMenu } from 'bits-ui';
   import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
-  import { locateNode, registry, type Editor } from './editor.svelte';
+  import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { samples, type SampleName } from './samples';
   import { align, distribute, type Align, type Move } from './arrange';
   import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
@@ -704,7 +704,8 @@
 <section
   class="canvas"
   aria-label="Canvas"
-  style:--canvas={editor.canvas || undefined}
+  style:--canvas={editor.canvas || DEFAULT_CANVAS}
+  data-wire={editor.showWire && editor.scene ? true : undefined}
   data-dragging={dropping || undefined}
   ondragover={(e) => { e.preventDefault(); dropping = true; }}
   ondragleave={() => (dropping = false)}
@@ -955,8 +956,10 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--canvas, var(--sv-surface-field));
+    background: var(--canvas, #b0b0b0);
   }
+  /* Wire view: a fixed dark background behind the grey wires, whatever canvas colour the user picked. */
+  .canvas[data-wire] { background: var(--sv-surface-field); }
   .canvas[data-dragging] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -8px; }
   .stage { position: absolute; inset: 0; overflow: hidden; }
   .stage[data-space] { cursor: grab; }

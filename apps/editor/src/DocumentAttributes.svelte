@@ -2,7 +2,7 @@
   // Sin nada seleccionado: el documento. Su tamaño es lo que se exporta y lo que enseña el modo Play.
   import { Button, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select } from '@svertik/ui';
   import { DOCUMENT_PALETTE, PALETTES } from '@svertik/engine';
-  import type { Editor } from './editor.svelte';
+  import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
   const doc = $derived(editor.scene?.document ?? null);
@@ -65,7 +65,7 @@
   </Section>
   <Section title="Canvas">
     <ParamRow label="Color">
-      <ColorField value={editor.canvas || '#0b0b0b'} label="Canvas color" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
+      <ColorField value={editor.canvas || DEFAULT_CANVAS} label="Canvas color" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
       {#if editor.canvas}<IconButton icon="undo" label="Default canvas color" onclick={() => editor.setCanvas('')} />{/if}
     </ParamRow>
     <p class="note">The color behind the drawing, in the editor and in Play. It is not exported: the SVG stays transparent.</p>

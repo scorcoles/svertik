@@ -48,6 +48,9 @@ import { decodeState, encodeState, MAX_HASH } from './share';
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
 export const modifierTypes = builtins.map((m) => m.type);
 
+/** Default canvas colour: the one used until the document sets its own. */
+export const DEFAULT_CANVAS = '#b0b0b0';
+
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
 export const effectors = new Set(['step', 'range', 'field', 'stagger']);
