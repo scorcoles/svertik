@@ -1,6 +1,6 @@
 // Página de Play (play.html#p=…): la escena de un enlace compartido, a pantalla completa, con el
 // mismo reproductor que el código exportado. Solo carga el motor: sin el editor ni su interfaz.
-import { builtins, createEngine, createPlayer, loadFonts, validateScene } from '@svertik/engine';
+import { PLAY_STAGES, runStages } from './boot';
 import { createFpsMeter } from './fpsmeter';
 import { decodeState } from './share';
 
@@ -15,9 +15,11 @@ const say = (text: string, ms = 2400) => {
   if (ms) timer = setTimeout(() => (msg.hidden = true), ms);
 };
 
-async function start() {
-  const m = location.hash.match(/^#[ps]=(.+)$/);
-  const state = m ? await decodeState(m[1]!) : null;
+async function start(m: typeof import('@svertik/engine')) {
+  const { builtins, createEngine, createPlayer, loadFonts, validateScene } = m;
+  const hash = location.hash.match(/^#[ps]=(.+)$/);
+  if (!hash) return say('No scene in this link.', 0);
+  const state = await decodeState(hash[1]!);
   if (!state) return say('No scene in this link.', 0);
   const scene = state.scene;
   const report = validateScene(scene, builtins);
@@ -26,7 +28,7 @@ async function start() {
   document.title = `${state.name} · svertik`;
   if (state.canvas) document.body.style.background = state.canvas;
   // El editor abre la misma escena (#s=…).
-  edit.href = `./#s=${m![1]}`;
+  edit.href = `./#s=${hash[1]}`;
   // Las fuentes de sus textos, de Fontsource (solo si hay textos).
   await loadFonts(scene);
   // Rendimiento: D o ?debug en la URL.
@@ -53,4 +55,7 @@ document.getElementById('share')!.addEventListener('click', async () => {
   }
 });
 
-void start();
+void runStages(PLAY_STAGES, async () => {
+  const m = await import('@svertik/engine');
+  start(m);
+});

@@ -1,13 +1,13 @@
-// El arranque por etapas: el loader (index.html#boot) lista las fases y se espera a que cargue su
-// chunk antes de pasar a la siguiente. Así el JS grande se descarga en varios chunks (core, engine,
-// UI, efectos…) en lugar de uno solo que llega todo junto.
-export interface BootStage {
+// El arranque por etapas: el loader (index.html#boot / play.html#boot) lista las fases y se espera a
+// que cargue su chunk antes de pasar a la siguiente. Así el JS grande se descarga en varios chunks
+// (core, engine, UI, efectos…) en lugar de uno solo que llega todo junto.
+export interface BootStage<T = unknown> {
   /** Id estable de la fase: 'core' · 'engine' · 'ui' · 'effects'… */
   id: string;
   /** Texto que se muestra en el loader mientras la fase carga. */
   label: string;
   /** Carga el chunk de la fase. */
-  run: () => Promise<unknown>;
+  run: () => Promise<T>;
 }
 
 /**
@@ -23,12 +23,21 @@ export const BOOT_STAGES: BootStage[] = [
   { id: 'effects', label: 'Loading Effects', run: async () => { await import('@svertik/engine/effects'); } },
 ];
 
-/** Arranca la app por etapas y gestiona la pantalla de carga (index.html#boot). */
-export async function startBoot() {
+/**
+ * Fases del modo Play: el motor (runtime) y los efectos (modifiers) con los que se pinta la escena
+ * compartida. Sin UI: el loader de play.html#p=… las carga y luego arranca el player.
+ */
+export const PLAY_STAGES: BootStage[] = [
+  { id: 'engine', label: 'Loading Engine', run: async () => { await import('@svertik/engine/engine'); } },
+  { id: 'effects', label: 'Loading Effects', run: async () => { await import('@svertik/engine/effects'); } },
+];
+
+/** Ejecuta las etapas y, al terminar, hace la acción de arranque (montar la app o preparar el player). */
+export async function runStages<T>(stages: BootStage<T>[], onDone: (modules: T[]) => Promise<void> | void) {
   const boot = document.getElementById('boot');
   const list = boot?.querySelector('ul');
   const rows = new Map<string, HTMLLIElement>();
-  for (const stage of BOOT_STAGES) {
+  for (const stage of stages) {
     const li = document.createElement('li');
     li.className = 'stage pending';
     li.dataset.id = stage.id;
@@ -41,23 +50,34 @@ export async function startBoot() {
     const li = rows.get(id);
     if (li) li.className = `stage ${state}`;
   };
-  for (const stage of BOOT_STAGES) {
+  const modules: T[] = [];
+  let failed = false;
+  for (const stage of stages) {
     setStage(stage.id, 'active');
     try {
-      await stage.run();
+      modules.push(await stage.run());
       setStage(stage.id, 'done');
     } catch (err) {
       console.error(`svertik: la fase "${stage.label}" falló al cargar`, err);
       setStage(stage.id, 'error');
+      failed = true;
       break;
     }
   }
-  const { default: App } = await import('./App.svelte');
-  const { mount } = await import('svelte');
-  mount(App, { target: document.getElementById('app')! });
+  if (failed) return;
+  await onDone(modules);
   // Fuera la pantalla de carga (con un fundido corto).
   if (boot) {
     boot.style.opacity = '0';
     setTimeout(() => boot.remove(), 220);
   }
+}
+
+/** Arranca el editor por etapas y gestiona la pantalla de carga (index.html#boot). */
+export async function startBoot() {
+  await runStages(BOOT_STAGES, async () => {
+    const { default: App } = await import('./App.svelte');
+    const { mount } = await import('svelte');
+    mount(App, { target: document.getElementById('app')! });
+  });
 }
