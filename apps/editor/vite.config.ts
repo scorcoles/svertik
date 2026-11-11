@@ -7,9 +7,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // El motor y la UI van en chunks aparte: el arranque los carga por etapas (ver src/boot.ts),
-        // así el bundle grande se descarga en varios archivos en lugar de uno solo.
+        // El motor se divide en runtime (engine) y efectos (modifiers): el arranque carga una fase u
+        // la otra (ver src/boot.ts), para que el loader vaya marcando cada chunk por separado.
         manualChunks(id) {
+          if (id.includes('/packages/engine/src/modifiers/')) return 'effects';
           if (id.includes('/packages/engine')) return 'engine';
           if (id.includes('/packages/ui')) return 'ui';
         },

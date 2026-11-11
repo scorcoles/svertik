@@ -18,7 +18,9 @@
   ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./engine": "./src/engine.ts",
+    "./effects": "./src/modifiers/index.ts"
   },
   "scripts": {
     "test": "vitest run",
