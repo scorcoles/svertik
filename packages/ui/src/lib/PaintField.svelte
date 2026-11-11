@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Popover } from 'bits-ui';
+  import ColorField from './ColorField.svelte';
   import ColorPicker from './ColorPicker.svelte';
   import NumberField from './NumberField.svelte';
   import ParamRow from './ParamRow.svelte';
@@ -182,7 +183,7 @@
               {#each grad.stops as stop, i (i)}
                 <div class="stop">
                   <input class="off" type="number" min="0" max="1" step="0.01" value={stop.offset} aria-label="Offset" onchange={(e)=>setStop(i,{offset: Number(e.currentTarget.value)})} />
-                  <ColorField value={stop.color} label="Stop color" {swatches} onchange={(v)=>setStop(i,{color:v})} />
+                  <ColorField value={stop.color} label="Stop color" {swatches} onchange={(v: string)=>setStop(i,{color:v})} />
                   <input class="op" type="number" min="0" max="1" step="0.01" value={stop.opacity ?? 1} aria-label="Opacity" onchange={(e)=>setStop(i,{opacity: Number(e.currentTarget.value)})} />
                   <button type="button" class="del" disabled={grad.stops.length<=2} onclick={()=>removeStop(i)}>×</button>
                 </div>
