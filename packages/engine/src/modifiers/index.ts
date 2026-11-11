@@ -2,6 +2,7 @@ import { cylinder } from './cylinder';
 import { envelope } from './envelope';
 import { explosion } from './explosion';
 import { field } from './field';
+import { followpath } from './followpath';
 import { blur, displace, glow, grain, shadow } from './filters';
 import { fractal } from './fractal';
 import { blocks, rgbsplit, scanlines, slices, streaks } from './glitch';
@@ -40,7 +41,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks };
-export { bend, bones, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, gradient, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -62,6 +63,7 @@ export const builtins = [
   perspective,
   envelope,
   pathwrap,
+  followpath,
   morph,
   trim,
   crack,

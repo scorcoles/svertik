@@ -10,6 +10,7 @@
     ['Deformers', of('deformer')],
     ['Generators', of('generator')],
     ['Glitch', modifierTypes.filter((t) => registry.get(t)?.family === 'glitch')],
+    ['Utils', modifierTypes.filter((t) => registry.get(t)?.family === 'utils')],
     ['Effectors', of('effector')],
     ['Style', of('style')],
     ['Filters', of('filter')],

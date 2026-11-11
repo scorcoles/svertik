@@ -1056,3 +1056,46 @@ describe('metaball', () => {
     expect(performance.now() - t0).toBeLessThan(60);
   });
 });
+
+describe('follow path', () => {
+  // Un cuadrado de 10 que recorre una línea de (0,0) a (200,0) (y un círculo cerrado de radio 100).
+  const box = (params: Record<string, unknown>, path: Record<string, unknown> = { kind: 'shape', id: 'p', name: 'p', shape: 'line', params: { length: 200 }, stack: [], transform: { x: 100 } }) =>
+    createEngine(builtins).evaluateDocument({
+      version: 2,
+      objects: [
+        { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [{ id: 'f', type: 'followpath', params: { target: 'p', ...params } }], transform: { x: -500, y: 300 } },
+        path,
+      ],
+    } as never).nodes.get('b')!.box;
+  const centre = (b: { x: number; y: number; width: number; height: number }) => [b.x + b.width / 2, b.y + b.height / 2];
+
+  it('va al punto del trazado que dice Position, esté donde esté el objeto', () => {
+    const [x0, y0] = centre(box({ position: 0 }));
+    expect(x0).toBeCloseTo(0, 0);
+    expect(y0).toBeCloseTo(0, 0);
+    expect(centre(box({ position: 0.5 }))[0]).toBeCloseTo(100, 0);
+    // En uno abierto no se sale por el final.
+    expect(centre(box({ position: 1 }))[0]).toBeCloseTo(200, 0);
+  });
+
+  it('Offset lo aparta a un lado; Orient lo gira con el trazado', () => {
+    expect(centre(box({ position: 0.5, offset: 20 }))[1]).toBeCloseTo(20, 0);
+    const circle = { kind: 'shape', id: 'p', name: 'p', shape: 'ellipse', params: { width: 200, height: 200 }, stack: [] };
+    // Un rectángulo alargado: tumbado donde el círculo va en vertical si gira; igual si no.
+    const long = (orient: boolean) =>
+      createEngine(builtins).evaluateDocument({
+        version: 2,
+        objects: [
+          { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 40, height: 4 }, stack: [{ id: 'f', type: 'followpath', params: { target: 'p', position: 0, orient } }] },
+          circle,
+        ],
+      } as never).nodes.get('b')!.box;
+    const a = long(true), b = long(false);
+    expect(a.height).toBeGreaterThan(a.width);
+    expect(b.width).toBeGreaterThan(b.height);
+  });
+
+  it('sin trazado, se queda como está', () => {
+    expect(box({ target: '' }).x).toBeCloseTo(-505);
+  });
+});

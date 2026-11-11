@@ -1,11 +1,13 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
-  import { Icon } from '@svertik/ui';
-  import type { Editor } from './editor.svelte';
+  import { Icon, type IconName } from '@svertik/ui';
+  import { modifierTypes, registry, type Editor } from './editor.svelte';
 
   // Utilidades que crean objetos que trabajan con otros (instancias…). Lo que necesita un objeto de
   // partida se apaga sin selección.
   let { editor }: { editor: Editor } = $props();
+  // Efectos de la familia Utils (Follow Path…): van a la pila del objeto seleccionado.
+  const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils');
 </script>
 
 <DropdownMenu.Root>
@@ -33,6 +35,13 @@
         <Icon name="effector" />
         Effector
       </DropdownMenu.Item>
+      {#if effects.length}<DropdownMenu.Separator class="sv-menu-rule" />{/if}
+      {#each effects as type (type)}
+        <DropdownMenu.Item class="sv-menu-item" disabled={!editor.activeNode} onSelect={() => editor.add(type)}>
+          <Icon name={type as IconName} />
+          {registry.get(type)?.label}
+        </DropdownMenu.Item>
+      {/each}
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
