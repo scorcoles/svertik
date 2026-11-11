@@ -1,6 +1,6 @@
 // Primitives: shapes generated from parameters, not imported SVG.
 
-import { line, type Cubic, type Geometry, type Style, type SubPath, type Vec2 } from './geometry';
+import { line, type Cubic, type Geometry, type Gradient, type Style, type SubPath, type Vec2 } from './geometry';
 import type { Font } from 'opentype.js';
 import { fontFor, fontKey } from './fonts';
 import { parsePathData } from './import';
@@ -376,15 +376,50 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
   if (!def) throw new Error(`svertik: unknown primitive "${type}"`);
   const p = resolveParams(def.params, given) as Record<string, unknown>;
   const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
+  const gradients: Gradient[] = [];
+  const fill = paintStyle(p.fill, p.fillColor, 'fill', gradients, 'sf');
+  const stroke = p.stroke ? paintStyle(true, p.strokeColor, 'stroke', gradients, 'ss') : null;
   const st: Style = {
-    fill: p.fill ? String(p.fillColor) : 'none',
-    ...(p.stroke ? { stroke: String(p.strokeColor), 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round'), ...strokeExtraStyle(p) } : {}),
+    fill: fill.value,
+    ...(stroke ? { stroke: stroke.value, 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round'), ...strokeExtraStyle(p) } : {}),
   };
   const tags = def.partTags?.(p as never) ?? [];
   const origin = def.origin?.(p as never);
   return {
     viewBox: [0, 0, 0, 0],
-    shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}), ...(tags[i] ?? {}) })),
+    shapes: parts.map((subpaths, i) => ({ subpaths, style: st, ...(def.buildParts ? { clone: i } : {}), ...(tags[i] ?? {}), ...(gradients.length ? { gradients } : {}) })),
     ...(origin ? { origin } : {}),
   };
+}
+
+function paintStyle(enabled: unknown, value: unknown, prop: 'fill' | 'stroke', out: Gradient[], prefix: string): { value: string } {
+  if (!enabled) return { value: 'none' };
+  const g = normalizeGradient(value, `${prefix}-${hashValue(value)}`);
+  if (g) {
+    out.push(g);
+    return { value: `url(#${g.id})` };
+  }
+  return { value: String(value ?? (prop === 'fill' ? '#d9d9d9' : '#ededed')) };
+}
+
+function normalizeGradient(value: unknown, fallbackId: string): Gradient | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if (v.kind !== 'linear' && v.kind !== 'radial') return null;
+  const stops = Array.isArray(v.stops) ? v.stops.filter((s): s is { offset: number; color: string; opacity?: number } => !!s && typeof s === 'object') : [];
+  if (!stops.length) return null;
+  const id = typeof v.id === 'string' && v.id ? v.id : fallbackId;
+  const g: Gradient = { id, kind: v.kind, stops: stops.map((s) => ({ offset: Number((s as any).offset) || 0, color: String((s as any).color ?? '#000'), ...((s as any).opacity != null ? { opacity: Number((s as any).opacity) } : {}) })) };
+  const copyNum = (k: keyof Gradient) => { if (typeof v[k] === 'number') (g as any)[k] = v[k]; };
+  const copyStr = (k: keyof Gradient) => { if (typeof v[k] === 'string') (g as any)[k] = v[k]; };
+  ['x1','y1','x2','y2','cx','cy','r','fx','fy','fr'].forEach(copyNum as any);
+  ['gradientUnits','gradientTransform','spreadMethod','href'].forEach(copyStr as any);
+  return g;
+}
+
+function hashValue(v: unknown): string {
+  const s = JSON.stringify(v) ?? '';
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36);
 }

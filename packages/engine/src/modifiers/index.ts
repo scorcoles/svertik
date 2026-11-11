@@ -7,6 +7,7 @@ import { bevel, blur, displace, glow, grain, shadow, thicken, tone } from './fil
 import { fractal } from './fractal';
 import { blocks, rgbsplit, scanlines, slices, streaks } from './glitch';
 import { gradient } from './gradient';
+import { halftone } from './halftone';
 import { lookat } from './lookat';
 import { mask } from './mask';
 import { melt } from './melt';
@@ -46,7 +47,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, halftone, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -80,6 +81,7 @@ export const builtins = [
   mirror,
   mosaic,
   fractal,
+  halftone,
   slices,
   blocks,
   scanlines,

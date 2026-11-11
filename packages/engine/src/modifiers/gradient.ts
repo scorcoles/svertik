@@ -24,6 +24,9 @@ export const gradient = defineModifier({
     center: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Radial', label: 'Center' },
     radius: { type: 'number', default: 0.5, min: 0.05, max: 2, step: 0.01, unit: 'fraction', group: 'Radial', label: 'Radius', ramp: false },
     focus: { type: 'point', default: [0.5, 0.5], unit: 'fraction', group: 'Radial', label: 'Focus' },
+    focalRadius: { type: 'number', default: 0, min: 0, max: 2, step: 0.01, unit: 'fraction', group: 'Radial', label: 'Focal radius', ramp: false },
+    spread: { type: 'enum', default: 'pad', options: ['pad', 'reflect', 'repeat'] as const, label: 'Spread', animatable: false },
+    transform: { type: 'text', default: '', label: 'Transform' },
     apply: { type: 'enum', default: 'fill', options: ['fill', 'stroke'] as const, label: 'Apply to', animatable: false },
   },
   apply(geo, p) {
@@ -32,6 +35,7 @@ export const gradient = defineModifier({
     const [dx, dy] = [Math.cos(a), Math.sin(a)];
     const k = 0.5 / Math.max(Math.abs(dx), Math.abs(dy), 1e-9);
     const r = (n: number) => Math.round(n * 10000) / 10000;
+    const spread = p.spread === 'reflect' || p.spread === 'repeat' ? p.spread : undefined;
     const g: Omit<Gradient, 'id'> = {
       kind: p.kind === 'radial' ? 'radial' : 'linear',
       stops: [
@@ -40,9 +44,11 @@ export const gradient = defineModifier({
         { offset: r(p.midpoint), color: p.via ? p.viaColor : mid(p.from, p.to), opacity: r((p.fromOpacity + p.toOpacity) / 2) },
         { offset: 1, color: p.to, opacity: p.toOpacity },
       ],
+      ...(spread ? { spreadMethod: spread } : {}),
+      ...(p.transform ? { gradientTransform: p.transform } : {}),
       ...(p.kind === 'linear'
         ? { x1: r(0.5 - dx * k), y1: r(0.5 - dy * k), x2: r(0.5 + dx * k), y2: r(0.5 + dy * k) }
-        : { cx: r(p.center[0]), cy: r(p.center[1]), r: r(p.radius), fx: r(p.focus[0]), fy: r(p.focus[1]) }),
+        : { cx: r(p.center[0]), cy: r(p.center[1]), r: r(p.radius), fx: r(p.focus[0]), fy: r(p.focus[1]), ...(p.focalRadius ? { fr: r(p.focalRadius) } : {}) }),
     };
     // Same gradient, same id: so the SVG doesn't repeat definitions.
     const id = `svk-${hash(JSON.stringify(g))}`;

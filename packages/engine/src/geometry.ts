@@ -51,17 +51,27 @@ export interface Gradient {
   id: string;
   kind: 'linear' | 'radial';
   stops: { offset: number; color: string; opacity?: number }[];
-  /** Linear: from (x1, y1) to (x2, y2), in fractions of the box. */
+  /** Coordinate system: relative to the shape's box (default) or in user space. */
+  gradientUnits?: 'objectBoundingBox' | 'userSpaceOnUse';
+  /** Transform applied to the gradient (SVG transform value). */
+  gradientTransform?: string;
+  /** How the gradient extends beyond its bounds. */
+  spreadMethod?: 'pad' | 'reflect' | 'repeat';
+  /** Reference to another gradient (its id), whose attributes/stops are inherited. */
+  href?: string;
+  /** Linear: from (x1, y1) to (x2, y2), in fractions of the box (or user units). */
   x1?: number;
   y1?: number;
   x2?: number;
   y2?: number;
-  /** Radial: centre, radius and focus (the brightest point), in fractions of the box. */
+  /** Radial: centre, radius and focus (the brightest point), in fractions of the box (or user units). */
   cx?: number;
   cy?: number;
   r?: number;
   fx?: number;
   fy?: number;
+  /** Radial: focal radius (SVG2). */
+  fr?: number;
 }
 
 export interface Geometry {

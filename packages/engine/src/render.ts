@@ -52,9 +52,26 @@ export function gradientDefs(geo: Geometry): string {
       const stops = g.stops
         .map((st) => `<stop offset="${st.offset}" stop-color="${escapeAttr(st.color)}"${st.opacity !== undefined && st.opacity < 1 ? ` stop-opacity="${st.opacity}"` : ''}/>`)
         .join('');
-      return g.kind === 'radial'
-        ? `<radialGradient id="${g.id}" cx="${g.cx ?? 0.5}" cy="${g.cy ?? 0.5}" r="${g.r ?? 0.5}" fx="${g.fx ?? g.cx ?? 0.5}" fy="${g.fy ?? g.cy ?? 0.5}">${stops}</radialGradient>`
-        : `<linearGradient id="${g.id}" x1="${g.x1 ?? 0}" y1="${g.y1 ?? 0}" x2="${g.x2 ?? 1}" y2="${g.y2 ?? 0}">${stops}</linearGradient>`;
+      const attrs = [
+        `id="${g.id}"`,
+        g.href ? `href="#${escapeAttr(g.href)}"` : '',
+        g.gradientUnits && g.gradientUnits !== 'objectBoundingBox' ? `gradientUnits="${g.gradientUnits}"` : '',
+        g.gradientTransform ? `gradientTransform="${escapeAttr(g.gradientTransform)}"` : '',
+        g.spreadMethod && g.spreadMethod !== 'pad' ? `spreadMethod="${g.spreadMethod}"` : '',
+      ];
+      if (g.kind === 'radial') {
+        attrs.push(
+          `cx="${g.cx ?? 0.5}"`,
+          `cy="${g.cy ?? 0.5}"`,
+          `r="${g.r ?? 0.5}"`,
+          `fx="${g.fx ?? g.cx ?? 0.5}"`,
+          `fy="${g.fy ?? g.cy ?? 0.5}"`,
+        );
+        if (g.fr !== undefined) attrs.push(`fr="${g.fr}"`);
+        return `<radialGradient ${attrs.filter(Boolean).join(' ')}>${stops}</radialGradient>`;
+      }
+      attrs.push(`x1="${g.x1 ?? 0}"`, `y1="${g.y1 ?? 0}"`, `x2="${g.x2 ?? 1}"`, `y2="${g.y2 ?? 0}"`);
+      return `<linearGradient ${attrs.filter(Boolean).join(' ')}>${stops}</linearGradient>`;
     })
     .join('');
 }

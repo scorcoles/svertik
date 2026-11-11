@@ -1,7 +1,7 @@
 // SVG → Geometry. Shapes and paths with their transforms already applied; the rest is ignored.
 
 import svgpath from 'svgpath';
-import { line, type Cubic, type Geometry, type Shape, type Style, type SubPath, type Vec2 } from './geometry';
+import { line, type Cubic, type Geometry, type Gradient, type Shape, type Style, type SubPath, type Vec2 } from './geometry';
 
 /** Style properties that are kept; the inheritable ones pass from groups to children. */
 const INHERITED = [
@@ -220,6 +220,114 @@ function readViewBox(svg: Element): [number, number, number, number] {
   return [0, 0, num(svg, 'width', 100), num(svg, 'height', 100)];
 }
 
+const nattr = (el: Element, name: string): number | undefined => {
+  const v = el.getAttribute(name);
+  if (v === null) return undefined;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/** Parse gradient stops from an element. */
+function readStops(el: Element): { offset: number; color: string; opacity?: number }[] {
+  const stops: { offset: number; color: string; opacity?: number }[] = [];
+  for (const child of Array.from(el.children)) {
+    if (child.localName !== 'stop') continue;
+    let off = (child.getAttribute('offset') ?? '0').trim();
+    let offset = off.endsWith('%') ? parseFloat(off) / 100 : parseFloat(off);
+    if (!Number.isFinite(offset)) offset = 0;
+    offset = Math.max(0, Math.min(1, offset));
+    // stop-color/stop-opacity can come from attributes or style.
+    const style = (child.getAttribute('style') ?? '').split(';').reduce<Record<string, string>>((m, d) => {
+      const i = d.indexOf(':');
+      if (i >= 0) m[d.slice(0, i).trim()] = d.slice(i + 1).trim();
+      return m;
+    }, {});
+    const color = child.getAttribute('stop-color') ?? style['stop-color'] ?? '#000';
+    const sop = child.getAttribute('stop-opacity') ?? style['stop-opacity'];
+    const opacity = sop != null ? parseFloat(sop) : undefined;
+    stops.push({ offset, color, ...(Number.isFinite(opacity as number) ? { opacity: opacity as number } : {}) });
+  }
+  return stops;
+}
+
+function readGradientDef(el: Element): Omit<Gradient, 'id'> | null {
+  const kind = el.localName === 'radialGradient' ? 'radial' : el.localName === 'linearGradient' ? 'linear' : null;
+  if (!kind) return null;
+  const href = (hrefOf(el) ?? '').replace(/^#/, '') || undefined;
+  const units = el.getAttribute('gradientUnits') as Gradient['gradientUnits'] | null;
+  const spread = el.getAttribute('spreadMethod') as Gradient['spreadMethod'] | null;
+  const transform = el.getAttribute('gradientTransform') || undefined;
+  const base: Omit<Gradient, 'id'> = {
+    kind,
+    stops: readStops(el),
+    ...(href ? { href } : {}),
+    ...(units === 'userSpaceOnUse' || units === 'objectBoundingBox' ? { gradientUnits: units } : {}),
+    ...(transform ? { gradientTransform: transform } : {}),
+    ...(spread === 'reflect' || spread === 'repeat' || spread === 'pad' ? { spreadMethod: spread } : {}),
+  };
+  if (kind === 'linear') {
+    const x1 = nattr(el, 'x1'), y1 = nattr(el, 'y1'), x2 = nattr(el, 'x2'), y2 = nattr(el, 'y2');
+    if (x1 !== undefined) base.x1 = x1;
+    if (y1 !== undefined) base.y1 = y1;
+    if (x2 !== undefined) base.x2 = x2;
+    if (y2 !== undefined) base.y2 = y2;
+  } else {
+    const cx = nattr(el, 'cx'), cy = nattr(el, 'cy'), r = nattr(el, 'r'), fx = nattr(el, 'fx'), fy = nattr(el, 'fy'), fr = nattr(el, 'fr');
+    if (cx !== undefined) base.cx = cx;
+    if (cy !== undefined) base.cy = cy;
+    if (r !== undefined) base.r = r;
+    if (fx !== undefined) base.fx = fx;
+    if (fy !== undefined) base.fy = fy;
+    if (fr !== undefined) base.fr = fr;
+  }
+  return base;
+}
+
+/** Resolve gradient href inheritance (stops/attrs from referenced gradient when missing). */
+function resolveGradients(defs: Map<string, Omit<Gradient, 'id'>>): Map<string, Gradient> {
+  const out = new Map<string, Gradient>();
+  const resolve = (id: string, stack: Set<string>): Gradient | null => {
+    if (out.has(id)) return out.get(id)!;
+    const def = defs.get(id);
+    if (!def || stack.has(id)) return null;
+    stack.add(id);
+    let base: Gradient | null = null;
+    if (def.href) base = resolve(def.href, stack);
+    stack.delete(id);
+    const merged: Gradient = {
+      ...(base ?? {}),
+      ...def,
+      id,
+      kind: def.kind ?? base?.kind ?? 'linear',
+      stops: def.stops.length ? def.stops : (base?.stops ?? []),
+    };
+    // remove self-href after merge
+    if (merged.href === id) delete merged.href;
+    out.set(id, merged);
+    return merged;
+  };
+  for (const id of defs.keys()) resolve(id, new Set());
+  return out;
+}
+
+function collectGradients(root: Element): Map<string, Gradient> {
+  const defs = new Map<string, Omit<Gradient, 'id'>>();
+  for (const el of Array.from(root.getElementsByTagName('*'))) {
+    if (el.localName !== 'linearGradient' && el.localName !== 'radialGradient') continue;
+    const id = el.getAttribute('id');
+    if (!id) continue;
+    const g = readGradientDef(el);
+    if (g) defs.set(id, g);
+  }
+  return resolveGradients(defs);
+}
+
+const urlId = (value: string | undefined): string | null => {
+  if (!value) return null;
+  const m = /^url\(#([^)]+)\)$/.exec(value.trim());
+  return m ? m[1]! : null;
+};
+
 /** Imports an SVG (text) into geometry. */
 export function importSVG(source: string): Geometry {
   const doc = new DOMParser().parseFromString(source, 'image/svg+xml');
@@ -227,6 +335,7 @@ export function importSVG(source: string): Geometry {
   if (!root || root.localName !== 'svg') throw new Error('svertik: el origen no es un SVG');
 
   sheet = parseStyleSheets(root);
+  const gradients = collectGradients(root);
 
   // Elements that <use> may point at, by id.
   const byId = new Map<string, Element>();
@@ -264,7 +373,16 @@ export function importSVG(source: string): Geometry {
       const d = shapeToPathData(el);
       if (!d) return;
       const subpaths = parsePathData(d, t);
-      if (subpaths.length) shapes.push({ subpaths, style: alpha === 1 ? style : { ...style, opacity: String(a) } });
+      if (subpaths.length) {
+        const sstyle = alpha === 1 ? style : { ...style, opacity: String(a) };
+        const shape: Shape = { subpaths, style: sstyle };
+        const refs = [urlId(sstyle.fill), urlId(sstyle.stroke)].filter((x): x is string => !!x);
+        if (refs.length) {
+          const used = refs.map((id) => gradients.get(id)).filter((g): g is Gradient => !!g);
+          if (used.length) shape.gradients = used;
+        }
+        shapes.push(shape);
+      }
     } finally {
       active.delete(el);
     }
