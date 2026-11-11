@@ -7,6 +7,7 @@ import { fractal } from './fractal';
 import { blocks, rgbsplit, scanlines, slices, streaks } from './glitch';
 import { gradient } from './gradient';
 import { melt } from './melt';
+import { metaball } from './metaball';
 import { mirror } from './mirror';
 import { morph } from './morph';
 import { mosaic } from './mosaic';
@@ -39,7 +40,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks };
-export { bend, bones, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, gradient, melt, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, fractal, gradient, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -75,6 +76,7 @@ export const builtins = [
   streaks,
   rgbsplit,
   boolean,
+  metaball,
   step,
   stagger,
   range,

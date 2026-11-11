@@ -1006,3 +1006,53 @@ describe('round corners', () => {
     expect(sp.segs[2]!.p[0]).toBeCloseTo(90);
   });
 });
+
+describe('metaball', () => {
+  const circle = (id: string, x: number, r: number) => ({ kind: 'shape' as const, id, name: id, shape: 'ellipse', params: { width: 2 * r, height: 2 * r }, stack: [], transform: { x } });
+  const run = (gap: number, params: Record<string, unknown> = {}) =>
+    createEngine(builtins).evaluateDocument({
+      version: 2,
+      objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'm', type: 'metaball', params: { reach: 40, ...params } }], children: [circle('a', -gap / 2, 50), circle('b', gap / 2, 35)] }],
+    }).geometry;
+  const loops = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).filter((sp) => sp.closed).length;
+
+  it('lejos (más que Reach entre bordes): dos formas; cerca: una sola, más ancha que los dos círculos juntos', () => {
+    expect(loops(run(140))).toBe(2);
+    expect(loops(run(90))).toBe(1);
+    const b = bounds(run(90));
+    // Los círculos van de -95 a 80; la gota casi igual (la unión suave no se sale por los extremos).
+    expect(b.x).toBeGreaterThan(-97);
+    expect(b.x + b.width).toBeLessThan(82);
+  });
+
+  it('el contorno sigue al círculo donde no hay fusión (error menor que una celda)', () => {
+    const geo = run(140);
+    const pts = geo.shapes.flatMap((s) => s.subpaths).flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]);
+    const big = pts.filter((q) => q[0] < 0);
+    for (const q of big) expect(Math.abs(Math.hypot(q[0] + 70, q[1]) - 50)).toBeLessThan(1.5);
+  });
+
+  it('Reach 0: como una unión normal; Grow engorda', () => {
+    expect(loops(run(90, { reach: 0 }))).toBe(2);
+    expect(bounds(run(140, { grow: 10 })).width).toBeGreaterThan(bounds(run(140)).width + 18);
+  });
+
+  it('un anillo (con agujero) conserva el agujero en sentido contrario', () => {
+    const ringSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M0 50a50 50 0 1 0 100 0a50 50 0 1 0-100 0zM25 50a25 25 0 1 1 50 0a25 25 0 1 1-50 0z" fill-rule="evenodd"/></svg>';
+    const geo = createEngine(builtins).evaluateStack({ source: ringSvg, stack: [{ id: 'm', type: 'metaball', params: { reach: 5 } }] });
+    const sps = geo.shapes[0]!.subpaths;
+    expect(sps).toHaveLength(2);
+    const area = (sp: (typeof sps)[number]) => {
+      const p = [sp.start, ...sp.segs.map((g) => g.p)];
+      return p.reduce((s, q, i) => s + q[0] * p[(i + 1) % p.length]![1] - p[(i + 1) % p.length]![0] * q[1], 0);
+    };
+    expect(Math.sign(area(sps[0]!))).not.toBe(Math.sign(area(sps[1]!)));
+  });
+
+  it('rápido: dos círculos, menos de 60 ms', () => {
+    run(90);
+    const t0 = performance.now();
+    run(91);
+    expect(performance.now() - t0).toBeLessThan(60);
+  });
+});
