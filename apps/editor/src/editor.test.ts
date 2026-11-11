@@ -678,3 +678,17 @@ describe('Utils: Connector', () => {
     expect(e.current?.type).toBe('connect');
   });
 });
+
+describe('Utils: Tracer', () => {
+  it('crea una línea con Trace del objeto activo, justo detrás de él', () => {
+    const e = fresh();
+    e.addShape('star');
+    const star = e.scene!.objects[0]!.id;
+    e.addTracer();
+    const list = e.scene!.objects;
+    expect(list[0]!.id).toBe(star);
+    expect(list[1]).toMatchObject({ kind: 'shape', shape: 'line', name: 'Star trace' });
+    expect(list[1]!.stack[0]).toMatchObject({ type: 'trace', params: { target: star } });
+    expect(e.current?.type).toBe('trace');
+  });
+});

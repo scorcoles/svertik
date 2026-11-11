@@ -65,7 +65,15 @@ export interface ModifierContext {
   children: ResolvedModifier[];
   /** La geometría de otro nodo (parámetros `node`), en las coordenadas de esta pila; null si no la hay (aún). */
   target?: (id: string) => Geometry | null;
+  /**
+   * Por dónde ha pasado el centro de otro nodo (el centroide de su dibujo: no baila al girar) en los
+   * últimos `length` segundos, en `samples` muestras: del más antiguo al de ahora, en las coordenadas de
+   * esta pila. Solo el de ahora si la escena no está en un instante de su animación; null si aún no se sabe.
+   */
+  trail?: TrailLookup;
 }
+
+export type TrailLookup = (id: string, length: number, samples: number) => [number, number][] | null;
 
 export interface ModifierDef<P extends ParamSchema = ParamSchema> {
   type: string;

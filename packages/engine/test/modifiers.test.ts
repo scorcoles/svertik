@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { covers, simplify } from '../src/clip';
+import { sampleScene } from '../src/animation';
 import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type Shape, type StackInput } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
@@ -1141,5 +1142,48 @@ describe('connect', () => {
     expect(Math.min(...arc[0]!.subpaths[0]!.segs.flatMap((g) => [g.c1[1], g.c2[1]]))).not.toBeCloseTo(0);
     expect(run({ arrow: 'both' })[0]!.subpaths).toHaveLength(3);
     expect(run({ from: '' })[0]!.subpaths[0]!.segs).toHaveLength(1);
+  });
+});
+
+describe('trace', () => {
+  // Un cuadrado que va de x = 0 a x = 100 en 1 s (lineal), y la línea con Trace detrás.
+  const scene = (params: Record<string, unknown> = {}) => ({
+    version: 2,
+    objects: [
+      { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [] },
+      { kind: 'shape', id: 'l', name: 'l', shape: 'line', params: { strokeColor: '#00ff00' }, stack: [{ id: 't', type: 'trace', params: { target: 'b', length: 0.5, samples: 10, smooth: false, ...params } }], transform: { x: 40, y: 70 } },
+    ],
+    animation: { duration: 1, tracks: [{ id: 'k', node: 'b', on: 'node', param: 'x', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 1, value: 100, ease: 'linear' }] }] },
+  }) as never;
+  const trail = (e: ReturnType<typeof createEngine>, t: number, params?: Record<string, unknown>) => {
+    return e.evaluateDocument(sampleScene(scene(params), t)).geometry.shapes.filter((s) => s.node === 'l');
+  };
+
+  it('en 0,8 s: de donde estaba hace 0,5 s (x ≈ 30) hasta donde está (80), con el estilo de la línea', () => {
+    const e = createEngine(builtins);
+    const shapes = trail(e, 0.8);
+    const sp = shapes[0]!.subpaths[0]!;
+    const xs = [sp.start, ...sp.segs.map((g) => g.p)].map((q) => q[0]);
+    expect(Math.min(...xs)).toBeCloseTo(30, 0);
+    expect(Math.max(...xs)).toBeCloseTo(80, 5);
+    expect(sp.segs.length).toBeGreaterThanOrEqual(9);
+    expect(shapes[0]!.style.stroke).toBe('#00ff00');
+  });
+
+  it('al principio aún no hay estela; sin instante (la escena quieta), tampoco', () => {
+    const e = createEngine(builtins);
+    expect(trail(e, 0)).toHaveLength(0);
+    expect(e.evaluateDocument(scene()).geometry.shapes.filter((s) => s.node === 'l')).toHaveLength(0);
+  });
+
+  it('cambia con el tiempo (no se queda en caché) y da lo mismo yendo hacia atrás', () => {
+    const e = createEngine(builtins);
+    const end = (t: number) => {
+      const sp = trail(e, t)[0]!.subpaths[0]!;
+      return sp.segs[sp.segs.length - 1]!.p[0];
+    };
+    expect(end(0.5)).toBeCloseTo(50, 5);
+    expect(end(0.6)).toBeCloseTo(60, 5);
+    expect(end(0.5)).toBeCloseTo(50, 5);
   });
 });

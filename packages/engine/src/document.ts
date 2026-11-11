@@ -1,13 +1,14 @@
 // Escena v2: varios objetos y grupos, cada uno con su pila de efectos y su posición.
 
-import { bounds, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
+import { bounds, flatten, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
 import { importSVG } from './import';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
-import { findModifier, trackValue, type Animation, type Track } from './animation';
+import { findModifier, sampleScene, trackValue, type Animation, type Track } from './animation';
 import type { Interaction } from './interactions';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
+import type { TrailLookup } from './modifier';
 
 /** Modos de fusión de CSS Compositing and Blending (valen en SVG). */
 export const BLEND_MODES = [
@@ -225,9 +226,33 @@ export type TargetLookup = (id: string) => Geometry | null;
  * y, si alguno lo pidió, otra con lo que salió de la primera. Esos nodos no se guardan en caché.
  */
 export function createDocumentEvaluator(
-  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs) => Geometry,
+  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup) => Geometry,
   filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
+  options: { trails?: boolean } = {},
 ): DocumentEvaluator {
+  // Estelas (Trace): la escena evaluada en instantes anteriores, con otro evaluador (sin estelas, para no
+  // entrar en bucle). Lo calculado se guarda por instante (en una rejilla fija de tiempos): al reproducir,
+  // cada fotograma solo calcula el instante nuevo. Se vacía si cambia algo que no sea el tiempo.
+  const withTrails = options.trails !== false;
+  let sub: DocumentEvaluator | null = null;
+  const past = { key: '', points: new Map<string, Vec2 | null>(), docs: new Map<number, DocumentResult>() };
+  const pointAt = (base: SceneV2, t: number, id: string): Vec2 | null => {
+    const pk = `${t.toFixed(5)}|${id}`;
+    if (past.points.has(pk)) return past.points.get(pk)!;
+    let doc = past.docs.get(t);
+    if (!doc) {
+      sub ??= createDocumentEvaluator(runStack, filtersOf, { trails: false });
+      doc = sub.evaluate(sampleScene(base, t));
+      past.docs.set(t, doc);
+      if (past.docs.size > 6) past.docs.delete(past.docs.keys().next().value!);
+    }
+    const g = doc.geometryOf(id);
+    const q = g ? centroid(g) : null;
+    if (past.points.size > 20000) past.points.clear();
+    past.points.set(pk, q);
+    return q;
+  };
+
   // El origen de cada nodo (SVG importado o primitiva), por su propia clave: no se rehace si solo
   // cambian sus efectos. Y lo que va dando su pila, paso a paso (ver runStack).
   const sources = new Map<string, { key: string; geo: Geometry }>();
@@ -239,7 +264,7 @@ export function createDocumentEvaluator(
   };
   // `deps`: en los que usan otro objeto, la huella de lo que vieron de cada uno (su geometría y dónde
   // estaban los dos). Mientras no cambie, el resultado vale: no se rehace al tocar otra cosa.
-  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs }>();
+  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs; volatile?: boolean }>();
   /** Lo que salió la última vez (matriz y geometría de cada nodo): la primera pasada parte de ahí. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
 
@@ -249,6 +274,20 @@ export function createDocumentEvaluator(
     const byId = new Map<string, SceneNode>();
     for (const { node } of walkNodes(scene.objects)) byId.set(node.id, node);
     const broken = brokenInstances(byId);
+    // Para las estelas: la escena sin el instante (lo animado, a su valor en 0), como clave de la caché.
+    let pastBase: SceneV2 | null = null;
+    const baseScene = () => {
+      if (pastBase) return pastBase;
+      const { at: _at, ...rest } = scene;
+      pastBase = rest as SceneV2;
+      const key = JSON.stringify(sampleScene(pastBase, 0), (k, v) => (k === 'at' ? undefined : v));
+      if (key !== past.key) {
+        past.key = key;
+        past.points.clear();
+        past.docs.clear();
+      }
+      return pastBase;
+    };
     // Lo que añaden los Effectors a cada nodo (al final de su pila, en el orden de la escena).
     const extra = effectorStacks(scene, byId);
     const stackOf = (node: SceneNode) => {
@@ -291,6 +330,39 @@ export function createDocumentEvaluator(
         const t = known.get(id);
         return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
       };
+
+      // Estelas: del más antiguo al de ahora, en una rejilla fija de instantes; el último, el de ahora.
+      let usedTrail = false;
+      const trailFor = (ownerId: string): TrailLookup | undefined =>
+        withTrails
+          ? (id, length, samples) => {
+              usedTrail = true;
+              asked = true;
+              const owner = known.get(ownerId);
+              const now = known.get(id);
+              // Lo que se vio del objeto (de la pasada anterior): si en esta ha cambiado, otra pasada.
+              seenDeps.push({ owner: ownerId, id, h: owner && now ? depOf(ownerId, id) : -2 });
+              if (!owner || !now) return null;
+              const toOwner = invert(owner.world);
+              const local = (q: Vec2): [number, number] => apply(toOwner, q) as [number, number];
+              const current = centroid(now.geo);
+              const at = scene.at;
+              if (at === undefined || !scene.animation || !current) return current ? [local(current)] : [];
+              const n = Math.max(1, Math.min(240, Math.round(samples)));
+              const dt = Math.max(1e-3, length / n);
+              const base = baseScene();
+              const out: [number, number][] = [];
+              const first = Math.floor(at / dt + 1e-6) * dt;
+              for (let k = n; k >= 0; k--) {
+                const t = Math.round((first - k * dt) * 1e5) / 1e5;
+                if (t < 0 || t >= at - 1e-6) continue;
+                const q = pointAt(base, t, id);
+                if (q) out.push(local(q));
+              }
+              out.push(local(current));
+              return out;
+            }
+          : undefined;
 
       // Filtros (sombra, desenfoque…): sus formas van dentro de un grupo con el filtro del nodo.
       fx = new Map();
@@ -344,7 +416,8 @@ export function createDocumentEvaluator(
               : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
           // Uno que usa otro objeto vale si lo que ve de él no ha cambiado.
-          const fresh = entry && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
+          // Una estela depende del instante: no se guarda.
+          const fresh = entry && !entry.volatile && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
           if (entry && fresh && entry.dynamic) {
             asked = true;
             for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
@@ -362,8 +435,9 @@ export function createDocumentEvaluator(
             asked = false;
             const deps: [string, number][] = [];
             const refs: StackRefs = {};
-            const result = runStack(source, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs);
-            entry = { key, source, result, dynamic: asked, deps, refs };
+            usedTrail = false;
+            const result = runStack(source, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id));
+            entry = { key, source, result, dynamic: asked, deps, refs, volatile: usedTrail };
             asked = asked || before;
             cache.set(node.id, entry);
           }
@@ -555,6 +629,30 @@ export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
     }
   }
   return bad;
+}
+
+/**
+ * Centro de un dibujo que no cambia al girarlo: el centroide de sus superficies (cerradas; los agujeros
+ * restan si van en sentido contrario) o, si no tiene, la media de sus puntos. Null si está vacío.
+ */
+export function centroid(geo: Geometry): Vec2 | null {
+  let a = 0, cx = 0, cy = 0, n = 0, sx = 0, sy = 0;
+  for (const s of geo.shapes) {
+    for (const sp of s.subpaths) {
+      const pts = flatten(sp, 8);
+      for (const q of pts) (sx += q[0]), (sy += q[1]), n++;
+      if (!sp.closed) continue;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i]!, q = pts[(i + 1) % pts.length]!;
+        const c = p[0] * q[1] - q[0] * p[1];
+        a += c;
+        cx += (p[0] + q[0]) * c;
+        cy += (p[1] + q[1]) * c;
+      }
+    }
+  }
+  if (Math.abs(a) > 1e-9) return [cx / (3 * a), cy / (3 * a)];
+  return n ? [sx / n, sy / n] : null;
 }
 
 /** Caja de una caja transformada (las cuatro esquinas). */

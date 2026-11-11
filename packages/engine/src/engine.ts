@@ -4,7 +4,7 @@ import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './do
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './import';
 import { chainFrom, type FilterChain } from './chain';
-import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier } from './modifier';
+import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 
 export interface ModifierInstance {
@@ -129,7 +129,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * efectos no han cambiado, se reutilizan (animar el último de la pila no rehace los de debajo).
    * Un paso que mira otro objeto no se reutiliza (puede haber cambiado el otro).
    */
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs): Geometry {
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup): Geometry {
     // La subdivisión sigue el tamaño del origen; la caja de referencia cambia tras un efecto que reencuadra.
     const res = Math.max(ref.width, ref.height) * resolution || 1;
     let reuse = !!memo && memo.base === geo && memo.resolution === resolution;
@@ -146,11 +146,12 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       reuse = false;
       let dynamic = false;
       const look = target && ((id: string) => ((dynamic = true), target(id)));
+      const past: TrailLookup | undefined = trail && ((...args) => ((dynamic = true), trail(...args)));
       if (inst.enabled !== false) {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: modificador desconocido «${inst.type}»`);
         if (def.kind !== 'filter') {
-          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, children: resolveChildren(inst.children) }));
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children) }));
           if (def.reframe) {
             const b = bounds(geo);
             if (b.width > 0 || b.height > 0) ref = b;

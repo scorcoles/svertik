@@ -425,6 +425,32 @@ export class Editor {
     this.record(true);
   }
 
+  /** Tracer: una línea que dibuja la estela del objeto activo al animarse (efecto Trace), detrás de él. */
+  addTracer() {
+    const at = this.scene && this.activeNode ? locateNode(this.scene.objects, this.activeNode.id) : null;
+    if (!at) return;
+    const def = shapeRegistry.get('line');
+    const tdef = registry.get('trace');
+    if (!def || !tdef) return;
+    const taken = new Set([...walkNodes(this.scene!.objects)].map((x) => x.node.name));
+    let name = `${at.node.name} trace`;
+    for (let i = 2; taken.has(name); i++) name = `${at.node.name} trace ${i}`;
+    const node: ShapeNode = {
+      kind: 'shape',
+      id: `line-${uid()}`,
+      name,
+      shape: 'line',
+      params: { ...resolveParams(def.params), strokeWidth: 2 },
+      stack: [{ id: `trace-${uid()}`, type: 'trace', enabled: true, params: { ...resolveParams(tdef.params), target: at.node.id } }],
+    };
+    // Detrás del objeto (la estela no lo tapa), en la lista de arriba (fuera de grupos).
+    const top = this.scene!.objects;
+    const root = at.parent ? top.findIndex((n) => !!locateNode([n], at.node.id)) : at.index;
+    top.splice(root + 1, 0, node);
+    this.selected = node.stack[0]!.id;
+    this.record(true);
+  }
+
   /** Añade (o quita) un target de un Effector. */
   setEffectorTarget(id: string, target: string, on: boolean) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;

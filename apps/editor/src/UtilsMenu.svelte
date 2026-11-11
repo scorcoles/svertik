@@ -7,7 +7,7 @@
   // partida se apaga sin selección.
   let { editor }: { editor: Editor } = $props();
   // Efectos de la familia Utils (Follow Path…): van a la pila del objeto seleccionado.
-  const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils' && t !== 'connect'); // Connect: con Connector
+  const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils' && t !== 'connect' && t !== 'trace'); // Connect y Trace: con Connector y Tracer
 </script>
 
 <DropdownMenu.Root>
@@ -42,6 +42,15 @@
       >
         <Icon name="connector" />
         Connector
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="sv-menu-item"
+        disabled={!editor.activeNode}
+        title="A line that draws the path the selected object leaves behind while it moves (play the animation)"
+        onSelect={() => editor.addTracer()}
+      >
+        <Icon name="tracer" />
+        Tracer
       </DropdownMenu.Item>
       {#if effects.length}<DropdownMenu.Separator class="sv-menu-rule" />{/if}
       {#each effects as type (type)}
