@@ -5,3 +5,13 @@ storybook-static
 *.log
 # SVG de prueba con marcas de terceros: no se publican
 demo/
+
+# Documentos privados de desarrollo agentico (no públicos)
+private/
+.private/
+TODO_TOP.MD
+opencode.json
+docs/PLAN.md
+docs/recap.md
+
+

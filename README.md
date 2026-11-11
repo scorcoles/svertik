@@ -1,43 +1,44 @@
 # svertik
 
-**Alpha 0.0.1.** Editor no destructivo de SVG: un SVG (o una primitiva, o un texto) y una pila de efectos que un motor en JS recalcula en vivo. Lo original nunca se toca. Se anima con una línea de tiempo y se lleva a cualquier web tal cual: SVG plano, el proyecto en JSON o código que reproduce los efectos y la animación.
+**Alpha 0.0.1.** Non-destructive SVG editor: an SVG (or a primitive, or text) and a stack of effects recalculated live by a JS engine. The original geometry is never touched. Animate it with a timeline and bring it to any website as-is: flat SVG, the project in JSON, or runtime code reproducing the effects and animation.
 
-Un experimento de [VERTIK](https://www.vertik.net). Contexto: [docs/recap.md](docs/recap.md) · Plan y estado: [docs/PLAN.md](docs/PLAN.md).
+An experiment by [VERTIK](https://www.vertik.net).  
+**For AI Agents & Headless Engine Use:** [AGENTS.md](AGENTS.md) · [Engine & 58 Effects Guide](docs/ENGINE_AND_EFFECTS.md) · [Scene Recipes](docs/SCENE_RECIPES.md).
 
-## Qué hace
+## Features
 
-- **Efectos** (más de 50):
+- **Effects** (more than 50):
   - **Deform:** Transform, Rotate 3D, Spherize, Twist, Bend, Taper, Shear, Wave, Ripple, Noise, Roughen, Round Corners, Melt, Cylinder, Perspective, Envelope, Path Wrap, Morph, Trim.
   - **Generate:** Crack, Damage, Clone, Mirror, Mosaic, Fractal, Glitch, Boolean, Metaball, Pixelate.
-  - **Effect** (por elementos): Step, Stagger, Range, Field, Explosion.
+  - **Effect** (per element): Step, Stagger, Range, Field, Explosion.
   - **Style:** Color, Tint, Paint, Gradient, Opacity, Mask.
   - **Filters:** Shadow, Blur, Glow, Grain, Displace, Bevel, Thicken, Tone.
-- **Utils:** Instance (copia viva de otro objeto, con su propia posición y efectos), Effector (aplica sus efectos a otros objetos, cada uno por separado, con Delay escalonado) Follow Path (recorre el trazado de otro objeto) Connector (línea entre dos objetos que los sigue, con flechas) Tracer (la estela de un objeto al animarse) y Look At (gira un objeto para que mire a otro).
-- **Primitivas** (rectángulo, elipse, polígono, estrella, línea, espiral, peón) y **texto** convertido en trazados (una pieza por letra).
-- **Animación:** fotogramas clave en cualquier valor, curvas (también back, elastic, bounce) y presets de entrada de letras.
-- **Proyectos `.svrtk`**: guardar (⌘S) y volver a abrir (⌘O o arrastrando el archivo). Exporta SVG y PNG. En el menú de «svertik» hay una demo.
-- Solo lo que SVG puede expresar: lo que exporta es SVG estándar.
+- **Utils:** Instance (live copy of another object, with its own placement and stacked effects), Effector (applies its stack to other objects separately, with staggered delay), Follow Path (rigidly tracks another object's path), Connector (dynamic line between two objects following them, with arrows), Tracer (motion trail of an object during animation), and Look At (rotates an object to face another).
+- **Primitives** (rectangle, ellipse, polygon, star, line, spiral, pawn) and **Text** converted to vector outlines (one piece per letter).
+- **Animation:** keyframes on any value, easing curves (including back, elastic, bounce), and letter entrance presets.
+- **`.svrtk` Projects:** save (⌘S) and reopen (⌘O or dragging the file). Export to SVG and PNG. The "svertik" menu includes built-in demos.
+- **Strictly SVG:** exports pure, standard SVG.
 
-## Probarlo
+## Getting Started
 
 ```bash
 pnpm install
-pnpm editor     # el editor
-pnpm test       # tests (motor, interfaz y editor)
+pnpm editor     # launches the web editor
+pnpm test       # runs tests (engine, UI, and editor)
 pnpm typecheck
-pnpm storybook  # componentes
+pnpm storybook  # UI components
 ```
 
-## En la terminal
+## Terminal CLI
 
 ```bash
-pnpm svertik render proyecto.svrtk -o cartel.png --scale 3 --background '#0d0d10'
-pnpm svertik render proyecto.svrtk --frames fotogramas/   # toda la animación, en PNG
-pnpm svertik info proyecto.svrtk
-pnpm svertik effects --json                               # efectos y parámetros
+pnpm svertik render project.svrtk -o poster.png --scale 3 --background '#0d0d10'
+pnpm svertik render project.svrtk --frames frames/   # full animation as PNG frames
+pnpm svertik info project.svrtk
+pnpm svertik effects --json                         # lists effects and parameters
 ```
 
-## El motor, en una web
+## The Engine on the Web
 
 ```ts
 import { builtins, createEngine } from '@svertik/engine';
@@ -59,14 +60,14 @@ const scene = {
   ],
 };
 
-engine.toSVG(scene);                     // SVG plano
-const live = engine.mount(svgEl, scene); // en vivo
+engine.toSVG(scene);                     // Flat standalone SVG
+const live = engine.mount(svgEl, scene); // Mounted live into an <svg>
 scene.objects[0].stack[1].params.phase = 90;
-live.update(scene);                      // solo se recalcula desde «wave»
+live.update(scene);                      // Efficiently recomputed only downstream from "wave"
 ```
 
-El editor genera este código (con la animación incluida) en su panel **Code**.
+The editor generates this code (including animations) in its **Code** panel.
 
-## Licencia
+## License
 
-MIT. Las fuentes incluidas (JetBrains Mono) son OFL.
+MIT. Bundled fonts (JetBrains Mono) are licensed under OFL.
