@@ -507,3 +507,52 @@ describe('instance', () => {
     expect(r.warnings.join(' ')).toMatch(/nope/);
   });
 });
+
+describe('effector', () => {
+  const obj = (id: string, x: number) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack: [], transform: { x } });
+  const eff = (extra: Record<string, unknown> = {}) => ({
+    kind: 'effector' as const, id: 'e', name: 'e', targets: ['a', 'b'], stack: [{ id: 's', type: 'transform', params: { scale: 2 } }], ...extra,
+  });
+
+  it('aplica sus efectos a cada target por separado (cada uno sobre su propia caja) y no dibuja nada', () => {
+    const doc = engine().evaluateDocument({ version: 2, objects: [eff(), obj('a', 0), obj('b', 100), obj('c', 200)] } as SceneV2);
+    expect(doc.nodes.get('a')!.box).toEqual({ x: -10, y: -10, width: 20, height: 20 });
+    expect(doc.nodes.get('b')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
+    expect(doc.nodes.get('c')!.box.width).toBe(10);
+    expect(doc.geometry.shapes.map((s) => s.node).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('va después de la pila propia del target; oculto no hace nada', () => {
+    const own = { ...obj('a', 0), stack: [{ id: 'o', type: 'transform', params: { scale: 0.5 } }] };
+    const move = { stack: [{ id: 's', type: 'transform', params: { x: 10 } }], targets: ['a'] };
+    const e = engine();
+    // Primero la suya (escala 0,5 alrededor del centro: 2,5–7,5), luego la del effector (+10): 12,5–17,5,
+    // que colocado (centro del origen en 0) queda en 7,5. Al revés quedaría en 2,5.
+    expect(e.evaluateDocument({ version: 2, objects: [eff(move), own] } as SceneV2).nodes.get('a')!.box.x).toBeCloseTo(7.5);
+    expect(e.evaluateDocument({ version: 2, objects: [eff({ visible: false }), obj('a', 0)] } as SceneV2).nodes.get('a')!.box.width).toBe(10);
+  });
+
+  it('delay: cada target ve la animación del effector un poco más tarde', async () => {
+    const { sampleScene } = await import('../src/animation');
+    const scene = {
+      version: 2,
+      objects: [eff({ delay: 0.5 }), obj('a', 0), obj('b', 100)],
+      animation: { duration: 2, tracks: [{ id: 't', node: 'e', on: 'modifier', modifier: 's', param: 'scale', keys: [{ t: 0, value: 1, ease: 'linear' }, { t: 1, value: 3, ease: 'linear' }] }] },
+    } as SceneV2;
+    const at = (t: number) => engine().evaluateDocument(sampleScene(scene, t)).nodes;
+    // En 0,5 s: a, a mitad (escala 2); b, aún al principio (escala 1).
+    expect(at(0.5).get('a')!.box.width).toBeCloseTo(20);
+    expect(at(0.5).get('b')!.box.width).toBeCloseTo(10);
+    // En 1,5 s: los dos al final.
+    expect(at(1.5).get('b')!.box.width).toBeCloseTo(30);
+    // Sin instante (la escena tal cual), todos iguales.
+    expect(engine().evaluateDocument(scene).nodes.get('b')!.box.width).toBeCloseTo(20);
+  });
+
+  it('validateScene acepta el effector y avisa de targets que no existen', async () => {
+    const { validateScene } = await import('../src/validate');
+    const r = validateScene({ version: 2, objects: [eff({ targets: ['a', 'zzz'] }), obj('a', 0)] } as SceneV2);
+    expect(r.errors).toEqual([]);
+    expect(r.warnings.join(' ')).toMatch(/zzz/);
+  });
+});

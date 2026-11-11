@@ -21,6 +21,11 @@
   let cursor = $state<[number, number]>([1, 1]);
 
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
+  const frame = () => {
+    const s = snapshot();
+    if (s.animation) s.at = editor.time;
+    return s;
+  };
   const jsonDoc = $derived(editor.scene ? sceneJSON(editor.scene) : '');
   const jsDoc = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as SceneV2, editor.script) : '');
   const jsFold = $derived(sourceRanges(jsDoc));
@@ -37,7 +42,7 @@
   let svgTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
     if (tab !== 'SVG' || !editor.scene) return;
-    const scene = snapshot();
+    const scene = frame();
     if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     clearTimeout(svgTimer);
     svgTimer = setTimeout(() => (svgDoc = engine.toSVG(scene)), 200);
@@ -126,7 +131,7 @@
     if (!editor.scene) return;
     if (tab === 'JSON') oncopy(jsonDoc, 'JSON');
     else if (tab === 'JS') oncopy(exportJS(snapshot(), editor.script), 'JS');
-    else oncopy(engine.toSVG(snapshot()), 'SVG');
+    else oncopy(engine.toSVG(frame()), 'SVG');
   }
 
   const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: 'flat output · read-only' };

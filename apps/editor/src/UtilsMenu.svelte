@@ -25,6 +25,14 @@
         <Icon name="instance" />
         Instance
       </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="sv-menu-item"
+        title="Effects that apply to other objects (its targets), each on its own. Selected objects become its targets."
+        onSelect={() => editor.addEffector()}
+      >
+        <Icon name="effector" />
+        Effector
+      </DropdownMenu.Item>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>

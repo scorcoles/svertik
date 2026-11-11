@@ -635,3 +635,29 @@ describe('Utils: Instance', () => {
     expect(locateNode(e.scene!.objects, inst.id)!.node).toMatchObject({ of: orig.id });
   });
 });
+
+describe('Utils: Effector', () => {
+  it('nace con los seleccionados como targets; sus efectos van a su pila; targets y delay se cambian con deshacer', () => {
+    const e = fresh();
+    const a = e.scene!.objects[0]!.id;
+    e.addShape('star');
+    const b = e.scene!.objects[0]!.id;
+    e.selected = a;
+    e.toggleSelect(b);
+    e.addEffector();
+    const eff = e.scene!.objects[0]!;
+    expect(eff.kind).toBe('effector');
+    expect(eff.kind === 'effector' && eff.targets).toEqual([b, a]); // en el orden de la lista (de arriba abajo)
+    e.add('twist');
+    expect(eff.stack.map((m) => m.type)).toEqual(['twist']);
+
+    e.setEffectorTarget(eff.id, a, false);
+    e.setEffectorDelay(eff.id, 0.25, true);
+    let node = locateNode(e.scene!.objects, eff.id)!.node;
+    expect(node).toMatchObject({ targets: [b], delay: 0.25 });
+    e.undo();
+    e.undo();
+    node = locateNode(e.scene!.objects, eff.id)!.node;
+    expect(node).toMatchObject({ targets: [b, a] });
+  });
+});

@@ -26,6 +26,7 @@ import {
   type NodeInfo,
   type ModifierDef,
   type ModifierInstance,
+  type EffectorNode,
   type InstanceNode,
   type ObjectNode,
   type SceneNode,
@@ -380,6 +381,42 @@ export class Editor {
     at.list.splice(at.index, 0, node);
     this.selected = node.id;
     this.record(true);
+  }
+
+  /**
+   * Effector nuevo, arriba de la lista, con los objetos seleccionados como targets (puede empezar sin
+   * ninguno). Queda seleccionado: los efectos que se añadan van a su pila.
+   */
+  addEffector() {
+    if (!this.scene) return;
+    const targets = this.selectedNodes.filter((n) => n.kind !== 'effector').map((n) => n.id);
+    const taken = new Set([...walkNodes(this.scene.objects)].map((x) => x.node.name));
+    let name = 'Effector';
+    for (let i = 2; taken.has(name); i++) name = `Effector ${i}`;
+    const node: EffectorNode = { kind: 'effector', id: `effector-${uid()}`, name, targets, stack: [] };
+    this.scene.objects.unshift(node);
+    this.selected = node.id;
+    this.record(true);
+  }
+
+  /** Añade (o quita) un target de un Effector. */
+  setEffectorTarget(id: string, target: string, on: boolean) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'effector' || target === id) return;
+    const has = at.node.targets.includes(target);
+    if (on === has) return;
+    at.node.targets = on ? [...at.node.targets, target] : at.node.targets.filter((x) => x !== target);
+    this.record(true);
+  }
+
+  /** Retraso entre un target y el siguiente (segundos). */
+  setEffectorDelay(id: string, delay: number, now = false) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'effector') return;
+    const d = Math.max(0, Math.round(delay * 1000) / 1000);
+    if (d) at.node.delay = d;
+    else delete at.node.delay;
+    this.record(now);
   }
 
   /** Cambia el original de una instancia. */

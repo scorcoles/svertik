@@ -128,7 +128,7 @@
       <StackItem
         label={n.name}
         kind="object"
-        icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.packed ? 'pack' : 'object') as IconName}
+        icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : 'object') as IconName}
         {depth}
         expanded={n.stack.length || n.kind === 'group' ? open : undefined}
         selected={editor.isSelected(n.id)}

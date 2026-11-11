@@ -5,7 +5,7 @@ import { importSVG } from './import';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
-import type { Animation, Track } from './animation';
+import { findModifier, trackValue, type Animation, type Track } from './animation';
 import type { Interaction } from './interactions';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
 
@@ -84,7 +84,18 @@ export interface InstanceNode extends NodeBase {
   of: string;
 }
 
-export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode;
+/**
+ * Effector: no dibuja nada. Su pila de efectos se añade al final de la de cada uno de sus `targets`, a cada
+ * uno por separado. `delay` (segundos): el target n ve la animación de esos efectos n × delay más tarde.
+ * Oculto, no hace nada.
+ */
+export interface EffectorNode extends NodeBase {
+  kind: 'effector';
+  targets: string[];
+  delay?: number;
+}
+
+export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode | EffectorNode;
 
 export interface SceneV2 {
   version: 2;
@@ -98,6 +109,11 @@ export interface SceneV2 {
   animation?: Animation;
   /** Interacciones (opcional): hover y clic sobre los objetos. Ver interactions.ts. */
   interactions?: Interaction[];
+  /**
+   * El instante (segundos) al que corresponde la escena, si es un fotograma de la animación (`sampleScene`
+   * lo pone; el editor, al evaluar). No se guarda: solo lo usa lo que va con retraso (Delay de Effector).
+   */
+  at?: number;
 }
 
 /** La escena (lo que se guarda y se exporta). */
@@ -122,7 +138,7 @@ export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null):
 
 export interface NodeInfo {
   id: string;
-  kind: 'object' | 'shape' | 'group' | 'instance';
+  kind: 'object' | 'shape' | 'group' | 'instance' | 'effector';
   /** Caja de referencia de los efectos del nodo (fracciones), en sus coordenadas locales. */
   bounds: Bounds;
   /**
@@ -233,6 +249,12 @@ export function createDocumentEvaluator(
     const byId = new Map<string, SceneNode>();
     for (const { node } of walkNodes(scene.objects)) byId.set(node.id, node);
     const broken = brokenInstances(byId);
+    // Lo que añaden los Effectors a cada nodo (al final de su pila, en el orden de la escena).
+    const extra = effectorStacks(scene, byId);
+    const stackOf = (node: SceneNode) => {
+      const more = extra.get(node.id);
+      return more ? [...node.stack, ...more] : node.stack;
+    };
     /** Lo de la pasada anterior: matriz y resultado (en el documento) de cada nodo. */
     let known = last;
     // Huella de la geometría de cada nodo conocido (se calcula una vez por pasada).
@@ -283,7 +305,7 @@ export function createDocumentEvaluator(
       const withFilters = (node: SceneNode, shapes: Shape[]): Shape[] => {
         // Una instancia lleva también los filtros del original (su sombra, su desenfoque…).
         const of = node.kind === 'instance' && !broken.has(node.id) ? byId.get(node.of) : undefined;
-        const f = filtersOf(of && of.kind !== 'group' ? [...of.stack, ...node.stack] : node.stack);
+        const f = filtersOf(of && of.kind !== 'group' ? [...stackOf(of), ...stackOf(node)] : stackOf(node));
         if (!f || !shapes.length) return shapes;
         fx.set(node.id, f);
         return shapes.map((s) => ({ ...s, wrap: [node.id, ...(s.wrap ?? [])] }));
@@ -292,6 +314,8 @@ export function createDocumentEvaluator(
       // Devuelve la geometría del nodo en coordenadas de su padre.
       const evalNode = (node: SceneNode, parentMatrix: Mat): Shape[] => {
         seen.add(node.id);
+        if (node.kind === 'effector') return [];
+        const stack = stackOf(node);
         const p = placementOf(node);
         if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {
           // Instancia: su origen es el resultado del original (sin su colocación). Si aún no se ha calculado
@@ -316,8 +340,8 @@ export function createDocumentEvaluator(
           // El texto depende de las fuentes registradas: si llega una nueva, se vuelve a dibujar.
           const key =
             node.kind === 'instance'
-              ? JSON.stringify([resolution, node.stack]) + '\n' + instSrc!.key
-              : node.kind === 'object' ? JSON.stringify([resolution, node.stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, node.stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+              ? JSON.stringify([resolution, stack]) + '\n' + instSrc!.key
+              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
           let entry = cache.get(node.id);
           // Uno que usa otro objeto vale si lo que ve de él no ha cambiado.
           const fresh = entry && entry.key === key && (!entry.dynamic || entry.deps.every(([id, h]) => depOf(node.id, id) === h));
@@ -338,7 +362,7 @@ export function createDocumentEvaluator(
             asked = false;
             const deps: [string, number][] = [];
             const refs: StackRefs = {};
-            const result = runStack(source, node.stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs);
+            const result = runStack(source, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs);
             entry = { key, source, result, dynamic: asked, deps, refs };
             asked = asked || before;
             cache.set(node.id, entry);
@@ -364,7 +388,7 @@ export function createDocumentEvaluator(
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
         const ref = bounds(inner);
         const refs: StackRefs = {};
-        const result = node.stack.length ? runStack(inner, node.stack, ref, resolution, lookupFor(node.id), undefined, refs) : inner;
+        const result = stack.length ? runStack(inner, stack, ref, resolution, lookupFor(node.id), undefined, refs) : inner;
         const c = centerOf(ref);
         // Agrupar no mueve nada: el centro del grupo se queda donde está.
         const m = placementMatrix(p, ref, c);
@@ -387,6 +411,13 @@ export function createDocumentEvaluator(
 
       // El primero de la lista se pinta el último: queda delante.
       shapes = [...scene.objects].reverse().flatMap((n) => evalNode(n, IDENTITY));
+      // Un Effector se mide sobre su primer target (sus tiradores van ahí); no tiene caja propia que arrastrar.
+      for (const n of byId.values()) {
+        if (n.kind !== 'effector') continue;
+        const first = n.targets.map((id) => nodes.get(id)).find(Boolean);
+        nodes.set(n.id, first ? { ...first, id: n.id, kind: 'effector', box: { x: 0, y: 0, width: 0, height: 0 } } : { id: n.id, kind: 'effector', bounds: { x: 0, y: 0, width: 0, height: 0 }, matrix: IDENTITY, box: { x: 0, y: 0, width: 0, height: 0 } });
+        results.set(n.id, { viewBox: [0, 0, 0, 0], shapes: [] });
+      }
       finalResults = results;
       // Nadie pidió otro objeto: no hace falta otra pasada.
       if (!asked) {
@@ -403,7 +434,7 @@ export function createDocumentEvaluator(
     // El origen de cada objeto, con su matriz final (la de sus grupos incluida).
     const placedSources: Shape[] = [];
     for (const { node } of walkNodes(scene.objects)) {
-      if (node.kind === 'group' || node.visible === false) continue;
+      if (node.kind === 'group' || node.kind === 'effector' || node.visible === false) continue;
       const entry = cache.get(node.id);
       const info = nodes.get(node.id);
       if (entry && info) placedSources.push(...transformGeo(entry.source, info.matrix).shapes.map((s) => ({ ...s, node: node.id })));
@@ -465,6 +496,39 @@ export function createDocumentEvaluator(
   }
 
   return { evaluate };
+}
+
+/**
+ * La pila que cada Effector (visible) añade a cada uno de sus targets. Con `delay` y la escena en un instante
+ * (`at`), el target n lleva sus efectos con las pistas del Effector leídas n × delay antes.
+ */
+export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Map<string, ModifierInstance[]> {
+  const out = new Map<string, ModifierInstance[]>();
+  for (const n of byId.values()) {
+    if (n.kind !== 'effector' || n.visible === false || !n.stack.length) continue;
+    const tracks = (scene.animation?.tracks ?? []).filter((tr) => tr.node === n.id && tr.on === 'modifier');
+    const delay = n.delay ?? 0;
+    let i = 0;
+    for (const id of n.targets ?? []) {
+      const t = byId.get(id);
+      if (!t || t.kind === 'effector' || id === n.id) continue;
+      let stack = n.stack;
+      if (delay > 0 && i > 0 && tracks.length && scene.at !== undefined) {
+        stack = structuredClone(n.stack);
+        const at = Math.max(0, scene.at - i * delay);
+        for (const tr of tracks) {
+          const m = tr.modifier ? findModifier(stack, tr.modifier) : null;
+          const v = trackValue(tr, at);
+          if (!m || v === undefined) continue;
+          if (tr.param === 'enabled') m.enabled = !!v;
+          else m.params = { ...m.params, [tr.param]: v };
+        }
+      }
+      out.set(id, [...(out.get(id) ?? []), ...stack]);
+      i++;
+    }
+  }
+  return out;
 }
 
 /**

@@ -44,6 +44,12 @@
     toastTimer = setTimeout(() => (toast = null), 1600);
   };
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
+  /** La escena en el instante que se ve (para exportar el fotograma: el Delay de Effector depende de él). */
+  const frame = () => {
+    const s = snapshot();
+    if (s.animation) s.at = editor.time;
+    return s;
+  };
 
   async function openFile(file: File) {
     const text = await file.text();
@@ -92,7 +98,7 @@
   }
   /** PNG del fotograma actual, a doble resolución y con fondo transparente (lo dibuja el navegador). */
   async function exportPNG(scale = 2) {
-    const svg = engine.toSVG(snapshot());
+    const svg = engine.toSVG(frame());
     const vb = /viewBox="([^"]+)"/.exec(svg)?.[1]?.split(/\s+/).map(Number) ?? [0, 0, 100, 100];
     const [w, h] = [Math.max(1, Math.round(vb[2]! * scale)), Math.max(1, Math.round(vb[3]! * scale))];
     const url = URL.createObjectURL(new Blob([svg.replace('<svg ', `<svg width="${w}" height="${h}" `)], { type: 'image/svg+xml' }));
@@ -147,7 +153,7 @@
   }
   function exportSVG() {
     const name = `${editor.name}.svertik.svg`;
-    download(name, engine.toSVG(snapshot()), 'image/svg+xml');
+    download(name, engine.toSVG(frame()), 'image/svg+xml');
     say(`Saved ${name}`);
   }
 

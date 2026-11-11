@@ -137,7 +137,7 @@ export function trackTime(tr: Pick<Track, 'keys' | 'repeat' | 'every'>, t: numbe
 export const trackValue = (tr: Track, t: number): unknown => valueAt(tr.keys, trackTime(tr, t));
 
 /** Busca un efecto por id en una pila (también dentro de Step). */
-function findModifier(stack: ModifierInstance[], id: string): ModifierInstance | null {
+export function findModifier(stack: ModifierInstance[], id: string): ModifierInstance | null {
   for (const m of stack) {
     if (m.id === id) return m;
     const inner = m.children && findModifier(m.children, id);
@@ -188,6 +188,8 @@ export function sampleScene(scene: SceneV2, t: number): SceneV2 {
   if (!anim?.tracks.length) return scene;
   const out = structuredClone(scene) as SceneV2;
   for (const tr of anim.tracks) writeTarget(out, tr, trackValue(tr, t));
+  // El instante, para lo que va con retraso (Delay de Effector): no se guarda, solo vale para evaluar.
+  out.at = t;
   return out;
 }
 

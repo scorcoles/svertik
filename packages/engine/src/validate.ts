@@ -73,14 +73,19 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
       if (nodes.has(n.id)) warnings.push(`Object id "${n.id}" is used more than once`);
       nodes.set(n.id, n);
-      if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape' && n.kind !== 'instance') {
-        errors.push(`${name(n)}: kind must be "object", "shape", "group" or "instance"`);
+      if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape' && n.kind !== 'instance' && n.kind !== 'effector') {
+        errors.push(`${name(n)}: kind must be "object", "shape", "group", "instance" or "effector"`);
         continue;
       }
       if (n.kind === 'object' && typeof n.source !== 'string' && !n.packed) errors.push(`${name(n)}: needs a source SVG`);
       if (n.kind === 'instance') {
         if (typeof n.of !== 'string' || !n.of) warnings.push(`${name(n)}: is an instance of nothing ("of" is empty)`);
         else nodeRefs.push({ from: name(n), param: 'of', id: n.of });
+      }
+      if (n.kind === 'effector') {
+        if (!Array.isArray(n.targets)) n.targets = [];
+        for (const id of n.targets) nodeRefs.push({ from: name(n), param: 'targets', id });
+        if (n.delay !== undefined && !(n.delay >= 0)) warnings.push(`${name(n)}: delay must be 0 or more seconds`);
       }
       if (n.kind === 'shape') {
         const def = shapeRegistry.get(n.shape);

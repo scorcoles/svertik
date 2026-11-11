@@ -11,7 +11,7 @@
   }
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
-  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.packed ? 'pack' : 'object');
+  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
   // Instancia: de qué objeto (cualquiera menos ella misma).
   const others = $derived(editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== node.id) : []);
   const original = $derived(node.kind === 'instance' ? others.find((n) => n.id === node.of) : undefined);
@@ -69,6 +69,29 @@
       {/if}
     </Section>
   {/if}
+  {#if node.kind === 'effector'}
+    {@const free = others.filter((n) => n.kind !== 'effector' && !node.targets.includes(n.id))}
+    <Section title="Targets">
+      {#each node.targets as id (id)}
+        {@const t = others.find((n) => n.id === id)}
+        <ParamRow label="">
+          <button type="button" class="target" disabled={!t} onclick={() => t && (editor.selected = t.id)}>{t?.name ?? 'missing object'}</button>
+          <span class="mini">
+            <IconButton icon="trash" label="Remove target" onclick={() => editor.setEffectorTarget(node.id, id, false)} />
+          </span>
+        </ParamRow>
+      {/each}
+      <ParamRow label={node.targets.length ? '' : 'Add'}>
+        <Select value="+ Add target" options={['+ Add target', ...free.map((n) => n.name)]} label="Add target" onchange={(v) => { const t = free.find((n) => n.name === v); if (t) editor.setEffectorTarget(node.id, t.id, true); }} />
+      </ParamRow>
+      <ParamRow label="Delay" for="eff-delay">
+        <NumberField id="eff-delay" value={node.delay ?? 0} min={0} step={0.05} unit="s" onchange={(v) => editor.setEffectorDelay(node.id, v)} />
+      </ParamRow>
+      <ParamRow label="On" for="eff-on">
+        <Checkbox id="eff-on" checked={node.visible !== false} onchange={(v) => editor.setNode(node.id, 'visible', v, true)} />
+      </ParamRow>
+    </Section>
+  {/if}
   {#if node.kind === 'shape' && shapeDef}
     <Section title={shapeDef.label}>
       <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
@@ -81,6 +104,7 @@
       <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
     </Section>
   {/if}
+  {#if node.kind !== 'effector'}
   <Section title="Transform">
     <ParamRow label="Position" for="node-x" keyState={nodeKey('x')} onkey={() => toggleNode('x', 'y')}>
       <PointField id="node-x" label="Position" step={1} value={[p.x, p.y]} onchange={([x, y]) => { editor.setNode(node.id, 'x', x); editor.setNode(node.id, 'y', y); }} />
@@ -203,8 +227,11 @@
     </div>
     <p class="note">Letters, copies, tiles or pieces arrive one after another (Fall: they leave). Adds a Stagger with two keyframes; tweak it like anything else.</p>
   </Section>
+  {/if}
   <div class="actions">
-    {#if node.kind === 'object' && node.packed}
+    {#if node.kind === 'effector'}
+      <!-- Un Effector no se empaqueta ni se agrupa: no dibuja nada. -->
+    {:else if node.kind === 'object' && node.packed}
       <Button label="Unpack" onclick={() => editor.unpack(node.id)} />
     {:else}
       {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
@@ -213,7 +240,7 @@
     {/if}
     {#if node.kind === 'group'}
       <Button label="Ungroup" onclick={() => editor.ungroup(node.id)} />
-    {:else}
+    {:else if node.kind !== 'effector'}
       <Button label="Group" onclick={() => editor.group(node.id)} />
     {/if}
     <Button label="Remove" onclick={() => editor.remove(node.id)} />
@@ -221,6 +248,8 @@
   <p class="note">
     {node.kind === 'object' && node.packed
       ? 'Packed: the result is frozen and nothing inside is computed. Effects you add go on top. Unpack to get the original back, with its effects and animation.'
+      : node.kind === 'effector'
+      ? 'Draws nothing. Its effects (add them from the menus above) go at the end of each target’s own stack, on each one separately. Delay: each target plays the effector’s animation that much later than the one before.'
       : node.kind === 'instance'
       ? 'A live copy of the original, with its effects: change the original and this changes too. It has its own position and its own effects on top.'
       : node.kind === 'group'
@@ -247,6 +276,22 @@
   .name:focus { border-bottom-color: var(--sv-accent-fill); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .mini { display: flex; }
+  .target {
+    flex: 1;
+    min-width: 0;
+    padding: 0 var(--sv-space-4);
+    font: inherit;
+    text-align: left;
+    color: var(--sv-text-primary);
+    background: none;
+    border: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .target:hover { color: var(--sv-accent-fill); }
+  .target:disabled { color: var(--sv-text-disabled); cursor: default; }
   .dim { color: var(--sv-text-muted); }
   .interaction { margin: 0 0 var(--sv-space-6); padding-bottom: var(--sv-space-4); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }
