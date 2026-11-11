@@ -1,11 +1,11 @@
 <script lang="ts">
   import { Popover } from 'bits-ui';
-  import ColorField from './ColorField.svelte';
   import ColorPicker from './ColorPicker.svelte';
   import NumberField from './NumberField.svelte';
   import ParamRow from './ParamRow.svelte';
   import Select from './Select.svelte';
   import Segmented from './Segmented.svelte';
+  import { DOCUMENT_PALETTE, usePalettes } from './palettes';
 
   type Stop = { offset: number; color: string; opacity?: number };
   type GradientValue = {
@@ -32,10 +32,21 @@
   const solid = $derived(typeof value === 'string' ? value : '#d9d9d9');
   const grad = $derived(isGradient(value) ? value : null);
 
+  const BASE = ['#ffffff', '#d9d9d9', '#a6a6a6', '#737373', '#404040', '#1a1a1a', '#000000'];
+  const docSwatches = $derived([...new Set(swatches.map((c) => c.toLowerCase()))].filter((c) => !BASE.includes(c)).slice(0, 21));
+  const palettes = usePalettes();
+  const shown = $derived.by(() => {
+    if (!palettes || palettes.current === DOCUMENT_PALETTE) return { name: DOCUMENT_PALETTE, colors: docSwatches };
+    const p = palettes.list.find((x) => x.name === palettes.current);
+    return p ? { name: p.name, colors: p.colors.map((c) => c.toLowerCase()).slice(0, 21) } : { name: DOCUMENT_PALETTE, colors: docSwatches };
+  });
+  const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
   function emit(v: string | GradientValue) {
     value = v;
     onchange?.(v);
   }
+  const setSolid = (v: string) => { const hex = v.startsWith('#') ? v.toLowerCase() : `#${v}`.toLowerCase(); emit(hex); };
 
   function toSolid() { emit(solid); }
   function toGradient(kind: 'linear' | 'radial' = 'linear') {
@@ -102,7 +113,9 @@
 
 <div class="sv-paint" data-compact={compact || undefined}>
   <Popover.Root bind:open>
-    <Popover.Trigger class="swatch" style="background: {cssPreview}" aria-label={label ? `${label} paint` : 'Paint'} />
+    <Popover.Trigger class="swatch" aria-label={label ? `${label} paint` : 'Paint'}>
+      <span class="preview" style:background={cssPreview}></span>
+    </Popover.Trigger>
     <Popover.Portal>
       <Popover.Content class="popover" side="bottom" align="start" sideOffset={4}>
         <div class="modes">
@@ -110,8 +123,37 @@
         </div>
         {#if !grad}
           <div class="solid">
-            <ColorPicker value={solid} onchange={emit} />
-            <ColorField value={solid} label={label} {swatches} onchange={emit} />
+            <ColorPicker value={solid} onchange={setSolid} />
+            <input
+              class="hex-in"
+              spellcheck="false"
+              aria-label={label ? `${label} hex` : 'Hex'}
+              value={solid.toUpperCase()}
+              onchange={(e) => { const v = e.currentTarget.value.trim(); if (HEX.test(v)) setSolid(v); else e.currentTarget.value = solid.toUpperCase(); }}
+              onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            />
+            <div class="grid" role="listbox" aria-label="Swatches">
+              {#each BASE as c (c)}
+                <button type="button" class="chip" role="option" aria-selected={c === solid.toLowerCase()} aria-label={c} title={c} style:background={c} onclick={() => setSolid(c)}></button>
+              {/each}
+            </div>
+            {#if palettes}
+              <select class="pal" aria-label="Palette" value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
+                <option value={DOCUMENT_PALETTE}>{DOCUMENT_PALETTE}</option>
+                {#each palettes.list as p (p.name)}<option value={p.name}>{p.name}</option>{/each}
+              </select>
+            {:else if docSwatches.length}
+              <p class="head">{DOCUMENT_PALETTE}</p>
+            {/if}
+            {#if shown.colors.length}
+              <div class="grid" role="listbox" aria-label={shown.name}>
+                {#each shown.colors as c (c)}
+                  <button type="button" class="chip" role="option" aria-selected={c === solid.toLowerCase()} aria-label={c} title={c} style:background={c} onclick={() => setSolid(c)}></button>
+                {/each}
+              </div>
+            {:else if palettes}
+              <p class="empty">No colors yet.</p>
+            {/if}
           </div>
         {:else}
           <div class="gedit">
@@ -164,11 +206,30 @@
   .sv-paint { display:flex; align-items:center; gap: var(--sv-space-6); width: 120px; height: 20px; padding: 0 var(--sv-space-6) 0 3px; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
   .sv-paint:hover { border-color: var(--sv-rule-strong); }
   .sv-paint[data-compact] { width: auto; padding: 3px; }
-  :global(.sv-paint .swatch) { flex:none; width:12px; height:12px; padding:0; border:0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15); cursor:pointer; }
+  :global(.sv-paint .swatch) {
+    flex:none; width:12px; height:12px; padding:0; border:0; cursor:pointer; position:relative; overflow:hidden;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15);
+    background-image: linear-gradient(45deg, #bbb 25%, transparent 25%), linear-gradient(-45deg, #bbb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #bbb 75%), linear-gradient(-45deg, transparent 75%, #bbb 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+    background-color: #fff;
+  }
+  .preview { position:absolute; inset:0; }
   .label { flex:1; min-width:0; font-size: var(--sv-font-size-10); color: var(--sv-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   :global(.sv-paint .popover) { z-index:50; width: 260px; padding: var(--sv-space-6); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-rule-strong); font-size: var(--sv-font-size-10); display:grid; gap: var(--sv-space-6); }
   .modes :global(.sv-segmented) { width: 100%; }
   .solid { display:grid; gap: var(--sv-space-6); }
+  .hex-in { width: 100%; height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-primary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); outline: none; box-sizing: border-box; }
+  .hex-in:focus { border-color: var(--sv-accent-fill); }
+  .grid { display: grid; grid-template-columns: repeat(7, 16px); gap: 4px; }
+  .chip { width: 16px; height: 16px; padding: 0; border: 0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15); cursor: pointer; }
+  .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
+  .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .head { margin: 0; color: var(--sv-text-muted); }
+  .empty { margin: 0; color: var(--sv-text-disabled); }
+  .pal { width: 100%; height: 20px; padding: 0 var(--sv-space-4); font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); outline: none; cursor: pointer; }
+  .pal:hover { border-color: var(--sv-rule-strong); }
+  .pal:focus-visible { border-color: var(--sv-accent-fill); }
   .gedit { display:grid; gap: 4px; }
   .stops { display:grid; gap: 4px; margin-top: 4px; }
   .stops-head { display:flex; justify-content:space-between; align-items:center; color: var(--sv-text-muted); }
