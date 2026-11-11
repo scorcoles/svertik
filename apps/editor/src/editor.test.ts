@@ -715,3 +715,26 @@ describe('paletas', () => {
     expect(e.paletteName).toBe('In this document');
   });
 });
+
+describe('seguir al puntero', () => {
+  it('pointer va con follow (posición); los puntos de los efectos y los números se pueden seguir', () => {
+    const e = new Editor();
+    e.addShape('star');
+    const id = e.scene!.objects[0]!.id;
+    e.add('spherize');
+    e.addInteraction(id);
+    const it = () => e.scene!.interactions![0]!;
+    e.setInteractionTrigger(it().id, 'pointer');
+    expect(it()).toMatchObject({ trigger: 'pointer', action: 'follow', target: { param: 'position' }, axis: 'both' });
+    const labels = e.followTargets(id).map((t) => t.label);
+    expect(labels).toContain('Position');
+    expect(labels.some((l) => l.startsWith('Spherize · Center'))).toBe(true);
+    const rot = e.followTargets(id).find((t) => t.label === 'Rotation')!;
+    e.setFollowTarget(it().id, rot.target, rot.kind);
+    expect(it().range).toEqual([-45, 45]);
+    // Volver a hover lo deja como un tween normal.
+    e.setInteractionTrigger(it().id, 'hover');
+    expect(it().action).toBe('tween');
+    expect(it().range).toBeUndefined();
+  });
+});

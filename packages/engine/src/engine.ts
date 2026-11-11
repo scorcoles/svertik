@@ -39,7 +39,7 @@ export interface Engine {
   evaluateDocument(scene: SceneV2): DocumentResult;
   toSVG(scene: SceneV2, options?: ToSVGOptions): string;
   /** Pinta la escena en un <svg> y devuelve con qué actualizarla. */
-  mount(svg: SVGSVGElement, scene: SceneV2, options?: ToSVGOptions): { update(scene: SceneV2): void };
+  mount(svg: SVGSVGElement, scene: SceneV2, options?: ToSVGOptions): { update(scene: SceneV2): void; doc(): DocumentResult | null };
 }
 
 const DEFAULT_RESOLUTION = 0.01;
@@ -199,8 +199,14 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     evaluateDocument,
     toSVG: (scene, options) => toSVG(flat(scene), options),
     mount(svg, scene, options) {
-      renderInto(svg, flat(scene), options);
-      return { update: (next) => renderInto(svg, flat(next), options) };
+      // Lo último que se pintó (para saber dónde está cada objeto: «follow» lo necesita).
+      let last: DocumentResult | null = null;
+      const paint = (s: SceneV2) => {
+        last = evaluateDocument(s);
+        renderInto(svg, last.geometry, options);
+      };
+      paint(scene);
+      return { update: paint, doc: () => last };
     },
   };
 }

@@ -139,6 +139,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   for (const it of scene.interactions ?? []) {
     const label = `Interaction "${it.id}"`;
     if (it.trigger !== 'enter' && !nodes.has(it.node)) warnings.push(`${label}: object "${it.node}" does not exist`);
+    if (it.action === 'follow' && it.trigger !== 'pointer') warnings.push(`${label}: "follow" only works with the "pointer" trigger`);
     const t = it.target;
     if (it.action === 'play' || !t) continue;
     if (!nodes.has(t.node)) warnings.push(`${label}: target object "${t.node}" does not exist`);

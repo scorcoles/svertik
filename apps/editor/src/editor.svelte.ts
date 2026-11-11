@@ -1041,6 +1041,60 @@ export class Editor {
     walk(n?.stack ?? []);
     return out;
   }
+  /**
+   * Lo que puede seguir al puntero: la posición del objeto, los puntos de sus efectos que son un lugar del
+   * dibujo (centros, pivotes…) y sus números (con un rango).
+   */
+  followTargets(nodeId: string): { label: string; target: TrackTarget; kind: 'point' | 'number' | 'angle' }[] {
+    const n = this.scene ? locateNode(this.scene.objects, nodeId)?.node : undefined;
+    if (!n) return [];
+    const out: { label: string; target: TrackTarget; kind: 'point' | 'number' | 'angle' }[] = [{ label: 'Position', target: { node: nodeId, on: 'node', param: 'position' }, kind: 'point' }];
+    const walk = (list: ModifierInstance[]) => {
+      for (const m of list) {
+        const def = registry.get(m.type);
+        for (const [name, spec] of Object.entries(def?.params ?? {})) {
+          if (spec.type === 'point' && spec.unit === 'fraction' && spec.handle !== false && spec.animatable !== false)
+            out.push({ label: `${def!.label} · ${spec.label ?? name[0]!.toUpperCase() + name.slice(1)}`, target: { node: nodeId, on: 'modifier', modifier: m.id, param: name }, kind: 'point' });
+        }
+        walk(m.children ?? []);
+      }
+    };
+    walk(n.stack);
+    for (const t of this.interactionTargets(nodeId)) if (t.kind !== 'color' && t.target.param !== 'x' && t.target.param !== 'y') out.push({ ...t, kind: t.kind });
+    return out;
+  }
+  /** Cambia el disparador; «pointer» va con «follow» (y al revés), con valores de partida. */
+  setInteractionTrigger(id: string, trigger: Interaction['trigger']) {
+    const it = this.scene?.interactions?.find((x) => x.id === id);
+    if (!it || it.trigger === trigger) return;
+    it.trigger = trigger;
+    if (trigger === 'pointer') {
+      Object.assign(it, { action: 'follow', target: { node: it.node, on: 'node', param: 'position' }, to: null, duration: 0.15, axis: 'both' });
+      delete it.range;
+    } else if (it.action === 'follow') {
+      Object.assign(it, { action: 'tween', target: { node: it.node, on: 'node', param: 'scale' }, to: 1.2, duration: 0.3, ease: 'back-out' });
+      delete it.axis;
+      delete it.range;
+      delete it.stay;
+    }
+    this.record(true);
+  }
+  /** Qué sigue al puntero; un número empieza con un rango alrededor de su valor. */
+  setFollowTarget(id: string, target: TrackTarget, kind: 'point' | 'number' | 'angle') {
+    const it = this.scene?.interactions?.find((x) => x.id === id);
+    if (!it || !this.scene) return;
+    it.target = target;
+    if (kind === 'point') {
+      it.axis = it.axis ?? 'both';
+      delete it.range;
+    } else {
+      const v = Number(readTarget($state.snapshot(this.scene) as SceneV2, target) ?? 0) || 0;
+      it.range = kind === 'angle' ? [v - 45, v + 45] : target.param === 'scale' || target.param === 'opacity' ? [0, 1] : [v - 1, v + 1];
+      it.axis = it.axis === 'y' ? 'y' : 'x';
+    }
+    this.record(true);
+  }
+
   /** Cambia lo que hace una interacción, con valores de partida razonables para la nueva acción. */
   setInteractionAction(id: string, action: 'tween' | 'play' | 'seed' | 'toggle') {
     const it = this.scene?.interactions?.find((x) => x.id === id);

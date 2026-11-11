@@ -152,11 +152,49 @@
       {@const act = it.action ?? 'tween'}
       <div class="interaction">
         <ParamRow label="On">
-          <Segmented value={it.trigger} label="Trigger" options={[{ value: 'hover', label: 'hover' }, { value: 'click', label: 'click' }, { value: 'enter', label: 'enter' }]} onchange={(v) => editor.updateInteraction(it.id, { trigger: v as 'hover' | 'click' | 'enter' })} />
+          <Segmented value={it.trigger} label="Trigger" options={[{ value: 'hover', label: 'hover' }, { value: 'click', label: 'click' }, { value: 'enter', label: 'enter' }, { value: 'pointer', label: 'pointer' }]} onchange={(v) => editor.setInteractionTrigger(it.id, v as 'hover' | 'click' | 'enter' | 'pointer')} />
+        </ParamRow>
+        {#if it.trigger === 'pointer'}
+          {@const follows = editor.followTargets(node.id)}
+          {@const ft = follows.find((t) => t.target.on === it.target.on && t.target.param === it.target.param && (t.target.modifier ?? '') === (it.target.modifier ?? '')) ?? follows[0]}
+          <ParamRow label="Follow">
+            <Select
+              value={ft?.label ?? ''}
+              options={follows.map((t) => t.label)}
+              label="What follows the pointer"
+              width="172px"
+              onchange={(v) => {
+                const t = follows.find((x) => x.label === v);
+                if (t) editor.setFollowTarget(it.id, t.target, t.kind);
+              }}
+            />
           <span class="mini">
             <IconButton icon="trash" label="Remove interaction" onclick={() => editor.removeInteraction(it.id)} />
           </span>
-        </ParamRow>
+          </ParamRow>
+          <ParamRow label="Axis">
+            <Segmented
+              value={it.axis ?? (ft?.kind === 'point' ? 'both' : 'x')}
+              label="Axis"
+              options={ft?.kind === 'point' ? [{ value: 'both', label: 'both' }, { value: 'x', label: 'x' }, { value: 'y', label: 'y' }] : [{ value: 'x', label: 'across' }, { value: 'y', label: 'down' }]}
+              onchange={(v) => editor.updateInteraction(it.id, { axis: v as 'x' | 'y' | 'both' })}
+            />
+          </ParamRow>
+          {#if ft && ft.kind !== 'point'}
+            {@const r = it.range ?? [0, 1]}
+            <ParamRow label="From">
+              <NumberField value={r[0]} step={ft.kind === 'angle' ? 1 : 0.01} unit={ft.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { range: [v, r[1]] })} />
+              <span class="dim">to</span>
+              <NumberField value={r[1]} step={ft.kind === 'angle' ? 1 : 0.01} unit={ft.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { range: [r[0], v] })} />
+            </ParamRow>
+          {/if}
+          <ParamRow label="Lag">
+            <NumberField value={it.duration} min={0} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { duration: Math.max(0, v) })} />
+          </ParamRow>
+          <ParamRow label="Stay" for={`stay-${it.id}`}>
+            <Checkbox id={`stay-${it.id}`} checked={!!it.stay} onchange={(v) => editor.updateInteraction(it.id, { stay: v })} />
+          </ParamRow>
+        {:else}
         <ParamRow label="Do">
           <Select
             value={ACTIONS.find((x) => x.value === act)!.label}
@@ -165,6 +203,9 @@
             width="172px"
             onchange={(v) => editor.setInteractionAction(it.id, ACTIONS.find((x) => x.label === v)!.value)}
           />
+        <span class="mini">
+          <IconButton icon="trash" label="Remove interaction" onclick={() => editor.removeInteraction(it.id)} />
+        </span>
         </ParamRow>
         {#if act === 'tween'}
           <ParamRow label="Change">
@@ -212,12 +253,13 @@
             />
           </ParamRow>
         {/if}
+        {/if}
       </div>
     {/each}
     <div class="presets">
       <Button label="+ Add interaction" onclick={() => editor.addInteraction(node.id)} />
     </div>
-    <p class="note">Hover: does it while the pointer is over, undoes it when it leaves. Click: toggles (Play restarts, Seed rolls a new one). Enter: when the drawing scrolls into view. Try it with ▶ Play (bottom bar).</p>
+    <p class="note">Hover: does it while the pointer is over, undoes it when it leaves. Click: toggles (Play restarts, Seed rolls a new one). Enter: when the drawing scrolls into view. Pointer: a value follows the mouse (or the finger) over the drawing. Try it with ▶ Play (bottom bar).</p>
   </Section>
   <Section title="Animate">
     <div class="presets">

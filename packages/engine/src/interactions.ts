@@ -3,14 +3,19 @@
 // - tween: un valor va hacia otro con su duración y su curva, y vuelve (al salir, o con el siguiente clic);
 // - play: la línea de tiempo recorre un tramo (al entrar, hacia delante; al salir, de vuelta; clic: desde el principio);
 // - seed: una semilla nueva para un efecto (un Glitch o un Damage distinto en cada clic);
-// - toggle: enciende o apaga un efecto.
+// - toggle: enciende o apaga un efecto;
+// - follow (con el disparador «pointer»): un valor sigue al puntero mientras está sobre el dibujo: la posición
+//   de un objeto o un punto de un efecto van bajo el puntero; un número recorre de `range[0]` a `range[1]`
+//   según dónde esté el puntero en el documento (en horizontal o en vertical). `duration`: la inercia (s).
+//   Al salir, vuelve a su sitio (salvo `stay`).
 // `createPlayer` junta esto con la línea de tiempo: lo usan el código exportado y el modo Play del editor.
 import { ease, lerpValue, readTarget, sampleScene, writeTarget, type Ease, type Track } from './animation';
-import type { SceneNode, SceneV2 } from './document';
+import type { DocumentResult, SceneNode, SceneV2 } from './document';
+import { apply as applyMat, invert } from './matrix';
 import type { Engine } from './engine';
 
-export type Trigger = 'hover' | 'click' | 'enter';
-export type Action = 'tween' | 'play' | 'seed' | 'toggle';
+export type Trigger = 'hover' | 'click' | 'enter' | 'pointer';
+export type Action = 'tween' | 'play' | 'seed' | 'toggle' | 'follow';
 
 export interface Interaction {
   id: string;
@@ -28,6 +33,12 @@ export interface Interaction {
   ease?: Ease;
   /** play: el tramo de la línea de tiempo, en segundos [desde, hasta]. */
   segment?: [number, number];
+  /** follow: qué eje del puntero cuenta (en un punto o la posición, `both`: los dos). */
+  axis?: 'x' | 'y' | 'both';
+  /** follow, sobre un número: el valor con el puntero en un borde del documento y en el otro. */
+  range?: [number, number];
+  /** follow: al salir el puntero, se queda donde estaba (si no, vuelve a su sitio). */
+  stay?: boolean;
 }
 
 interface State {
@@ -40,9 +51,27 @@ interface State {
   /** play: el cabezal y adónde va. */
   head?: number;
   goal?: number;
+  /** follow: el valor de ahora y adónde va (`rest`: a su sitio). */
+  value?: unknown;
+  aim?: unknown;
 }
 
 const actionOf = (it: Interaction): Action => it.action ?? 'tween';
+
+/** follow: el valor en reposo (el de la escena). La posición, como [x, y]. */
+function restOf(scene: SceneV2, it: Interaction): unknown {
+  if (it.target.on === 'node' && it.target.param === 'position') {
+    return [Number(readTarget(scene, { ...it.target, param: 'x' }) ?? 0), Number(readTarget(scene, { ...it.target, param: 'y' }) ?? 0)];
+  }
+  return readTarget(scene, it.target);
+}
+function writeFollow(scene: SceneV2, it: Interaction, v: unknown) {
+  if (it.target.on === 'node' && it.target.param === 'position' && Array.isArray(v)) {
+    writeTarget(scene, { ...it.target, param: 'x' }, v[0]);
+    writeTarget(scene, { ...it.target, param: 'y' }, v[1]);
+  } else writeTarget(scene, it.target, v);
+}
+const isPair = (v: unknown): v is [number, number] => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number');
 
 /** Estado de las interacciones de una escena: se le avisa de los eventos y da la escena del momento. */
 export function createInteractions(getScene: () => SceneV2) {
@@ -89,7 +118,48 @@ export function createInteractions(getScene: () => SceneV2) {
     if (act === 'toggle') st.progress = forward ? 1 : 0;
   }
 
+  /** follow: adónde va el valor con el puntero en `q` (en el documento), según lo que sigue. */
+  function aimOf(it: Interaction, q: [number, number], doc: DocumentResult, up: Map<string, string | null>): unknown {
+    const scene = getScene();
+    const rest = restOf(scene, it);
+    const axis = it.axis ?? 'both';
+    const keep = (p: [number, number]): [number, number] =>
+      isPair(rest) ? [axis === 'y' ? rest[0] : p[0], axis === 'x' ? rest[1] : p[1]] : p;
+    const t = it.target;
+    if (t.on === 'node' && t.param === 'position') {
+      // En las coordenadas de su grupo (si lo tiene): su centro, bajo el puntero.
+      const parent = up.get(t.node);
+      const m = parent ? doc.nodes.get(parent)?.matrix : null;
+      const p = m ? applyMat(invert(m), q) : q;
+      return keep([p[0], p[1]]);
+    }
+    if (isPair(rest)) {
+      // Un punto de un efecto (fracciones de la caja sobre la que mide el efecto): bajo el puntero.
+      const info = doc.nodes.get(t.node);
+      if (!info) return rest;
+      const box = (t.modifier && info.refs?.[t.modifier]) || info.bounds;
+      const local = applyMat(invert(info.matrix), q);
+      const f = (v: number, a: number, w: number) => Math.round(((v - a) / (w || 1)) * 1000) / 1000;
+      return keep([f(local[0], box.x, box.width), f(local[1], box.y, box.height)]);
+    }
+    // Un número: de range[0] a range[1] a lo ancho (o a lo alto) del documento.
+    const [vx, vy, vw, vh] = doc.geometry.viewBox;
+    const k = Math.max(0, Math.min(1, axis === 'y' ? (q[1] - vy) / (vh || 1) : (q[0] - vx) / (vw || 1)));
+    const [a, b] = it.range ?? [0, 1];
+    return a + (b - a) * k;
+  }
+
   return {
+    /** El puntero sobre el dibujo (en coordenadas del documento), o null si ha salido. Para «follow». */
+    pointer(q: [number, number] | null, doc: DocumentResult | null) {
+      const up = parents();
+      for (const it of list()) {
+        if (it.trigger !== 'pointer' || actionOf(it) !== 'follow') continue;
+        const st = stateOf(it);
+        if (q && doc) st.aim = aimOf(it, q, doc, up);
+        else if (!it.stay) st.aim = 'rest';
+      }
+    },
     /** Un evento sobre el objeto `hit` (el id de la forma tocada). «view»: el dibujo entra en pantalla. */
     event(kind: 'enter' | 'leave' | 'click' | 'view', hit: string | null) {
       const up = parents();
@@ -118,6 +188,22 @@ export function createInteractions(getScene: () => SceneV2) {
           const d = st.goal - st.head;
           st.head = Math.abs(d) <= dt ? st.goal : st.head + Math.sign(d) * dt;
           moving = true;
+        } else if (act === 'follow') {
+          if (st.aim === undefined) continue;
+          const goal = st.aim === 'rest' ? restOf(getScene(), it) : st.aim;
+          const from = st.value ?? restOf(getScene(), it);
+          // Inercia: se acerca un poco cada fotograma (exponencial: no depende de los fps).
+          const k = it.duration > 0 ? 1 - Math.exp(-dt / it.duration) : 1;
+          const next = lerpValue(from, goal, k);
+          const close = isPair(next) && isPair(goal) ? Math.hypot(next[0] - goal[0], next[1] - goal[1]) < 1e-3 : typeof next === 'number' && typeof goal === 'number' ? Math.abs(next - goal) < 1e-3 : true;
+          if (close) {
+            st.value = st.aim === 'rest' ? undefined : goal;
+            if (st.aim === 'rest') st.aim = undefined;
+            else moving = moving || st.value !== from;
+          } else {
+            st.value = next;
+            moving = true;
+          }
         } else if (act === 'tween') {
           const next = Math.max(0, Math.min(1, st.progress + (st.dir * dt) / Math.max(0.001, it.duration)));
           if (next !== st.progress) moving = true;
@@ -141,14 +227,15 @@ export function createInteractions(getScene: () => SceneV2) {
         const st = states.get(it.id);
         if (!st) return false;
         const act = actionOf(it);
-        return act === 'seed' ? st.seed !== undefined : act === 'play' ? false : st.progress > 0;
+        return act === 'seed' ? st.seed !== undefined : act === 'play' ? false : act === 'follow' ? st.value !== undefined : st.progress > 0;
       });
       if (!touched.length) return scene;
       const out = scene === getScene() ? (structuredClone(scene) as SceneV2) : scene;
       for (const it of touched) {
         const st = states.get(it.id)!;
         const act = actionOf(it);
-        if (act === 'seed') writeTarget(out, it.target, st.seed);
+        if (act === 'follow') writeFollow(out, it, st.value);
+        else if (act === 'seed') writeTarget(out, it.target, st.seed);
         else if (act === 'toggle') toggleEnabled(out, it.target.node, it.target.modifier);
         else writeTarget(out, it.target, lerpValue(readTarget(out, it.target), it.to, ease(it.ease ?? 'ease-out', st.progress)));
       }
@@ -158,7 +245,7 @@ export function createInteractions(getScene: () => SceneV2) {
     isActive(): boolean {
       return list().some((it) => {
         const st = states.get(it.id);
-        return !!st && (st.progress > 0 || st.seed !== undefined || st.head !== undefined);
+        return !!st && (st.progress > 0 || st.seed !== undefined || st.head !== undefined || st.value !== undefined);
       });
     },
     reset() {
@@ -260,6 +347,18 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2,
     inter.event('click', nodeOf(e));
     wake();
   };
+  // «pointer»: dónde está el puntero, en las coordenadas del documento (las del viewBox del <svg>).
+  const move = (e: PointerEvent) => {
+    const m = svg.getScreenCTM?.();
+    if (!m) return;
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    inter.pointer([p.x, p.y], live.doc());
+    wake();
+  };
+  const out = () => {
+    inter.pointer(null, null);
+    wake();
+  };
   // «enter»: cuando el dibujo entra en pantalla (cada vez que vuelve a entrar).
   let io: IntersectionObserver | null = null;
   const list = scene.interactions ?? [];
@@ -267,8 +366,12 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2,
     svg.addEventListener('pointerover', enter);
     svg.addEventListener('pointerout', leave);
     svg.addEventListener('click', click);
+    if (list.some((it) => it.trigger === 'pointer')) {
+      svg.addEventListener('pointermove', move);
+      svg.addEventListener('pointerleave', out);
+    }
     // Que se note que se puede tocar.
-    for (const it of list) if (it.trigger !== 'enter') for (const el of svg.querySelectorAll(`[data-node]`)) if (el.getAttribute('data-node') === it.node) (el as SVGElement).style.cursor = 'pointer';
+    for (const it of list) if (it.trigger !== 'enter' && it.trigger !== 'pointer') for (const el of svg.querySelectorAll(`[data-node]`)) if (el.getAttribute('data-node') === it.node) (el as SVGElement).style.cursor = 'pointer';
     if (list.some((it) => it.trigger === 'enter')) {
       if (typeof IntersectionObserver === 'function') {
         io = new IntersectionObserver((entries) => {
@@ -291,6 +394,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2,
       svg.removeEventListener('pointerover', enter);
       svg.removeEventListener('pointerout', leave);
       svg.removeEventListener('click', click);
+      svg.removeEventListener('pointermove', move);
+      svg.removeEventListener('pointerleave', out);
     },
   };
 }
