@@ -399,6 +399,32 @@ export class Editor {
     this.record(true);
   }
 
+  /**
+   * Connector: una línea (con su trazo) que une los dos primeros objetos seleccionados y los sigue (efecto
+   * Connect). Arriba de la lista; con menos de dos, los que falten se eligen luego en el efecto.
+   */
+  addConnector() {
+    if (!this.scene) return;
+    const [from, to] = this.selectedNodes.filter((n) => n.kind !== 'effector').map((n) => n.id);
+    const def = shapeRegistry.get('line');
+    if (!def) return;
+    const taken = new Set([...walkNodes(this.scene.objects)].map((x) => x.node.name));
+    let name = 'Connector';
+    for (let i = 2; taken.has(name); i++) name = `Connector ${i}`;
+    const cdef = registry.get('connect')!;
+    const node: ShapeNode = {
+      kind: 'shape',
+      id: `line-${uid()}`,
+      name,
+      shape: 'line',
+      params: { ...resolveParams(def.params), strokeWidth: 2 },
+      stack: [{ id: `connect-${uid()}`, type: 'connect', enabled: true, params: { ...resolveParams(cdef.params), from: from ?? '', to: to ?? '' } }],
+    };
+    this.scene.objects.unshift(node);
+    this.selected = node.stack[0]!.id;
+    this.record(true);
+  }
+
   /** Añade (o quita) un target de un Effector. */
   setEffectorTarget(id: string, target: string, on: boolean) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;

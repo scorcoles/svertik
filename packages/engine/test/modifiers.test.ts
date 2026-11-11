@@ -1099,3 +1099,47 @@ describe('follow path', () => {
     expect(box({ target: '' }).x).toBeCloseTo(-505);
   });
 });
+
+describe('connect', () => {
+  const sq = (id: string, x: number, y = 0) => ({ kind: 'shape' as const, id, name: id, shape: 'rectangle', params: { width: 40, height: 40 }, stack: [], transform: { x, y } });
+  const run = (params: Record<string, unknown>, a = sq('a', 0), b = sq('b', 200)) => {
+    const doc = createEngine(builtins).evaluateDocument({
+      version: 2,
+      objects: [
+        { kind: 'shape', id: 'l', name: 'l', shape: 'line', params: { strokeColor: '#ff0000' }, stack: [{ id: 'c', type: 'connect', params: { from: 'a', to: 'b', ...params } }], transform: { x: 999, y: -50 } },
+        a,
+        b,
+      ],
+    } as never);
+    return doc.geometry.shapes.filter((s) => s.node === 'l');
+  };
+  const ends = (shapes: ReturnType<typeof run>) => {
+    const sp = shapes[0]!.subpaths[0]!;
+    return [sp.start, sp.segs[sp.segs.length - 1]!.p] as const;
+  };
+
+  it('de borde a borde, con su hueco, esté donde esté la línea; con el estilo de la línea', () => {
+    const shapes = run({});
+    const [s, e] = ends(shapes);
+    // Bordes en x = 20 y x = 180; hueco de 6 (con la precisión del muestreo).
+    expect(s[0]).toBeCloseTo(26, 0);
+    expect(e[0]).toBeCloseTo(174, 0);
+    expect(s[1]).toBeCloseTo(0);
+    expect(shapes[0]!.style.stroke).toBe('#ff0000');
+    expect(shapes[0]!.style.fill).toBe('none');
+  });
+
+  it('sin Edges, de centro a centro; sigue a los objetos si se mueven', () => {
+    const [s, e] = ends(run({ edges: false, gap: 0 }, sq('a', 0), sq('b', 100, 100)));
+    expect(s[0]).toBeCloseTo(0);
+    expect(e[0]).toBeCloseTo(100);
+    expect(e[1]).toBeCloseTo(100);
+  });
+
+  it('arc se curva a un lado; arrow añade la punta; sin objetos, nada cambia', () => {
+    const arc = run({ shape: 'arc', bend: 0.3 });
+    expect(Math.min(...arc[0]!.subpaths[0]!.segs.flatMap((g) => [g.c1[1], g.c2[1]]))).not.toBeCloseTo(0);
+    expect(run({ arrow: 'both' })[0]!.subpaths).toHaveLength(3);
+    expect(run({ from: '' })[0]!.subpaths[0]!.segs).toHaveLength(1);
+  });
+});

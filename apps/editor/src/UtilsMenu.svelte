@@ -7,7 +7,7 @@
   // partida se apaga sin selección.
   let { editor }: { editor: Editor } = $props();
   // Efectos de la familia Utils (Follow Path…): van a la pila del objeto seleccionado.
-  const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils');
+  const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils' && t !== 'connect'); // Connect: con Connector
 </script>
 
 <DropdownMenu.Root>
@@ -34,6 +34,14 @@
       >
         <Icon name="effector" />
         Effector
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="sv-menu-item"
+        title="A line that joins two objects and follows them. Select the two objects first."
+        onSelect={() => editor.addConnector()}
+      >
+        <Icon name="connector" />
+        Connector
       </DropdownMenu.Item>
       {#if effects.length}<DropdownMenu.Separator class="sv-menu-rule" />{/if}
       {#each effects as type (type)}

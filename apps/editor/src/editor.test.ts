@@ -661,3 +661,20 @@ describe('Utils: Effector', () => {
     expect(node).toMatchObject({ targets: [b, a] });
   });
 });
+
+describe('Utils: Connector', () => {
+  it('crea una línea con Connect entre los dos seleccionados y deja seleccionado el efecto', () => {
+    const e = fresh();
+    const a = e.scene!.objects[0]!.id;
+    e.addShape('star');
+    const b = e.scene!.objects[0]!.id;
+    e.selected = a;
+    e.toggleSelect(b);
+    e.addConnector();
+    const n = e.scene!.objects[0]!;
+    expect(n).toMatchObject({ kind: 'shape', shape: 'line', name: 'Connector' });
+    expect(n.stack[0]).toMatchObject({ type: 'connect' });
+    expect([n.stack[0]!.params!.from, n.stack[0]!.params!.to].sort()).toEqual([a, b].sort());
+    expect(e.current?.type).toBe('connect');
+  });
+});

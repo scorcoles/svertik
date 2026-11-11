@@ -28,6 +28,7 @@ import { bones } from './bones';
 import { boolean } from './boolean';
 import { color } from './color';
 import { clone } from './clone';
+import { connect } from './connect';
 import { crack } from './crack';
 import { damage } from './damage';
 import { noise } from './noise';
@@ -41,7 +42,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks };
-export { bend, bones, boolean, clone, color, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, transform, trim, twist, wave };
 
 /** Todos los modificadores incluidos. Quien quiera menos peso, que importe solo los suyos. */
 export const builtins = [
@@ -64,6 +65,7 @@ export const builtins = [
   envelope,
   pathwrap,
   followpath,
+  connect,
   morph,
   trim,
   crack,
