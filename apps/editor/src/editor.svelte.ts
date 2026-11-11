@@ -1,7 +1,9 @@
 // Estado del editor: la escena (v2: varios objetos y grupos), la selección, el historial y la URL.
 import {
+  bounds,
   builtins,
   createEngine,
+  importSVG,
   isScene,
   outlineNode,
   packNode,
@@ -16,11 +18,13 @@ import {
   zeroParams,
   resolveParams,
   rng,
+  toSVG,
   walkNodes,
   type Animation,
   type BlendMode,
   type Ease,
   type Track,
+  type Geometry,
   type GroupNode,
   type Interaction,
   type NodeInfo,
@@ -620,6 +624,95 @@ export class Editor {
     if (!r) return;
     this.selected = id;
     if (r.removed) this.notice = `Converted to outlines. ${r.removed === 1 ? 'One animation of its shape was' : `${r.removed} animations of its shape were`} removed (Undo brings it back).`;
+    this.#applyTime();
+    this.record(true);
+  }
+
+  // ── Expandir un SVG: un objeto por forma, dentro de un grupo que conserva el sitio y la pila
+
+  #shapeCounts = new Map<string, number>();
+  /** Cuántas formas tiene el SVG de un objeto (con caché: el panel lo pregunta al dibujar). */
+  shapeCount(source: string) {
+    const hit = this.#shapeCounts.get(source);
+    if (hit !== undefined) return hit;
+    let n = 0;
+    try {
+      n = importSVG(source).shapes.length;
+    } catch {
+      n = 0;
+    }
+    if (this.#shapeCounts.size >= 24) this.#shapeCounts.clear();
+    this.#shapeCounts.set(source, n);
+    return n;
+  }
+
+  /**
+   * Expande el SVG de un objeto: una forma, un objeto. Van dentro de un grupo con el mismo id, nombre,
+   * colocación y pila, así que lo que lo animaba o lo usaba como referencia sigue funcionando.
+   */
+  expand(id = this.activeNode?.id ?? null) {
+    if (!this.scene || !id) return;
+    const at = locateNode(this.scene.objects, id);
+    const node = at?.node;
+    if (!at || !node || node.kind !== 'object' || node.packed) return;
+    let geo: Geometry;
+    try {
+      geo = importSVG(node.source);
+    } catch {
+      return;
+    }
+    if (geo.shapes.length < 2) {
+      this.notice = 'This SVG has one shape: there is nothing to expand.';
+      return;
+    }
+    const ref = bounds(geo);
+    const c = { x: ref.x + ref.width / 2, y: ref.y + ref.height / 2 };
+    const base = node.name.replace(/\.svg$/i, '');
+    // The first child in a group is the one in front: the last shape of the SVG (the one on top) goes first.
+    // Each object puts the centre of its source in its position, so its position is that centre (in the
+    // original coordinates) and the group, below, puts everything back where it was.
+    const parts = geo.shapes
+      .map((shape, i): ObjectNode => {
+        const b = bounds({ shapes: [shape], viewBox: geo.viewBox });
+        return {
+          kind: 'object',
+          id: `object-${uid()}`,
+          name: `${base} ${i + 1}`,
+          source: toSVG({ shapes: [shape], viewBox: geo.viewBox }, { precision: 3 }),
+          stack: [],
+          transform: { x: b.x + b.width / 2, y: b.y + b.height / 2 },
+        };
+      })
+      .reverse();
+    // A group moves nothing: its centre stays where it is, so its position is the object's minus its centre.
+    // Its effects see the same coordinates as before (the children's); its scale and rotation, unchanged.
+    const p = node.transform ?? {};
+    const group: GroupNode = {
+      kind: 'group',
+      id: node.id,
+      name: node.name,
+      stack: node.stack,
+      transform: { ...p, x: (p.x ?? 0) - c.x, y: (p.y ?? 0) - c.y },
+      children: parts,
+      ...(node.opacity !== undefined ? { opacity: node.opacity } : {}),
+      ...(node.blend ? { blend: node.blend } : {}),
+      ...(node.visible === false ? { visible: false } : {}),
+    };
+    // Its own x/y animation (if any) speaks of the object's position; on the group, the same place is `- c`.
+    const anim = this.scene.animation;
+    for (const tr of anim?.tracks ?? []) {
+      if (tr.node !== id || tr.on !== 'node' || (tr.param !== 'x' && tr.param !== 'y')) continue;
+      const d = tr.param === 'x' ? c.x : c.y;
+      tr.keys = tr.keys.map((k) => (typeof k.value === 'number' ? { ...k, value: k.value - d } : k));
+    }
+    for (const it of this.scene.interactions ?? []) {
+      if (it.target.node !== id || it.target.on !== 'node' || (it.target.param !== 'x' && it.target.param !== 'y')) continue;
+      if (typeof it.to === 'number') it.to = it.to - (it.target.param === 'x' ? c.x : c.y);
+    }
+    at.list.splice(at.index, 1, group);
+    this.selected = group.id;
+    this.also = [];
+    this.notice = `Expanded into ${geo.shapes.length} objects.`;
     this.#applyTime();
     this.record(true);
   }

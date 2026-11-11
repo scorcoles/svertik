@@ -81,6 +81,8 @@
   // ── Cabezal: arrastrar en la regla
   function scrub(e: PointerEvent) {
     const el = e.currentTarget as HTMLElement;
+    // Without this, dragging over the ruler/lanes selects their numbers and labels as text.
+    e.preventDefault();
     el.setPointerCapture(e.pointerId);
     const at = (ev: PointerEvent) => {
       const r = el.getBoundingClientRect();
@@ -377,7 +379,7 @@
   .label:hover .x { visibility: visible; }
   .key.ghost { opacity: 0.3; pointer-events: none; }
   .label .x:hover { color: var(--sv-signal-error); }
-  .lanes { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .lanes { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; user-select: none; }
   .inner { position: relative; margin: 0 12px; }
   .zoom { display: flex; align-items: center; gap: 2px; }
   .zoom .pct { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }

@@ -12,6 +12,8 @@
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
   const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
+  // Objetos importados: cuántas formas trae su SVG (para poder expandirlo en un objeto por forma).
+  const shapes = $derived(node.kind === 'object' && !node.packed ? editor.shapeCount(node.source) : 0);
   // Instancia: de qué objeto (cualquiera menos ella misma).
   const others = $derived(editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== node.id) : []);
   const original = $derived(node.kind === 'instance' ? others.find((n) => n.id === node.of) : undefined);
@@ -277,6 +279,13 @@
       <Button label="Unpack" onclick={() => editor.unpack(node.id)} />
     {:else}
       {#if node.kind === 'object'}<Button label="Replace SVG…" onclick={onreplace} />{/if}
+      {#if node.kind === 'object' && !node.packed && shapes > 1}
+        <Button
+          label={`Expand (${shapes} shapes)`}
+          title="One object per shape, in a group that keeps its place, its effects and its animation"
+          onclick={() => editor.expand(node.id)}
+        />
+      {/if}
       {#if node.kind === 'shape'}<Button label="Convert to outlines" title="Turn it into editable paths (each letter, a path). Its effects stay." onclick={() => editor.outline(node.id)} />{/if}
       <Button label="Pack" onclick={() => editor.pack(node.id)} />
     {/if}

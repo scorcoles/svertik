@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { bounds, builtins, createEngine, type SceneV2 } from '@svertik/engine';
 import { Editor, locateNode } from './editor.svelte';
 import { samples } from './samples';
 
 // El objeto de partida (grid.svg); lo nuevo entra arriba de la lista, así que es el último.
 const stack = (e: Editor) => e.scene!.objects.at(-1)!.stack;
+
+/** La caja de lo dibujado en el documento, para comprobar que nada se mueve. */
+const box = (e: Editor) => bounds(createEngine(builtins).evaluateDocument(e.scene as SceneV2).geometry);
 
 const fresh = () => {
   const e = new Editor();
@@ -573,6 +577,44 @@ describe('Pack', () => {
     expect(e.scene!.objects.at(-1)!.stack.map((m) => m.type)).toEqual(['wave']);
     e.undo();
     expect(e.packed).toBe(true);
+  });
+});
+
+describe('Expandir SVG', () => {
+  it('hace un objeto por forma dentro de un grupo que conserva el sitio, la pila y la animación', () => {
+    const e = new Editor();
+    e.load(samples.star, 'star.svg');
+    const id = e.scene!.objects[0]!.id;
+    e.setNode(id, 'x', 20, true);
+    e.setNode(id, 'y', -10, true);
+    e.setNode(id, 'rotation', 25, true);
+    e.setNode(id, 'scale', 1.3, true);
+    e.selected = id;
+    e.add('wave');
+    e.toggleKey({ node: id, on: 'node', param: 'x' });
+    const before = box(e);
+    expect(e.shapeCount(samples.star)).toBe(2);
+    e.expand(id);
+    const g = e.scene!.objects[0]!;
+    expect(g.kind).toBe('group');
+    expect(g.id).toBe(id);
+    if (g.kind !== 'group') return;
+    expect(g.stack.map((m) => m.type)).toEqual(['wave']);
+    expect(g.children.map((c) => c.name)).toEqual(['star 2', 'star 1']);
+    expect(g.children.every((c) => c.kind === 'object' && c.stack.length === 0)).toBe(true);
+    expect(e.animation!.tracks.map((t) => t.node)).toEqual([id]);
+    const after = box(e);
+    for (const k of ['x', 'y', 'width', 'height'] as const) expect(after[k]).toBeCloseTo(before[k], 2);
+  });
+
+  it('con una sola forma avisa y no toca el objeto', () => {
+    const e = new Editor();
+    e.load('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>', 'one.svg');
+    const id = e.scene!.objects[0]!.id;
+    e.selected = id;
+    e.expand(id);
+    expect(e.scene!.objects[0]!.kind).toBe('object');
+    expect(e.notice).toContain('one shape');
   });
 });
 
