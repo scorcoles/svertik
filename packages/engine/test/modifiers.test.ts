@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { covers, simplify } from '../src/clip';
 import { sampleScene } from '../src/animation';
-import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type Shape, type StackInput } from '../src';
+import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type SceneV2, type Shape, type StackInput } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
 const scene = (stack: StackInput['stack']): StackInput => ({ source: square, stack });
@@ -528,6 +528,22 @@ describe('damage', () => {
   it('with nothing to cut, leaves the shape as it was', () => {
     const geo = run({ cracks: 0, chips: 0, specks: 0 });
     expect(bounds(geo)).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  });
+
+  it('reuses its cracks while Growth changes, with the same result as without reusing', () => {
+    const doc: SceneV2 = {
+      version: 2,
+      objects: [{ kind: 'object', id: 'o', name: 'o', source: square, stack: [{ id: 'd', type: 'damage', params: { seed: 7, growth: 0.6 } }] }],
+    };
+    const e = createEngine(builtins);
+    const before = e.toSVG(doc);
+    const damage = doc.objects[0]!.stack[0]!;
+    damage.params = { seed: 7, growth: 0.25 };
+    e.toSVG(doc);
+    damage.params = { seed: 7, growth: 0.6 };
+    expect(e.toSVG(doc)).toBe(before);
+    // And from scratch, without anything to reuse.
+    expect(createEngine(builtins).toSVG(doc)).toBe(before);
   });
 });
 
