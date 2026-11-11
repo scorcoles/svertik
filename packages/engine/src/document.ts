@@ -1,6 +1,6 @@
 // Escena v2: varios objetos y grupos, cada uno con su pila de efectos y su posición.
 
-import { bounds, flatten, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
+import { bounds, centroid, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
 import { importSVG } from './import';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
@@ -629,30 +629,6 @@ export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
     }
   }
   return bad;
-}
-
-/**
- * Centro de un dibujo que no cambia al girarlo: el centroide de sus superficies (cerradas; los agujeros
- * restan si van en sentido contrario) o, si no tiene, la media de sus puntos. Null si está vacío.
- */
-export function centroid(geo: Geometry): Vec2 | null {
-  let a = 0, cx = 0, cy = 0, n = 0, sx = 0, sy = 0;
-  for (const s of geo.shapes) {
-    for (const sp of s.subpaths) {
-      const pts = flatten(sp, 8);
-      for (const q of pts) (sx += q[0]), (sy += q[1]), n++;
-      if (!sp.closed) continue;
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i]!, q = pts[(i + 1) % pts.length]!;
-        const c = p[0] * q[1] - q[0] * p[1];
-        a += c;
-        cx += (p[0] + q[0]) * c;
-        cy += (p[1] + q[1]) * c;
-      }
-    }
-  }
-  if (Math.abs(a) > 1e-9) return [cx / (3 * a), cy / (3 * a)];
-  return n ? [sx / n, sy / n] : null;
 }
 
 /** Caja de una caja transformada (las cuatro esquinas). */

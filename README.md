@@ -11,7 +11,7 @@ Un experimento de [VERTIK](https://www.vertik.net). Contexto: [docs/recap.md](do
   - **Generate:** Crack, Damage, Clone, Mirror, Mosaic, Fractal, Glitch, Boolean, Metaball.
   - **Effect** (por elementos): Step, Stagger, Range, Field, Explosion.
   - **Style:** Color, Tint, Paint, Gradient, Opacity.
-- **Utils:** Instance (copia viva de otro objeto, con su propia posición y efectos), Effector (aplica sus efectos a otros objetos, cada uno por separado, con Delay escalonado) Follow Path (recorre el trazado de otro objeto) Connector (línea entre dos objetos que los sigue, con flechas) y Tracer (la estela de un objeto al animarse).
+- **Utils:** Instance (copia viva de otro objeto, con su propia posición y efectos), Effector (aplica sus efectos a otros objetos, cada uno por separado, con Delay escalonado) Follow Path (recorre el trazado de otro objeto) Connector (línea entre dos objetos que los sigue, con flechas) Tracer (la estela de un objeto al animarse) y Look At (gira un objeto para que mire a otro).
 - **Primitivas** (rectángulo, elipse, polígono, estrella, línea, espiral, peón) y **texto** convertido en trazados (una pieza por letra).
 - **Animación:** fotogramas clave en cualquier valor, curvas (también back, elastic, bounce) y presets de entrada de letras.
 - **Proyectos `.svrtk`**: guardar (⌘S) y volver a abrir (⌘O o arrastrando el archivo). Exporta SVG y PNG. En el menú de «svertik» hay una demo.

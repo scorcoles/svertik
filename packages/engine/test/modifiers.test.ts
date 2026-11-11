@@ -1187,3 +1187,29 @@ describe('trace', () => {
     expect(end(0.5)).toBeCloseTo(50, 5);
   });
 });
+
+describe('look at', () => {
+  // Un rectángulo alargado (frente a la derecha) en el origen y un punto (círculo) al que mirar.
+  const run = (params: Record<string, unknown>, tx: number, ty: number) =>
+    createEngine(builtins).evaluateDocument({
+      version: 2,
+      objects: [
+        { kind: 'shape', id: 'a', name: 'a', shape: 'rectangle', params: { width: 60, height: 6 }, stack: [{ id: 'l', type: 'lookat', params: { target: 't', ...params } }] },
+        { kind: 'shape', id: 't', name: 't', shape: 'ellipse', params: { width: 10, height: 10 }, stack: [], transform: { x: tx, y: ty } },
+      ],
+    } as never).nodes.get('a')!.box;
+
+  it('gira para mirarlo (abajo: vertical; a la derecha: igual) sin moverse', () => {
+    const down = run({}, 0, 200);
+    expect(down.height).toBeCloseTo(60, 0);
+    expect(down.x + down.width / 2).toBeCloseTo(0, 5);
+    expect(run({}, 200, 0).width).toBeCloseTo(60, 0);
+  });
+
+  it('Facing dice qué lado es el frente; Amount, cuánto gira', () => {
+    expect(run({ facing: 90 }, 0, 200).width).toBeCloseTo(60, 0);
+    // A medias, 45°: la caja es casi cuadrada.
+    const half = run({ amount: 0.5 }, 0, 200);
+    expect(Math.abs(half.width - half.height)).toBeLessThan(1);
+  });
+});
