@@ -52,7 +52,6 @@
         <Icon name="tracer" />
         Tracer
       </DropdownMenu.Item>
-      {#if effects.length}<DropdownMenu.Separator class="sv-menu-rule" />{/if}
       {#each effects as type (type)}
         <DropdownMenu.Item class="sv-menu-item" disabled={!editor.activeNode} onSelect={() => editor.add(type)}>
           <Icon name={type as IconName} />
