@@ -937,3 +937,72 @@ describe('rgb split con efectos dentro (solo a las copias)', () => {
     expect(Object.keys(createEngine(builtins).evaluateDocument(s).geometry.filters ?? {})).toHaveLength(1);
   });
 });
+
+describe('round corners', () => {
+  const run = (params: Record<string, unknown>, source = square) =>
+    createEngine(builtins).evaluateStack({ source, stack: [{ id: 'r', type: 'roundcorners', params }] });
+  const segs = (geo: ReturnType<typeof run>) => geo.shapes[0]!.subpaths[0]!.segs;
+  const anchors = (geo: ReturnType<typeof run>) => {
+    const sp = geo.shapes[0]!.subpaths[0]!;
+    return [sp.start, ...sp.segs.map((s) => s.p)];
+  };
+
+  it('cuadrado: 4 lados + 4 arcos; la caja no cambia y las esquinas desaparecen', () => {
+    const geo = run({ radius: 10 });
+    expect(segs(geo)).toHaveLength(8);
+    const b = bounds(geo);
+    expect(b.x).toBeCloseTo(20);
+    expect(b.width).toBeCloseTo(60);
+    // Ningún ancla en una esquina; los cortes, a 10 de ella.
+    for (const p of anchors(geo)) expect(Math.hypot(p[0] - 20, p[1] - 20)).toBeGreaterThan(9.9);
+    expect(anchors(geo).some((p) => Math.abs(p[0] - 30) < 1e-6 && Math.abs(p[1] - 20) < 1e-6)).toBe(true);
+  });
+
+  it('el arco pasa por donde pasaría un círculo de ese radio', () => {
+    const geo = run({ radius: 10 });
+    const sp = geo.shapes[0]!.subpaths[0]!;
+    // Punto medio de cada arco: a 10 del centro de su redondeo (p. ej. (30, 30) en la esquina de arriba a la izquierda).
+    let p0 = sp.start;
+    const mids: (readonly [number, number])[] = [];
+    for (const s of sp.segs) {
+      const m = [0.125 * p0[0] + 0.375 * s.c1[0] + 0.375 * s.c2[0] + 0.125 * s.p[0], 0.125 * p0[1] + 0.375 * s.c1[1] + 0.375 * s.c2[1] + 0.125 * s.p[1]] as const;
+      if (Math.abs(p0[0] - s.p[0]) > 1e-6 && Math.abs(p0[1] - s.p[1]) > 1e-6) mids.push(m);
+      p0 = s.p;
+    }
+    expect(mids).toHaveLength(4);
+    const tl = mids.find((m) => m[0] < 50 && m[1] < 50)!;
+    expect(Math.hypot(tl[0] - 30, tl[1] - 30)).toBeCloseTo(10, 1);
+  });
+
+  it('el radio se encoge si no cabe (como mucho, medio lado)', () => {
+    const geo = run({ radius: 400 });
+    const b = bounds(geo);
+    expect(b.width).toBeCloseTo(60);
+    expect(segs(geo).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('el límite deja las esquinas más abiertas que él', () => {
+    // Las del cuadrado son de 90°: con límite 80, ninguna.
+    expect(segs(run({ radius: 10, limit: 80 }))).toHaveLength(4);
+    expect(segs(run({ radius: 10, limit: 90 }))).toHaveLength(8);
+  });
+
+  it('chamfer: corta en recta; radio 0 y un círculo no cambian', () => {
+    const geo = run({ radius: 10, shape: 'chamfer' });
+    const sp = geo.shapes[0]!.subpaths[0]!;
+    expect(sp.segs).toHaveLength(8);
+    const circle = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="30"/></svg>';
+    const before = createEngine(builtins).evaluateStack({ source: circle, stack: [] });
+    expect(JSON.stringify(run({ radius: 10 }, circle).shapes[0]!.subpaths)).toBe(JSON.stringify(before.shapes[0]!.subpaths));
+    expect(JSON.stringify(run({ radius: 0 }).shapes[0]!.subpaths)).toBe(JSON.stringify(createEngine(builtins).evaluateStack({ source: square, stack: [] }).shapes[0]!.subpaths));
+  });
+
+  it('en un trazado abierto, los extremos no se tocan', () => {
+    const polyline = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polyline points="10,90 50,10 90,90" fill="none" stroke="black"/></svg>';
+    const geo = run({ radius: 10 }, polyline);
+    const sp = geo.shapes[0]!.subpaths[0]!;
+    expect(sp.segs).toHaveLength(3);
+    expect(sp.start[0]).toBeCloseTo(10);
+    expect(sp.segs[2]!.p[0]).toBeCloseTo(90);
+  });
+});

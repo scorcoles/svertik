@@ -7,7 +7,7 @@ Un experimento de [VERTIK](https://www.vertik.net). Contexto: [docs/recap.md](do
 ## Qué hace
 
 - **Efectos** (más de 30), en cuatro familias:
-  - **Deform:** Transform, Rotate 3D, Spherize, Twist, Bend, Taper, Shear, Wave, Ripple, Noise, Roughen, Melt, Cylinder, Perspective, Envelope, Path Wrap, Morph, Trim.
+  - **Deform:** Transform, Rotate 3D, Spherize, Twist, Bend, Taper, Shear, Wave, Ripple, Noise, Roughen, Round Corners, Melt, Cylinder, Perspective, Envelope, Path Wrap, Morph, Trim.
   - **Generate:** Crack, Damage, Clone, Mirror, Mosaic, Fractal, Glitch, Boolean.
   - **Effect** (por elementos): Step, Stagger, Range, Field, Explosion.
   - **Style:** Color, Tint, Paint, Gradient, Opacity.

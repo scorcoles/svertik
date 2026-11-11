@@ -56,6 +56,7 @@ export const icons = {
   pathwrap: 'M1.5 12.5c2-8 5-8 6.5-4s4.5 4 6.5-4 M3 14.5l1-2 M6 11.5l1.5-1 M10 10.5l1.5 1',
   damage: 'M1.5 2.5h13l-6.5 11.5z M6 2.5l1.5 2.5-1 1.5 1.5 2 M11.5 5.5l-1.5 1 M3.5 4.5h1 M9 9.5h1',
   roughen: 'M1.5 12.5l1.5-2 1 1.5 1.5-3 1 1 1.5-3.5 1 2 1.5-2.5 1 1.5 1.5-2.5 1 1 M1.5 14.5h13',
+  roundcorners: 'M2.5 13.5v-6a5 5 0 0 1 5-5h6 M2.5 13.5h11v-11',
   fractal: 'M8 1.5l6.5 12h-13z M4.75 7.75h6.5 M8 13.5l-3.25-5.75 M8 13.5l3.25-5.75',
   glitch: 'M2.5 2.5h9v3h-9z M4.5 6.5h9v3h-9z M1.5 10.5h9v3h-9z M12.5 12h2',
   // Las piezas de Glitch: franjas corridas, bloques, líneas de barrido, rayas y separación de color.
