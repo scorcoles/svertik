@@ -1,18 +1,33 @@
 // Fonts for the Text primitive: they are registered (with their bytes) and the engine takes each letter's
 // outline from them. The engine downloads nothing by itself; `loadFont` / `loadFonts` (optional) fetch
 // them from the free Fontsource catalogue (jsDelivr) when asked.
-import * as opentype from 'opentype.js';
+//
+// opentype.js is only loaded when a font is actually parsed: it is heavy, and the minimal player
+// («@svertik/engine/player») must not carry it if the scene has no text.
 import type { Font } from 'opentype.js';
 
 // In the browser it arrives as an ES module (with `parse`); in Node, as CommonJS (inside `default`).
-const parse: (data: ArrayBuffer) => Font = (opentype as { parse?: typeof opentype.parse }).parse ?? (opentype as unknown as { default: typeof opentype }).default.parse;
+type Parser = (data: ArrayBuffer) => Font;
+
+let parser: Parser | null = null;
+
+/** opentype.js, la primera vez que hace falta (y solo entonces). */
+async function fontParser(): Promise<Parser> {
+  if (!parser) {
+    const mod = (await import('opentype.js')) as { parse?: Parser; default?: { parse?: Parser } };
+    const p = mod.parse ?? mod.default?.parse;
+    if (!p) throw new Error('svertik: opentype.js no trae «parse»');
+    parser = p;
+  }
+  return parser;
+}
 
 const fonts = new Map<string, Font>();
 let version = 0;
 
 /** Registers a font by its name (the one the scene will store). Takes the bytes (.ttf, .otf, .woff). */
-export function registerFont(name: string, data: ArrayBuffer | Font): void {
-  fonts.set(name, data instanceof ArrayBuffer ? parse(data) : data);
+export async function registerFont(name: string, data: ArrayBuffer | Font): Promise<void> {
+  fonts.set(name, data instanceof ArrayBuffer ? (await fontParser())(data) : data);
   version++;
 }
 
@@ -62,7 +77,7 @@ export function loadFont(family: string, weight = 400, italic = false, url?: str
         try {
           const res = await fetch(u);
           if (!res.ok) continue;
-          registerFont(key, await res.arrayBuffer());
+          await registerFont(key, await res.arrayBuffer());
           return true;
         } catch {
           // No network or no such font: the next one.

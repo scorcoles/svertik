@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { describeEffects, describeScene, frameTimes, loadInput, registerBundledFonts, renderPNG, renderSVG } from '../src/lib';
 
-registerBundledFonts();
+await registerBundledFonts();
 const project = JSON.stringify({
   svertik: 'project',
   version: 1,

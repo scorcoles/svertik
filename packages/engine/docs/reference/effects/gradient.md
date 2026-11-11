@@ -20,6 +20,9 @@ A gradient on the fill or the stroke of each shape: linear (with an angle) or ra
 | `center` | point | `[0.5,0.5]` | [x, y], fractions of the box (0–1) | group: Radial |
 | `radius` | number | `0.5` | min 0.05, max 2, step 0.01 | fraction of the drawing size; group: Radial |
 | `focus` | point | `[0.5,0.5]` | [x, y], fractions of the box (0–1) | group: Radial |
+| `focalRadius` | number | `0` | min 0, max 2, step 0.01 | fraction of the drawing size; group: Radial; label: Focal radius |
+| `spread` | enum | `"pad"` | `pad`, `reflect`, `repeat` | not animatable |
+| `transform` | text | `""` |  |  |
 | `apply` | enum | `"fill"` | `fill`, `stroke` | not animatable; label: Apply to |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
@@ -51,6 +54,9 @@ Inside a node's `stack` (effects run top to bottom):
       0.5,
       0.5
     ],
+    "focalRadius": 0,
+    "spread": "pad",
+    "transform": "",
     "apply": "fill"
   }
 }

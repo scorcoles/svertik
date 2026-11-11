@@ -2,6 +2,7 @@
 
 import svgpath from 'svgpath';
 import { line, type Cubic, type Geometry, type Gradient, type Shape, type Style, type SubPath, type Vec2 } from './geometry';
+import { setSVGImporter } from './importer';
 
 /** Style properties that are kept; the inheritable ones pass from groups to children. */
 const INHERITED = [
@@ -329,7 +330,7 @@ const urlId = (value: string | undefined): string | null => {
 };
 
 /** Imports an SVG (text) into geometry. */
-export function importSVG(source: string): Geometry {
+export function parseSVG(source: string): Geometry {
   const doc = new DOMParser().parseFromString(source, 'image/svg+xml');
   const root = doc.documentElement;
   if (!root || root.localName !== 'svg') throw new Error('svertik: el origen no es un SVG');
@@ -391,3 +392,9 @@ export function importSVG(source: string): Geometry {
 
   return { shapes, viewBox: readViewBox(root) };
 }
+
+/** Alias: el nombre que siempre ha tenido este importador en la API pública. */
+export const importSVG = parseSVG;
+
+// Al cargarse este módulo, el núcleo ya sabe leer SVG (así no lo necesita en su grafo estático).
+setSVGImporter(parseSVG);

@@ -42,7 +42,26 @@ Other entry points: `engine.evaluateDocument(scene)` (geometry + per-node info),
 `toLottie(engine, scene)`, `toAnimatedSVG(engine, scene)`.
 
 **Node.js:** importing SVG sources (`kind: "object"`) needs a `DOMParser` (e.g. from `happy-dom`). Text needs
-fonts: `registerFont(name, arrayBuffer)` or, in the browser, `await loadFonts(scene)` (Fontsource via jsDelivr).
+fonts: `await registerFont(name, arrayBuffer)` (it is async: it loads the font parser only then) or, in the
+browser, `await loadFonts(scene)` (Fontsource via jsDelivr).
+
+## The minimal player (`@svertik/engine/player`)
+
+For embedding in a website: the engine, and only what the scene uses.
+
+```ts
+import { createEngine, createPlayer, prepareScene } from '@svertik/engine/player';
+
+const effects = await prepareScene(scene);   // loads the scene's effects (each one its own chunk)
+const player = createPlayer(createEngine(effects), svgElement, scene);
+```
+
+`prepareScene` also loads the fonts if the scene has text, and the SVG importer if it brings raw SVG. Without
+it, the engine throws (an unknown effect, or a missing importer) instead of failing quietly.
+
+This entry point does not bring the editor's baggage (effect descriptions, Lottie, motion analysis,
+validation) nor `opentype.js` (the font parser, ~77 KB gzip) unless the scene has text. The ready-made
+bundle for a website is in `apps/player` (`pnpm --filter @svertik/player build`); `pnpm size` measures it.
 
 ## The scene (`SceneV2`)
 

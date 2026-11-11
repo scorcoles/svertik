@@ -2,7 +2,7 @@
 
 import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
-import { importSVG } from './import';
+import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';

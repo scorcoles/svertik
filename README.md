@@ -24,9 +24,11 @@ An experiment by [VERTIK](https://www.vertik.net).
 ```bash
 pnpm install
 pnpm editor     # launches the web editor
+pnpm player     # the player (the demo page of the embeddable bundle)
 pnpm test       # runs tests (engine, UI, and editor)
 pnpm typecheck
 pnpm storybook  # UI components
+pnpm size       # what the player weighs, and what a given scene weighs
 ```
 
 ## Terminal CLI
@@ -67,6 +69,27 @@ live.update(scene);                      // Efficiently recomputed only downstre
 ```
 
 The editor generates this code (including animations) in its **Code** panel.
+
+## The player (to embed in a website)
+
+The same engine, but only what the scene uses: its effects are loaded on demand (each one its own chunk),
+and the fonts and the SVG importer only if the scene needs them.
+
+```ts
+import { createEngine, createPlayer, prepareScene } from '@svertik/engine/player';
+
+const effects = await prepareScene(scene);          // loads only the scene's effects
+const player = createPlayer(createEngine(effects), svgEl, scene);
+```
+
+`apps/player` builds it as a ready-made bundle (`svertik-player.js`) to drop in a page:
+
+```html
+<svg id="logo" data-svertik="scene.json"></svg>
+<script type="module" src="svertik-player.js"></script>
+```
+
+The core is ~24 KB gzipped; each effect adds a fraction of that (`pnpm size` measures it).
 
 ## License
 

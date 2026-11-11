@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { bounds, buildShape, builtins, createEngine, fontFor, registerFont, type SceneV2 } from '../src';
 
 const woff = readFileSync(resolve(__dirname, '../../ui/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff'));
-registerFont('JetBrains Mono', woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength));
+await registerFont('JetBrains Mono', woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength));
 
 describe('text', () => {
   it('one piece per letter (without the spaces), centred on the origin', () => {

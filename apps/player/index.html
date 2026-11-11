@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>svertik · reproductor</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; padding: 40px 24px; background: #0d0d10; color: #ededed;
+        font: 13px/1.6 ui-monospace, 'JetBrains Mono', monospace;
+      }
+      h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; margin: 0 0 4px; }
+      p { color: #8b8b8b; margin: 0 0 24px; max-width: 60ch; }
+      .stage { background: #b0b0b0; padding: 24px; display: grid; place-items: center; }
+      .stage svg { width: min(720px, 100%); height: auto; display: block; }
+      pre {
+        background: #16161a; border: 1px solid #26262c; padding: 16px; overflow: auto;
+        font: 12px/1.6 ui-monospace, 'JetBrains Mono', monospace; color: #b5b5b5;
+      }
+      code { color: #09fdd1; }
+      h2 { font-size: 13px; font-weight: 600; margin: 32px 0 12px; color: #ededed; }
+    </style>
+  </head>
+  <body>
+    <h1>svertik · reproductor</h1>
+    <p>
+      El mismo motor del editor, pero solo con lo que la escena necesita: los efectos de la escena se cargan
+      cuando llegan (cada uno es un trozo aparte) y las fuentes y el importador de SVG, solo si hacen falta.
+    </p>
+
+    <div class="stage"><svg id="stage"></svg></div>
+
+    <h2>Cómo se incrusta</h2>
+    <pre><code>&lt;svg id="logo" data-svertik="escena.json"&gt;&lt;/svg&gt;
+&lt;script type="module" src="svertik-player.js"&gt;&lt;/script&gt;</code></pre>
+    <p>O con JavaScript, para controlarlo:</p>
+    <pre><code>import { play } from './svertik-player.js';
+
+const player = await play(escena, '#logo');
+player.stop();</code></pre>
+
+    <script type="module" src="./src/demo.ts"></script>
+  </body>
+</html>

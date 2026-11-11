@@ -18,6 +18,17 @@ const svg = createEngine(builtins).toSVG({
 - Keyframe animation, interactions (hover, click, scroll, pointer) and a player for the browser.
 - Export to plain SVG, animated SVG and Lottie.
 
+**For embedding in a website**, use the minimal entry: `@svertik/engine/player` brings the engine and only
+what the scene uses (its effects are loaded on demand, each one its own chunk; the fonts and the SVG
+importer only if needed). The ready-made bundle is in `apps/player`; `pnpm size` measures it.
+
+```ts
+import { createEngine, createPlayer, prepareScene } from '@svertik/engine/player';
+
+const effects = await prepareScene(scene);
+const player = createPlayer(createEngine(effects), svgElement, scene);
+```
+
 **Docs** ship with the package: [`AGENTS.md`](AGENTS.md) (usage and the scene format, written for agents and
 developers alike) and [`docs/reference`](docs/reference/index.md) (every effect and primitive, generated
 from their schemas).

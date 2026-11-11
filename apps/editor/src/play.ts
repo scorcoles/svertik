@@ -1,8 +1,17 @@
-// Página de Play (play.html#p=…): la escena de un enlace compartido, a pantalla completa, con el
+// La página Play (play.html#p=…): la escena de un enlace compartido, a pantalla completa, con el
 // mismo reproductor que el código exportado. Solo carga el motor: sin el editor ni su interfaz.
-import { PLAY_STAGES, runStages } from './boot';
+// Y solo lo que la escena usa: sus efectos se cargan al vuelo (ver «prepareScene»).
+import { runStages, type BootStage } from './stages';
 import { createFpsMeter } from './fpsmeter';
 import { decodeState } from './share';
+
+/**
+ * Fases del modo Play: el motor (runtime) y, con la escena, sus efectos (cada uno, su trozo).
+ * Sin UI: el loader de play.html#p=… las carga y luego arranca el player.
+ */
+const PLAY_STAGES: BootStage[] = [
+  { id: 'engine', label: 'Loading Engine', run: async () => { await import('@svertik/engine/player'); } },
+];
 
 const stage = document.getElementById('stage') as unknown as SVGSVGElement;
 const msg = document.getElementById('msg')!;
@@ -15,47 +24,29 @@ const say = (text: string, ms = 2400) => {
   if (ms) timer = setTimeout(() => (msg.hidden = true), ms);
 };
 
-async function start(m: typeof import('@svertik/engine')) {
-  const { builtins, createEngine, createPlayer, loadFonts, validateScene } = m;
+async function start(m: typeof import('@svertik/engine/player')) {
+  const { createEngine, createPlayer, prepareScene, effectTypes, sceneEffectTypes } = m;
   const hash = location.hash.match(/^#[ps]=(.+)$/);
   if (!hash) return say('No scene in this link.', 0);
   const state = await decodeState(hash[1]!);
   if (!state) return say('No scene in this link.', 0);
   const scene = state.scene;
-  const report = validateScene(scene, builtins);
-  if (report.errors.length) return say(`This scene cannot be played: ${report.errors[0]}`, 0);
-  if (report.warnings.length) console.warn(`svertik: ${report.warnings.length} problem(s) in the scene:\n${report.warnings.join('\n')}`);
   document.title = `${state.name} · svertik`;
   if (state.canvas) document.body.style.background = state.canvas;
   // El editor abre la misma escena (#s=…).
   edit.href = `./#s=${hash[1]}`;
-  // Las fuentes de sus textos, de Fontsource (solo si hay textos).
-  await loadFonts(scene);
+  // Los efectos que la escena pide (y solo ellos). Los que no existen se avisan por consola.
+  const unknown = sceneEffectTypes(scene).filter((t) => !effectTypes.includes(t));
+  if (unknown.length) console.warn(`svertik: effects that don't exist: ${unknown.join(', ')}`);
+  // Las fuentes de sus textos, de Fontsource (solo si hay textos), y el importador si trae SVG suelto.
+  const effects = await prepareScene(scene);
   // Rendimiento: D o ?debug en la URL.
   const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
-  createPlayer(createEngine(builtins), stage, scene, { onFrame: ({ ms }) => meter.frame(ms) });
+  createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms }) => meter.frame(ms) });
 }
 
-document.getElementById('share')!.addEventListener('click', async () => {
-  const url = location.href;
-  if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-    try {
-      await navigator.share({ title: document.title, url });
-    } catch {
-      // Cancelado.
-    }
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    say('Link copied');
-  } catch {
-    say('Could not copy the link');
-  }
-});
-
 void runStages(PLAY_STAGES, async () => {
-  const m = await import('@svertik/engine');
+  const m = await import('@svertik/engine/player');
   start(m);
 });

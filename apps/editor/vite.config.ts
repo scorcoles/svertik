@@ -15,7 +15,9 @@ export default defineConfig({
           if (id.includes('/packages/ui')) return 'ui';
         },
       },
-      input: { main: 'index.html', play: 'play.html' },
+      // La página Play tiene su propio build (vite.play.config.ts): así no comparte los trozos con el
+      // editor y puede llevar solo el motor y los efectos que use la escena.
+      input: { main: 'index.html' },
     },
   },
   test: { environment: 'happy-dom' },

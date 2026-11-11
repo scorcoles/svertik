@@ -1,7 +1,7 @@
 // Scene: several objects and groups, each with its own effect stack and placement.
 
 import { bounds, centroid, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
-import { importSVG } from './import';
+import { importSVG } from './importer';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';

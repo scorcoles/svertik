@@ -52,8 +52,8 @@ try {
     else for (const e of [...d.effects, ...d.shapes.map((s) => ({ ...s, kind: 'shape' }))]) process.stdout.write(`${e.type.padEnd(12)} ${String(e.kind).padEnd(10)} ${Object.keys(e.params).join(', ')}\n`);
   } else {
     if (!input) fail(`missing input (svertik ${command} <file>)`);
-    registerBundledFonts();
-    for (const f of flags('--font')) registerFontFile(f);
+    await registerBundledFonts();
+    for (const f of flags('--font')) await registerFontFile(f);
     const { scene, name } = loadInput(readFileSync(input, 'utf8'), input);
     if (command === 'info') process.stdout.write(describeScene(scene) + '\n');
     else if (command === 'render') {

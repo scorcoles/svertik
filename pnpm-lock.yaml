@@ -88,6 +88,25 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
 
+  apps/player:
+    dependencies:
+      '@svertik/engine':
+        specifier: workspace:^
+        version: link:../../packages/engine
+    devDependencies:
+      happy-dom:
+        specifier: ^21.0.4
+        version: 21.0.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.7
+        version: 8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/cli:
     dependencies:
       '@fontsource/jetbrains-mono':

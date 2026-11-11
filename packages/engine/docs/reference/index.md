@@ -39,6 +39,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Mirror](effects/mirror.md) | `mirror` | Reflects the drawing on an axis at a fraction of its box. |
 | [Mosaic](effects/mosaic.md) | `mosaic` | Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). |
 | [Fractal](effects/fractal.md) | `fractal` | Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. |
+| [Halftone](effects/halftone.md) | `halftone` | A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. |
 | [Boolean](effects/boolean.md) | `boolean` | Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. |
 | [Metaball](effects/metaball.md) | `metaball` | The elements melt into each other like drops when they get close: each one gives its signed distance, joined with a smooth union of reach `reach` (px). |
 | [Pixelate](effects/pixelate.md) | `pixelate` | Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). |

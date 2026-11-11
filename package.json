@@ -10,6 +10,8 @@
     "storybook": "pnpm --filter @svertik/ui storybook",
     "tokens": "pnpm --filter @svertik/ui tokens",
     "editor": "pnpm --filter @svertik/editor dev",
+    "player": "pnpm --filter @svertik/player dev",
+    "size": "node scripts/size.mjs",
     "svertik": "node packages/cli/bin/svertik.mjs",
     "docs": "node packages/cli/bin/svertik.mjs docs",
     "fonts:catalog": "node scripts/font-catalog.mjs"

@@ -8,7 +8,7 @@ import { builtins, createEngine, validateScene, type SceneV2 } from '@svertik/en
 import { generateDocs } from '../src/docs';
 import { registerBundledFonts } from '../src/lib';
 
-registerBundledFonts();
+await registerBundledFonts();
 const out = mkdtempSync(join(tmpdir(), 'svertik-docs-'));
 const pages = generateDocs(out);
 const jsonOf = (md: string) => JSON.parse(/```json\n([\s\S]*?)\n```/.exec(md)![1]!);

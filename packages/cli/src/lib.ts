@@ -25,22 +25,22 @@ const require = createRequire(import.meta.url);
 const engine = createEngine(builtins);
 
 /** The fonts the editor ships (JetBrains Mono regular and bold), for texts. */
-export function registerBundledFonts() {
+export async function registerBundledFonts() {
   if (hasFont('JetBrains Mono')) return;
   const load = (w: number) => {
     const b = readFileSync(require.resolve(`@fontsource/jetbrains-mono/files/jetbrains-mono-latin-${w}-normal.woff`));
     return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
   };
-  registerFont('JetBrains Mono', load(400));
-  registerFont('JetBrains Mono Bold', load(700));
+  await registerFont('JetBrains Mono', load(400));
+  await registerFont('JetBrains Mono Bold', load(700));
 }
 
 /** Registers a font of your own (in case the project uses a system font): name=path. */
-export function registerFontFile(spec: string) {
+export async function registerFontFile(spec: string) {
   const [name, path] = spec.split('=');
   if (!name || !path) throw new Error(`--font expects name=path ("${spec}")`);
   const b = readFileSync(path);
-  registerFont(name, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
+  await registerFont(name, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
 }
 
 export interface Loaded {

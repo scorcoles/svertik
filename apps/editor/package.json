@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.play.config.ts",
+    "build:play": "vite build --config vite.play.config.ts",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run"

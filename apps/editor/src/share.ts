@@ -1,5 +1,5 @@
 // La escena viaja en la URL (#s=…), comprimida con deflate y en base64url.
-import { isScene, type SceneV2 } from '@svertik/engine';
+import { isScene, type SceneV2 } from '@svertik/engine/player';
 
 const toB64url = (bytes: Uint8Array) => {
   let s = '';

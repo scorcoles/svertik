@@ -20,7 +20,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./engine": "./src/engine.ts",
-    "./effects": "./src/modifiers/index.ts"
+    "./effects": "./src/modifiers/index.ts",
+    "./player": "./src/player.ts",
+    "./import": "./src/import.ts"
   },
   "scripts": {
     "test": "vitest run",

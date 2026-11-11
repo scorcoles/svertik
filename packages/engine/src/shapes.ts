@@ -3,7 +3,6 @@
 import { line, type Cubic, type Geometry, type Gradient, type Style, type SubPath, type Vec2 } from './geometry';
 import type { Font } from 'opentype.js';
 import { fontFor, fontKey } from './fonts';
-import { parsePathData } from './import';
 import { resolveParams, type ParamSchema, type ParamValues } from './modifier';
 
 export interface ShapeDef<P extends ParamSchema = ParamSchema> {
@@ -193,11 +192,38 @@ export const spiral = defineShape({
 
 // Chess pawn: svertik's "Utah teapot", a test shape with curves, a neck and a base.
 // A 120 × 200 profile centred on the origin (head, collar, concave body, ring and foot).
-const PAWN =
-  'M0 -100 A26 26 0 0 1 12 -51 L12 -46 C12 -44 26 -43 26 -38 C26 -33 16 -32 15 -30 ' +
-  'C15 -6 26 30 40 52 C44 58 48 60 52 62 C55 63 55 70 52 72 L52 74 C58 75 60 78 60 82 L60 100 ' +
-  'L-60 100 L-60 82 C-60 78 -58 75 -52 74 L-52 72 C-55 70 -55 63 -52 62 C-48 60 -44 58 -40 52 ' +
-  'C-26 30 -15 -6 -15 -30 C-16 -32 -26 -33 -26 -38 C-26 -43 -12 -44 -12 -46 L-12 -51 A26 26 0 0 1 0 -100 Z';
+// The path is already turned into cubic subpaths: the core doesn't need a path parser for one shape.
+const PAWN: SubPath[] = [
+  {
+    start: [0, -100],
+    closed: true,
+    segs: [
+      { c1: [11.930872, -99.943192], c2: [22.29192, -91.773437], p: [25.129934, -80.184882] },
+      { c1: [27.967947, -68.596327], c2: [22.554487, -56.563427], p: [12, -51] },
+      { c1: [12, -51], c2: [12, -46], p: [12, -46] },
+      { c1: [12, -44], c2: [26, -43], p: [26, -38] },
+      { c1: [26, -33], c2: [16, -32], p: [15, -30] },
+      { c1: [15, -6], c2: [26, 30], p: [40, 52] },
+      { c1: [44, 58], c2: [48, 60], p: [52, 62] },
+      { c1: [55, 63], c2: [55, 70], p: [52, 72] },
+      { c1: [52, 72], c2: [52, 74], p: [52, 74] },
+      { c1: [58, 75], c2: [60, 78], p: [60, 82] },
+      { c1: [60, 82], c2: [60, 100], p: [60, 100] },
+      { c1: [60, 100], c2: [-60, 100], p: [-60, 100] },
+      { c1: [-60, 100], c2: [-60, 82], p: [-60, 82] },
+      { c1: [-60, 78], c2: [-58, 75], p: [-52, 74] },
+      { c1: [-52, 74], c2: [-52, 72], p: [-52, 72] },
+      { c1: [-55, 70], c2: [-55, 63], p: [-52, 62] },
+      { c1: [-48, 60], c2: [-44, 58], p: [-40, 52] },
+      { c1: [-26, 30], c2: [-15, -6], p: [-15, -30] },
+      { c1: [-16, -32], c2: [-26, -33], p: [-26, -38] },
+      { c1: [-26, -43], c2: [-12, -44], p: [-12, -46] },
+      { c1: [-12, -46], c2: [-12, -51], p: [-12, -51] },
+      { c1: [-22.554487, -56.563427], c2: [-27.967947, -68.596327], p: [-25.129934, -80.184882] },
+      { c1: [-22.29192, -91.773437], c2: [-11.930872, -99.943192], p: [0, -100] },
+    ],
+  },
+];
 
 export const pawn = defineShape({
   type: 'pawn',
@@ -208,10 +234,12 @@ export const pawn = defineShape({
   },
   build: ({ height }) => {
     const k = height / 200;
-    return parsePathData(PAWN).map((sp) => {
-      const f = (q: Vec2): Vec2 => [q[0] * k, q[1] * k];
-      return { start: f(sp.start), segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })), closed: sp.closed };
-    });
+    const f = (q: Vec2): Vec2 => [q[0] * k, q[1] * k];
+    return PAWN.map((sp) => ({
+      start: f(sp.start),
+      segs: sp.segs.map((g) => ({ c1: f(g.c1), c2: f(g.c2), p: f(g.p) })),
+      closed: sp.closed,
+    }));
   },
 });
 
