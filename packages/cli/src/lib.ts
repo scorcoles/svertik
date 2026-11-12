@@ -6,6 +6,7 @@ import { Window } from 'happy-dom';
 import {
   builtins,
   createEngine,
+  fontKey,
   hasFont,
   isScene,
   registerFont,
@@ -32,6 +33,8 @@ export async function registerBundledFonts() {
     return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
   };
   await registerFont('JetBrains Mono', load(400));
+  await registerFont(fontKey('JetBrains Mono', 700), load(700));
+  // The name of before the weights existed (projects already saved).
   await registerFont('JetBrains Mono Bold', load(700));
 }
 

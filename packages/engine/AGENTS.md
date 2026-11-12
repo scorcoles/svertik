@@ -139,4 +139,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
   Thicken, Tone) and Mask always apply after the whole stack, whatever their position.
 - **Ids** must be unique across nodes and across effects (tracks and interactions refer to them).
 - **Colours** are `#rrggbb` strings.
+- **Fonts of a text**: `font` is the family alone (a Fontsource one, e.g. `JetBrains Mono`) and `weight`
+  and `italic` are apart. A name with the style inside (`JetBrains Mono Bold`) is a name from before the
+  weights existed: the editor still has it, but only the editor.
 - The editor is at the project's site; a scene can be opened there to check it visually.

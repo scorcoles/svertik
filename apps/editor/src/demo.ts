@@ -16,7 +16,7 @@ export function demoProject() {
           id: 'title',
           name: 'Title',
           shape: 'text',
-          params: { text: 'svertik', font: 'JetBrains Mono Bold', size: 118, tracking: -10, fillColor: '#f4f4f4' },
+          params: { text: 'svertik', font: 'JetBrains Mono', weight: 700, size: 118, tracking: -10, fillColor: '#f4f4f4' },
           transform: { y: -12 },
           stack: [
             {
@@ -116,7 +116,7 @@ export function shatterProject() {
           id: 'caption',
           name: 'Caption',
           shape: 'text',
-          params: { text: 'IMPACT', font: 'JetBrains Mono Bold', size: 28, tracking: 700, fillColor: '#09fdd1' },
+          params: { text: 'IMPACT', font: 'JetBrains Mono', weight: 700, size: 28, tracking: 700, fillColor: '#09fdd1' },
           transform: { y: 0 },
           stack: [
             {
