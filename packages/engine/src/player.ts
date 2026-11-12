@@ -8,5 +8,5 @@ export { createEngine, type Engine, type StackInput } from './engine';
 export { createPlayer, type PlayerOptions } from './interactions';
 export { prepareScene, sceneEffectTypes, sceneHasText, sceneNeedsImporter } from './prepare';
 export { setSVGImporter, hasSVGImporter, type SVGImporter } from './importer';
-export { isScene, type SceneV2, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './document';
+export { isScene, type SceneV2, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './scene';
 export { effectTypes } from './modifiers/manifest';

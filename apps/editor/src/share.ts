@@ -1,5 +1,6 @@
 // La escena viaja en la URL (#s=…), comprimida con deflate y en base64url.
-import { isScene, type SceneV2 } from '@svertik/engine/player';
+// Solo la forma de la escena (sus tipos y cómo reconocerla): el motor se carga aparte, cuando toca.
+import { isScene, type SceneV2 } from '@svertik/engine/scene';
 
 const toB64url = (bytes: Uint8Array) => {
   let s = '';

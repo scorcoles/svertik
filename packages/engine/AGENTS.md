@@ -63,6 +63,16 @@ This entry point does not bring the editor's baggage (effect descriptions, Lotti
 validation) nor `opentype.js` (the font parser, ~77 KB gzip) unless the scene has text. The ready-made
 bundle for a website is in `apps/player` (`pnpm --filter @svertik/player build`); `pnpm size` measures it.
 
+## Reading a scene without the engine (`@svertik/engine/scene`)
+
+The shape of a scene (its types and `isScene`) is in its own entry point, with nothing of the engine:
+
+```ts
+import { isScene, type SceneV2 } from '@svertik/engine/scene';
+```
+
+Whoever only reads a scene (a link, a file, a test) uses it, so the engine stays in its own chunk.
+
 ## The scene (`SceneV2`)
 
 ```ts
