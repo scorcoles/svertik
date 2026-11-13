@@ -14,7 +14,7 @@
 // El bundle lleva el motor y nada más: los efectos de la escena se cargan cuando llegan (cada uno es
 // un trozo aparte), y las fuentes y el importador de SVG solo si la escena los necesita.
 
-import { createEngine, createPlayer, isScene, prepareScene, type SceneV2 } from '@svertik/engine/player';
+import { createEngine, createPlayer, isScene, prepareScene, registerFont, type SceneV2 } from '@svertik/engine/player';
 
 export interface PlayOptions {
   /** Cuánto tardó cada fotograma calculado (para medir). */
@@ -92,5 +92,5 @@ if (typeof document !== 'undefined') {
   else start();
 }
 
-export { createEngine, createPlayer, prepareScene, isScene };
+export { createEngine, createPlayer, prepareScene, isScene, registerFont };
 export type { SceneV2 };

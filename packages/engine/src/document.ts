@@ -132,24 +132,20 @@ export function createDocumentEvaluator(
   // doesn't loop). Results are kept per time (on a fixed grid of times): while playing, each frame only
   // computes the new time. Cleared when anything but the time changes.
   const withTrails = options.trails !== false;
-  let sub: DocumentEvaluator | null = null;
-  const past = { key: '', points: new Map<string, Vec2 | null>(), docs: new Map<number, DocumentResult>() };
-  const pointAt = (base: SceneV2, t: number, id: string): Vec2 | null => {
-    const pk = `${t.toFixed(5)}|${id}`;
-    if (past.points.has(pk)) return past.points.get(pk)!;
-    let doc = past.docs.get(t);
-    if (!doc) {
-      sub ??= createDocumentEvaluator(runStack, filtersOf, { trails: false });
-      doc = sub.evaluate(onlyFor(sampleScene(base, t), id));
-      past.docs.set(t, doc);
-      if (past.docs.size > 6) past.docs.delete(past.docs.keys().next().value!);
-    }
-    const g = doc.geometryOf(id);
-    const q = g ? centroid(g) : null;
-    if (past.points.size > 20000) past.points.clear();
-    past.points.set(pk, q);
-    return q;
-  };
+  // La historia de las estelas: el centro de cada objeto observado, fotograma a fotograma.
+  //
+  // Antes, la estela se trazaba reevaluando la escena en los tiempos pasados (una evaluación
+  // completa por muestra): en una escena complexa eso congelaba la página al empezar (45
+  // evaluaciones en el primer fotograma). Ahora la estela se dibuja con lo que el motor ya ha
+  // visto: el recorrido se anota mientras se reproduce, y no cuesta nada.
+  const history = new Map<string, { t: number; p: Vec2 }[]>();
+  const traced = new Set<string>();
+  // El tiempo "sin envolver": cuando la animación vuelve a empezar, el tiempo sigue creciendo,
+  // para que la estela pueda seguir el recorrido a través del bucle.
+  let lastAt: number | undefined;
+  let wraps = 0;
+  // La firma de la escena (sin el tiempo): cuando cambia, la historia deja de valer.
+  let sceneKey = '';
 
   // Each node's source (imported SVG or primitive), by its own key: not rebuilt when only its effects
   // change. And what its stack produces, step by step (see runStack).
@@ -169,21 +165,33 @@ export function createDocumentEvaluator(
 
   function evaluate(scene: SceneV2): DocumentResult {
     const resolution = scene.resolution ?? 0.01;
+    // El tiempo sin envolver: cuando la animación vuelve a empezar (el bucle), el tiempo sigue
+    // creciendo, para que la estela pueda seguir el recorrido a través de la vuelta. Un salto
+    // hacia atrás que no sea el bucle (el usuario arrastra la línea de tiempo) no cuenta.
+    if (scene.at !== undefined) {
+      const d = scene.animation?.duration ?? 0;
+      const isLoop = d > 0 && lastAt !== undefined && lastAt >= d * 0.9 && scene.at <= d * 0.1;
+      if (lastAt !== undefined && scene.at < lastAt - 1e-6 && isLoop) wraps += d;
+      lastAt = scene.at;
+    }
+    const unwrappedAt = (scene.at ?? 0) + wraps;
     const seen = new Set<string>();
     const byId = new Map<string, SceneNode>();
     for (const { node } of walkNodes(scene.objects)) byId.set(node.id, node);
     const broken = brokenInstances(byId);
     // For trails: the scene without the time (animated values at their value at 0), as the cache key.
+    // When the scene changes, the history of the trails is stale: it is cleared.
     let pastBase: SceneV2 | null = null;
     const baseScene = () => {
       if (pastBase) return pastBase;
       const { at: _at, ...rest } = scene;
       pastBase = rest as SceneV2;
       const key = JSON.stringify(sampleScene(pastBase, 0), (k, v) => (k === 'at' ? undefined : v));
-      if (key !== past.key) {
-        past.key = key;
-        past.points.clear();
-        past.docs.clear();
+      if (key !== sceneKey) {
+        sceneKey = key;
+        history.clear();
+        lastAt = undefined;
+        wraps = 0;
       }
       return pastBase;
     };
@@ -191,7 +199,8 @@ export function createDocumentEvaluator(
     const extra = effectorStacks(scene, byId);
     const stackOf = (node: SceneNode) => {
       const more = extra.get(node.id);
-      return more ? [...node.stack, ...more] : node.stack;
+      const own = node.stack ?? [];
+      return more ? [...own, ...more] : own;
     };
     /** From the previous pass: matrix and result (in the document) of each node. */
     let known = last;
@@ -237,6 +246,7 @@ export function createDocumentEvaluator(
         withTrails
           ? (id, length, samples) => {
               usedTrail = true;
+              traced.add(id);
               asked = true;
               const owner = known.get(ownerId);
               const now = known.get(id);
@@ -249,21 +259,21 @@ export function createDocumentEvaluator(
               const at = scene.at;
               if (at === undefined || !scene.animation || !current) return current ? [local(current)] : [];
               const n = Math.max(1, Math.min(240, Math.round(samples)));
-              const dt = Math.max(1e-3, length / n);
-              const base = baseScene();
               const out: [number, number][] = [];
-              const first = Math.floor(at / dt + 1e-6) * dt;
-              for (let k = n; k >= 0; k--) {
-                let t = Math.round((first - k * dt) * 1e5) / 1e5;
-                if (t >= at - 1e-6) continue;
-                // In a loop, before 0 comes the end of the previous lap; otherwise the trail starts at 0.
-                if (t < 0) {
-                  const d = scene.animation.duration;
-                  if (!scene.animation.loop || !(d > 0)) continue;
-                  t = Math.round((t + d) * 1e5) / 1e5;
-                }
-                const q = pointAt(base, t, id);
-                if (q) out.push(local(q));
+              // La historia: el centro del objeto en cada fotograma ya pasado, con su tiempo.
+              const hist = history.get(id);
+              const hp: { t: number; p: Vec2 }[] = [];
+              if (hist) for (const h of hist) if (h.t <= unwrappedAt + 1e-6 && h.t >= unwrappedAt - length - 1e-6) hp.push(h);
+              // Se remuestrea a la densidad pedida, interpolando entre fotogramas.
+              if (!hp.length) return current ? [local(current)] : [];
+              const t0 = Math.max(hp[0]!.t, unwrappedAt - length);
+              for (let k = 0; k < n; k++) {
+                const want = t0 + ((unwrappedAt - t0) * k) / Math.max(1, n - 1);
+                let j = 0;
+                while (j + 1 < hp.length && hp[j + 1]!.t < want) j++;
+                const a = hp[j]!, b = hp[Math.min(j + 1, hp.length - 1)]!;
+                const u = b.t > a.t ? Math.max(0, Math.min(1, (want - a.t) / (b.t - a.t))) : 0;
+                out.push(local([a.p[0] + (b.p[0] - a.p[0]) * u, a.p[1] + (b.p[1] - a.p[1]) * u]));
               }
               out.push(local(current));
               return out;
@@ -437,6 +447,24 @@ export function createDocumentEvaluator(
       if (seenDeps.every((d) => depOf(d.owner, d.id) === d.h)) break;
     }
 
+    // La historia de las estelas: el centro de cada objeto observado, en este fotograma.
+    if (scene.at !== undefined) {
+      for (const id of traced) {
+        const g = finalResults.get(id);
+        const info = nodes.get(id);
+        if (!g || !info) continue;
+        const c = centroid(transformGeo(g, info.matrix));
+        if (!c) continue;
+        const arr = history.get(id) ?? [];
+        const last = arr[arr.length - 1];
+        if (!last || Math.abs(unwrappedAt - last.t) > 1e-9) arr.push({ t: unwrappedAt, p: c });
+        // Solo hace falta la ventana reciente; lo viejo se va.
+        while (arr.length > 1 && arr[0]!.t < unwrappedAt - 30) arr.shift();
+        if (arr.length > 4000) arr.shift();
+        history.set(id, arr);
+      }
+    }
+
     // The source of each object, with its final matrix (its groups' included).
     const placedSources: Shape[] = [];
     for (const { node } of walkNodes(scene.objects)) {
@@ -540,16 +568,16 @@ export function createDocumentEvaluator(
 export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Map<string, ModifierInstance[]> {
   const out = new Map<string, ModifierInstance[]>();
   for (const n of byId.values()) {
-    if (n.kind !== 'effector' || n.visible === false || !n.stack.length) continue;
+    if (n.kind !== 'effector' || n.visible === false || !(n.stack?.length)) continue;
     const tracks = (scene.animation?.tracks ?? []).filter((tr) => tr.node === n.id && tr.on === 'modifier');
     const delay = n.delay ?? 0;
     let i = 0;
     for (const id of n.targets ?? []) {
       const t = byId.get(id);
       if (!t || t.kind === 'effector' || id === n.id) continue;
-      let stack = n.stack;
+      let stack = n.stack ?? [];
       if (delay > 0 && i > 0 && tracks.length && scene.at !== undefined) {
-        stack = structuredClone(n.stack);
+        stack = structuredClone(stack);
         const at = Math.max(0, scene.at - i * delay);
         for (const tr of tracks) {
           const m = tr.modifier ? findModifier(stack, tr.modifier) : null;
@@ -597,7 +625,7 @@ export function onlyFor(scene: SceneV2, id: string): SceneV2 {
     // Everything under its top-level node (it is part of the same computation).
     for (const { node } of walkNodes([root])) {
       const out: string[] = [];
-      refs(node.stack, out);
+      refs(node.stack ?? [], out);
       if (node.kind === 'instance') out.push(node.of);
       if (node.kind === 'effector') out.push(...(node.targets ?? []));
       for (const e of effectorsOf.get(node.id) ?? []) out.push(e.id);
@@ -683,6 +711,27 @@ function mix(h: number, m: Mat): number {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+/**
+ * Cuánto tiempo (en segundos) abarcan las estelas de la escena: la ventana que hay que recorrer
+ * antes de dibujarlas. La estela se traza con lo que el motor ya ha visto, así que para una imagen
+ * fija hay que reproducir ese trozo antes (si no, la estela saldría vacía).
+ */
+export function sceneTrailWindow(scene: SceneV2): number {
+  let max = 0;
+  const walk = (nodes: SceneNode[]) => {
+    for (const node of nodes) {
+      const stacks = (m: { type: string; params?: Record<string, unknown>; children?: unknown[] }) => {
+        if (m.type === 'trace') max = Math.max(max, Number(m.params?.length ?? 0));
+        for (const c of m.children ?? []) stacks(c as { type: string; params?: Record<string, unknown>; children?: unknown[] });
+      };
+      for (const m of node.stack ?? []) stacks(m);
+      if (node.kind === 'group') walk(node.children);
+    }
+  };
+  walk(scene.objects);
+  return max;
 }
 
 /** The fonts used by the scene's texts (also those inside a pack). */

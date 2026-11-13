@@ -11,6 +11,7 @@ import {
   isScene,
   registerFont,
   sampleScene,
+  sceneTrailWindow,
   shapes,
   type SceneNode,
   type SceneV2,
@@ -63,8 +64,27 @@ export function loadInput(text: string, fileName: string): Loaded {
   return { scene, name: data.name ?? base };
 }
 
+/**
+ * The engine traces a trail with what it has already seen, so for a still frame the scene has to
+ * have been played a little before (otherwise the trail would be empty). The scenes already
+ * prepared are remembered, so a sequence of frames is not replayed from the start each time.
+ */
+const prepared = new WeakSet<SceneV2>();
+
+/** Plays the stretch before `t` so that the trails of the scene are complete. */
+function prepareTrail(scene: SceneV2, t: number): void {
+  if (prepared.has(scene)) return;
+  prepared.add(scene);
+  const window = sceneTrailWindow(scene);
+  if (!window || t <= 0) return;
+  const fps = scene.animation?.fps ?? 30;
+  const step = 1 / fps;
+  for (let s = Math.max(0, t - window); s < t - 1e-9; s += step) engine.toSVG(sampleScene(scene, s));
+}
+
 /** The plain SVG at time `t` (s); with `background`, a background rectangle. */
 export function renderSVG(scene: SceneV2, t = 0, background?: string): string {
+  prepareTrail(scene, t);
   const svg = engine.toSVG(sampleScene(scene, t));
   if (!background) return svg;
   const vb = /viewBox="([^"]+)"/.exec(svg)?.[1]?.split(/\s+/) ?? ['0', '0', '0', '0'];

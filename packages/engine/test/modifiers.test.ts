@@ -1174,9 +1174,15 @@ describe('trace', () => {
   const trail = (e: ReturnType<typeof createEngine>, t: number, params?: Record<string, unknown>) => {
     return e.evaluateDocument(sampleScene(scene(params), t)).geometry.shapes.filter((s) => s.node === 'l');
   };
+  // The trail is drawn with what the engine has already seen: the scene has to have been played
+  // for the trail to be complete (replaying the past cost a full evaluation per sample).
+  const play = (e: ReturnType<typeof createEngine>, upTo: number, step = 0.05, params?: Record<string, unknown>) => {
+    for (let t = 0; t <= upTo + 1e-9; t += step) e.evaluateDocument(sampleScene(scene(params), t));
+  };
 
   it('at 0.8 s: from where it was 0.5 s ago (x ≈ 30) to where it is (80), with the line style', () => {
     const e = createEngine(builtins);
+    play(e, 0.8);
     const shapes = trail(e, 0.8);
     const sp = shapes[0]!.subpaths[0]!;
     const xs = [sp.start, ...sp.segs.map((g) => g.p)].map((q) => q[0]);
@@ -1198,7 +1204,9 @@ describe('trace', () => {
       const sp = trail(e, t)[0]!.subpaths[0]!;
       return sp.segs[sp.segs.length - 1]!.p[0];
     };
+    play(e, 0.5);
     expect(end(0.5)).toBeCloseTo(50, 5);
+    play(e, 0.6, 0.05, undefined);
     expect(end(0.6)).toBeCloseTo(60, 5);
     expect(end(0.5)).toBeCloseTo(50, 5);
   });
@@ -1240,8 +1248,12 @@ describe('trace in a loop', () => {
       ],
       animation: { duration: 1, loop: true, tracks: [{ id: 'k', node: 'b', on: 'node', param: 'x', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 1, value: 100, ease: 'linear' }] }] },
     } as never;
-    const geo = createEngine(builtins).evaluateDocument(sampleScene(scene, 0.1)).geometry.shapes.find((s) => s.node === 'l')!;
+    // The lap: the object goes from 0 to 100 and starts again.
+    const e = createEngine(builtins);
+    for (let t = 0; t < 1; t += 0.05) e.evaluateDocument(sampleScene(scene, t));
+    const geo = e.evaluateDocument(sampleScene(scene, 0.1)).geometry.shapes.find((s) => s.node === 'l')!;
     const xs = [geo.subpaths[0]!.start, ...geo.subpaths[0]!.segs.map((g) => g.p)].map((q) => q[0]);
+    // The trail carries on from the end of the previous lap (x near 100) to the new start (x near 10).
     expect(Math.max(...xs)).toBeGreaterThan(80);
     expect(xs[xs.length - 1]).toBeCloseTo(10, 5);
   });

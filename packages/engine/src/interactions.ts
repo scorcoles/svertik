@@ -277,7 +277,7 @@ function toggleEnabled(scene: SceneV2, nodeId: string, modifier: string | undefi
     }
     return false;
   };
-  if (n) walk(n.stack);
+  if (n) walk(n.stack ?? []);
 }
 
 /** The shape: the scene object id (data-node) of an element. */

@@ -8,5 +8,8 @@ export { createEngine, type Engine, type StackInput } from './engine';
 export { createPlayer, type PlayerOptions } from './interactions';
 export { prepareScene, sceneEffectTypes, sceneHasText, sceneNeedsImporter } from './prepare';
 export { setSVGImporter, hasSVGImporter, type SVGImporter } from './importer';
+// Las fuentes: una web que incruste el reproductor puede darle las suyas (con `registerFont`),
+// en vez de que se bajen de Fontsource.
+export { registerFont, fontKey, fontNames, hasFont } from './fonts';
 export { isScene, type SceneV2, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './scene';
 export { effectTypes } from './modifiers/manifest';

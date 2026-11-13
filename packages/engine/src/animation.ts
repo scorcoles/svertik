@@ -137,7 +137,8 @@ export function trackTime(tr: Pick<Track, 'keys' | 'repeat' | 'every'>, t: numbe
 export const trackValue = (tr: Track, t: number): unknown => valueAt(tr.keys, trackTime(tr, t));
 
 /** Finds an effect by id in a stack (also inside Step and the like). */
-export function findModifier(stack: ModifierInstance[], id: string): ModifierInstance | null {
+export function findModifier(stack: ModifierInstance[] | undefined, id: string): ModifierInstance | null {
+  if (!stack) return null;
   for (const m of stack) {
     if (m.id === id) return m;
     const inner = m.children && findModifier(m.children, id);

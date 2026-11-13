@@ -1,0 +1,533 @@
+{
+  "version": 2,
+  "document": {
+    "width": 1000,
+    "height": 600,
+    "x": 0,
+    "y": 0
+  },
+  "objects": [
+    {
+      "kind": "group",
+      "id": "camera-rig",
+      "name": "Camera Rig / Master Zoom",
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "scale": 0.95,
+        "rotation": 0,
+        "pivot": [0.5, 0.5]
+      },
+      "stack": [
+        {
+          "id": "cam-rotate3d",
+          "type": "rotate3d",
+          "params": {
+            "rotateX": 0,
+            "rotateY": 0,
+            "rotateZ": 0,
+            "perspective": 2.5,
+            "pivot": [0.5, 0.5]
+          }
+        }
+      ],
+      "children": [
+        {
+          "kind": "group",
+          "id": "core-fluid",
+          "name": "Molten Fluid Core",
+          "transform": { "x": 0, "y": 0, "rotation": 0 },
+          "stack": [
+            {
+              "id": "core-metaball",
+              "type": "metaball",
+              "params": {
+                "reach": 65,
+                "grow": 6,
+                "quality": 120
+              }
+            },
+            {
+              "id": "core-twist",
+              "type": "twist",
+              "params": {
+                "center": [0.5, 0.5],
+                "radius": 0.85,
+                "angle": 0
+              }
+            },
+            {
+              "id": "core-spherize",
+              "type": "spherize",
+              "params": {
+                "center": [0.5, 0.5],
+                "radius": 0.7,
+                "strength": 0.2
+              }
+            },
+            {
+              "id": "core-displace",
+              "type": "displace",
+              "params": {
+                "amount": 6,
+                "scale": 22,
+                "seed": 7
+              }
+            },
+            {
+              "id": "core-rgbsplit",
+              "type": "rgbsplit",
+              "params": {
+                "distance": 4,
+                "angle": 30
+              }
+            },
+            {
+              "id": "core-bevel",
+              "type": "bevel",
+              "params": {
+                "depth": 6,
+                "height": 5,
+                "angle": 45,
+                "elevation": 55,
+                "shine": 0.65,
+                "shininess": 35
+              }
+            },
+            {
+              "id": "core-glow",
+              "type": "glow",
+              "params": {
+                "radius": 24,
+                "color": "#09fdd1",
+                "strength": 1.4
+              }
+            }
+          ],
+          "children": [
+            {
+              "kind": "shape",
+              "id": "cell-nucleus",
+              "name": "Nucleus",
+              "shape": "ellipse",
+              "params": {
+                "radiusX": 85,
+                "radiusY": 85,
+                "fill": true,
+                "fillColor": "#ff2a5f",
+                "stroke": false
+              },
+              "transform": { "x": 0, "y": 0 },
+              "stack": []
+            },
+            {
+              "kind": "shape",
+              "id": "cell-alpha",
+              "name": "Satellite Drop Alpha",
+              "shape": "ellipse",
+              "params": {
+                "radiusX": 50,
+                "radiusY": 50,
+                "fill": true,
+                "fillColor": "#09fdd1",
+                "stroke": false
+              },
+              "transform": { "x": -95, "y": -40 },
+              "stack": []
+            },
+            {
+              "kind": "shape",
+              "id": "cell-beta",
+              "name": "Satellite Drop Beta",
+              "shape": "ellipse",
+              "params": {
+                "radiusX": 58,
+                "radiusY": 58,
+                "fill": true,
+                "fillColor": "#ffd700",
+                "stroke": false
+              },
+              "transform": { "x": 80, "y": 60 },
+              "stack": []
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "id": "laser-tether",
+          "name": "Dynamic Energy Tether",
+          "shape": "line",
+          "params": {
+            "fill": false,
+            "stroke": true,
+            "strokeColor": "#09fdd1",
+            "strokeWidth": 2,
+            "dash": 8,
+            "gap": 4
+          },
+          "stack": [
+            {
+              "id": "tether-connect",
+              "type": "connect",
+              "params": {
+                "from": "cell-nucleus",
+                "to": "satellite-orb",
+                "shape": "arc",
+                "bend": 25,
+                "gap": 10,
+                "arrow": "end",
+                "arrowSize": 8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "id": "satellite-trail",
+          "name": "Orbital Motion Trail",
+          "shape": "line",
+          "params": {
+            "fill": false,
+            "stroke": true,
+            "strokeColor": "#ff2a5f",
+            "strokeWidth": 3
+          },
+          "stack": [
+            {
+              "id": "trail-tracer",
+              "type": "trace",
+              "params": {
+                "target": "satellite-orb",
+                "length": 1.4,
+                "samples": 45,
+                "mode": "smooth"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "id": "satellite-orb",
+          "name": "Satellite Sentinel",
+          "shape": "star",
+          "params": {
+            "radius": 22,
+            "innerRadius": 9,
+            "points": 4,
+            "fill": true,
+            "fillColor": "#ffffff",
+            "stroke": true,
+            "strokeColor": "#09fdd1",
+            "strokeWidth": 2
+          },
+          "stack": [
+            {
+              "id": "orbit-follower",
+              "type": "followpath",
+              "params": {
+                "target": "orbit-guide-ellipse",
+                "position": 0,
+                "orient": true
+              }
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "id": "radar-watcher",
+          "name": "Targeting Radar Needle",
+          "shape": "star",
+          "params": {
+            "radius": 32,
+            "innerRadius": 6,
+            "points": 2,
+            "fill": true,
+            "fillColor": "#09fdd1",
+            "stroke": false
+          },
+          "transform": { "x": -340, "y": -180 },
+          "stack": [
+            {
+              "id": "radar-lookat",
+              "type": "lookat",
+              "params": {
+                "target": "satellite-orb",
+                "facing": -90,
+                "amount": 1
+              }
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "id": "orbit-guide-ellipse",
+          "name": "Elliptical Orbit Track",
+          "shape": "ellipse",
+          "params": {
+            "radiusX": 350,
+            "radiusY": 210,
+            "fill": false,
+            "stroke": true,
+            "strokeColor": "#22222e",
+            "strokeWidth": 1.5,
+            "dash": 8,
+            "gap": 8
+          },
+          "transform": { "rotation": -15 },
+          "stack": []
+        },
+        {
+          "kind": "shape",
+          "id": "ambient-spiral",
+          "name": "Cosmic Harmonic Spiral",
+          "shape": "spiral",
+          "params": {
+            "radius": 280,
+            "turns": 3.5,
+            "decay": 0.1,
+            "fill": false,
+            "stroke": true,
+            "strokeColor": "#09fdd1",
+            "strokeWidth": 1.5,
+            "strokeOpacity": 0.35,
+            "dash": 4,
+            "gap": 4
+          },
+          "transform": { "x": 0, "y": 0, "rotation": 0 },
+          "stack": [
+            {
+              "id": "spiral-wave",
+              "type": "wave",
+              "params": {
+                "amplitude": 0.04,
+                "wavelength": 0.3,
+                "phase": 0,
+                "direction": 90
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "animation": {
+    "duration": 10,
+    "loop": true,
+    "autoplay": true,
+    "fps": 30,
+    "tracks": [
+      {
+        "id": "tr-cam-scale",
+        "node": "camera-rig",
+        "on": "node",
+        "param": "scale",
+        "keys": [
+          { "t": 0, "value": 0.95, "ease": "ease-in-out" },
+          { "t": 2.2, "value": 1.85, "ease": "expo-out" },
+          { "t": 3.4, "value": 2.1, "ease": "ease-in" },
+          { "t": 3.7, "value": 0.88, "ease": "back-out" },
+          { "t": 6.8, "value": 1.35, "ease": "ease-in-out" },
+          { "t": 8.5, "value": 0.8, "ease": "ease-in-out" },
+          { "t": 10, "value": 0.95 }
+        ]
+      },
+      {
+        "id": "tr-cam-x",
+        "node": "camera-rig",
+        "on": "node",
+        "param": "x",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "ease-in-out" },
+          { "t": 2.2, "value": -90, "ease": "ease-in-out" },
+          { "t": 3.5, "value": 0, "ease": "back-out" },
+          { "t": 6.5, "value": 70, "ease": "ease-in-out" },
+          { "t": 8.5, "value": -40, "ease": "ease-in-out" },
+          { "t": 10, "value": 0 }
+        ]
+      },
+      {
+        "id": "tr-cam-y",
+        "node": "camera-rig",
+        "on": "node",
+        "param": "y",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "ease-in-out" },
+          { "t": 2.2, "value": -40, "ease": "ease-in-out" },
+          { "t": 3.5, "value": 0, "ease": "back-out" },
+          { "t": 6.5, "value": -50, "ease": "ease-in-out" },
+          { "t": 8.5, "value": 30, "ease": "ease-in-out" },
+          { "t": 10, "value": 0 }
+        ]
+      },
+      {
+        "id": "tr-cam-rot",
+        "node": "camera-rig",
+        "on": "node",
+        "param": "rotation",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "ease-in-out" },
+          { "t": 3.5, "value": 12, "ease": "ease-in-out" },
+          { "t": 7.0, "value": -10, "ease": "ease-in-out" },
+          { "t": 10, "value": 0 }
+        ]
+      },
+      {
+        "id": "tr-cam-3d-x",
+        "node": "camera-rig",
+        "on": "modifier",
+        "modifier": "cam-rotate3d",
+        "param": "rotateX",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "linear" },
+          { "t": 5.0, "value": 0, "ease": "ease-in-out" },
+          { "t": 7.5, "value": 32, "ease": "ease-in-out" },
+          { "t": 9.2, "value": -15, "ease": "ease-in-out" },
+          { "t": 10, "value": 0 }
+        ]
+      },
+      {
+        "id": "tr-cam-3d-y",
+        "node": "camera-rig",
+        "on": "modifier",
+        "modifier": "cam-rotate3d",
+        "param": "rotateY",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "linear" },
+          { "t": 5.0, "value": 0, "ease": "ease-in-out" },
+          { "t": 7.5, "value": -24, "ease": "ease-in-out" },
+          { "t": 9.2, "value": 18, "ease": "ease-in-out" },
+          { "t": 10, "value": 0 }
+        ]
+      },
+      {
+        "id": "tr-satellite-pos",
+        "node": "satellite-orb",
+        "on": "modifier",
+        "modifier": "orbit-follower",
+        "param": "position",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "linear" },
+          { "t": 10, "value": 1 }
+        ]
+      },
+      {
+        "id": "tr-alpha-x",
+        "node": "cell-alpha",
+        "on": "node",
+        "param": "x",
+        "keys": [
+          { "t": 0, "value": -95, "ease": "ease-in-out" },
+          { "t": 2.5, "value": -30, "ease": "ease-in-out" },
+          { "t": 5.0, "value": -110, "ease": "ease-in-out" },
+          { "t": 7.5, "value": -50, "ease": "ease-in-out" },
+          { "t": 10, "value": -95 }
+        ]
+      },
+      {
+        "id": "tr-alpha-y",
+        "node": "cell-alpha",
+        "on": "node",
+        "param": "y",
+        "keys": [
+          { "t": 0, "value": -40, "ease": "ease-in-out" },
+          { "t": 2.5, "value": 30, "ease": "ease-in-out" },
+          { "t": 5.0, "value": -60, "ease": "ease-in-out" },
+          { "t": 7.5, "value": 20, "ease": "ease-in-out" },
+          { "t": 10, "value": -40 }
+        ]
+      },
+      {
+        "id": "tr-beta-x",
+        "node": "cell-beta",
+        "on": "node",
+        "param": "x",
+        "keys": [
+          { "t": 0, "value": 80, "ease": "ease-in-out" },
+          { "t": 3.0, "value": 25, "ease": "ease-in-out" },
+          { "t": 6.0, "value": 100, "ease": "ease-in-out" },
+          { "t": 8.5, "value": 40, "ease": "ease-in-out" },
+          { "t": 10, "value": 80 }
+        ]
+      },
+      {
+        "id": "tr-beta-y",
+        "node": "cell-beta",
+        "on": "node",
+        "param": "y",
+        "keys": [
+          { "t": 0, "value": 60, "ease": "ease-in-out" },
+          { "t": 3.0, "value": -35, "ease": "ease-in-out" },
+          { "t": 6.0, "value": 75, "ease": "ease-in-out" },
+          { "t": 8.5, "value": -20, "ease": "ease-in-out" },
+          { "t": 10, "value": 60 }
+        ]
+      },
+      {
+        "id": "tr-core-twist-angle",
+        "node": "core-fluid",
+        "on": "modifier",
+        "modifier": "core-twist",
+        "param": "angle",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "ease-in-out" },
+          { "t": 2.5, "value": 140, "ease": "ease-in-out" },
+          { "t": 5.0, "value": -120, "ease": "ease-in-out" },
+          { "t": 7.5, "value": 90, "ease": "ease-in-out" },
+          { "t": 10, "value": 0 }
+        ]
+      },
+      {
+        "id": "tr-core-spherize-str",
+        "node": "core-fluid",
+        "on": "modifier",
+        "modifier": "core-spherize",
+        "param": "strength",
+        "keys": [
+          { "t": 0, "value": 0.2, "ease": "ease-in-out" },
+          { "t": 2.0, "value": 0.75, "ease": "ease-in-out" },
+          { "t": 4.5, "value": -0.6, "ease": "ease-in-out" },
+          { "t": 7.5, "value": 0.8, "ease": "ease-in-out" },
+          { "t": 10, "value": 0.2 }
+        ]
+      },
+      {
+        "id": "tr-core-rgb-dist",
+        "node": "core-fluid",
+        "on": "modifier",
+        "modifier": "core-rgbsplit",
+        "param": "distance",
+        "keys": [
+          { "t": 0, "value": 4, "ease": "linear" },
+          { "t": 3.4, "value": 4, "ease": "linear" },
+          { "t": 3.6, "value": 22, "ease": "bounce-out" },
+          { "t": 4.4, "value": 4, "ease": "linear" },
+          { "t": 7.0, "value": 4, "ease": "linear" },
+          { "t": 7.3, "value": 28, "ease": "expo-out" },
+          { "t": 8.0, "value": 4, "ease": "linear" },
+          { "t": 10, "value": 4 }
+        ]
+      },
+      {
+        "id": "tr-spiral-rot",
+        "node": "ambient-spiral",
+        "on": "node",
+        "param": "rotation",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "linear" },
+          { "t": 10, "value": 360 }
+        ]
+      },
+      {
+        "id": "tr-spiral-phase",
+        "node": "ambient-spiral",
+        "on": "modifier",
+        "modifier": "spiral-wave",
+        "param": "phase",
+        "keys": [
+          { "t": 0, "value": 0, "ease": "linear" },
+          { "t": 10, "value": 720 }
+        ]
+      }
+    ]
+  }
+}

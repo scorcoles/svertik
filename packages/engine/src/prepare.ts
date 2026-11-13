@@ -23,7 +23,7 @@ export function sceneEffectTypes(scene: SceneV2): string[] {
   const out = new Set<string>();
   const walk = (nodes: SceneNode[]) => {
     for (const node of nodes) {
-      stackTypes(node.stack, out);
+      stackTypes(node.stack ?? [], out);
       if (node.kind === 'group') walk(node.children);
       // A pack can keep the original node (to be able to unpack it): its effects count too.
       const packed = node.kind === 'object' ? node.packed : undefined;
