@@ -188,6 +188,12 @@ export class Editor {
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
   canvas = $state(readPref('svertik.canvas'));
+  setCanvas(color: string) {
+    if (color === this.canvas) return;
+    this.canvas = color;
+    writePref('svertik.canvas', color);
+    this.record();
+  }
   /** Relleno y contorno de las primitivas nuevas (los selectores de color del rail). */
   fillColor = $state(DEFAULT_FILL);
   strokeColor = $state('#ededed');
