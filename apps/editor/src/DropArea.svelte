@@ -13,7 +13,7 @@
   let { editor, onimport, ondemo, showWelcome = false }: Props = $props();
 </script>
 
-<div class="drop">
+<div class="drop" class:without-welcome={!showWelcome}>
   {#if showWelcome}
     <div class="welcome-header">
       <img src="/assets/welcome.png" alt="svertik" />
@@ -57,13 +57,14 @@
     justify-items: center;
     gap: var(--sv-space-12);
     width: min(560px, calc(100% - 32px));
-    padding: 0 0 40px;
+    padding: 0 0 var(--sv-space-32);
     color: var(--sv-text-muted);
     text-align: center;
     background: var(--sv-surface-panel);
     border: 0;
     box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
   }
+  .drop.without-welcome { padding-top: var(--sv-space-32); }
   .welcome-header {
     width: 100%;
     line-height: 0;

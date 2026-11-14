@@ -29,7 +29,11 @@
   );
   const def = $derived(m ? registry.get(m.type) : undefined);
   // Sin grupo: arriba. Con grupo: secciones plegables, en el orden del esquema.
-  const main = $derived(Object.entries(def?.params ?? {}).filter(([, s]) => !s.group));
+  const main = $derived(
+    Object.entries(def?.params ?? {}).filter(
+      ([name, s]) => !s.group && !(m?.type === 'gradient' && name === 'transform'),
+    ),
+  );
   const groups = $derived.by(() => {
     const out = new Map<string, [string, ParamSpec][]>();
     for (const [name, spec] of Object.entries(def?.params ?? {})) if (spec.group) out.set(spec.group, [...(out.get(spec.group) ?? []), [name, spec]]);
