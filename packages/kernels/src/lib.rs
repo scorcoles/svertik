@@ -78,10 +78,46 @@ fn smin(a: f64, b: f64, k: f64) -> f64 {
     a.min(b) - h * h * k * 0.25
 }
 
-/// Distance to the rings, negative inside (even-odd between them).
-fn signed_distance(x: f64, y: f64, rings: &[&[f64]]) -> f64 {
-    let mut best = f64::INFINITY;
-    let mut inside = false;
+/// A segment of an outline, with what does not depend on the query point.
+#[derive(Clone, Copy)]
+struct Seg {
+    ax: f64,
+    ay: f64,
+    bx: f64,
+    by: f64,
+    ex: f64,
+    ey: f64,
+    len2: f64,
+}
+
+impl Seg {
+    /// The squared distance from the point to the segment (the same arithmetic as in TypeScript).
+    #[inline]
+    fn distance2(&self, x: f64, y: f64) -> f64 {
+        let t = if self.len2 != 0.0 {
+            (((x - self.ax) * self.ex + (y - self.ay) * self.ey) / self.len2)
+                .max(0.0)
+                .min(1.0)
+        } else {
+            0.0
+        };
+        (x - self.ax - t * self.ex).powi(2) + (y - self.ay - t * self.ey).powi(2)
+    }
+
+    /// The `x` where the segment crosses the horizontal line `y` (if it does).
+    #[inline]
+    fn crossing(&self, y: f64) -> Option<f64> {
+        if (self.ay > y) != (self.by > y) {
+            Some(((self.bx - self.ax) * (y - self.ay)) / (self.by - self.ay) + self.ax)
+        } else {
+            None
+        }
+    }
+}
+
+/// The segments of the rings (the same ones as in the TypeScript version).
+fn segments_of(rings: &[&[f64]]) -> Vec<Seg> {
+    let mut segs = Vec::new();
     for r in rings {
         let n = r.len() / 2;
         if n < 2 {
@@ -89,33 +125,44 @@ fn signed_distance(x: f64, y: f64, rings: &[&[f64]]) -> f64 {
         }
         let mut j = n - 1;
         for i in 0..n {
-            let ax = r[j * 2];
-            let ay = r[j * 2 + 1];
-            let bx = r[i * 2];
-            let by = r[i * 2 + 1];
-            if (ay > y) != (by > y) && x < ((bx - ax) * (y - ay)) / (by - ay) + ax {
-                inside = !inside;
-            }
-            let ex = bx - ax;
-            let ey = by - ay;
-            let len2 = ex * ex + ey * ey;
-            let t = if len2 != 0.0 {
-                (((x - ax) * ex + (y - ay) * ey) / len2).max(0.0).min(1.0)
-            } else {
-                0.0
-            };
-            let d = (x - ax - t * ex).powi(2) + (y - ay - t * ey).powi(2);
-            if d < best {
-                best = d;
-            }
+            let (ax, ay) = (r[j * 2], r[j * 2 + 1]);
+            let (bx, by) = (r[i * 2], r[i * 2 + 1]);
+            let (ex, ey) = (bx - ax, by - ay);
+            segs.push(Seg { ax, ay, bx, by, ex, ey, len2: ex * ex + ey * ey });
             j = i;
         }
     }
-    let d = best.sqrt();
-    if inside {
-        -d
-    } else {
-        d
+    segs
+}
+
+/// A shape of the field: its segments, its box and, for each row of the grid, the `x` of the
+/// crossings of the even-odd test (sorted). The crossings of a row do not depend on where along the
+/// row the point is, so they are computed once for the whole row instead of once per point.
+struct Shape {
+    segs: Vec<Seg>,
+    bounds: [f64; 4],
+    rows: Vec<Vec<f64>>,
+}
+
+impl Shape {
+    /// Distance to the shape, negative inside (even-odd between its rings).
+    fn signed_distance(&self, x: f64, y: f64, row: usize) -> f64 {
+        let xs = &self.rows[row];
+        // Inside if an odd number of crossings are to the right of the point.
+        let inside = (xs.len() - xs.partition_point(|&v| v <= x)) % 2 == 1;
+        let mut best = f64::INFINITY;
+        for s in &self.segs {
+            let d = s.distance2(x, y);
+            if d < best {
+                best = d;
+            }
+        }
+        let d = best.sqrt();
+        if inside {
+            -d
+        } else {
+            d
+        }
     }
 }
 
@@ -281,7 +328,7 @@ pub extern "C" fn metaball(
     let bx: &[f64] = unsafe { std::slice::from_raw_parts(boxes, n_shapes * 4) };
 
     // The rings of each shape.
-    let mut solids: Vec<(Vec<&[f64]>, [f64; 4])> = Vec::with_capacity(n_shapes);
+    let mut solids: Vec<(Vec<Seg>, [f64; 4])> = Vec::with_capacity(n_shapes);
     for s in 0..n_shapes {
         let (count, off) = (shape_tbl[s * 2] as usize, shape_tbl[s * 2 + 1] as usize);
         let mut list: Vec<&[f64]> = Vec::with_capacity(count);
@@ -289,7 +336,7 @@ pub extern "C" fn metaball(
             let (pc, po) = (ring_tbl[r * 2] as usize, ring_tbl[r * 2 + 1] as usize);
             list.push(&pts[po * 2..(po + pc) * 2]);
         }
-        solids.push((list, [bx[s * 4], bx[s * 4 + 1], bx[s * 4 + 2], bx[s * 4 + 3]]));
+        solids.push((segments_of(&list), [bx[s * 4], bx[s * 4 + 1], bx[s * 4 + 2], bx[s * 4 + 3]]));
     }
 
     let quality = quality.max(30.0).min(400.0).round();
@@ -303,9 +350,44 @@ pub extern "C" fn metaball(
     let ny = ((y1 - y0 + 2.0 * pad) / cell).ceil() as i32 + 3;
 
     let near = 2.0 * k + grow.abs() + 2.0 * cell;
-    let field_at = |x: f64, y: f64| -> f64 {
+
+    // A coarse grid first: where the four corners are far from the outline, the fine nodes are
+    // interpolated (only which side they are on matters).
+    const S: i32 = 4;
+    let cx = (nx - 1 + S - 1) / S + 2;
+    let cy = (ny - 1 + S - 1) / S + 2;
+
+    // The rows of the grid: the fine ones (step `cell`) and the coarse ones (step `S * cell`).
+    let n_rows = (((cy - 1) * S).max(ny - 1) + 1) as usize;
+    let shapes: Vec<Shape> = solids
+        .into_iter()
+        .map(|(segs, box_)| {
+            let mut rows: Vec<Vec<f64>> = (0..n_rows).map(|_| Vec::new()).collect();
+            for s in &segs {
+                let (y0, y1) = (s.ay.min(s.by), s.ay.max(s.by));
+                let mut m = ((y0 - gy0) / cell).floor() as i64 - 1;
+                let end = ((y1 - gy0) / cell).ceil() as i64 + 1;
+                while m <= end {
+                    if m >= 0 && (m as usize) < n_rows {
+                        let y = gy0 + m as f64 * cell;
+                        if let Some(x) = s.crossing(y) {
+                            rows[m as usize].push(x);
+                        }
+                    }
+                    m += 1;
+                }
+            }
+            for r in &mut rows {
+                r.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            }
+            Shape { segs, bounds: box_, rows }
+        })
+        .collect();
+
+    let field_at = |x: f64, y: f64, row: usize| -> f64 {
         let mut f = f64::INFINITY;
-        for (rings, b) in &solids {
+        for sh in &shapes {
+            let b = sh.bounds;
             let dx = (b[0] - x).max(0.0).max(x - b[2]);
             let dy = (b[1] - y).max(0.0).max(y - b[3]);
             let box_d = dx.hypot(dy);
@@ -314,21 +396,17 @@ pub extern "C" fn metaball(
             if (dx > 0.0 || dy > 0.0) && box_d >= f + k {
                 continue;
             }
-            let d = if box_d > near { box_d } else { signed_distance(x, y, rings) };
+            let d = if box_d > near { box_d } else { sh.signed_distance(x, y, row) };
             f = smin(f, d, k);
         }
         f - grow
     };
 
-    // A coarse grid first: where the four corners are far from the outline, the fine nodes are
-    // interpolated (only which side they are on matters).
-    const S: i32 = 4;
-    let cx = (nx - 1 + S - 1) / S + 2;
-    let cy = (ny - 1 + S - 1) / S + 2;
     let mut coarse = vec![0.0f64; (cx * cy) as usize];
     for j in 0..cy {
         for i in 0..cx {
-            coarse[(j * cx + i) as usize] = field_at(gx0 + i as f64 * S as f64 * cell, gy0 + j as f64 * S as f64 * cell);
+            coarse[(j * cx + i) as usize] =
+                field_at(gx0 + i as f64 * S as f64 * cell, gy0 + j as f64 * S as f64 * cell, (j * S) as usize);
         }
     }
     let safe = 1.5 * S as f64 * cell;
@@ -347,7 +425,7 @@ pub extern "C" fn metaball(
             field[(j * nx + i) as usize] = if far {
                 a * (1.0 - fx) * (1.0 - fy) + b * fx * (1.0 - fy) + c * (1.0 - fx) * fy + d * fx * fy
             } else {
-                field_at(gx0 + i as f64 * cell, gy0 + j as f64 * cell)
+                field_at(gx0 + i as f64 * cell, gy0 + j as f64 * cell, j as usize)
             };
         }
     }
