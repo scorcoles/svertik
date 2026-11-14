@@ -135,6 +135,20 @@ fn segments_of(rings: &[&[f64]]) -> Vec<Seg> {
     segs
 }
 
+/// A node of the box tree: a box and either a range of `order` (a leaf) or two children. A point
+/// never is nearer to a segment than to the box of its node, so a node already further than the best
+/// distance found can be left whole: the nearest segment comes out without testing them all.
+struct Node {
+    x0: f64,
+    y0: f64,
+    x1: f64,
+    y1: f64,
+    start: u32,
+    end: u32,
+    left: i32,
+    right: i32,
+}
+
 /// A shape of the field: its segments, its box and, for each row of the grid, the `x` of the
 /// crossings of the even-odd test (sorted). The crossings of a row do not depend on where along the
 /// row the point is, so they are computed once for the whole row instead of once per point.
@@ -142,28 +156,119 @@ struct Shape {
     segs: Vec<Seg>,
     bounds: [f64; 4],
     rows: Vec<Vec<f64>>,
+    /// The segments, in the order the tree visits them (each leaf is a range of this).
+    order: Vec<u32>,
+    nodes: Vec<Node>,
 }
 
 impl Shape {
+    fn new(mut segs: Vec<Seg>, bounds: [f64; 4], rows: Vec<Vec<f64>>) -> Shape {
+        let mut order: Vec<u32> = (0..segs.len() as u32).collect();
+        let mut nodes = Vec::new();
+        if !segs.is_empty() {
+            let n = order.len() as u32;
+            build_tree(&mut segs, &mut order, &mut nodes, 0, n);
+        }
+        Shape { segs, bounds, rows, order, nodes }
+    }
+
+    /// The nearest segment, from the tree.
+    fn nearest(&self, x: f64, y: f64) -> f64 {
+        let mut best = f64::INFINITY;
+        if !self.nodes.is_empty() {
+            self.walk(0, x, y, &mut best);
+        }
+        best
+    }
+
+    fn walk(&self, at: i32, x: f64, y: f64, best: &mut f64) {
+        let n = &self.nodes[at as usize];
+        let dx = (n.x0 - x).max(0.0).max(x - n.x1);
+        let dy = (n.y0 - y).max(0.0).max(y - n.y1);
+        if dx * dx + dy * dy >= *best {
+            return;
+        }
+        if n.left < 0 {
+            for k in n.start..n.end {
+                let s = &self.segs[self.order[k as usize] as usize];
+                let d = s.distance2(x, y);
+                if d < *best {
+                    *best = d;
+                }
+            }
+            return;
+        }
+        // The nearer child first: it gives a tight bound for the other one.
+        let a = &self.nodes[n.left as usize];
+        let b = &self.nodes[n.right as usize];
+        let da = box_distance2(a, x, y);
+        let db = box_distance2(b, x, y);
+        if da <= db {
+            self.walk(n.left, x, y, best);
+            if db < *best {
+                self.walk(n.right, x, y, best);
+            }
+        } else {
+            self.walk(n.right, x, y, best);
+            if da < *best {
+                self.walk(n.left, x, y, best);
+            }
+        }
+    }
+
     /// Distance to the shape, negative inside (even-odd between its rings).
     fn signed_distance(&self, x: f64, y: f64, row: usize) -> f64 {
         let xs = &self.rows[row];
         // Inside if an odd number of crossings are to the right of the point.
         let inside = (xs.len() - xs.partition_point(|&v| v <= x)) % 2 == 1;
-        let mut best = f64::INFINITY;
-        for s in &self.segs {
-            let d = s.distance2(x, y);
-            if d < best {
-                best = d;
-            }
-        }
-        let d = best.sqrt();
+        let d = self.nearest(x, y).sqrt();
         if inside {
             -d
         } else {
             d
         }
     }
+}
+
+fn box_distance2(n: &Node, x: f64, y: f64) -> f64 {
+    let dx = (n.x0 - x).max(0.0).max(x - n.x1);
+    let dy = (n.y0 - y).max(0.0).max(y - n.y1);
+    dx * dx + dy * dy
+}
+
+/// The box of `segs[order[start..end]]`.
+fn range_box(segs: &[Seg], order: &[u32], start: u32, end: u32) -> [f64; 4] {
+    let mut b = [f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
+    for k in start..end {
+        let s = &segs[order[k as usize] as usize];
+        b[0] = b[0].min(s.ax.min(s.bx));
+        b[1] = b[1].min(s.ay.min(s.by));
+        b[2] = b[2].max(s.ax.max(s.bx));
+        b[3] = b[3].max(s.ay.max(s.by));
+    }
+    b
+}
+
+/// Builds the subtree of `order[start..end]` and returns its node.
+fn build_tree(segs: &mut [Seg], order: &mut [u32], nodes: &mut Vec<Node>, start: u32, end: u32) -> i32 {
+    const LEAF: u32 = 4;
+    let b = range_box(segs, order, start, end);
+    let me = nodes.len() as i32;
+    nodes.push(Node { x0: b[0], y0: b[1], x1: b[2], y1: b[3], start, end, left: -1, right: -1 });
+    if end - start <= LEAF {
+        return me;
+    }
+    // Split by the middle of the wider side, so the two halves cover a similar area.
+    let horizontal = (b[2] - b[0]) >= (b[3] - b[1]);
+    let center = |s: &Seg| if horizontal { s.ax + s.ex * 0.5 } else { s.ay + s.ey * 0.5 };
+    let slice = &mut order[start as usize..end as usize];
+    slice.sort_unstable_by(|p, q| center(&segs[*p as usize]).partial_cmp(&center(&segs[*q as usize])).unwrap());
+    let mid = start + (end - start) / 2;
+    let left = build_tree(segs, order, nodes, start, mid);
+    let right = build_tree(segs, order, nodes, mid, end);
+    nodes[me as usize].left = left;
+    nodes[me as usize].right = right;
+    me
 }
 
 /// Marching squares: the contours where the field crosses zero.
@@ -380,7 +485,7 @@ pub extern "C" fn metaball(
             for r in &mut rows {
                 r.sort_by(|a, b| a.partial_cmp(b).unwrap());
             }
-            Shape { segs, bounds: box_, rows }
+            Shape::new(segs, box_, rows)
         })
         .collect();
 
@@ -390,13 +495,13 @@ pub extern "C" fn metaball(
             let b = sh.bounds;
             let dx = (b[0] - x).max(0.0).max(x - b[2]);
             let dy = (b[1] - y).max(0.0).max(y - b[3]);
-            let box_d = dx.hypot(dy);
+            let box_d = (dx * dx + dy * dy).sqrt();
             // Outside its box the signed distance is at least `box_d`, so if even that cannot bring
             // the smooth union down (smin(f, d, k) is f when d >= f + k), the shape is left out.
             if (dx > 0.0 || dy > 0.0) && box_d >= f + k {
                 continue;
             }
-            let d = if box_d > near { box_d } else { sh.signed_distance(x, y, row) };
+                let d = if box_d > near { box_d } else { sh.signed_distance(x, y, row) };
             f = smin(f, d, k);
         }
         f - grow
