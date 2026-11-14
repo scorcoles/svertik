@@ -6,13 +6,12 @@
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
   import { Checkbox } from '@svertik/ui';
-  import Attributes from './Attributes.svelte';
   import Canvas from './Canvas.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
   import { demoProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
-  import StackPanel from './StackPanel.svelte';
+  import InspectorPanel from './InspectorPanel.svelte';
   import Presenter from './Presenter.svelte';
   import Timeline from './Timeline.svelte';
   import UnsavedDialog from './UnsavedDialog.svelte';
@@ -348,8 +347,7 @@
       {#if !codeMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
     {#if !codeMaximized}<aside class="inspector">
-      <StackPanel {editor} />
-      <Attributes {editor} onreplace={() => replaceInput.click()} />
+      <InspectorPanel {editor} onreplace={() => replaceInput.click()} />
       <div class="view" class:off={!editor.scene}>
         <strong>View</strong>
         <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>

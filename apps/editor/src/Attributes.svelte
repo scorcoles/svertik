@@ -1,5 +1,4 @@
 <script lang="ts">
-  import DocumentAttributes from './DocumentAttributes.svelte';
   import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
   import { effectDescriptions, walkNodes, type ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
@@ -112,7 +111,7 @@
   {:else if editor.currentNode}
     {#key editor.currentNode.id}<NodeAttributes {editor} node={editor.currentNode} {onreplace} />{/key}
   {:else if editor.scene}
-    <DocumentAttributes {editor} />
+    <p class="empty">Select an object or modifier to edit its parameters. Document settings are in the Document tab.</p>
   {/if}
 </section>
 
@@ -129,4 +128,5 @@
   .info .about { color: var(--sv-text-secondary); line-height: 1.5; }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
   .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .empty { margin: 0; padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.5; }
 </style>

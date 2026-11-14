@@ -72,7 +72,6 @@
     drag = null;
     drop = null;
   };
-  const docSize = $derived(editor.scene?.document ? `${editor.scene.document.width}×${editor.scene.document.height}` : 'auto');
 </script>
 
 {#snippet modifiers(list: ModifierInstance[], depth: number)}
@@ -150,7 +149,6 @@
 
 <section class="stack" aria-label="Stack">
   <header>
-    <h2>Stack</h2>
     {#if editor.scene}<span class="count" title="Objects">{editor.objectCount}</span>{/if}
     <IconButton icon="expand-all" label="Expand all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
     <IconButton icon="collapse-all" label="Collapse all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
@@ -165,15 +163,6 @@
   </header>
   {#if editor.scene}
     <div class="rows" role="tree" aria-label="Objects and modifiers">
-      <!-- El documento, arriba de todo: sus propiedades (tamaño, lienzo) son lo que se ve sin nada seleccionado. -->
-      <StackItem
-        label={`Document · ${docSize}`}
-        kind="object"
-        icon="document"
-        depth={0}
-        selected={!editor.selected && !editor.also.length}
-        onselect={() => ((editor.selected = null), (editor.also = []))}
-      />
       {@render nodes(editor.scene.objects, 0)}
     </div>
   {:else}
@@ -187,7 +176,6 @@
 <style>
   .stack { display: flex; flex-direction: column; min-height: 0; max-height: 50%; padding-bottom: var(--sv-space-8); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   header { display: flex; align-items: center; gap: var(--sv-space-4); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); flex: none; }
-  h2 { flex: 1; margin: 0; font-size: var(--sv-font-size-11); }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); margin-right: var(--sv-space-4); }
   .rows { overflow-y: auto; }
   .drag { position: relative; }
