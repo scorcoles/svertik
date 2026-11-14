@@ -4,9 +4,17 @@ import type { Geometry, Gradient, Shape, Style } from './geometry';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// A number as SVG writes it: `toFixed`, without the trailing zeros and without the "-0".
+// (It is the same text as `String(Number(n.toFixed(precision)))`, which is what it used to be, but
+// without turning the number into a string and back: this runs once per coordinate.)
 const fmt = (n: number, precision: number) => {
-  const v = Number(n.toFixed(precision));
-  return Object.is(v, -0) ? '0' : String(v);
+  const s = n.toFixed(precision);
+  if (precision === 0 || s.indexOf('.') < 0) return s === '-0' ? '0' : s;
+  let end = s.length;
+  while (s.charCodeAt(end - 1) === 48) end--;
+  if (s.charCodeAt(end - 1) === 46) end--;
+  const t = s.slice(0, end);
+  return t === '-0' ? '0' : t;
 };
 
 export function toPathData(shape: Shape, precision = 2): string {

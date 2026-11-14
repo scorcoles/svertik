@@ -105,6 +105,8 @@ interface Layer {
   fill: Hit | null;
   stroke: { hit: Hit; half: number } | null;
   lines: Vec2[][];
+  /** Its segments, bucketed by area: a cell only tests the ones that can reach it. */
+  strokeIndex?: LineIndex;
 }
 
 function paintOf(value: string | undefined, gradients: Gradient[] | undefined): { solid: string } | { grad: Gradient } | null {
@@ -151,6 +153,7 @@ function prepare(s: Shape): Layer | null {
     fill: fillPaint && polys.length ? hitFor(fillPaint, Number(st['fill-opacity'] ?? 1), bbox) : null,
     stroke: lines.length ? { hit: hitFor(strokePaint!, Number(st['stroke-opacity'] ?? 1), bbox), half } : null,
     lines,
+    strokeIndex: lines.length ? lineIndex(lines, half) : undefined,
   };
 }
 
@@ -159,7 +162,12 @@ function colorAt(layers: Layer[], q: Vec2): { rgba: [number, number, number, num
     const l = layers[n]!;
     if (q[0] < l.box[0] || q[0] > l.box[2] || q[1] < l.box[1] || q[1] > l.box[3]) continue;
     let hit: Hit | null = null;
-    if (l.stroke && nearLines(l.lines, q, l.stroke.half)) hit = l.stroke.hit;
+    const near = l.stroke
+      ? l.strokeIndex
+        ? nearIndex(l.strokeIndex, q[0], q[1], l.stroke.half)
+        : nearLines(l.lines, q, l.stroke.half)
+      : false;
+    if (near) hit = l.stroke!.hit;
     else if (l.fill && insideFill(l.polys, q, l.evenodd)) hit = l.fill;
     if (!hit) continue;
     if ('grad' in hit.paint) {
@@ -240,16 +248,88 @@ function darkness([r, g, b, a]: [number, number, number, number]): number {
   return (1 - lum) * a;
 }
 
+/** Whether the point is within `h2` (half-width squared) of the segment. */
+function nearSegment(x: number, y: number, ax: number, ay: number, bx: number, by: number, h2: number): boolean {
+  const ex = bx - ax, ey = by - ay;
+  const len2 = ex * ex + ey * ey;
+  const t = len2 ? Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / len2)) : 0;
+  return (x - ax - t * ex) ** 2 + (y - ay - t * ey) ** 2 <= h2;
+}
+
 function nearLines(lines: Vec2[][], [x, y]: Vec2, half: number): boolean {
   const h2 = half * half;
   for (const pts of lines) {
     for (let i = 1; i < pts.length; i++) {
       const [ax, ay] = pts[i - 1]!, [bx, by] = pts[i]!;
-      const ex = bx - ax, ey = by - ay;
-      const len2 = ex * ex + ey * ey;
-      const t = len2 ? Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / len2)) : 0;
-      if ((x - ax - t * ex) ** 2 + (y - ay - t * ey) ** 2 <= h2) return true;
+      if (nearSegment(x, y, ax, ay, bx, by, h2)) return true;
     }
+  }
+  return false;
+}
+
+interface LineIndex {
+  x0: number;
+  y0: number;
+  cw: number;
+  ch: number;
+  cols: number;
+  rows: number;
+  /** Each bucket, the segments that can reach it (indices into `segs`, four numbers each). */
+  buckets: (number[] | undefined)[];
+  segs: number[];
+}
+
+/**
+ * The segments of a stroke, bucketed by area: a cell only has to test the ones that can reach it.
+ * A segment goes in every bucket its box (grown by the stroke's half-width) touches, so a cell that
+ * finds no segment in its bucket is certainly outside the stroke.
+ */
+function lineIndex(lines: Vec2[][], half: number): LineIndex | undefined {
+  let count = 0;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const pts of lines) {
+    count += Math.max(0, pts.length - 1);
+    for (const p of pts) {
+      x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]);
+      x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]);
+    }
+  }
+  // With few segments the index costs more than it saves.
+  if (count < 64) return undefined;
+  const w = Math.max(x1 - x0, 1e-6), h = Math.max(y1 - y0, 1e-6);
+  // About four segments per bucket (a long segment lands in several).
+  const cell = Math.max(2 * half, Math.sqrt((w * h) / Math.max(1, count / 4)));
+  const cols = Math.max(1, Math.min(64, Math.ceil(w / cell)));
+  const rows = Math.max(1, Math.min(64, Math.ceil(h / cell)));
+  const cw = w / cols, ch = h / rows;
+  const buckets: (number[] | undefined)[] = new Array(cols * rows);
+  const segs: number[] = [];
+  for (const pts of lines) {
+    for (let k = 1; k < pts.length; k++) {
+      const [ax, ay] = pts[k - 1]!, [bx, by] = pts[k]!;
+      const at = segs.length;
+      segs.push(ax, ay, bx, by);
+      const ia = Math.max(0, Math.floor((Math.min(ax, bx) - half - x0) / cw));
+      const ib = Math.min(cols - 1, Math.floor((Math.max(ax, bx) + half - x0) / cw));
+      const ja = Math.max(0, Math.floor((Math.min(ay, by) - half - y0) / ch));
+      const jb = Math.min(rows - 1, Math.floor((Math.max(ay, by) + half - y0) / ch));
+      for (let j = ja; j <= jb; j++) {
+        for (let i = ia; i <= ib; i++) (buckets[j * cols + i] ??= []).push(at);
+      }
+    }
+  }
+  return { x0, y0, cw, ch, cols, rows, buckets, segs };
+}
+
+function nearIndex(index: LineIndex, x: number, y: number, half: number): boolean {
+  const i = Math.max(0, Math.min(index.cols - 1, Math.floor((x - index.x0) / index.cw)));
+  const j = Math.max(0, Math.min(index.rows - 1, Math.floor((y - index.y0) / index.ch)));
+  const list = index.buckets[j * index.cols + i];
+  if (!list) return false;
+  const h2 = half * half;
+  const s = index.segs;
+  for (const at of list) {
+    if (nearSegment(x, y, s[at]!, s[at + 1]!, s[at + 2]!, s[at + 3]!, h2)) return true;
   }
   return false;
 }
