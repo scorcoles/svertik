@@ -8,14 +8,17 @@
     editor: Editor;
     onimport: () => void;
     ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') => void;
+    showWelcome?: boolean;
   }
-  let { editor, onimport, ondemo }: Props = $props();
+  let { editor, onimport, ondemo, showWelcome = false }: Props = $props();
 </script>
 
 <div class="drop">
-  <div class="welcome-header">
-    <img src="/assets/welcome.png" alt="svertik" />
-  </div>
+  {#if showWelcome}
+    <div class="welcome-header">
+      <img src="/assets/welcome.png" alt="svertik" />
+    </div>
+  {/if}
   <div class="drop-content">
     <span class="icon"><Icon name="import" /></span>
     <strong>Drop an SVG or a .svrtk project here</strong>
