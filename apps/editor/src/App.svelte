@@ -16,6 +16,7 @@
   import Timeline from './Timeline.svelte';
   import UnsavedDialog from './UnsavedDialog.svelte';
   import ExportReport from './ExportReport.svelte';
+  import NotesPanel from './NotesPanel.svelte';
   import Toolbar from './Toolbar.svelte';
   import ModifierRail from './ModifierRail.svelte';
   import type { CanvasStatus } from './canvas-status';
@@ -27,8 +28,8 @@
   // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
   // panel no van en el arranque, sino en la fase de la UI.
   let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void; maximized: boolean; onmaximize: () => void }> | undefined>(undefined);
-  let codeMaximized = $state(false);
-  const toggleCodeMaximized = () => (codeMaximized = !codeMaximized);
+  let panelMaximized = $state(false);
+  const togglePanelMaximized = () => (panelMaximized = !panelMaximized);
   // Las paletas del selector de color, para todos los ColorField de la app.
   providePalettes({
     get list() {
@@ -189,9 +190,9 @@
   function keydown(e: KeyboardEvent) {
     // En el modo Play, el editor está detrás: sus atajos no actúan.
     if (editor.presenting || pending || report) return;
-    if (codeMaximized && e.key === 'Escape') {
+    if (panelMaximized && e.key === 'Escape') {
       e.preventDefault();
-      codeMaximized = false;
+      panelMaximized = false;
       return;
     }
     const mod = e.metaKey || e.ctrlKey;
@@ -306,7 +307,7 @@
     };
   });
   $effect(() => {
-    if (!editor.codeOpen) codeMaximized = false;
+    if (!editor.codeOpen && !editor.notesOpen) panelMaximized = false;
   });
 </script>
 
@@ -325,28 +326,30 @@
     ondemo={openDemo}
     onnew={() => guard(() => editor.newFile())}
   />
-  <main class:code-maximized={codeMaximized}>
-    {#if !codeMaximized}<ModifierRail {editor} {placeAtCenter} />{/if}
+  <main class:panel-maximized={panelMaximized}>
+    {#if !panelMaximized}<ModifierRail {editor} {placeAtCenter} />{/if}
     <div
       class="left"
-      class:maximized={codeMaximized}
-      style:grid-template-rows={codeMaximized ? 'minmax(0, 1fr)' : [
+      class:maximized={panelMaximized}
+      style:grid-template-rows={panelMaximized ? 'minmax(0, 1fr)' : [
           'minmax(0, 1fr)',
+          ...(editor.notesOpen && editor.scene ? ['minmax(120px, 25%)'] : []),
           ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
           ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
         ].join(' ')}
     >
-      {#if !codeMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} />{/if}
+      {#if !panelMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} />{/if}
+      {#if editor.notesOpen && editor.scene}<NotesPanel {editor} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp}
-        {#if !codeMaximized}
+        {#if !panelMaximized}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
         {/if}
-        <CodePanelComp editor={editor} oncopy={copy} maximized={codeMaximized} onmaximize={toggleCodeMaximized} />
+        <CodePanelComp editor={editor} oncopy={copy} maximized={panelMaximized} onmaximize={togglePanelMaximized} />
       {/if}
-      {#if !codeMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
+      {#if !panelMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
-    {#if !codeMaximized}<aside class="inspector">
+    {#if !panelMaximized}<aside class="inspector">
       <InspectorPanel {editor} onreplace={() => replaceInput.click()} />
       <div class="view" class:off={!editor.scene}>
         <strong>View</strong>
@@ -356,7 +359,7 @@
       </div>
     </aside>{/if}
   </main>
-  <footer class="status" class:no-inspector={codeMaximized}>
+  <footer class="status" class:no-inspector={panelMaximized}>
     {#if canvasStatus}
       <div class="canvas-status">
         <span class="pct" title="Zoom (wheel or pinch)">{canvasStatus.percent}%</span>
@@ -371,6 +374,7 @@
         {/if}
       </div>
       <div class="status-actions">
+        <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
       </div>
@@ -418,7 +422,7 @@
     min-height: 0;
   }
   .left { grid-area: left; display: grid; min-height: 0; min-width: 0; }
-  main.code-maximized { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left'; }
+  main.panel-maximized { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left'; }
   .left.maximized { grid-template-rows: minmax(0, 1fr); }
   .resize {
     cursor: ns-resize;
@@ -471,7 +475,6 @@
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   .status-meta { position: absolute; right: var(--sv-space-8); display: flex; align-items: center; gap: var(--sv-space-12); white-space: nowrap; }
-  .status.no-inspector .status-actions { right: var(--sv-space-8); }
   .toast {
     max-width: min(560px, 90vw);
     position: fixed;
@@ -491,6 +494,6 @@
       grid-template-areas: 'rail left' 'rail inspector';
     }
     .inspector { border-left: 0; border-top: var(--sv-border-1) solid var(--sv-rule-default); max-height: 55dvh; }
-    main.code-maximized { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: 'left'; }
+    main.panel-maximized { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: 'left'; }
   }
 </style>

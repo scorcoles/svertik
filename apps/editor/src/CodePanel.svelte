@@ -1,6 +1,8 @@
 <script lang="ts">
   import { builtins, createEngine, validateScene, type SceneNode, type SceneV2 } from '@svertik/engine';
-  import { Button, IconButton, Tabs } from '@svertik/ui';
+  import { IconButton, Tabs } from '@svertik/ui';
+  import CopyButton from './CopyButton.svelte';
+  import TextZoom from './TextZoom.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import { exportJS, extractScript, jsDocument, sourceRanges, syntaxErrorLine } from './code';
   import type { Editor } from './editor.svelte';
@@ -119,7 +121,7 @@
   const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: 'flat output · read-only' };
 </script>
 
-<section class="code-panel" aria-label="Code">
+<section class="code-panel" aria-label="Code" style:--code-font-size={`${11 * editor.textZoom / 100}px`}>
   <Tabs bind:value={tab} tabs={['JSON', 'JS', 'SVG']}>
     {#snippet children(t)}
       <div class="body">
@@ -130,13 +132,14 @@
         {:else}
           <CodeEditor value={svgDoc} lang="svg" label="Flat SVG" readonly oncursor={(l, c) => (cursor = [l, c])} />
         {/if}
+        <CopyButton label={`Copy ${tab}`} onclick={copy} />
       </div>
     {/snippet}
   </Tabs>
   <div class="head-extra">
     <span class="hint">{hints[tab]}</span>
     <span class="spacer"></span>
-    <Button label="Copy" onclick={copy} />
+    <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
     <IconButton
       icon={maximized ? 'restore' : 'maximize'}
       label={maximized ? 'Restore editor layout' : 'Use all available space for code'}
@@ -170,7 +173,8 @@
   .code-panel :global(.sv-tabs-list) { height: 28px; }
   .code-panel :global(.sv-tab) { flex: none; height: 28px; }
   .code-panel :global([data-tabs-content]) { min-height: 0; }
-  .body { height: 100%; min-height: 0; }
+  .body { position: relative; height: 100%; min-height: 0; }
+  .body:hover :global(.copy) { opacity: 1; }
   .head-extra {
     position: absolute;
     top: 0;

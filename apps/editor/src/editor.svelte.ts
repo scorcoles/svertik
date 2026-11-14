@@ -188,10 +188,23 @@ export class Editor {
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
   canvas = $state(readPref('svertik.canvas'));
+  textZoom = $state(Math.max(80, Math.min(180, Number(readPref('svertik.textZoom')) || 100)));
+  setTextZoom(value: number) {
+    const zoom = Math.max(80, Math.min(180, Math.round(value / 10) * 10));
+    if (zoom === this.textZoom) return;
+    this.textZoom = zoom;
+    writePref('svertik.textZoom', String(zoom));
+  }
   setCanvas(color: string) {
     if (color === this.canvas) return;
     this.canvas = color;
     writePref('svertik.canvas', color);
+    this.record();
+  }
+  setNotes(notes: string) {
+    if (!this.scene || notes === (this.scene.notes ?? '')) return;
+    if (notes) this.scene.notes = notes;
+    else delete this.scene.notes;
     this.record();
   }
   /** Relleno y contorno de las primitivas nuevas (los selectores de color del rail). */
@@ -277,7 +290,21 @@ export class Editor {
   }
   set codeOpen(open: boolean) {
     this.#codeOpen = open;
-    if (open) this.timelineOpen = false;
+    if (open) {
+      this.timelineOpen = false;
+      this.notesOpen = false;
+    }
+  }
+  #notesOpen = $state(false);
+  get notesOpen() {
+    return this.#notesOpen;
+  }
+  set notesOpen(open: boolean) {
+    this.#notesOpen = open;
+    if (open) {
+      this.codeOpen = false;
+      this.timelineOpen = false;
+    }
   }
   /** Línea de tiempo: abierta, instante actual (s) y reproducción. */
   get timelineOpen() {
@@ -285,7 +312,10 @@ export class Editor {
   }
   set timelineOpen(open: boolean) {
     this.#timelineOpen = open;
-    if (open) this.#codeOpen = false;
+    if (open) {
+      this.#codeOpen = false;
+      this.notesOpen = false;
+    }
     else this.playing = false;
   }
   /** Modo Play: la escena a pantalla completa, sin herramientas, con el reproductor del código exportado. */

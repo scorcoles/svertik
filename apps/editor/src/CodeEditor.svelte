@@ -41,7 +41,7 @@
 
   const theme = EditorView.theme(
     {
-      '&': { height: '100%', color: v('code-property'), backgroundColor: v('surface-field'), fontSize: '11px' },
+      '&': { height: '100%', color: v('code-property'), backgroundColor: v('surface-field'), fontSize: 'var(--code-font-size, 11px)' },
       '.cm-scroller': { fontFamily: v('font-mono'), lineHeight: '1.6', fontVariantLigatures: 'none' },
       '.cm-content': { caretColor: v('accent-fill'), padding: '8px 0' },
       '.cm-gutters': { backgroundColor: v('surface-field'), color: v('code-gutter'), border: 'none' },

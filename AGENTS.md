@@ -80,3 +80,4 @@ const svg = engine.toSVG(scene);
 6. **Effector Containers (`step`, `stagger`, `range`, `field`)**: Take nested modifiers inside their `children` array. **Never nest an effector inside another effector**.
 7. **Filters (`kind: "filter"`) & Masks (`mask`)**: Always execute after the entire geometry stack has evaluated, regardless of array position.
 8. **Text (`shape: "text"`)**: Each glyph is converted into an independent vector element, enabling `step`, `stagger`, `range`, or `explosion` to act character-by-character. Its `font` is a Fontsource family (`weight` and `italic` go apart, never inside the name).
+9. **Scene notes**: Before editing, animating, or generating a scene, check its optional `notes` field and treat it as user-provided direction. Preserve the notes unless asked to revise them. Notes are project metadata and are not rendered into SVG.
