@@ -16,7 +16,14 @@ const PLAY_STAGES: BootStage[] = [
 const stage = document.getElementById('stage') as unknown as SVGSVGElement;
 const msg = document.getElementById('msg')!;
 const edit = document.getElementById('edit') as HTMLAnchorElement;
+const tools = document.getElementById('tools')!;
 let timer: ReturnType<typeof setTimeout> | undefined;
+let toolsTimer: ReturnType<typeof setTimeout> | undefined;
+addEventListener('pointermove', () => {
+  tools.dataset.active = 'true';
+  clearTimeout(toolsTimer);
+  toolsTimer = setTimeout(() => delete tools.dataset.active, 1500);
+}, { passive: true });
 const say = (text: string, ms = 2400) => {
   msg.textContent = text;
   msg.hidden = false;

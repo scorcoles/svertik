@@ -6,25 +6,30 @@
     min?: number;
     max?: number;
     step?: number;
+    curve?: 'linear' | 'quadratic';
     label?: string;
     width?: string;
     onchange?: (value: number) => void;
   }
-  let { value = $bindable(), min = 0, max = 1, step = 0.01, label, width = '100px', onchange }: Props = $props();
+  let { value = $bindable(), min = 0, max = 1, step = 0.01, curve = 'linear', label, width = '100px', onchange }: Props = $props();
+  const sliderValue = $derived(curve === 'quadratic'
+    ? Math.sqrt(Math.max(0, Math.min(1, (value - min) / Math.max(1e-12, max - min))))
+    : value);
 </script>
 
 <!-- Solo avisa de cambios del usuario: si el valor llega de fuera (animación, otro campo) y el
      deslizador solo lo redondea a su paso, no es un cambio (si no, la animación grabaría claves sola). -->
 <Slider.Root
   type="single"
-  {value}
-  {min}
-  {max}
-  {step}
+  value={sliderValue}
+  min={curve === 'quadratic' ? 0 : min}
+  max={curve === 'quadratic' ? 1 : max}
+  step={curve === 'quadratic' ? 0.001 : step}
   onValueChange={(v) => {
-    if (Math.abs(v - value) <= step / 2 + 1e-9) return;
-    value = v;
-    onchange?.(v);
+    const next = curve === 'quadratic' ? min + (max - min) * v * v : v;
+    if (Math.abs(next - value) <= (curve === 'quadratic' ? 1e-9 : step / 2 + 1e-9)) return;
+    value = next;
+    onchange?.(next);
   }}
   class="sv-slider"
   style="width: {width}"

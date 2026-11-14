@@ -11,6 +11,8 @@
   }
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
+  // El slider se amplía por octavas para que siga siendo útil en escalas grandes.
+  const scaleSliderMax = $derived(p.scale <= 16 ? 16 : 2 ** (Math.floor(Math.log2(p.scale)) + 1));
   const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
   // Objetos importados: cuántas formas trae su SVG (para poder expandirlo en un objeto por forma).
   const shapes = $derived(node.kind === 'object' && !node.packed ? editor.shapeCount(node.source) : 0);
@@ -114,7 +116,7 @@
     </ParamRow>
     <ParamRow label="Scale" for="node-scale" keyState={nodeKey('scale')} onkey={() => toggleNode('scale')}>
       <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={(v) => editor.setNode(node.id, 'scale', v)} />
-      <Slider value={p.scale} min={0} max={4} step={0.01} label="Scale" onchange={(v) => editor.setNode(node.id, 'scale', v)} />
+      <Slider value={p.scale} min={0} max={scaleSliderMax} step={0.01} curve="quadratic" label="Scale" onchange={(v) => editor.setNode(node.id, 'scale', v)} />
     </ParamRow>
     <ParamRow label="Rotation" for="node-rot" keyState={nodeKey('rotation')} onkey={() => toggleNode('rotation')}>
       <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />

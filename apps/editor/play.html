@@ -21,11 +21,11 @@
       @keyframes boot-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { #boot { transition: opacity 0ms linear; } #boot li { transition: opacity 0ms linear; } #boot li .status::before { animation: none; } }
       #stage { width: min(92vw, 100%); height: 92vh; overflow: visible; }
-      #tools { position: fixed; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0.4; transition: opacity 150ms; }
-      #tools:hover, #tools:focus-within { opacity: 1; }
+      #tools { position: fixed; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0.46; transition: opacity 180ms; }
+      #tools[data-active], #tools:focus-within { opacity: 1; }
       #tools a, #tools button {
-        display: grid; place-items: center; height: 28px; padding: 0 10px; font: inherit; color: inherit; text-decoration: none;
-        background: rgb(0 0 0 / 0.35); border: 1px solid #333; cursor: pointer;
+        display: grid; place-items: center; height: 28px; padding: 0 10px; font: inherit; color: #fff; text-decoration: none;
+        background: rgb(10 12 16 / 0.94); border: 1px solid rgb(255 255 255 / 0.48); cursor: pointer;
       }
       #tools svg { width: 16px; height: 16px; fill: none; stroke: currentColor; }
       #msg { position: fixed; bottom: 16px; margin: 0; padding: 4px 8px; background: rgb(0 0 0 / 0.4); transition: opacity 400ms; }

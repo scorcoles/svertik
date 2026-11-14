@@ -11,6 +11,8 @@
   let { editor }: { editor: Editor } = $props();
   let svg = $state<SVGSVGElement>();
   let hint = $state(true);
+  let controlsVisible = $state(false);
+  let controlsTimer: ReturnType<typeof setTimeout> | undefined;
   let meter: FpsMeter | null = null;
 
   onMount(() => {
@@ -20,11 +22,17 @@
     const t = setTimeout(() => (hint = false), 2200);
     return () => {
       clearTimeout(t);
+      clearTimeout(controlsTimer);
       player?.stop();
       meter?.stop();
     };
   });
   const close = () => (editor.presenting = false);
+  function revealControls() {
+    controlsVisible = true;
+    clearTimeout(controlsTimer);
+    controlsTimer = setTimeout(() => (controlsVisible = false), 1500);
+  }
 
   // Compartir: el enlace que abre esta escena en Play. En el móvil, el menú de compartir del sistema.
   let said = $state<string | null>(null);
@@ -56,6 +64,7 @@
 </script>
 
 <svelte:window
+  onpointermove={revealControls}
   onkeydown={(e) => {
     if (e.key === 'Escape') close();
     // D: el medidor de rendimiento.
@@ -65,7 +74,7 @@
 
 <div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || DEFAULT_CANVAS}>
   <svg bind:this={svg} class="stage" aria-label="svertik scene"></svg>
-  <div class="tools">
+  <div class="tools" data-active={controlsVisible || undefined}>
     <button type="button" onclick={share} aria-label="Share a link to this scene" title="Share a link to this scene">
       <Icon name="share" />
     </button>
@@ -85,14 +94,13 @@
     height: 28px;
     font: inherit;
     font-size: 16px;
-    color: var(--sv-text-secondary);
-    background: rgb(0 0 0 / 0.35);
-    border: var(--sv-border-1) solid var(--sv-rule-default);
+    color: #fff;
+    background: rgb(10 12 16 / 0.94);
+    border: 1px solid rgb(255 255 255 / 0.48);
     cursor: pointer;
-    opacity: 0.4;
-    transition: opacity 150ms;
   }
-  .tools button:hover, .tools button:focus-visible { opacity: 1; }
+  .tools { opacity: 0.46; transition: opacity 180ms; }
+  .tools[data-active], .tools:focus-within { opacity: 1; }
   .hint {
     position: absolute;
     bottom: var(--sv-space-16);
