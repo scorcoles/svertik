@@ -7,7 +7,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // A number as SVG writes it: `toFixed`, without the trailing zeros and without the "-0".
 // (It is the same text as `String(Number(n.toFixed(precision)))`, which is what it used to be, but
 // without turning the number into a string and back: this runs once per coordinate.)
-const fmt = (n: number, precision: number) => {
+const fmtSlow = (n: number, precision: number) => {
   const s = n.toFixed(precision);
   if (precision === 0 || s.indexOf('.') < 0) return s === '-0' ? '0' : s;
   let end = s.length;
@@ -16,6 +16,25 @@ const fmt = (n: number, precision: number) => {
   const t = s.slice(0, end);
   return t === '-0' ? '0' : t;
 };
+
+// Two decimals, which is what almost every drawing uses: the same text, in integers instead of
+// going through `toFixed` (twice as fast, and this runs once per coordinate). Where the rounding
+// could go either way — the product is a hair from a tie, or the number is too big for exact
+// integers — it falls back to `toFixed`, which is always right.
+const fmt =
+  (n: number, precision: number) => {
+    if (precision !== 2) return fmtSlow(n, precision);
+    const v = n < 0 ? -n : n;
+    const x = v * 100;
+    const frac = x - Math.floor(x);
+    if (x >= 9007199254740992 || Math.abs(frac - 0.5) < 8 * Number.EPSILON * (x > 1 ? x : 1)) return fmtSlow(n, 2);
+    const r = Math.round(x);
+    if (r === 0) return '0';
+    const i = Math.floor(r / 100);
+    const f = r - i * 100;
+    const out = f === 0 ? '' + i : f < 10 ? i + '.0' + f : f % 10 === 0 ? i + '.' + f / 10 : i + '.' + f;
+    return n < 0 ? '-' + out : out;
+  };
 
 export function toPathData(shape: Shape, precision = 2): string {
   const f = (n: number) => fmt(n, precision);
