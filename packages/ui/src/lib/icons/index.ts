@@ -16,6 +16,8 @@ export const icons = {
   // Desplegar y plegar todo: dos flechas que se abren o se juntan.
   'expand-all': 'M4.5 6l3.5-3.5L11.5 6 M4.5 10l3.5 3.5 3.5-3.5',
   'collapse-all': 'M4.5 2.5l3.5 3.5 3.5-3.5 M4.5 13.5l3.5-3.5 3.5 3.5',
+  maximize: 'M6 2.5H2.5V6 M10 2.5h3.5V6 M2.5 10v3.5H6 M13.5 10v3.5H10',
+  restore: 'M6 2.5v3.5H2.5 M10 2.5v3.5h3.5 M2.5 10H6v3.5 M13.5 10H10v3.5',
   minus: 'M3.5 8h9',
   // Encajar a lo ancho: flechas a los dos lados.
   'fit-width': 'M1.5 8h13 M4 5.5L1.5 8 4 10.5 M12 5.5l2.5 2.5-2.5 2.5',

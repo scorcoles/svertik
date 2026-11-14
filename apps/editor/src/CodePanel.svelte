@@ -10,14 +10,14 @@
   interface Props {
     editor: Editor;
     oncopy: (text: string, what: string) => void;
+    maximized: boolean;
+    onmaximize: () => void;
   }
-  let { editor, oncopy }: Props = $props();
+  let { editor, oncopy, maximized, onmaximize }: Props = $props();
 
   const engine = createEngine(builtins);
   let tab = $state('JS');
   let error = $state<{ message: string; line: number | null } | null>(null);
-  let playing = $state(false);
-  let fps = $state(0);
   let cursor = $state<[number, number]>([1, 1]);
 
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
@@ -87,13 +87,9 @@
       } catch (e) {
         error = { message: e instanceof Error ? e.message : String(e), line: null };
       }
-      if (!playing) runner.idle();
-    } else if (m.type === 'frame') {
-      editor.preview = m.objects;
-      fps = m.fps;
+      runner.idle();
     } else {
       error = { message: m.message, line: m.line ?? (tab === 'JS' ? syntaxErrorLine(lastRun) : null) };
-      stop();
     }
   });
 
@@ -104,22 +100,8 @@
     jsTimer = setTimeout(() => {
       editor.setScript(extractScript(text));
       lastRun = text;
-      runner.run(text, playing);
+      runner.run(text);
     }, 400);
-  }
-
-  function play() {
-    if (!editor.scene) return;
-    error = null;
-    playing = true;
-    lastRun = jsDoc;
-    runner.run(jsDoc, true);
-  }
-  function stop() {
-    playing = false;
-    runner.stop();
-    editor.preview = null;
-    fps = 0;
   }
 
   $effect(() => () => {
@@ -154,12 +136,13 @@
   <div class="head-extra">
     <span class="hint">{hints[tab]}</span>
     <span class="spacer"></span>
-    {#if tab === 'JS'}
-      <button type="button" class="run" aria-pressed={playing} onclick={() => (playing ? stop() : play())}>
-        <span class="glyph" aria-hidden="true">{playing ? '■' : '▶'}</span>{playing ? 'Stop' : 'Run'}
-      </button>
-    {/if}
     <Button label="Copy" onclick={copy} />
+    <IconButton
+      icon={maximized ? 'restore' : 'maximize'}
+      label={maximized ? 'Restore editor layout' : 'Use all available space for code'}
+      aria-pressed={maximized}
+      onclick={onmaximize}
+    />
     <IconButton icon="down" label="Close code panel" onclick={() => (editor.codeOpen = false)} />
   </div>
   <footer class:error={!!error}>
@@ -167,11 +150,8 @@
       <span>{error.line ? `Line ${error.line}: ` : ''}{error.message}</span>
     {:else if warnings.length}
       <span class="warning" title={warnings.join('\n')}>⚠ {warnings[0]}{warnings.length > 1 ? ` (+${warnings.length - 1} more)` : ''}</span>
-    {:else if playing}
-      <span class="running">● Running · {fps} fps</span>
-      <span class="muted">Edits apply live. Code runs sandboxed.</span>
     {:else}
-      <span class="muted">{tab === 'SVG' ? 'Read-only.' : 'Edits to scene apply live. Code runs sandboxed.'}</span>
+      <span class="muted">{tab === 'SVG' ? 'Read-only.' : 'Scene changes apply live. onFrame animations run in exported JS.'}</span>
     {/if}
     <span class="spacer"></span>
     <span class="muted">Ln {cursor[0]}, Col {cursor[1]}</span>
@@ -205,21 +185,6 @@
   .head-extra > :global(*) { pointer-events: auto; }
   .hint { margin-left: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); pointer-events: none; }
   .spacer { flex: 1; }
-  .run {
-    display: flex;
-    align-items: center;
-    gap: var(--sv-space-6);
-    height: 24px;
-    padding: 0 var(--sv-space-8);
-    font: inherit;
-    font-weight: var(--sv-font-weight-bold);
-    color: var(--sv-text-primary);
-    background: none;
-    border: 0;
-    cursor: pointer;
-  }
-  .run:hover { background: var(--sv-surface-hover); }
-  .glyph { color: var(--sv-accent-fill); font-size: var(--sv-font-size-10); }
   footer {
     display: flex;
     align-items: center;
@@ -230,6 +195,5 @@
   }
   footer.error { color: var(--sv-signal-error); }
   .warning { color: var(--sv-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .running { color: var(--sv-accent-fill); }
   .muted { color: var(--sv-text-muted); }
 </style>

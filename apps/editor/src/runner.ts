@@ -1,15 +1,14 @@
 // Ejecuta el JS del panel en un Web Worker: sin acceso a la página y con freno si se cuelga.
-import type { SceneNode, SceneV2 } from '@svertik/engine';
+import type { SceneV2 } from '@svertik/engine';
 
 export type RunnerMessage =
   | { type: 'scene'; scene: SceneV2 }
-  | { type: 'frame'; objects: SceneNode[]; fps: number }
   | { type: 'error'; message: string; line: number | null };
 
 // Código del worker. El script se envuelve en una función: `onFrame` viene de fuera
 // y la función devuelve la `scene` que haya declarado el usuario.
 const WORKER = `
-let fn = null, timer = null, t0 = 0, frames = 0, last = 0, fps = 0, scene = null;
+let scene = null;
 const HEADER_LINES = 2;
 function lineOf(e) {
   const m = /<anonymous>:(\\d+):(\\d+)/.exec(e && e.stack || '');
@@ -18,34 +17,19 @@ function lineOf(e) {
 self.onmessage = (e) => {
   const msg = e.data;
   if (msg.type === 'run') {
-    clearInterval(timer); fn = null;
     try {
       const body = msg.code.replace(/^\\s*import[^;]*;/gm, (s) => s.replace(/[^\\n]/g, ' '));
       const run = new Function('onFrame', body + '\\n;return typeof scene === "undefined" ? null : scene;');
-      scene = run((f) => { fn = f; });
+      // The editor previews the scene live; frame callbacks are for the exported player.
+      scene = run(() => {});
       if (!scene || !(Array.isArray(scene.objects) || Array.isArray(scene.stack))) throw new Error('The code must declare const scene = { … }');
       self.postMessage({ type: 'scene', scene });
     } catch (err) {
       self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err) });
       return;
     }
-    if (msg.play && fn) start();
-  } else if (msg.type === 'play') { if (fn) start(); }
-  else if (msg.type === 'stop') { clearInterval(timer); timer = null; }
+  }
 };
-function start() {
-  clearInterval(timer); t0 = performance.now(); last = t0; frames = 0;
-  timer = setInterval(() => {
-    const now = performance.now();
-    try { fn((now - t0) / 1000); }
-    catch (err) { clearInterval(timer); timer = null; self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err) }); return; }
-    frames++;
-    if (now - last >= 500) { fps = Math.round(frames * 1000 / (now - last)); frames = 0; last = now; }
-    // v1 (una pila) se manda como un objeto, para que el editor lo trate igual.
-    const objects = scene.objects || [{ kind: 'object', id: 'object-1', name: 'source.svg', source: scene.source, stack: scene.stack }];
-    self.postMessage({ type: 'frame', objects, fps });
-  }, 1000 / 60);
-}
 `;
 
 export class Runner {
@@ -77,18 +61,10 @@ export class Runner {
     }, ms);
   }
 
-  run(code: string, play: boolean) {
+  run(code: string) {
     if (!this.#worker) this.#spawn();
     this.#feed();
-    this.#worker!.postMessage({ type: 'run', code, play });
-  }
-  play() {
-    this.#feed();
-    this.#worker?.postMessage({ type: 'play' });
-  }
-  stop() {
-    clearTimeout(this.#watchdog);
-    this.#worker?.postMessage({ type: 'stop' });
+    this.#worker!.postMessage({ type: 'run', code });
   }
   /** Tras `run` sin animación, el worker queda callado: eso no es un cuelgue. */
   idle() {

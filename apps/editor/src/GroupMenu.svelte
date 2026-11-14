@@ -26,15 +26,17 @@
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
     <DropdownMenu.Content
-      class="sv-menu"
+      class="sv-menu sv-effect-menu"
       align="start"
       side={compact ? 'right' : 'bottom'}
       sideOffset={compact ? 6 : 4}
+      avoidCollisions={true}
+      collisionPadding={8}
     >
       {#each types as type (type)}
         <DropdownMenu.Item class="sv-menu-item" onSelect={() => editor.add(type)}>
           <Icon name={type as IconName} />
-          {registry.get(type)?.label}
+          <span class="effect-name">{registry.get(type)?.label}</span>
         </DropdownMenu.Item>
       {/each}
     </DropdownMenu.Content>
@@ -66,5 +68,16 @@
     height: 32px;
     padding: 0;
   }
+  :global(.sv-effect-menu) {
+    box-sizing: border-box;
+    width: 240px;
+    max-width: min(240px, calc(100vw - 16px));
+    max-height: min(var(--bits-dropdown-menu-content-available-height, calc(100dvh - 16px)), calc(100dvh - 16px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  :global(.sv-effect-menu .sv-menu-item) { height: auto; min-height: 24px; padding-block: var(--sv-space-4); }
+  .effect-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

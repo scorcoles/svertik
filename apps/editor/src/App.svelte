@@ -19,13 +19,17 @@
   import ExportReport from './ExportReport.svelte';
   import Toolbar from './Toolbar.svelte';
   import ModifierRail from './ModifierRail.svelte';
+  import type { CanvasStatus } from './canvas-status';
 
   const editor = new Editor();
   // Lo publica el lienzo: poner una primitiva en el centro de lo que se ve (doble clic en el rail).
   let placeAtCenter = $state<((type: string) => void) | undefined>(undefined);
+  let canvasStatus = $state<CanvasStatus | null>(null);
   // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
   // panel no van en el arranque, sino en la fase de la UI.
-  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void }> | undefined>(undefined);
+  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void; maximized: boolean; onmaximize: () => void }> | undefined>(undefined);
+  let codeMaximized = $state(false);
+  const toggleCodeMaximized = () => (codeMaximized = !codeMaximized);
   // Las paletas del selector de color, para todos los ColorField de la app.
   providePalettes({
     get list() {
@@ -186,6 +190,11 @@
   function keydown(e: KeyboardEvent) {
     // En el modo Play, el editor está detrás: sus atajos no actúan.
     if (editor.presenting || pending || report) return;
+    if (codeMaximized && e.key === 'Escape') {
+      e.preventDefault();
+      codeMaximized = false;
+      return;
+    }
     const mod = e.metaKey || e.ctrlKey;
     // ⌘⇧V: pegar en el mismo sitio. El evento de pegar no lleva las teclas: se anota aquí.
     if (mod && e.key.toLowerCase() === 'v') pasteInPlace = e.shiftKey;
@@ -297,6 +306,9 @@
       alive = false;
     };
   });
+  $effect(() => {
+    if (!editor.codeOpen) codeMaximized = false;
+  });
 </script>
 
 <svelte:window onkeydown={keydown} onpaste={paste} oncopy={(e) => copySelection(e)} oncut={(e) => copySelection(e, true)} />
@@ -314,25 +326,28 @@
     ondemo={openDemo}
     onnew={() => guard(() => editor.newFile())}
   />
-  <main>
-    <ModifierRail {editor} {placeAtCenter} />
+  <main class:code-maximized={codeMaximized}>
+    {#if !codeMaximized}<ModifierRail {editor} {placeAtCenter} />{/if}
     <div
       class="left"
-      style:grid-template-rows={[
-        'minmax(0, 1fr)',
-        ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
-        ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
-      ].join(' ')}
+      class:maximized={codeMaximized}
+      style:grid-template-rows={codeMaximized ? 'minmax(0, 1fr)' : [
+          'minmax(0, 1fr)',
+          ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
+          ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
+        ].join(' ')}
     >
-      <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter />
+      {#if !codeMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} />{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
-        <CodePanelComp editor={editor} oncopy={copy} />
+        {#if !codeMaximized}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
+        {/if}
+        <CodePanelComp editor={editor} oncopy={copy} maximized={codeMaximized} onmaximize={toggleCodeMaximized} />
       {/if}
-      {#if editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
+      {#if !codeMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
-    <aside class="inspector">
+    {#if !codeMaximized}<aside class="inspector">
       <StackPanel {editor} />
       <Attributes {editor} onreplace={() => replaceInput.click()} />
       <div class="view" class:off={!editor.scene}>
@@ -341,11 +356,31 @@
         <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
         <label title="The edge of the document: what is exported and shown in Play"><Checkbox bind:checked={editor.showBounds} label="Show document bounds" disabled={!editor.scene} /> Bounds</label>
       </div>
-    </aside>
+    </aside>{/if}
   </main>
-  <footer class="status">
-    <span>svertik {version} alpha</span>
-    <span>engine · {builtins.length} modifiers</span>
+  <footer class="status" class:no-inspector={codeMaximized}>
+    {#if canvasStatus}
+      <div class="canvas-status">
+        <span class="pct" title="Zoom (wheel or pinch)">{canvasStatus.percent}%</span>
+        <button type="button" onclick={canvasStatus.fit} title="Fit (⇧1)">Fit</button>
+        <button type="button" onclick={canvasStatus.actualSize} title="100% (⇧0)">100%</button>
+        <button type="button" class="redraw" onclick={canvasStatus.redraw} title="Redraw everything" aria-label="Redraw">↻</button>
+        <button type="button" class="size" title="Document: size and canvas" onclick={canvasStatus.clearSelection}>{canvasStatus.width} × {canvasStatus.height}</button>
+        {#if canvasStatus.cost !== null}
+          <span class="cost" data-slow={canvasStatus.slow || undefined} title={canvasStatus.slow ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects' : 'Time to evaluate and draw'}>
+            {canvasStatus.slow ? '⚠ ' : ''}{Math.round(canvasStatus.cost)} ms
+          </span>
+        {/if}
+      </div>
+      <div class="status-actions">
+        <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
+        <button type="button" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
+      </div>
+    {/if}
+    <div class="status-meta">
+      <span>svertik {version} alpha</span>
+      <span>engine · {builtins.length} modifiers</span>
+    </div>
   </footer>
   <input
     bind:this={fileInput}
@@ -385,6 +420,8 @@
     min-height: 0;
   }
   .left { grid-area: left; display: grid; min-height: 0; min-width: 0; }
+  main.code-maximized { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left'; }
+  .left.maximized { grid-template-rows: minmax(0, 1fr); }
   .resize {
     cursor: ns-resize;
     background: var(--sv-surface-panel);
@@ -413,6 +450,7 @@
   .view.off { opacity: 0.35; }
   /* Barra de estado: cruza toda la ventana, debajo del rail, el lienzo y el inspector. */
   .status {
+    position: relative;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -423,6 +461,19 @@
     color: var(--sv-text-disabled);
     font-size: var(--sv-font-size-10);
   }
+  .canvas-status { display: flex; align-items: center; gap: var(--sv-space-12); min-width: 0; }
+  .canvas-status button { height: 22px; padding: 0 var(--sv-space-6); color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; font: inherit; }
+  .canvas-status button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  .canvas-status .pct, .canvas-status .size, .canvas-status .cost { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .canvas-status .size { padding: 0 var(--sv-space-4); background: none; border: 0; cursor: pointer; }
+  .canvas-status .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
+  .canvas-status .cost[data-slow] { color: var(--sv-signal-error); }
+  .status-actions { position: absolute; right: calc(300px + var(--sv-space-8)); display: flex; align-items: center; gap: var(--sv-space-4); padding-left: var(--sv-space-12); border-left: var(--sv-border-1) solid var(--sv-rule-default); }
+  .status-actions button { height: 18px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: 1px solid var(--sv-rule-strong); cursor: pointer; }
+  .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
+  .status-meta { position: absolute; right: var(--sv-space-8); display: flex; align-items: center; gap: var(--sv-space-12); white-space: nowrap; }
+  .status.no-inspector .status-actions { right: var(--sv-space-8); }
   .toast {
     max-width: min(560px, 90vw);
     position: fixed;
@@ -435,11 +486,13 @@
     font-weight: var(--sv-font-weight-bold);
   }
   @media (max-width: 760px) {
+    .status-actions { right: var(--sv-space-8); }
     main {
       grid-template-columns: auto minmax(0, 1fr);
       grid-template-rows: minmax(280px, 1fr) auto;
       grid-template-areas: 'rail left' 'rail inspector';
     }
     .inspector { border-left: 0; border-top: var(--sv-border-1) solid var(--sv-rule-default); max-height: 55dvh; }
+    main.code-maximized { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: 'left'; }
   }
 </style>

@@ -45,7 +45,7 @@
   :global(.sv-menu) {
     z-index: 50;
     /* Si no cabe en la pantalla, se desplaza (la altura que queda la da Bits UI). */
-    max-height: var(--bits-dropdown-menu-content-available-height, calc(100vh - 16px));
+    max-height: min(var(--bits-dropdown-menu-content-available-height, calc(100dvh - 16px)), calc(100dvh - 16px));
     overflow-y: auto;
     overscroll-behavior: contain;
     width: 220px;

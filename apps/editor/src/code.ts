@@ -14,10 +14,7 @@ export function syntaxErrorLine(text: string): number | null {
   return pos === null ? null : text.slice(0, pos).split('\n').length;
 }
 
-export const DEFAULT_SCRIPT = `// Runs every frame while ▶ is on. t = seconds.
-onFrame((t) => {
-  // scene.stack[0].params.phase = t * 90;
-});
+export const DEFAULT_SCRIPT = `// Edit the scene above; changes appear live.
 `;
 
 /** Objeto en estilo JS: claves sin comillas y cadenas con comillas simples. */

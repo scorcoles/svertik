@@ -8,6 +8,7 @@
   import TextEdit from './TextEdit.svelte';
   import DropArea from './DropArea.svelte';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
+  import type { CanvasStatus } from './canvas-status';
 
   interface Props {
     editor: Editor;
@@ -17,8 +18,9 @@
     ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') => void;
     /** El lienzo publica aquí cómo poner una primitiva en el centro de lo que se ve (lo usa el rail). */
     placeAtCenter?: (type: string) => void;
+    status?: CanvasStatus | null;
   }
-  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable() }: Props = $props();
+  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null) }: Props = $props();
 
   // Motor del lienzo; «Redraw» lo cambia por uno nuevo (sin nada guardado de antes) y repinta todo.
   let engine = $state.raw(createEngine(builtins));
@@ -100,6 +102,25 @@
   const box = $derived([stageSize[0] - INSET.left - INSET.right, stageSize[1] - INSET.top - INSET.bottom] as const);
   const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
   const percent = $derived(Math.round(fit * view.zoom * 100));
+
+  $effect(() => {
+    // Publica el estado y las acciones del lienzo en la barra global inferior.
+    void percent;
+    void viewBox[2];
+    void viewBox[3];
+    void cost;
+    status = editor.scene ? {
+      percent,
+      width: Math.round(viewBox[2]),
+      height: Math.round(viewBox[3]),
+      cost,
+      slow: cost !== null && cost > SLOW,
+      fit: refit,
+      actualSize: () => (view = actualSize(view, fit, box[0], box[1])),
+      redraw,
+      clearSelection: () => ((editor.selected = null), (editor.also = [])),
+    } : null;
+  });
 
   /** Encajar: el encuadre pasa a ser el del contenido actual, sin zoom ni desplazamiento. */
   function refit() {
@@ -894,28 +915,6 @@
       </div>
     {/if}
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
-    <footer>
-      <span class="pct" title="Zoom (wheel or pinch)">{percent}%</span>
-      <span class="zoom">
-        <button type="button" onclick={refit} title="Fit (⇧1)">Fit</button>
-        <button type="button" onclick={() => (view = actualSize(view, fit, box[0], box[1]))} title="100% (⇧0)">100%</button>
-        <button type="button" class="redraw" onclick={redraw} title="Redraw everything (if something looks stale)" aria-label="Redraw">↻</button>
-      </span>
-      <button type="button" class="size" title="Document: size and canvas" onclick={() => ((editor.selected = null), (editor.also = []))}>{Math.round(viewBox[2])} × {Math.round(viewBox[3])}</button>
-      {#if cost !== null}
-        <span
-          class="cost"
-          data-slow={cost > SLOW || undefined}
-          title={cost > SLOW ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects (eye or checkbox) while you edit' : 'Time to evaluate and draw'}
-        >{cost > SLOW ? '⚠ ' : ''}{Math.round(cost)} ms</span>
-      {/if}
-      <span class="zoom tl-wrap">
-        <button type="button" class="tl play" onclick={() => { editor.playing = false; editor.presenting = true; }} title="Play: full screen, no tools, like on the web (Esc to exit)">▶ Play</button>
-        <!-- Código y línea de tiempo abren su panel en el mismo sitio, debajo del lienzo: uno u otro. -->
-        <button type="button" class="tl" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code: the scene as JavaScript, and your own script">Code {editor.codeOpen ? '▾' : '▴'}</button>
-        <button type="button" class="tl" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
-      </span>
-    </footer>
   {:else}
     <DropArea {editor} {onimport} {ondemo} />
   {/if}
@@ -1097,44 +1096,6 @@
     stroke-width: 1px !important;
     vector-effect: non-scaling-stroke;
   }
-  .pct { min-width: 4ch; }
-  .zoom { display: flex; gap: var(--sv-space-4); }
-  .zoom button {
-    height: 18px;
-    padding: 0 var(--sv-space-6);
-    font: inherit;
-    color: var(--sv-text-secondary);
-    background: none;
-    border: 1px solid var(--sv-rule-strong);
-    cursor: pointer;
-  }
-  .zoom button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
-  footer .size { padding: 0 var(--sv-space-4); font: inherit; color: var(--sv-text-muted); background: none; border: 0; cursor: pointer; }
-  footer .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
-  /* Play, Code y Timeline, a la derecha del todo y algo separados del resto. */
-  .tl-wrap { margin-left: auto; padding-left: var(--sv-space-16); }
-  .zoom .play { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
-  .zoom .tl[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
-  footer {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1;
-    /* Fondo de panel, no el del lienzo: se lee igual con cualquier color de lienzo. */
-    background: var(--sv-surface-panel);
-    border-top: var(--sv-border-1) solid var(--sv-rule-default);
-    border-right: var(--sv-border-1) solid var(--sv-rule-default);
-    display: flex;
-    align-items: center;
-    gap: var(--sv-space-16);
-    height: 28px;
-    padding: 0 var(--sv-space-12);
-    font-size: var(--sv-font-size-10);
-    color: var(--sv-text-secondary);
-  }
-  .cost { color: var(--sv-text-disabled); font-variant-numeric: tabular-nums; }
-  .cost[data-slow] { color: var(--sv-signal-error); }
   .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-10); }
   .canvas > .error { position: absolute; top: var(--sv-space-12); left: var(--sv-space-12); }
 </style>

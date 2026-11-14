@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { IconButton } from '@svertik/ui';
+  import { Icon, IconButton } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import AppMenu from './AppMenu.svelte';
   import ExportMenu from './ExportMenu.svelte';
+  import EffectsToolbar from './EffectsToolbar.svelte';
 
   interface Props {
     editor: Editor;
@@ -46,7 +47,11 @@
   <IconButton icon="save" label="Save project (⌘S)" disabled={!editor.scene} onclick={onsave} />
   <IconButton icon="undo" label="Undo (⌘Z)" disabled={!editor.canUndo} onclick={() => editor.undo()} />
   <IconButton icon="redo" label="Redo (⇧⌘Z)" disabled={!editor.canRedo} onclick={() => editor.redo()} />
+  {#if editor.scene}<EffectsToolbar {editor} />{/if}
   <span class="spacer"></span>
+  <button class="play-button" type="button" disabled={!editor.scene} onclick={() => { editor.playing = false; editor.presenting = true; }} title="Play full screen (Esc to exit)">
+    <Icon name="play" /> Play
+  </button>
   <ExportMenu
     disabled={!editor.scene}
     onexportsvg={onexport}
@@ -62,8 +67,10 @@
     display: flex;
     align-items: center;
     gap: var(--sv-space-4);
-    height: 40px;
-    padding: 0 var(--sv-space-8);
+    min-height: 40px;
+    height: auto;
+    flex-wrap: wrap;
+    padding: var(--sv-space-4) var(--sv-space-8);
     background: var(--sv-surface-panel);
     border-bottom: var(--sv-border-1) solid var(--sv-rule-default);
     min-width: 0;
@@ -97,4 +104,20 @@
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .spacer { flex: 1; }
+  .play-button {
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-6);
+    height: var(--sv-size-row);
+    margin-right: var(--sv-space-8);
+    padding: 0 var(--sv-space-12);
+    font: inherit;
+    color: var(--sv-text-secondary);
+    background: none;
+    border: var(--sv-border-1) solid var(--sv-rule-strong);
+    cursor: pointer;
+  }
+  .play-button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  .play-button:disabled { opacity: 0.4; cursor: default; }
+  .play-button :global(svg) { width: 12px; height: 12px; }
 </style>
