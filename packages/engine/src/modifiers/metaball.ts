@@ -119,6 +119,9 @@ function contourOf(
       const [bx0, by0, bx1, by1] = el.box;
       const dx = Math.max(bx0 - x, 0, x - bx1), dy = Math.max(by0 - y, 0, y - by1);
       const boxD = Math.hypot(dx, dy);
+      // Outside its box the signed distance is at least `boxD`, so if even that cannot bring the
+      // smooth union down (`smin(f, d, k)` is `f` when `d >= f + k`), the element is left out.
+      if ((dx > 0 || dy > 0) && boxD >= f + k) continue;
       f = smin(f, boxD > near ? boxD : signedDistance(x, y, el.rings), k);
     }
     return f - grow;

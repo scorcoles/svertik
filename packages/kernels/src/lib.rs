@@ -309,6 +309,11 @@ pub extern "C" fn metaball(
             let dx = (b[0] - x).max(0.0).max(x - b[2]);
             let dy = (b[1] - y).max(0.0).max(y - b[3]);
             let box_d = dx.hypot(dy);
+            // Outside its box the signed distance is at least `box_d`, so if even that cannot bring
+            // the smooth union down (smin(f, d, k) is f when d >= f + k), the shape is left out.
+            if (dx > 0.0 || dy > 0.0) && box_d >= f + k {
+                continue;
+            }
             let d = if box_d > near { box_d } else { signed_distance(x, y, rings) };
             f = smin(f, d, k);
         }
