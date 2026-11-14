@@ -17,6 +17,8 @@ interface ParamBase {
   group?: string;
   /** Inside Step, does it grow with each copy? By default numbers and angles do. */
   ramp?: boolean;
+  /** Curve used by the parameter's slider; number fields remain in their original units. */
+  sliderCurve?: 'linear' | 'quadratic';
   /** The "no effect" value it grows from (0 by default; scale, 1). */
   neutral?: number;
   /** A point that is a place in the drawing can be dragged on the canvas. Yes by default. */

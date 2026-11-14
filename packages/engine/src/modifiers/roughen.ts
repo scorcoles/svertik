@@ -16,7 +16,7 @@ export const roughenModifier = defineModifier({
   params: {
     mode: { type: 'enum', default: 'organic', options: ['organic', 'koch'] as const, animatable: false },
     amount: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, group: 'Organic', label: 'Amount' },
-    detail: { type: 'number', default: 0.02, min: 0.004, max: 0.2, step: 0.001, unit: 'fraction', group: 'Organic', label: 'Detail' },
+    detail: { type: 'number', default: 0.02, min: 0.004, max: 0.2, step: 0.001, unit: 'fraction', sliderCurve: 'quadratic', group: 'Organic', label: 'Detail' },
     seed: { type: 'seed', default: 1, group: 'Organic' },
     iterations: { type: 'number', default: 2, min: 1, max: 4, step: 1, ramp: false, group: 'Koch', label: 'Iterations' },
     height: { type: 'number', default: 0.29, min: -0.6, max: 0.6, step: 0.01, group: 'Koch', label: 'Peak' },

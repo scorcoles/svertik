@@ -58,7 +58,7 @@
   {#if spec.type === 'number'}
     <NumberField {id} value={value as number} step={spec.step ?? 0.01} min={spec.min} max={spec.max} unit={spec.unit === 'fraction' ? '' : spec.unit} {onchange} />
     {#if spec.min !== undefined && spec.max !== undefined}
-      <Slider value={value as number} min={spec.min} max={spec.max} step={spec.step ?? 0.01} label={label} {onchange} />
+      <Slider value={value as number} min={spec.min} max={spec.max} step={spec.step ?? 0.01} curve={spec.sliderCurve} label={label} {onchange} />
     {/if}
   {:else if spec.type === 'angle'}
     <NumberField {id} value={value as number} step={1} unit="°" {onchange} />
