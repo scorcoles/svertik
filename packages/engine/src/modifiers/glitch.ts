@@ -61,6 +61,8 @@ function boxOfLines(lines: Vec2[][]): Box {
 function clipLines(lines: Vec2[][], r: Box): { inside: Vec2[][]; outside: Vec2[][] } {
   const inside: Vec2[][] = [], outside: Vec2[][] = [];
   const at = (a: Vec2, b: Vec2, t: number): Vec2 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const y1 = r.y + r.h;
+  const x1 = r.x + r.w;
   for (const pts of lines) {
     let run: Vec2[] | null = null;
     let runIn = false;
@@ -72,19 +74,34 @@ function clipLines(lines: Vec2[][], r: Box): { inside: Vec2[][]; outside: Vec2[]
         runIn = isIn;
       } else run.push(q);
     };
+    // The four sides of the clip, without building an array per segment: this runs once per
+    // segment and per band, and a band only touches a sliver of the drawing.
+    let t0 = 0, t1 = 1;
+    const side = (pp: number, q: number) => {
+      if (pp === 0) {
+        if (q < 0) (t0 = 1), (t1 = 0);
+      } else {
+        const t = q / pp;
+        if (pp < 0) t0 = Math.max(t0, t);
+        else t1 = Math.min(t1, t);
+      }
+    };
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i]!, b = pts[i + 1]!;
-      const dx = b[0] - a[0], dy = b[1] - a[1];
-      let t0 = 0, t1 = 1;
-      for (const [pp, q] of [[-dx, a[0] - r.x], [dx, r.x + r.w - a[0]], [-dy, a[1] - r.y], [dy, r.y + r.h - a[1]]] as const) {
-        if (pp === 0) {
-          if (q < 0) t0 = 1, t1 = 0;
-        } else {
-          const t = q / pp;
-          if (pp < 0) t0 = Math.max(t0, t);
-          else t1 = Math.min(t1, t);
-        }
+      // A segment with both ends on the same side of the band is out, whole (it is the case of
+      // almost every segment of a band: they only cross the others).
+      if ((a[1] < r.y && b[1] < r.y) || (a[1] > y1 && b[1] > y1)) {
+        if (i === 0) push(a, false);
+        push(b, false);
+        continue;
       }
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      t0 = 0;
+      t1 = 1;
+      side(-dx, a[0] - r.x);
+      side(dx, x1 - a[0]);
+      side(-dy, a[1] - r.y);
+      side(dy, y1 - a[1]);
       if (i === 0) push(a, t0 <= 0 && t1 >= 0 && t0 <= t1);
       if (t0 < t1) {
         if (t0 > 0) push(at(a, b, t0), false), push(at(a, b, t0), true);
