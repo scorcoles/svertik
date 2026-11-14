@@ -13,7 +13,7 @@ export const roundcorners = defineModifier({
   label: 'Round Corners',
   kind: 'deformer',
   params: {
-    radius: { type: 'number', default: 12, min: 0, max: 500, step: 0.5, unit: 'px', label: 'Radius', random: [2, 60] },
+    radius: { type: 'number', default: 12, min: 0, max: 500, step: 0.5, unit: 'px', label: 'Radius', sliderCurve: 'quadratic', random: [2, 60] },
     limit: { type: 'number', default: 180, min: 0, max: 180, step: 1, unit: '°', label: 'Angle limit', ramp: false, neutral: 180 },
     shape: { type: 'enum', default: 'round', options: ['round', 'chamfer'] as const, animatable: false, label: 'Shape' },
   },
