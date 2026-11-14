@@ -604,3 +604,29 @@ Interactions execute inside browser runtimes (`createPlayer` or editor Play mode
 
 - `trigger`: `"hover"`, `"click"`, `"enter"` (scrolls into view), `"pointer"`.
 - `action`: `"tween"` (lerp to target value and return), `"play"` (play timeline segment), `"seed"` (re-roll random seed), `"toggle"` (enable/disable modifier), `"follow"` (follows pointer coordinate with exponential inertia lag).
+
+### Gravity (`gravity`)
+
+Falls each element (glyph, clone, fragment or independent shape) onto an infinite virtual floor, without changing its geometry. Add it from **Effectors → Gravity**. With the effect selected, drag the floor line or its centre to move it; drag its end handle to rotate it (Shift snaps to 15°). The floor guide is editor-only and does not render.
+
+- `time`: elapsed seconds, default `1`, clamped to `0–60`. Animate from `0`, or set `{ "$expr": "scene.time", "fallback": 0 }` to follow playback.
+- `gravity`: downward acceleration in source bounding-box sizes per second squared, default `1`.
+- `floor`: floor position as source-box fractions, default `[0.5, 1.5]`.
+- `rotation`: floor angle in clockwise degrees, default `0` (horizontal). The positive local Y side is solid.
+
+- `physics`: rigid-body dynamics, enabled by default. Disable for the original translation-only, frictionless mode.
+- `friction`: contact friction, `0–1`, default `0.7`. Controls sliding and rolling at the floor.
+- `bounce`: restitution, `0–1`, default `0.15`. Small resting impacts are damped to let bodies settle.
+
+All numeric parameters and floor position support animation. Rigid bodies use uniform-area centres of mass and rotational inertia: off-centre contacts generate rotation, so unstable pieces tip onto a supporting face. Shapes sharing a clone tag move as one body, preserving paint order. Curves are sampled for mass/contact dynamics; exact cubic support prevents penetration of the rendered floor. Open paths use approximate mass properties; stroke thickness is not included.
+
+Physics integrates fixed 120 Hz steps, with a fractional final step. Mass properties are cached per input geometry; quarter-second checkpoints and the last full step are reused, so advancing time does not replay the entire fall. Geometry or physics parameter changes invalidate those states. Seeking backwards and headless rendering are deterministic. The current gravity, floor, friction and bounce values are held constant during that replay: their earlier animated values are not integrated. Collisions between pieces are not simulated. The floor guide remains editor-only.
+
+
+#### Explosion → Gravity: inertia
+
+Set Explosion's `motion` to `impulse` to launch pieces using `force` (source sizes/s), `spin` (degrees/s) and `amount` (impulse strength). In this mode Explosion leaves each piece in place instead of applying a position/angle offset. Follow it with rigid-body Gravity and animate Gravity's `time` from the burst: linear and angular velocity persist in free flight, then respond to floor friction and impacts. This also works with gravity set to zero. Shrink still changes the source geometry; use `shrink: 0` for a rigid launch.
+
+The default `motion: "offset"` preserves Explosion's direct displacement/rotation behavior and also supplies a launch velocity to a following Gravity. Use `impulse` when the launch should be integrated entirely by physics, without adding a positional offset. Impulses are local geometry metadata, transformed with Transform/node placement and consumed by rigid-body Gravity; they do not render into SVG. Other deformations do not remap their velocity field.
+
+Run `node scripts/bench-gravity.mjs` for stage-by-stage timings of the circle demo. It reports median, p95 and slowest engine evaluation after warm-up, plus sample frames. These are machine-dependent CPU timings; browser DOM updates and painting are excluded. The first seek to an uncached late frame still needs to simulate up to that time.

@@ -479,3 +479,81 @@ export function pointerProject() {
     },
   };
 }
+
+/** A centred terracotta circle: five through cuts, an explosive burst, then rigid-body gravity. */
+export function gravityProject() {
+  return {
+    svertik: 'project',
+    version: 1,
+    name: 'Gravity · círculo fragmentado',
+    canvas: '#F2E8DA',
+    scene: {
+      version: 2,
+      document: { width: 1280, height: 900 },
+      notes: 'Círculo centrado en un canvas de 1280×900, de color #D2502F. Damage con cinco cortes Through, seguido de Explosion y Gravity con cuerpos rígidos. Al inicio el círculo está centrado; los cortes crecen entre 0.4 y 1.1 s, recibe el impulso de Explosion entre 1.2 y 1.24 s y Gravity integra la velocidad de salida y el giro desde 1.2 s. Explosión muy enérgica (fuerza 3, giro 900°/s), con dispersión amplia: muchas piezas salen deliberadamente del encuadre y conservan su inercia. El suelo virtual queda en Y=378. Selecciona Gravity para mover o girar el suelo. Usa los controles inferiores para reproducir sin abrir el timeline. Las piezas colisionan con el suelo, no entre sí. BOOM aparece detrás de los fragmentos, en mayúsculas y del mismo color #D2502F, con una entrada casi simultánea muy rápida, de 1.26 a 1.44 s, y un pequeño rebote. Queda grande y centrado (tamaño de texto 400 px).',
+      objects: [
+        {
+          kind: 'shape',
+          id: 'gravity-circle',
+          name: 'Círculo',
+          shape: 'ellipse',
+          params: { width: 420, height: 420, fill: true, fillColor: '#D2502F', stroke: false },
+          transform: { x: 0, y: 0 },
+          stack: [
+            {
+              id: 'gravity-circle-damage',
+              type: 'damage',
+              params: {
+                seed: 12,
+                growth: { $expr: 'clamp((scene.time - 0.4) / 0.7, 0, 1)', fallback: 0 },
+                through: 5, cracks: 5, width: 0.007, jagged: 0.45,
+                roughness: 0.25, chips: 0, specks: 0,
+              },
+            },
+            {
+              id: 'gravity-circle-explosion',
+              type: 'explosion',
+              params: {
+                motion: 'impulse',
+                amount: { $expr: 'clamp((scene.time - 1.2) / 0.04, 0, 1)', fallback: 0 },
+                force: 3, spin: 900, shrink: 0, chaos: 0.8, seed: 7, center: [0.5, 0.5],
+              },
+            },
+            {
+              id: 'gravity-circle-gravity',
+              type: 'gravity',
+              params: {
+                time: { $expr: 'max(0, scene.time - 1.2)', fallback: 0 },
+                gravity: 1.6, floor: [0.5, 1.4], rotation: 0,
+                physics: true, friction: 0.55, bounce: 0.35,
+              },
+            },
+          ],
+        },
+        {
+          kind: 'shape',
+          id: 'gravity-boom',
+          name: 'BOOM · detrás de la explosión',
+          shape: 'text',
+          params: { text: 'BOOM', font: 'JetBrains Mono', weight: 700, size: 400, tracking: -45, align: 'center', fill: true, fillColor: '#D2502F', stroke: false },
+          transform: { x: 0, y: 0 },
+          stack: [
+            {
+              id: 'gravity-boom-entrance',
+              type: 'stagger',
+              params: {
+                progress: { $expr: 'clamp((scene.time - 1.26) / 0.18, 0, 1)', fallback: 0 },
+                direction: 'in', stagger: 0.06, ease: 'back-out', order: 'forward',
+              },
+              children: [
+                { id: 'gravity-boom-rise', type: 'transform', params: { y: 25, rotation: -5, scale: 0.5 } },
+                { id: 'gravity-boom-fade', type: 'opacity', params: { opacity: 0 } },
+              ],
+            },
+          ],
+        },
+      ],
+      animation: { duration: 8, fps: 30, loop: true, autoplay: true, tracks: [] },
+    },
+  };
+}

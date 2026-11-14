@@ -810,3 +810,120 @@ describe('seguir al puntero', () => {
     expect(it().range).toBeUndefined();
   });
 });
+
+describe('Reproducción sin timeline', () => {
+  it('reproduce y recorre el bucle sin abrir el panel ni modificar el proyecto', () => {
+    const e = fresh();
+    const before = JSON.stringify(e.scene);
+    e.togglePlayback();
+    expect(e.timelineOpen).toBe(false);
+    e.advancePlayback(1.5);
+    expect(e.time).toBe(1.5);
+    e.advancePlayback(2);
+    expect(e.time).toBe(0.5);
+    expect(e.playing).toBe(true);
+    expect(JSON.stringify(e.scene)).toBe(before);
+  });
+  it('cerrar el panel no interrumpe la reproducción', () => {
+    const e = fresh();
+    e.timelineOpen = true;
+    e.togglePlayback();
+    e.timelineOpen = false;
+    e.advancePlayback(0.5);
+    expect(e.playing).toBe(true);
+    expect(e.time).toBe(0.5);
+  });
+  it('respeta el final sin bucle y vuelve al inicio al reproducir otra vez', () => {
+    const e = fresh();
+    e.setDuration(2);
+    e.setLoop(false);
+    e.togglePlayback();
+    e.advancePlayback(2.5);
+    expect(e.time).toBe(2);
+    expect(e.playing).toBe(false);
+    e.togglePlayback();
+    expect(e.time).toBe(0);
+    expect(e.playing).toBe(true);
+    e.advancePlayback(0.25);
+    e.togglePlayback();
+    e.advancePlayback(1);
+    expect(e.time).toBe(0.25);
+  });
+  it('los pasos de fotograma pausan y respetan los límites', () => {
+    const e = fresh();
+    e.togglePlayback();
+    e.stepFrame(1);
+    expect(e.playing).toBe(false);
+    expect(e.time).toBeCloseTo(1 / 30);
+    e.stepFrame(-1);
+    e.stepFrame(-1);
+    expect(e.time).toBe(0);
+    e.setTime(99);
+    expect(e.time).toBe(3);
+    e.stepFrame(1);
+    expect(e.time).toBe(3);
+  });
+  it('el reloj compacto aplica las pistas animadas', () => {
+    const e = fresh();
+    const id = e.scene!.objects[0]!.id;
+    e.scene!.animation = { duration: 2, loop: false, tracks: [{ id: 'move', node: id, on: 'node', param: 'x', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 2, value: 100 }] }] };
+    e.togglePlayback();
+    e.advancePlayback(1);
+    expect(e.scene!.objects[0]!.transform?.x).toBeCloseTo(50);
+    expect(e.timelineOpen).toBe(false);
+  });
+});
+
+describe('Centrar en el documento', () => {
+  const refresh = (e: Editor) => {
+    const doc = createEngine(builtins).evaluateDocument(e.scene as SceneV2);
+    e.infos = doc.nodes;
+    e.contentBox = bounds(doc.geometry);
+    return doc;
+  };
+  const expectCentered = (e: Editor, id: string, x: number, y: number) => {
+    const b = refresh(e).nodes.get(id)!.box;
+    expect(b.x + b.width / 2).toBeCloseTo(x, 6);
+    expect(b.y + b.height / 2).toBeCloseTo(y, 6);
+  };
+  it('centra el dibujo con efectos y pivote desplazado en un documento movido; se deshace de una vez', () => {
+    const e = fresh();
+    const node = e.scene!.objects[0]!;
+    e.setDocument({ width: 800, height: 600, x: 120, y: -80 });
+    e.selected = node.id;
+    e.add('transform');
+    e.setParam('x', 75);
+    e.setNode(node.id, 'rotation', 32);
+    e.setNode(node.id, 'x', 260);
+    e.setNode(node.id, 'y', 190, true);
+    refresh(e);
+    e.setPivot(node.id, [0.1, 0.8], true);
+    refresh(e);
+    const before = JSON.parse(JSON.stringify(node.transform));
+    e.centerNode(node.id);
+    expectCentered(e, node.id, 120, -80);
+    e.undo();
+    expect(e.scene!.objects[0]!.transform).toEqual(before);
+  });
+  it('centra un hijo dentro de un grupo girado y escalado', () => {
+    const e = fresh();
+    const child = e.scene!.objects[0]!;
+    e.scene!.objects = [{ id: 'parent', kind: 'group', name: 'Group', children: [child], stack: [], transform: { x: 210, y: -130, rotation: 57, scale: 1.7, flipX: true } }];
+    e.setDocument({ width: 800, height: 600 });
+    refresh(e);
+    e.centerNode(child.id);
+    expectCentered(e, child.id, 0, 0);
+  });
+  it('sin tamaño fijo usa el centro del contenido actual', () => {
+    const e = fresh();
+    const first = e.scene!.objects[0]!;
+    e.addShape('rectangle');
+    const node = e.currentNode!;
+    e.setNode(node.id, 'x', 400, true);
+    refresh(e);
+    const b = e.contentBox!;
+    const center = [b.x + b.width / 2, b.y + b.height / 2];
+    e.centerNode(first.id);
+    expectCentered(e, first.id, center[0]!, center[1]!);
+  });
+});

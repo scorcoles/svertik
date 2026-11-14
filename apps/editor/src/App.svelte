@@ -9,11 +9,12 @@
   import Canvas from './Canvas.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
-  import { demoProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
+  import { gravityProject, demoProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
   import { download, sceneJSON } from './exporters';
   import InspectorPanel from './InspectorPanel.svelte';
   import Presenter from './Presenter.svelte';
   import Timeline from './Timeline.svelte';
+  import TimeControls from './TimeControls.svelte';
   import UnsavedDialog from './UnsavedDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import NotesPanel from './NotesPanel.svelte';
@@ -140,7 +141,7 @@
   /** La escena en el instante que se ve (para exportar el fotograma: el Delay de Effector depende de él). */
   const frame = () => {
     const s = snapshot();
-    if (s.animation) s.at = editor.time;
+    s.at = editor.time;
     return s;
   };
 
@@ -225,14 +226,14 @@
     }
   }
   // La demo: un proyecto que se abre y se reproduce solo.
-  function openDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' = 'intro') {
+  function openDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity' = 'intro') {
     guard(() => startDemo(which));
   }
-  function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') {
-    if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : which === 'pointer' ? pointerProject() : demoProject()))) {
+  function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity') {
+    if (editor.openProject(JSON.stringify(which === 'gravity' ? gravityProject() : which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : which === 'pointer' ? pointerProject() : demoProject()))) {
       recordActivity('Opened demo', which);
       editor.selected = null;
-      editor.timelineOpen = true;
+      editor.timelineOpen = which !== 'gravity';
       editor.setTime(0);
       editor.playing = true;
       // Pointer no tiene línea de tiempo: se ve en Play (donde el puntero hace cosas).
@@ -405,6 +406,18 @@
       alive = false;
     };
   });
+  // One playback clock for both the compact controls and the full timeline.
+  $effect(() => {
+    if (!editor.playing || !editor.scene || editor.presenting) return;
+    let last = performance.now();
+    let frame = requestAnimationFrame(function tick(now) {
+      const dt = (now - last) / 1000;
+      last = now;
+      editor.advancePlayback(dt);
+      if (editor.playing) frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
+  });
   $effect(() => {
     if (!editor.codeOpen && !editor.notesOpen && !diagnosticsOpen) panelMaximized = false;
   });
@@ -486,10 +499,11 @@
           </span>
         {/if}
       </div>
+      <TimeControls {editor} />
       <div class="status-actions">
         <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
-        <button type="button" aria-pressed={editor.timelineOpen} onclick={() => { editor.timelineOpen = !editor.timelineOpen; if (!editor.timelineOpen) editor.playing = false; }} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
+        <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
       </div>
     {/if}
     <div class="status-meta">
@@ -570,10 +584,12 @@
   .status {
     position: relative;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    height: 28px;
-    padding: 0 var(--sv-space-8);
+    min-height: 28px;
+    flex-wrap: wrap;
+    gap: var(--sv-space-4) var(--sv-space-12);
+    padding: var(--sv-space-4) var(--sv-space-8);
     background: var(--sv-surface-panel);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
     color: var(--sv-text-disabled);
@@ -586,11 +602,11 @@
   .canvas-status .size { padding: 0 var(--sv-space-4); background: none; border: 0; cursor: pointer; }
   .canvas-status .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
   .canvas-status .cost[data-slow] { color: var(--sv-signal-error); }
-  .status-actions { position: absolute; right: calc(300px + var(--sv-space-8)); display: flex; align-items: center; gap: var(--sv-space-4); padding-left: var(--sv-space-12); border-left: var(--sv-border-1) solid var(--sv-rule-default); }
+  .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; padding-left: var(--sv-space-12); border-left: var(--sv-border-1) solid var(--sv-rule-default); }
   .status-actions button { height: 18px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: 1px solid var(--sv-rule-strong); cursor: pointer; }
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
-  .status-meta { position: absolute; right: var(--sv-space-8); display: flex; align-items: center; gap: var(--sv-space-12); white-space: nowrap; }
+  .status-meta { display: flex; align-items: center; gap: var(--sv-space-12); white-space: nowrap; }
   .diagnostics-toggle { display: flex; align-items: center; }
   .diagnostics-toggle :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
   .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }
@@ -607,7 +623,6 @@
     font-weight: var(--sv-font-weight-bold);
   }
   @media (max-width: 760px) {
-    .status-actions { right: var(--sv-space-8); }
     main {
       grid-template-columns: auto minmax(0, 1fr);
       grid-template-rows: minmax(280px, 1fr) auto;

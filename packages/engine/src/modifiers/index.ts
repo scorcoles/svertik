@@ -1,5 +1,6 @@
 import { cylinder } from './cylinder';
 import { envelope } from './envelope';
+import { gravity } from './gravity';
 import { explosion } from './explosion';
 import { field } from './field';
 import { followpath } from './followpath';
@@ -47,7 +48,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, field, followpath, fractal, gradient, halftone, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
+export { bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, gravity, field, followpath, fractal, gradient, halftone, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -95,6 +96,7 @@ export const builtins = [
   range,
   field,
   explosion,
+  gravity,
   color,
   tint,
   paint,

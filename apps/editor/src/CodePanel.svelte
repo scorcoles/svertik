@@ -27,7 +27,7 @@
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
   const frame = () => {
     const s = snapshot();
-    if (s.animation) s.at = editor.time;
+    s.at = editor.time;
     return s;
   };
   const jsonDoc = $derived(editor.scene ? sceneJSON(editor.scene) : '');

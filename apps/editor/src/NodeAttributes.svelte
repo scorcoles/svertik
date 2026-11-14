@@ -113,6 +113,9 @@
   <Section title="Transform">
     <ParamRow label="Position" for="node-x" keyState={nodeKey('x')} onkey={() => toggleNode('x', 'y')}>
       <PointField id="node-x" label="Position" step={1} value={[p.x, p.y]} onchange={([x, y]) => { editor.setNode(node.id, 'x', x); editor.setNode(node.id, 'y', y); }} />
+      <span class="mini">
+        <IconButton icon="center" label="Center in document" disabled={!editor.infos.has(node.id)} onclick={() => editor.centerNode(node.id)} />
+      </span>
     </ParamRow>
     <ParamRow label="Scale" for="node-scale" keyState={nodeKey('scale')} onkey={() => toggleNode('scale')}>
       <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={(v) => editor.setNode(node.id, 'scale', v)} />

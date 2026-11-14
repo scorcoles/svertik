@@ -12,6 +12,7 @@ export const explosion = defineModifier({
   label: 'Explosion',
   kind: 'effector',
   params: {
+    motion: { type: 'enum', default: 'offset', options: ['offset', 'impulse'], label: 'Motion', animatable: false },
     amount: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Amount' },
     force: { type: 'number', default: 0.5, min: 0, max: 3, step: 0.01, unit: 'fraction', label: 'Force' },
     spin: { type: 'angle', default: 90, label: 'Spin', ramp: false },
@@ -52,12 +53,19 @@ export const explosion = defineModifier({
       const dist = p.force * size * t * (1 - p.chaos * 0.5 + rand() * p.chaos);
       const rot = ((rand() * 2 - 1) * p.spin * t * Math.PI) / 180;
       const k = 1 - p.shrink * t * (0.5 + rand() * 0.5);
-      const [cs, sn] = [Math.cos(rot) * k, Math.sin(rot) * k];
+      const physical = p.motion === 'impulse';
+      const [cs, sn] = [Math.cos(physical ? 0 : rot) * k, Math.sin(physical ? 0 : rot) * k];
       const moved = mapPoints(part, ([x, y]) => {
         const [lx, ly] = [x - pc[0], y - pc[1]];
-        return [pc[0] + lx * cs - ly * sn + ux * dist, pc[1] + lx * sn + ly * cs + uy * dist];
+        return [pc[0] + lx * cs - ly * sn + (physical ? 0 : ux * dist), pc[1] + lx * sn + ly * cs + (physical ? 0 : uy * dist)];
       });
-      out.push(...moved.shapes);
+      out.push(...moved.shapes.map((shape) => ({
+        ...shape,
+        impulse: {
+          velocity: [(shape.impulse?.velocity[0] ?? 0) + ux * dist, (shape.impulse?.velocity[1] ?? 0) + uy * dist] as [number, number],
+          spin: (shape.impulse?.spin ?? 0) + rot,
+        },
+      })));
     }
     return { viewBox: geo.viewBox, shapes: out };
   },

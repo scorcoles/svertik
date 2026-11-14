@@ -54,36 +54,6 @@
   });
   const snap = (t: number) => Math.round(t * fps) / fps;
 
-  // ── Reproducir
-  $effect(() => {
-    if (!editor.playing) return;
-    let last = performance.now();
-    let frame = requestAnimationFrame(function tick(now) {
-      const dt = (now - last) / 1000;
-      last = now;
-      let t = editor.time + dt;
-      if (t >= duration) {
-        if (anim?.loop !== false) t %= duration;
-        else {
-          t = duration;
-          editor.playing = false;
-        }
-      }
-      editor.setTime(t);
-      if (editor.playing) frame = requestAnimationFrame(tick);
-    });
-    return () => cancelAnimationFrame(frame);
-  });
-  function togglePlay() {
-    if (!editor.playing && editor.time >= duration - 1e-6) editor.setTime(0);
-    editor.playing = !editor.playing;
-  }
-  function stepFrame(direction: -1 | 1) {
-    editor.playing = false;
-    const current = Math.round(editor.time * fps);
-    editor.setTime(Math.max(0, Math.min(lastFrame, current + direction)) / fps);
-  }
-
   // ── Cabezal: arrastrar en la regla
   function scrub(e: PointerEvent) {
     const el = e.currentTarget as HTMLElement;
@@ -209,9 +179,9 @@
 <section class="timeline" aria-label="Timeline" onkeydown={keydown}>
   <header>
     <IconButton icon="to-start" label="Go to start" onclick={() => editor.setTime(0)} />
-    <IconButton icon="step-back" label="Previous frame" disabled={editor.time <= 0} onclick={() => stepFrame(-1)} />
-    <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause' : 'Play'} active={editor.playing} onclick={togglePlay} />
-    <IconButton icon="step-forward" label="Next frame" disabled={editor.time >= lastFrame / fps - 1e-6} onclick={() => stepFrame(1)} />
+    <IconButton icon="step-back" label="Previous frame" disabled={editor.time <= 0} onclick={() => editor.stepFrame(-1)} />
+    <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause' : 'Play'} active={editor.playing} onclick={() => editor.togglePlayback()} />
+    <IconButton icon="step-forward" label="Next frame" disabled={editor.time >= lastFrame / fps - 1e-6} onclick={() => editor.stepFrame(1)} />
     <span class="time">{editor.time.toFixed(2)}<span class="dim"> / {duration.toFixed(2)} s</span></span>
     <span class="rule" aria-hidden="true"></span>
     <label class="field">Duration <NumberField value={duration} min={0.1} step={0.1} unit="s" width="64px" onchange={(v) => editor.setDuration(v)} /></label>
@@ -242,7 +212,7 @@
       <IconButton icon="plus" label="Zoom in (⌘ + wheel)" disabled={zoom >= maxZoom} onclick={() => zoomTo(zoom * 1.5)} />
       <IconButton icon="fit-width" label="Fit the whole duration" disabled={zoom === 1} onclick={() => zoomTo(1)} />
     </span>
-    <IconButton icon="down" label="Close timeline" onclick={() => { editor.timelineOpen = false; editor.playing = false; }} />
+    <IconButton icon="down" label="Close timeline" onclick={() => (editor.timelineOpen = false)} />
   </header>
   <div class="body">
     <div class="labels">

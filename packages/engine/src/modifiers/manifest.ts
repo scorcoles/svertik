@@ -57,6 +57,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   trace: one(() => import('./trace'), 'trace'),
   trim: one(() => import('./trim'), 'trim'),
   // Effect (per element)
+  gravity: one(() => import('./gravity'), 'gravity'),
   field: one(() => import('./field'), 'field'),
   range: one(() => import('./range'), 'range'),
   stagger: one(() => import('./stagger'), 'stagger'),

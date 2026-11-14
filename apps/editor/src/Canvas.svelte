@@ -73,7 +73,7 @@
     // Mientras el script anima, se pintan sus objetos (sin tocar la escena guardada).
     if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     // El instante, para lo que va con retraso (Delay de Effector).
-    if (scene.animation) scene.at = editor.time;
+    scene.at = editor.time;
     try {
       const t0 = performance.now();
       const doc = engine.evaluateDocument(scene);

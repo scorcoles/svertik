@@ -18,7 +18,14 @@ export interface SubPath {
 
 export type Style = Record<string, string>;
 
+/** One-shot velocity passed from Explosion to the next rigid-body Gravity, in local units/s and radians/s. */
+export interface Impulse {
+  velocity: Vec2;
+  spin: number;
+}
+
 export interface Shape {
+  impulse?: Impulse;
   subpaths: SubPath[];
   style: Style;
   /** Copy number given by Clone (for effectors like Step). */

@@ -84,7 +84,13 @@ export const pivotPoint = (ref: Bounds, pivot: [number, number] | undefined): [n
 
 const transformGeo = (geo: Geometry, m: Mat): Geometry => {
   if (m.every((v, i) => v === IDENTITY[i])) return geo;
-  return mapPoints(geo, ([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
+  const moved = mapPoints(geo, ([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
+  moved.shapes = moved.shapes.map((shape) => {
+    if (!shape.impulse) return shape;
+    const [x, y] = shape.impulse.velocity;
+    return { ...shape, impulse: { velocity: [m[0] * x + m[2] * y, m[1] * x + m[3] * y], spin: shape.impulse.spin * (m[0] * m[3] - m[1] * m[2] < 0 ? -1 : 1) } };
+  });
+  return moved;
 };
 
 /** The box of the drawing with `m` applied: the same as `bounds(transformGeo(geo, m))`, without
@@ -719,6 +725,7 @@ function hashGeo(geo: Geometry): number {
   };
   for (const s of geo.shapes) {
     add(s.subpaths.length);
+    if (s.impulse) { add(s.impulse.velocity[0]); add(s.impulse.velocity[1]); add(s.impulse.spin); }
     for (const sp of s.subpaths) {
       add(sp.start[0]);
       add(sp.start[1]);

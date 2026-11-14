@@ -35,3 +35,10 @@ describe('gizmos', () => {
     expect(gizmoFor('noise', {}, box)).toBeNull();
   });
 });
+
+it('gravity: mueve el suelo y gira con ajuste angular', () => {
+  const g = gizmoFor('gravity', {}, box)!;
+  expect(g.handles[0]!.at).toEqual([100, 150]);
+  expect(g.lines[0]!.drag!({}, [100, 150], [120, 160], false)).toEqual({ floor: [0.6, 1.6] });
+  expect(g.handles[1]!.drag!({}, [300, 150], [100, 350], true)).toEqual({ rotation: 90 });
+});

@@ -284,7 +284,7 @@ export class Editor {
   /** Objetos animados por el script mientras corre; no entran en el historial. */
   preview = $state<SceneNode[] | null>(null);
   // Código y línea de tiempo, uno u otro: reproduciendo, la escena cambia cada fotograma y el código
-  // no se podría tocar. Abrir uno cierra el otro (y cerrar la línea de tiempo la para).
+  // no se podría tocar. Abrir código pausa la reproducción; cerrar el timeline no la detiene.
   #codeOpen = $state(false);
   #timelineOpen = $state(false);
   get codeOpen() {
@@ -294,6 +294,7 @@ export class Editor {
     this.#codeOpen = open;
     if (open) {
       this.timelineOpen = false;
+      this.playing = false;
       this.notesOpen = false;
     }
   }
@@ -318,7 +319,6 @@ export class Editor {
       this.#codeOpen = false;
       this.notesOpen = false;
     }
-    else this.playing = false;
   }
   /** Modo Play: la escena a pantalla completa, sin herramientas, con el reproductor del código exportado. */
   presenting = $state(false);
@@ -917,6 +917,55 @@ export class Editor {
     this.record(now);
   }
 
+  /** Centra la caja visible en el documento, convirtiendo el desplazamiento al espacio del padre. */
+  centerNode(id: string) {
+    if (!this.scene) return;
+    const at = locateNode(this.scene.objects, id);
+    const info = this.infos.get(id);
+    if (!at || !info || at.node.kind === 'effector') return;
+    const doc = this.scene.document;
+    const frame = this.contentBox;
+    if (!doc && !frame) return;
+    const targetX = doc ? doc.x ?? 0 : frame!.x + frame!.width / 2;
+    const targetY = doc ? doc.y ?? 0 : frame!.y + frame!.height / 2;
+    const p = placementOf(at.node);
+    let x = p.x + targetX - (info.box.x + info.box.width / 2);
+    let y = p.y + targetY - (info.box.y + info.box.height / 2);
+    if (at.parent) {
+      // Group pivots follow their children's bounds. Probe the actual result rather than
+      // treating the parent's matrix as fixed while its child moves.
+      const scene = $state.snapshot(this.scene) as SceneV2;
+      scene.at = this.time;
+      const probe = locateNode(scene.objects, id)!.node;
+      const engine = createEngine(builtins);
+      const measure = (px: number, py: number) => {
+        probe.transform = { ...probe.transform, x: px, y: py };
+        const box = engine.evaluateDocument(scene).nodes.get(id)!.box;
+        return [box.x + box.width / 2, box.y + box.height / 2];
+      };
+      x = p.x;
+      y = p.y;
+      for (let i = 0; i < 6; i++) {
+        const c = measure(x, y);
+        const dx = targetX - c[0]!, dy = targetY - c[1]!;
+        if (Math.abs(dx) + Math.abs(dy) < 1e-7) break;
+        const a = measure(x + 1, y), b = measure(x, y + 1);
+        const ax = a[0]! - c[0]!, ay = a[1]! - c[1]!;
+        const bx = b[0]! - c[0]!, by = b[1]! - c[1]!;
+        const det = ax * by - ay * bx;
+        if (Math.abs(det) < 1e-12) return;
+        x += (dx * by - dy * bx) / det;
+        y += (dy * ax - dx * ay) / det;
+      }
+    }
+    if (Math.abs(x - p.x) + Math.abs(y - p.y) < 1e-7) return;
+    this.playing = false;
+    at.node.transform = { ...at.node.transform, x, y };
+    this.#autoKey({ node: id, on: 'node', param: 'x' }, x);
+    this.#autoKey({ node: id, on: 'node', param: 'y' }, y);
+    this.record(true);
+  }
+
   /** Mueve varios nodos a la vez (alinear, distribuir, arrastrar una selección): un solo paso de historial. */
   moveNodes(moves: { id: string; dx: number; dy: number }[], now = true) {
     if (!this.scene) return;
@@ -1077,9 +1126,31 @@ export class Editor {
   /** Ir a un instante: escribe en la escena el valor de cada pista (sin historial). */
   setTime(t: number) {
     const anim = this.animation;
-    const d = anim?.duration ?? 0;
-    this.time = Math.max(0, Math.min(d || t, t));
+    const d = anim?.duration ?? 3;
+    this.time = Math.max(0, Math.min(d, t));
     this.#applyTime();
+  }
+  /** Playback belongs to the editor, independently of which panels are open. */
+  togglePlayback() {
+    if (!this.scene) return;
+    if (!this.playing && this.time >= (this.animation?.duration ?? 3) - 1e-6) this.setTime(0);
+    this.playing = !this.playing;
+  }
+  advancePlayback(seconds: number) {
+    if (!this.playing || !this.scene || seconds <= 0) return;
+    const duration = this.animation?.duration ?? 3;
+    let time = this.time + seconds;
+    if (time >= duration) {
+      if (this.animation?.loop !== false) time %= duration;
+      else { time = duration; this.playing = false; }
+    }
+    this.setTime(time);
+  }
+  stepFrame(direction: -1 | 1) {
+    this.playing = false;
+    const fps = this.animation?.fps ?? 30;
+    const last = Math.floor((this.animation?.duration ?? 3) * fps + 1e-6);
+    this.setTime(Math.max(0, Math.min(last, Math.round(this.time * fps) + direction)) / fps);
   }
   #applyTime() {
     if (!this.scene?.animation) return;

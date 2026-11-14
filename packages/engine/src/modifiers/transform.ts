@@ -17,10 +17,16 @@ export const transform = defineModifier({
     const [px, py] = fromFraction(ctx.bounds, p.pivot);
     const c = Math.cos(deg(p.rotation)) * p.scale;
     const s = Math.sin(deg(p.rotation)) * p.scale;
-    return mapPoints(geo, ([x, y]) => {
+    const moved = mapPoints(geo, ([x, y]) => {
       const dx = x - px;
       const dy = y - py;
       return [px + dx * c - dy * s + p.x, py + dx * s + dy * c + p.y];
     });
+    moved.shapes = moved.shapes.map((shape) => {
+      if (!shape.impulse) return shape;
+      const [x, y] = shape.impulse.velocity;
+      return { ...shape, impulse: { velocity: [x * c - y * s, x * s + y * c], spin: shape.impulse.spin } };
+    });
+    return moved;
   },
 });

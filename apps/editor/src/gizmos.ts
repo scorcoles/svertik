@@ -83,6 +83,27 @@ function radiusHandle(b: Bounds, c: Vec2, R: number): GizmoHandle {
 }
 
 const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
+  gravity(p, b) {
+    const c = at(b, p.floor ?? [0.5, 1.5]);
+    const angle = Number(p.rotation ?? 0);
+    const r = sizeOf(b);
+    const u: Vec2 = [Math.cos(rad(angle)), Math.sin(rad(angle))];
+    const move: Drag = (p0, from, to) => {
+      const f = (p0.floor as Vec2 | undefined) ?? [0.5, 1.5];
+      return { floor: [round(f[0] + (to[0] - from[0]) / (b.width || 1)), round(f[1] + (to[1] - from[1]) / (b.height || 1))] };
+    };
+    const end: Vec2 = [c[0] + u[0] * r, c[1] + u[1] * r];
+    return {
+      lines: [
+        { pts: [[c[0] - u[0] * r * 3, c[1] - u[1] * r * 3], [c[0] + u[0] * r * 3, c[1] + u[1] * r * 3]], drag: move, label: 'Move floor' },
+        { pts: [c, [c[0] - u[1] * r * 0.2, c[1] + u[0] * r * 0.2]], dashed: true },
+      ],
+      handles: [
+        { at: c, label: 'Floor position', drag: move },
+        { at: end, label: 'Floor rotation', drag: (p0, from, to, snap) => ({ rotation: snapDeg(Number(p0.rotation ?? 0) + turn(c, from, to), snap) }) },
+      ],
+    };
+  },
   spherize(p, b) {
     const c = at(b, p.center);
     const R = Number(p.radius) * sizeOf(b);
