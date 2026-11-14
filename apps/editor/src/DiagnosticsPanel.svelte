@@ -66,7 +66,6 @@
     <h2 id="diagnostics-title">Debug output</h2>
     <span class="count">{entries.length}</span>
     <span class="spacer"></span>
-    <span class="copy-slot"><CopyButton label="Copy debug report" onclick={() => oncopy(report(), 'Debug report')} /></span>
     <IconButton icon="trash" label="Clear diagnostic output" disabled={!entries.length} onclick={onclear} />
     <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? 'Restore editor layout' : 'Use all available space for diagnostics'} aria-pressed={maximized} onclick={onmaximize} />
     <IconButton icon="down" label="Close diagnostics panel" onclick={onclose} />
@@ -81,6 +80,7 @@
     {#if latestSvg}<span class="last-svg">Last SVG: {latestSvg.analysisSkipped ? 'structure scan skipped' : `${latestSvg.elements.toLocaleString()} elements · ${latestSvg.pathCommands.toLocaleString()} path commands`}; {formatBytes(latestSvg.bytes)} · {latestSvg.images} images · {latestSvg.filters} filters</span>{/if}
   </div>
   <div class="output" role="log" aria-live="polite">
+    <CopyButton label="Copy debug report" onclick={() => oncopy(report(), 'Debug report')} />
     {#if entries.length}
       {#each entries as entry (entry.id)}
         <article data-level={entry.level}>
@@ -122,7 +122,6 @@
   h2 { flex: none; margin: 0; font-size: var(--sv-font-size-11); }
   .count, time { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; }
   .spacer { flex: 1; }
-  .copy-slot { position: relative; flex: none; width: 56px; height: 22px; }
   .summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-space-4) var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .last-svg { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .output {
@@ -134,6 +133,7 @@
     background: var(--sv-surface-field);
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
+  .output:hover :global(.copy) { opacity: 1; }
   article { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); gap: var(--sv-space-8); align-items: baseline; line-height: 1.5; }
   article + article { margin-top: var(--sv-space-4); }
   article[data-level='error'] strong { color: var(--sv-signal-error); }
