@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerFont } from '../../src/fonts';
+import { initKernels } from '../../src/kernels';
 import { cases, needsFont } from './scenes';
 import { runCorpus, summarise, type CorpusResult } from './run';
 
@@ -23,6 +24,9 @@ const fontFile = resolve(here, '../../../ui/node_modules/@fontsource/jetbrains-m
 const repeats = Number(process.env.CORPUS_REPEATS ?? 3);
 
 async function main() {
+  // Lo mismo que hace `prepareScene` en el reproductor: si la escena usa metaball, el kernel.
+  const kernels = await initKernels();
+  if (!kernels) console.warn('kernels: no disponibles (se mide la versión en TypeScript)');
   if (cases.some(needsFont)) {
     const woff = readFileSync(fontFile);
     await registerFont('JetBrains Mono', woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength) as ArrayBuffer);

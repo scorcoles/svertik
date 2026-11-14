@@ -2,6 +2,7 @@ import { ring, simplify } from '../clip';
 import type { Pair, Ring } from '../polygon';
 import type { Cubic, Shape, SubPath, Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
+import { kernels } from '../kernels';
 
 /**
  * Metaball: the elements (children of a group, copies of a Clone…; untagged, each shape) melt like drops
@@ -65,41 +66,21 @@ export const metaball = defineModifier({
     }
     if (!solids.length) return geo;
 
-    // Grid with a margin: the edges are outside everything (the outline always closes).
-    const gx0 = x0 - pad - cell, gy0 = y0 - pad - cell;
-    const nx = Math.ceil((x1 - x0 + 2 * pad) / cell) + 3, ny = Math.ceil((y1 - y0 + 2 * pad) / cell) + 3;
-    const field = new Float64Array(nx * ny).fill(Infinity);
-    // Far from an element (more than twice the reach), its distance to the box is enough: the outline doesn't change.
-    const near = 2 * k + Math.abs(grow) + 2 * cell;
-    const fieldAt = (x: number, y: number) => {
-      let f = Infinity;
-      for (const el of solids) {
-        const [bx0, by0, bx1, by1] = el.box;
-        const dx = Math.max(bx0 - x, 0, x - bx1), dy = Math.max(by0 - y, 0, y - by1);
-        const boxD = Math.hypot(dx, dy);
-        f = smin(f, boxD > near ? boxD : signedDistance(x, y, el.rings), k);
-      }
-      return f - grow;
-    };
-    // Exact values are only needed near the outline. First the field on a coarse grid (every S nodes);
-    // in a coarse cell with its four corners on the same side and far from the outline (the field changes no
-    // faster than the distance), the fine nodes are interpolated: only which side they are on matters.
-    const S = 4;
-    const cx = Math.ceil((nx - 1) / S) + 2, cy = Math.ceil((ny - 1) / S) + 2;
-    const coarse = new Float64Array(cx * cy);
-    for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) coarse[j * cx + i] = fieldAt(gx0 + i * S * cell, gy0 + j * S * cell);
-    const safe = 1.5 * S * cell;
-    for (let j = 0; j < ny; j++) {
-      const cj = Math.min(cy - 2, Math.floor(j / S)), fy = j / S - cj;
-      for (let i = 0; i < nx; i++) {
-        const ci = Math.min(cx - 2, Math.floor(i / S)), fx = i / S - ci;
-        const a = coarse[cj * cx + ci]!, b = coarse[cj * cx + ci + 1]!, c = coarse[(cj + 1) * cx + ci]!, d = coarse[(cj + 1) * cx + ci + 1]!;
-        const far = (a > safe && b > safe && c > safe && d > safe) || (a < -safe && b < -safe && c < -safe && d < -safe);
-        field[j * nx + i] = far ? a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy : fieldAt(gx0 + i * cell, gy0 + j * cell);
-      }
-    }
-
-    const loops = contour(field, nx, ny, gx0, gy0, cell);
+    // The outline of the field: with the Rust kernel (if it is loaded) or in TypeScript.
+    const kern = kernels();
+    const loops: Pair[][] = kern
+      ? kern.metaball({
+          reach: k,
+          grow,
+          quality,
+          box: [x0, y0, x1, y1],
+          shapes: solids.map((el) => ({ rings: el.rings.map((r) => r.flat()), box: el.box })),
+        }).map((l) => {
+          const pairs: Pair[] = [];
+          for (let i = 0; i < l.length; i += 2) pairs.push([l[i]!, l[i + 1]!]);
+          return pairs;
+        })
+      : contourOf(solids, k, grow, quality, x0, y0, x1, y1);
     // Fewer points (those straying less than a third of a cell) and smooth curves through them.
     const rings = simplify([loops.map((l) => [...l, l[0]!] as Ring)], cell * 0.25)[0] ?? [];
     const subpaths = orient(rings.map((r) => r.slice(0, -1) as Pair[])).map(smooth);
@@ -109,6 +90,58 @@ export const metaball = defineModifier({
     return { viewBox: geo.viewBox, shapes: [...shapes, ...lines] };
   },
 });
+
+/**
+ * The outline of the field, in TypeScript: the same as the Rust kernel (the corpus checks that
+ * both give the same). It is the fallback when the kernel is not loaded.
+ */
+function contourOf(
+  solids: { rings: Ring[]; box: [number, number, number, number] }[],
+  k: number,
+  grow: number,
+  quality: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Pair[][] {
+  const pad = k + Math.max(0, grow) + 2;
+  const cell = Math.max(x1 - x0, y1 - y0, 1) / quality;
+  // Grid with a margin: the edges are outside everything (the outline always closes).
+  const gx0 = x0 - pad - cell, gy0 = y0 - pad - cell;
+  const nx = Math.ceil((x1 - x0 + 2 * pad) / cell) + 3, ny = Math.ceil((y1 - y0 + 2 * pad) / cell) + 3;
+  const field = new Float64Array(nx * ny).fill(Infinity);
+  // Far from an element (more than twice the reach), its distance to the box is enough: the outline doesn't change.
+  const near = 2 * k + Math.abs(grow) + 2 * cell;
+  const fieldAt = (x: number, y: number) => {
+    let f = Infinity;
+    for (const el of solids) {
+      const [bx0, by0, bx1, by1] = el.box;
+      const dx = Math.max(bx0 - x, 0, x - bx1), dy = Math.max(by0 - y, 0, y - by1);
+      const boxD = Math.hypot(dx, dy);
+      f = smin(f, boxD > near ? boxD : signedDistance(x, y, el.rings), k);
+    }
+    return f - grow;
+  };
+  // Exact values are only needed near the outline. First the field on a coarse grid (every S nodes);
+  // in a coarse cell with its four corners on the same side and far from the outline (the field changes no
+  // faster than the distance), the fine nodes are interpolated: only which side they are on matters.
+  const S = 4;
+  const cx = Math.ceil((nx - 1) / S) + 2, cy = Math.ceil((ny - 1) / S) + 2;
+  const coarse = new Float64Array(cx * cy);
+  for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) coarse[j * cx + i] = fieldAt(gx0 + i * S * cell, gy0 + j * S * cell);
+  const safe = 1.5 * S * cell;
+  for (let j = 0; j < ny; j++) {
+    const cj = Math.min(cy - 2, Math.floor(j / S)), fy = j / S - cj;
+    for (let i = 0; i < nx; i++) {
+      const ci = Math.min(cx - 2, Math.floor(i / S)), fx = i / S - ci;
+      const a = coarse[cj * cx + ci]!, b = coarse[cj * cx + ci + 1]!, c = coarse[(cj + 1) * cx + ci]!, d = coarse[(cj + 1) * cx + ci + 1]!;
+      const far = (a > safe && b > safe && c > safe && d > safe) || (a < -safe && b < -safe && c < -safe && d < -safe);
+      field[j * nx + i] = far ? a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy : fieldAt(gx0 + i * cell, gy0 + j * cell);
+    }
+  }
+  return contour(field, nx, ny, gx0, gy0, cell);
+}
 
 /** Smooth (polynomial) union: the same as min if a and b differ by more than k. */
 function smin(a: number, b: number, k: number): number {

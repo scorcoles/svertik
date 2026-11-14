@@ -6,17 +6,18 @@ import { Window } from 'happy-dom';
 import {
   builtins,
   createEngine,
+  effectDescriptions,
   fontKey,
   hasFont,
+  initKernels,
   isScene,
   registerFont,
   sampleScene,
   sceneTrailWindow,
+  shapeDescriptions,
   shapes,
   type SceneNode,
   type SceneV2,
-  effectDescriptions,
-  shapeDescriptions,
 } from '@svertik/engine';
 
 // The SVG importer uses DOMParser: in Node, happy-dom's.
@@ -25,6 +26,9 @@ g.DOMParser ??= new Window().DOMParser;
 
 const require = createRequire(import.meta.url);
 const engine = createEngine(builtins);
+// The heavy kernels (WebAssembly), when they are there: the scenes with Metaball go several times
+// faster. If they cannot be read, the engine uses its versions in TypeScript (same drawing).
+await initKernels();
 
 /** The fonts the editor ships (JetBrains Mono regular and bold), for texts. */
 export async function registerBundledFonts() {

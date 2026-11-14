@@ -6,9 +6,13 @@
 
 import { loadFonts, type SceneNode, type SceneV2 } from './document';
 import { setSVGImporter } from './importer';
+import { initKernels } from './kernels';
 import { effectLoaders } from './modifiers/manifest';
 import type { ModifierDef } from './modifier';
 import type { ModifierInstance } from './engine';
+
+/** The effects that have a Rust kernel (a WebAssembly module of their own, loaded on demand). */
+const kernelEffects = new Set(['metaball']);
 
 /** The types of the effects of a stack (and of the ones nested in them). */
 function stackTypes(stack: ModifierInstance[], out: Set<string>): void {
@@ -66,6 +70,9 @@ export async function prepareScene(scene: SceneV2): Promise<ModifierDef<any>[]> 
 
   // The fonts of the texts (and, with them, opentype.js).
   if (sceneHasText(scene)) await loadFonts(scene);
+  // The heavy kernels (WebAssembly), only if the scene has an effect that uses them. If they cannot
+  // be loaded, each effect falls back to its version in TypeScript: the scene still draws the same.
+  if (types.some((t) => kernelEffects.has(t))) await initKernels();
   // The importer of SVG, only if the scene brings the markup of one.
   if (sceneNeedsImporter(scene)) {
     const mod = await import('./import');

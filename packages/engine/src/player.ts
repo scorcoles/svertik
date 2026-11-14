@@ -13,3 +13,6 @@ export { setSVGImporter, hasSVGImporter, type SVGImporter } from './importer';
 export { registerFont, fontKey, fontNames, hasFont } from './fonts';
 export { isScene, type SceneV2, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './scene';
 export { effectTypes } from './modifiers/manifest';
+// The heavy kernels (WebAssembly). `prepareScene` loads them when the scene needs them; this is for
+// whoever builds the engine by hand.
+export { initKernels, kernels, type Kernels } from './kernels';

@@ -20,3 +20,4 @@ export { rng, noise2D } from './random';
 export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor, rgbToOklab, oklchToRgb } from './color';
 export * from './palettes';
 export { effectDescriptions, shapeDescriptions } from './descriptions';
+export { initKernels, kernels, type Kernels, type MetaballInput, type MetaballShape } from './kernels';
