@@ -39,7 +39,7 @@ export type ParamSpec =
   | (ParamBase & { type: 'point'; default: [number, number]; unit?: 'fraction' | 'px'; step?: number; min?: number })
   | (ParamBase & { type: 'seed'; default: number })
   | (ParamBase & { type: 'boolean'; default: boolean })
-  | (ParamBase & { type: 'color'; default: string })
+  | (ParamBase & { type: 'color'; default: string; solid?: boolean })
   | (ParamBase & { type: 'enum'; default: string; options: readonly string[] })
   /** Another node of the scene (its id); empty = none. */
   | (ParamBase & { type: 'node'; default: string })

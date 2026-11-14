@@ -447,7 +447,7 @@ export function createDocumentEvaluator(
         results.set(node.id, result);
         nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: boundsOf(result, world) });
         if (node.visible === false) return [];
-        return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes), node.opacity), node.blend)));
+        return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes.map((s) => s.node ? s : { ...s, node: node.id })), node.opacity), node.blend)));
       };
 
       // A child inside a group was evaluated with the identity: here the group's matrix is composed in.

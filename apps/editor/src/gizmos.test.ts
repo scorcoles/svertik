@@ -42,3 +42,10 @@ it('gravity: mueve el suelo y gira con ajuste angular', () => {
   expect(g.lines[0]!.drag!({}, [100, 150], [120, 160], false)).toEqual({ floor: [0.6, 1.6] });
   expect(g.handles[1]!.drag!({}, [300, 150], [100, 350], true)).toEqual({ rotation: 90 });
 });
+
+it('particles: dirección y tamaño del emisor se pueden arrastrar', () => {
+  const g = gizmoFor('particles', { center: [0.5, 0.5], emitter: 'box', area: [0.2, 0.4] }, box)!;
+  expect(g.lines[0]!.closed).toBe(true);
+  expect(g.handles.find((h) => h.label === 'Direction')!.drag({}, [100, 0], [150, 50], false)).toEqual({ direction: 0 });
+  expect(g.handles.find((h) => h.label === 'Emitter area')!.drag({}, [120, 70], [150, 80], false)).toEqual({ area: [0.5, 0.6] });
+});

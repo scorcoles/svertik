@@ -587,7 +587,7 @@ describe('Archivo y pistas', () => {
     e.add('wave');
     expect(e.dirty).toBe(true);
     e.newFile();
-    expect(e.scene).toBeNull();
+    expect(e.scene).toMatchObject({ document: { width: 1400, height: 900 }, objects: [] });
     expect(e.dirty).toBe(false);
   });
 });
@@ -916,6 +916,7 @@ describe('Centrar en el documento', () => {
   });
   it('sin tamaño fijo usa el centro del contenido actual', () => {
     const e = fresh();
+    e.setDocument(null);
     const first = e.scene!.objects[0]!;
     e.addShape('rectangle');
     const node = e.currentNode!;
@@ -926,4 +927,60 @@ describe('Centrar en el documento', () => {
     e.centerNode(first.id);
     expectCentered(e, first.id, center[0]!, center[1]!);
   });
+});
+
+it('Particles sigue el reloj de la escena sin abrir el timeline y se deshace en un paso', () => {
+  const e = fresh();
+  e.add('particles');
+  expect(e.current!.params!.time).toEqual({ $expr: 'scene.time', fallback: 1 });
+  expect(e.animation?.duration).toBe(3);
+  expect(e.timelineOpen).toBe(false);
+  e.undo();
+  expect(stack(e).some((m) => m.type === 'particles')).toBe(false);
+  expect(e.animation).toBe(null);
+});
+
+it('seleccionar todo incluye todas las capas raíz sin duplicar los hijos de grupos ni cambiar el historial', () => {
+  const e = fresh();
+  e.addShape('rectangle');
+  const child = e.scene!.objects[0]!;
+  e.scene!.objects[0] = { kind: 'group', id: 'group', name: 'Group', stack: [], children: [child] };
+  e.selected = child.id;
+  e.tool = 'ellipse';
+  const history = e.historyInfo;
+  e.selectAll();
+  expect(e.selectedNodes.map((n) => n.id)).toEqual(e.scene!.objects.map((n) => n.id));
+  expect(e.isSelected(child.id)).toBe(false);
+  expect(e.tool).toBe(null);
+  expect(e.historyInfo).toEqual(history);
+});
+
+
+it('los documentos nuevos nacen con un tamaño fijo de 1400×900, también al importar o crear la primera forma', () => {
+  const e = new Editor();
+  e.newFile();
+  expect(e.scene).toMatchObject({ version: 2, document: { width: 1400, height: 900 }, objects: [] });
+  expect(e.dirty).toBe(false);
+  e.addShape('rectangle');
+  expect(e.scene!.document).toEqual({ width: 1400, height: 900 });
+  const shape = new Editor();
+  shape.addShape('ellipse');
+  expect(shape.scene!.document).toEqual({ width: 1400, height: 900 });
+  expect(fresh().scene!.document).toEqual({ width: 1400, height: 900 });
+});
+
+it('abrir una escena existente en auto conserva su documento automático', () => {
+  const e = fresh();
+  const scene = JSON.parse(JSON.stringify(e.scene)) as SceneV2;
+  delete scene.document;
+  expect(e.openProject(JSON.stringify(scene))).toBe(true);
+  expect(e.scene!.document).toBeUndefined();
+});
+
+
+it('añadir Color muestra un selector de color directo por defecto', () => {
+  const e = fresh();
+  e.add('color');
+  expect(e.current!.params!.mode).toBe('solid');
+  expect(e.current!.params!.color).toBe('#D2502F');
 });

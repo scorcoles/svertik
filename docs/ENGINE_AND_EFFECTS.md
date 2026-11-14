@@ -641,3 +641,30 @@ Contacts use the targets' evaluated filled paths in the Gravity object's local c
 Targets are fixed during a replay, using the geometry and placement of the current frame. Animated target changes invalidate cached world states; their historical movement is not integrated and they do not receive forces from the falling pieces. Large initial overlaps may produce abrupt separation. Very fast movement through thin objects can require a thicker collider. A spatial index rejects distant target parts before SAT tests; static geometry, mass properties, simulation checkpoints and completed steps are reused.
 
 Use `node scripts/bench-gravity.mjs --solids` to measure BOOM as a solid, or add `--collisions` to include fragment contacts. CPU timings exclude browser updates/painting. The first jump into an uncached time still costs more than continuing playback.
+
+### Particles (`particles`)
+
+A seeded generator, available in **Generate → Particles**, that duplicates the complete source object as particles. The source itself determines their geometry, colours and proportions; there is no particle-shape selector or object target. The source's bounding box supplies a stable reference for the emitter, sizes and velocities. Use **Color** after Particles for per-particle colour variation, or nest Color in Step for incremental hue changes; Particles itself preserves the source styling. When added in the editor, Time follows `scene.time` automatically; use the compact playback controls or scrub the scene. The emitter position, area and direction can also be dragged on the canvas.
+
+- **Emission**: `burst` creates Count particles at time zero; `stream` emits Count particles per Lifetime seconds, keeping at most Count alive. Each birth has a stable id and seeded random values, so seeking needs no simulation history.
+- **Source**: apply Particles directly to the circle, rectangle, star, text, SVG or group you want to emit. All its evaluated paths form one complete particle, preserving their colours and relative positions.
+- **Time / Lifetime**: seconds. Time is clamped to 0–60; particles disappear at the end of their lifetime. The default lifetime is 3 seconds.
+- **Emitter**: `point`, `line`, `box`, or `circle`. Position is a normalized source-box point; Area is width/height in source-box fractions. The circular emitter samples uniformly inside an ellipse.
+- **Motion**: Direction and Spread define a cone in clockwise degrees (−90 points up). Speed is source sizes per second, Gravity is source sizes per second squared. Speed variation and Size variation range from 0 to 1. Spin supplies a seeded angular velocity up to the given degrees/s in either direction; Rotation variation controls the initial orientation.
+- **Appearance**: Size is the longest particle dimension as a source-size fraction. Particles preserve their source's colours. Fade out is the final fraction of life over which opacity falls to zero. Keep source retains the emitter drawing as well; subsequent effects apply to that drawing too.
+
+For bursts, `motion: "impulse"` leaves particles at their birth positions and passes velocity/spin to a following rigid-body Gravity. Animate Gravity's Time using the same clock as Particles. In this mode Gravity controls acceleration, floor contacts, collisions and solids; Particles' own Gravity is ignored. Stream emission always uses free analytical motion, because births have different ages; it does not replay a shared collision world with historical births.
+
+Count is capped at 512 live particles and reduced for complex source objects to a budget of roughly 100,000 segments per frame. Multiple paths of one particle share a clone tag, so following effectors operate on the whole particle. The source bounds are computed once per evaluation, and stream evaluation visits only live births rather than all past particles.
+
+Example: `apps/editor/public/demos/particles.svrtk` contains a circle stream and a two-colour rectangle stream on a 1280×900 canvas.
+
+
+### Editor: new document dimensions
+
+New editor documents start with a fixed 1400×900 frame centred at the origin. This also applies when the first primitive, imported SVG or pasted objects create a document. Opening an existing project preserves its saved frame or automatic sizing. Automatic sizing remains available in the document controls.
+
+
+### Color: assigning a colour
+
+In **Color**, select `solid` to assign a colour with the colour picker; Target chooses `fill`, `stroke`, or `both`. Shapes with `fill: none` stay unfilled and missing strokes are not enabled. Newly added Color effects in the editor start in Solid mode. Existing scenes keep their stored mode; the headless schema default remains Shift for compatibility. Shift, Gradient and Random remain available for variations, including inside Step.

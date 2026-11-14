@@ -2,6 +2,7 @@
   // Un parámetro del esquema del motor → su control. Así el esquema dibuja el panel de atributos.
   import { isNumericExpression, validateExpression, type ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
+  import ColorField from './ColorField.svelte';
   import IconButton from './IconButton.svelte';
   import PaintField from './PaintField.svelte';
   import type { IconName } from './icons';
@@ -136,7 +137,11 @@
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
   {:else if spec.type === 'color'}
-    <PaintField {id} value={value as any} {label} {swatches} onchange={(v) => onchange(v)} />
+    {#if spec.solid}
+      <ColorField {id} value={value as string} {label} {swatches} {onchange} />
+    {:else}
+      <PaintField {id} value={value as any} {label} {swatches} onchange={(v) => onchange(v)} />
+    {/if}
   {:else if spec.type === 'node'}
     <Select
       value={nodeLabels.find((n) => n.id === value)?.label ?? NONE}

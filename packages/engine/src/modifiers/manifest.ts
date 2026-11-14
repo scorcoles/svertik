@@ -53,6 +53,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   mirror: one(() => import('./mirror'), 'mirror'),
   morph: one(() => import('./morph'), 'morph'),
   mosaic: one(() => import('./mosaic'), 'mosaic'),
+  particles: one(() => import('./particles'), 'particles'),
   pixelate: one(() => import('./pixelate'), 'pixelate'),
   trace: one(() => import('./trace'), 'trace'),
   trim: one(() => import('./trim'), 'trim'),

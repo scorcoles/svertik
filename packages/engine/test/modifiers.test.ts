@@ -316,6 +316,16 @@ describe('color', () => {
   const run = (params: Record<string, unknown>, stack: StackInput['stack'] = []) =>
     createEngine(builtins).evaluateStack({ source: two, stack: [...stack, { id: 'c', type: 'color', params }] });
 
+  it('solid assigns the selected colour to fill or stroke, preserving none and absent strokes', () => {
+    const fill = run({ mode: 'solid', color: '#D2502F' });
+    expect(fill.shapes.map((s) => s.style.fill)).toEqual(['#d2502f', '#d2502f', 'none']);
+    expect(fill.shapes[1]!.style.stroke).toBe('#0000ff');
+    const both = run({ mode: 'solid', color: '#123456', target: 'both' });
+    expect(both.shapes[1]!.style.stroke).toBe('#123456');
+    expect(both.shapes[0]!.style.stroke).toBeUndefined();
+    expect(both.shapes[2]!.style.fill).toBe('none');
+  });
+
   it('shift: turning the hue of red by 120° gives green; none is left alone', () => {
     const geo = run({ mode: 'shift', hue: 120 });
     expect(geo.shapes[0]!.style.fill).toBe('#00ff00');

@@ -13,6 +13,8 @@
     label?: string;
     id?: string;
     width?: string;
+    /** Fixed display precision; editing and scrubbing keep the original value. */
+    decimals?: number;
     error?: boolean;
     disabled?: boolean;
     trailingAction?: { label: string; title: string; active?: boolean; onclick: () => void };
@@ -28,12 +30,14 @@
     label,
     id,
     width = '72px',
+    decimals,
     error = false,
     disabled = false,
     trailingAction,
     onchange,
   }: Props = $props();
 
+  const display = $derived(decimals === undefined ? formatNumber(value, step) : value.toFixed(Math.max(0, Math.min(12, Math.round(decimals)))));
   let input: HTMLInputElement;
   let editing = $state(false);
   let scrubbing = $state(false);
@@ -120,7 +124,7 @@
     aria-invalid={error || invalid || undefined}
     {disabled}
     readonly={!editing}
-    value={editing ? draft : formatNumber(value, step)}
+    value={editing ? draft : display}
     oninput={(e) => (draft = e.currentTarget.value)}
     onpointerdown={pointerdown}
     onpointermove={pointermove}

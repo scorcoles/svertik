@@ -25,9 +25,9 @@
     value={editor.time}
     oninput={(event) => seek(event.currentTarget.valueAsNumber)}
   />
-  <NumberField label="Current time" value={editor.time} min={0} max={duration} step={1 / fps} unit="s" width="64px" onchange={seek} />
+  <NumberField decimals={2} label="Current time" value={editor.time} min={0} max={duration} step={1 / fps} unit="s" width="64px" onchange={seek} />
   <span class="separator" aria-hidden="true">/</span>
-  <NumberField label="Animation duration" value={duration} min={0.1} step={0.1} unit="s" width="58px" onchange={(value) => editor.setDuration(value)} />
+  <NumberField decimals={2} label="Animation duration" value={duration} min={0.1} step={0.1} unit="s" width="58px" onchange={(value) => editor.setDuration(value)} />
 </div>
 
 <style>

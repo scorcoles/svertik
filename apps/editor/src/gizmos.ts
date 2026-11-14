@@ -83,6 +83,34 @@ function radiusHandle(b: Bounds, c: Vec2, R: number): GizmoHandle {
 }
 
 const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
+  particles(p, b) {
+    const c = at(b, p.center);
+    const area = (p.area as Vec2 | undefined) ?? [0.15, 0.15];
+    const w = Math.max(0, area[0]) * b.width, h = Math.max(0, area[1]) * b.height;
+    const emitter = p.emitter ?? 'circle';
+    const direction = Number(p.direction ?? -90), spread = Math.min(360, Math.max(0, Number(p.spread ?? 90)));
+    const radius = sizeOf(b) * 0.35;
+    const point = (angle: number, r = radius): Vec2 => [c[0] + Math.cos(rad(angle)) * r, c[1] + Math.sin(rad(angle)) * r];
+    const move: Drag = (p0, from, to) => {
+      const center = (p0.center as Vec2 | undefined) ?? [0.5, 0.5];
+      return { center: [round(center[0] + (to[0] - from[0]) / (b.width || 1)), round(center[1] + (to[1] - from[1]) / (b.height || 1))] };
+    };
+    const outline: Vec2[] = emitter === 'circle' ? ellipse(c, w / 2, h / 2)
+      : emitter === 'box' ? [[c[0] - w / 2, c[1] - h / 2], [c[0] + w / 2, c[1] - h / 2], [c[0] + w / 2, c[1] + h / 2], [c[0] - w / 2, c[1] + h / 2]]
+      : emitter === 'line' ? [[c[0] - w / 2, c[1]], [c[0] + w / 2, c[1]]]
+      : ellipse(c, sizeOf(b) * 0.015, sizeOf(b) * 0.015);
+    return {
+      lines: [
+        { pts: outline, closed: emitter !== 'line', drag: move, label: 'Move emitter' },
+        { pts: [c, point(direction)], tone: 'y' },
+        { pts: [point(direction - spread / 2), c, point(direction + spread / 2)], dashed: true },
+      ],
+      handles: [
+        { at: point(direction), label: 'Direction', tone: 'y', drag: (_p0, _from, to, snap) => ({ direction: snapDeg(deg(Math.atan2(to[1] - c[1], to[0] - c[0])), snap) }) },
+        ...(emitter === 'point' ? [] : [{ at: [c[0] + w / 2, c[1] + (emitter === 'line' ? 0 : h / 2)] as Vec2, label: 'Emitter area', drag: ((_p0, _from, to) => ({ area: [round(2 * Math.abs(to[0] - c[0]) / (b.width || 1)), emitter === 'line' ? area[1] : round(2 * Math.abs(to[1] - c[1]) / (b.height || 1))] })) as Drag }]),
+      ],
+    };
+  },
   gravity(p, b) {
     const c = at(b, p.floor ?? [0.5, 1.5]);
     const angle = Number(p.rotation ?? 0);

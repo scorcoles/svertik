@@ -56,6 +56,9 @@ export const DEFAULT_CANVAS = '#b0b0b0';
 /** Relleno de las primitivas nuevas: se ve sobre el lienzo claro de serie. */
 export const DEFAULT_FILL = '#333333';
 
+export const DEFAULT_DOCUMENT = { width: 1400, height: 900 };
+const newScene = (objects: SceneNode[] = []): SceneV2 => ({ version: 2, document: { ...DEFAULT_DOCUMENT }, objects });
+
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
 export const effectors = new Set(['step', 'range', 'field', 'stagger']);
@@ -373,6 +376,14 @@ export class Editor {
   });
   isSelected = (id: string) => this.#selected === id || this.also.includes(id);
 
+  /** Selecciona todas las capas raíz; los grupos incluyen sus hijos sin seleccionarlos por duplicado. */
+  selectAll() {
+    const ids = this.scene?.objects.map((node) => node.id) ?? [];
+    this.#selected = ids[0] ?? null;
+    this.also = ids.slice(1);
+    this.tool = null;
+  }
+
   /** ⇧ + clic: añade o quita un nodo de la selección; el último añadido pasa a ser el principal. */
   toggleSelect(id: string) {
     const nodes = this.selectedNodes.map((n) => n.id);
@@ -419,7 +430,7 @@ export class Editor {
     if (/<text[\s>]/i.test(source)) this.notice = 'This SVG has text: convert it to outlines (paths) before importing, or it won’t be deformed.';
     const node: ObjectNode = { kind: 'object', id: `object-${uid()}`, name, source, stack: [] };
     if (!this.scene) {
-      this.scene = { version: 2, objects: [node] };
+      this.scene = newScene([node]);
       this.name = name.replace(/\.svg$/i, '');
       this.#history = [];
       this.#index = -1;
@@ -454,7 +465,7 @@ export class Editor {
       transform: { x: Math.round(at.x * 100) / 100, y: Math.round(at.y * 100) / 100 },
     };
     if (!this.scene) {
-      this.scene = { version: 2, objects: [node] };
+      this.scene = newScene([node]);
       this.name = 'untitled';
       this.#history = [];
       this.#index = -1;
@@ -1443,7 +1454,7 @@ export class Editor {
       return n;
     });
     if (!this.scene) {
-      this.scene = { version: 2, objects: items };
+      this.scene = newScene(items);
       this.#history = [];
       this.#index = -1;
     } else {
@@ -1475,6 +1486,11 @@ export class Editor {
     const owner = this.activeNode;
     if (!this.scene || !def || !owner) return;
     const inst: ModifierInstance = { id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(def.params) } };
+    if (type === 'color') inst.params!.mode = 'solid';
+    if (type === 'particles') {
+      inst.params!.time = { $expr: 'scene.time', fallback: 1 };
+      this.#ensureAnimation();
+    }
     if (containers.has(type)) inst.children = [];
     const stack = owner.stack;
     const at = locate(stack, this.selected);
@@ -1722,7 +1738,7 @@ export class Editor {
   }
   /** Archivo nuevo: lienzo vacío, sin historial. */
   newFile() {
-    this.scene = null;
+    this.scene = newScene();
     this.name = 'untitled';
     this.script = DEFAULT_SCRIPT;
     this.selected = null;

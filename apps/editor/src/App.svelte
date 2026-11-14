@@ -285,7 +285,11 @@
     const mod = e.metaKey || e.ctrlKey;
     // ⌘⇧V: pegar en el mismo sitio. El evento de pegar no lleva las teclas: se anota aquí.
     if (mod && e.key.toLowerCase() === 'v') pasteInPlace = e.shiftKey;
-    if (mod && e.key.toLowerCase() === 'z' && !typing(e)) {
+    if (mod && !e.altKey && e.key.toLowerCase() === 'a' && !typing(e)) {
+      e.preventDefault();
+      window.getSelection()?.removeAllRanges();
+      editor.selectAll();
+    } else if (mod && e.key.toLowerCase() === 'z' && !typing(e)) {
       e.preventDefault();
       if (e.shiftKey) editor.redo();
       else editor.undo();

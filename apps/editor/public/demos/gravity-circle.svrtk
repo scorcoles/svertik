@@ -9,12 +9,12 @@
       "width": 1280,
       "height": 900
     },
-    "notes": "Círculo centrado en un canvas de 1280×900, de color #D2502F. Damage con cinco cortes Through, seguido de Explosion y Gravity con cuerpos rígidos. Al inicio el círculo está centrado; los cortes crecen entre 0.4 y 1.1 s, recibe el impulso de Explosion entre 1.2 y 1.24 s y Gravity integra la velocidad de salida y el giro desde 1.2 s. Explosión muy enérgica (fuerza 3, giro 900°/s), con dispersión amplia: muchas piezas salen deliberadamente del encuadre y conservan su inercia. El suelo virtual queda en Y=378. Selecciona Gravity para mover o girar el suelo. Usa los controles inferiores para reproducir sin abrir el timeline. Las piezas colisionan con el suelo, no entre sí. BOOM aparece detrás de los fragmentos, en mayúsculas y del mismo color #D2502F, con una entrada casi simultánea muy rápida, de 1.26 a 1.44 s, y un pequeño rebote. Queda grande y centrado (tamaño de texto 400 px).",
+    "notes": "Círculo centrado en un canvas de 1280×900, de color #D2502F. Damage con cinco cortes Through, seguido de Explosion y Gravity con cuerpos rígidos. Al inicio el círculo está centrado; los cortes crecen entre 0.4 y 1.1 s, recibe el impulso de Explosion entre 1.2 y 1.24 s y Gravity integra la velocidad de salida y el giro desde 1.2 s. Explosión muy enérgica (fuerza 3, giro 900°/s), con dispersión amplia: muchas piezas salen deliberadamente del encuadre y conservan su inercia. El suelo virtual queda en Y=378. Selecciona Gravity para mover o girar el suelo. Usa los controles inferiores para reproducir sin abrir el timeline. Las piezas colisionan con el suelo, no entre sí. BOOM aparece detrás de los fragmentos, en mayúsculas y del mismo color #D2502F, con una entrada casi simultánea muy rápida, de 1.26 a 1.44 s, y un pequeño rebote. Queda grande y centrado (tamaño de texto 400 px). Confetti emite una ráfaga de 200 partículas de #D2502F al estallar, con giro rápido, caída y desvanecimiento; se oculta antes de 1.2 s.",
     "objects": [
       {
         "kind": "shape",
         "id": "gravity-circle",
-        "name": "Círculo",
+        "name": "Circle",
         "shape": "ellipse",
         "params": {
           "width": 420,
@@ -89,8 +89,66 @@
       },
       {
         "kind": "shape",
+        "id": "gravity-confetti",
+        "name": "Confetti",
+        "shape": "rectangle",
+        "params": {
+          "width": 420,
+          "height": 147,
+          "fill": true,
+          "fillColor": "#D2502F",
+          "stroke": false
+        },
+        "transform": {
+          "x": 0,
+          "y": 0
+        },
+        "stack": [
+          {
+            "id": "gravity-confetti-particles",
+            "type": "particles",
+            "params": {
+              "time": {
+                "$expr": "max(0, scene.time - 1.2)",
+                "fallback": 0
+              },
+              "emission": "burst",
+              "count": 200,
+              "lifetime": 3.4,
+              "emitter": "point",
+              "center": [
+                0.5,
+                0.5
+              ],
+              "motion": "free",
+              "direction": -90,
+              "spread": 260,
+              "speed": 2.1,
+              "speedRandom": 0.55,
+              "spin": 650,
+              "gravity": 1.2,
+              "size": 0.03,
+              "sizeRandom": 0.55,
+              "fade": 0.35,
+              "seed": 23
+            }
+          },
+          {
+            "id": "gravity-confetti-reveal",
+            "type": "opacity",
+            "params": {
+              "opacity": {
+                "$expr": "clamp((scene.time - 1.2) / 0.035, 0, 1)",
+                "fallback": 0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
         "id": "gravity-boom",
-        "name": "BOOM · detrás de la explosión",
+        "name": "Boom",
         "shape": "text",
         "params": {
           "text": "BOOM",

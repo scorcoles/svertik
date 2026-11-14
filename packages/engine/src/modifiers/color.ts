@@ -12,12 +12,13 @@ export const color = defineModifier({
   label: 'Color',
   kind: 'style',
   params: {
-    mode: { type: 'enum', default: 'shift', options: ['shift', 'gradient', 'random'] as const, animatable: false },
-    hue: { type: 'angle', default: 30, label: 'Hue', random: [-180, 180] },
-    saturation: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, random: [-0.4, 0.4] },
-    lightness: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, random: [-0.3, 0.3] },
-    from: { type: 'color', default: '#09fdd1', group: 'Gradient' },
-    to: { type: 'color', default: '#ff6b5e', group: 'Gradient' },
+    mode: { type: 'enum', default: 'shift', options: ['solid', 'shift', 'gradient', 'random'] as const, animatable: false },
+    color: { type: 'color', default: '#D2502F', solid: true, label: 'Color', showIf: { mode: ['solid'] } },
+    hue: { type: 'angle', default: 30, label: 'Hue', random: [-180, 180], showIf: { mode: ['shift'] } },
+    saturation: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, random: [-0.4, 0.4], showIf: { mode: ['shift'] } },
+    lightness: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, random: [-0.3, 0.3], showIf: { mode: ['shift'] } },
+    from: { type: 'color', solid: true, default: '#09fdd1', group: 'Gradient' },
+    to: { type: 'color', solid: true, default: '#ff6b5e', group: 'Gradient' },
     variation: { type: 'number', default: 0.3, min: 0, max: 1, step: 0.01, group: 'Random' },
     seed: { type: 'seed', default: 1, group: 'Random' },
     target: { type: 'enum', default: 'fill', options: ['fill', 'stroke', 'both'] as const, animatable: false },
@@ -29,10 +30,12 @@ export const color = defineModifier({
     const index = new Map(keys.map((k, i) => [k, i]));
     const n = keys.length;
     const props = p.target === 'both' ? ['fill', 'stroke'] : [p.target];
+    const assigned = typeof p.color === 'string' ? parseColor(p.color) : null;
     const from = parseColor(p.from) ?? [0, 0, 0, 1];
     const to = parseColor(p.to) ?? [255, 255, 255, 1];
 
     const recolor = (value: string | undefined, prop: string, i: number, key: number): string | undefined => {
+      if (p.mode === 'solid') return value === 'none' || !assigned ? value : toHex(assigned);
       // Without a declared fill, SVG paints black.
       const c = parseColor(value ?? (prop === 'fill' ? '#000000' : undefined));
       if (!c) return value;
