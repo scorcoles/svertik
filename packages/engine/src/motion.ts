@@ -7,6 +7,7 @@
 // Everything in document coordinates.
 
 import { sampleScene } from './animation';
+import { sceneHasExpressions } from './expression';
 
 /** Separates, in a layer key, the object from its filters. */
 const LAYER_SEP = '\u0001';
@@ -49,7 +50,9 @@ export interface MotionAnalysis {
 }
 
 export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
-  const anim = scene.animation?.tracks.length ? scene.animation : null;
+  const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
+    ? scene.animation ?? { duration: 3, loop: true, fps: 30, tracks: [] }
+    : null;
   const fps = anim?.fps ?? 30;
   const frames = anim ? Math.max(1, Math.round(anim.duration * fps)) : 1;
 

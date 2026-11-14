@@ -3,6 +3,7 @@
 import { mixColor, parseColor, toHex } from './color';
 import type { SceneNode, SceneV2 } from './document';
 import type { ModifierInstance } from './engine';
+import { hasTextExpressions, isNumericExpression, sceneHasExpressions } from './expression';
 
 /** Curve from one key to the next. `hold`: keeps the value until the next one (a jump). */
 export type Ease =
@@ -186,9 +187,13 @@ export function writeTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'mod
 /** The scene at time `t` (seconds): a copy with the tracks' values set. */
 export function sampleScene(scene: SceneV2, t: number): SceneV2 {
   const anim = scene.animation;
-  if (!anim?.tracks.length) return scene;
+  if (!anim && !sceneHasExpressions(scene)) return scene;
   const out = structuredClone(scene) as SceneV2;
-  for (const tr of anim.tracks) writeTarget(out, tr, trackValue(tr, t));
+  for (const tr of anim?.tracks ?? []) {
+    const target = readTarget(out, tr);
+    if (isNumericExpression(target) || (tr.on === 'shape' && tr.param === 'text' && hasTextExpressions(target))) continue;
+    writeTarget(out, tr, trackValue(tr, t));
+  }
   // The time, for what is delayed (Effector's Delay): not saved, only used to evaluate.
   out.at = t;
   return out;

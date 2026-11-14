@@ -284,7 +284,7 @@ export const text = defineShape({
   type: 'text',
   label: 'Text',
   params: {
-    text: { type: 'text', default: 'svertik', label: 'Text' },
+    text: { type: 'text', default: 'svertik', label: 'Text', expression: true },
     font: { type: 'font', default: 'JetBrains Mono', label: 'Font' },
     weight: { type: 'number', default: 400, min: 100, max: 900, step: 100, label: 'Weight', ramp: false, animatable: false, random: false },
     italic: { type: 'boolean', default: false, label: 'Italic', animatable: false },

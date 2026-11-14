@@ -1,6 +1,6 @@
 <script lang="ts">
   // Un parámetro del esquema del motor → su control. Así el esquema dibuja el panel de atributos.
-  import type { ParamSpec } from '@svertik/engine';
+  import { isNumericExpression, validateExpression, type ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
   import IconButton from './IconButton.svelte';
   import PaintField from './PaintField.svelte';
@@ -23,12 +23,18 @@
     swatches?: string[];
     /** Para los parámetros `font`: las fuentes que se pueden elegir. */
     fonts?: string[];
+    /** Width shared by linked numeric fields. */
+    fieldWidth?: string;
     keyState?: 'none' | 'animated' | 'key';
     onkey?: () => void;
   }
-  let { name, spec, value: given, onchange, nodes = [], swatches, fonts = [], keyState, onkey }: Props = $props();
+  let { name, spec, value: given, onchange, nodes = [], swatches, fonts = [], fieldWidth, keyState, onkey }: Props = $props();
   // Un parámetro que no viene (proyecto escrito a mano, versión anterior…) se enseña con su valor por defecto.
   const value = $derived(given ?? spec.default);
+  const advanced = $derived(spec.type === 'number' && spec.expression !== false);
+  const expression = $derived(advanced && isNumericExpression(value) ? value : null);
+  const numericFieldWidth = $derived(fieldWidth ?? (expression ? '132px' : '80px'));
+  const expressionError = $derived(expression ? validateExpression(expression.$expr) : null);
   // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
   const NONE = '— none —';
   const nodeLabels = $derived.by(() => {
@@ -54,11 +60,53 @@
   const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => ICONS[o])));
 </script>
 
-<ParamRow {label} for={id} tall={spec.type === 'text'} {keyState} onkey={spec.animatable === false ? undefined : onkey}>
+<ParamRow {label} for={id} tall={spec.type === 'text'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey}>
   {#if spec.type === 'number'}
-    <NumberField {id} value={value as number} step={spec.step ?? 0.01} min={spec.min} max={spec.max} unit={spec.unit === 'fraction' ? '' : spec.unit} {onchange} />
-    {#if spec.min !== undefined && spec.max !== undefined}
-      <Slider value={value as number} min={spec.min} max={spec.max} step={spec.step ?? 0.01} curve={spec.sliderCurve} label={label} {onchange} />
+    {#if expression}
+      <div class="expression-control" style={`--sv-field-width: ${numericFieldWidth}`}>
+        <div class="expression-field" data-invalid={expressionError || undefined}>
+          <input
+            class="sv-expression"
+            value={expression.$expr}
+            aria-label={`${label} expression`}
+            aria-invalid={expressionError ? 'true' : undefined}
+            title={expressionError ?? 'Use scene.time, scene.frame, scene.fps, scene.duration, scene.progress; functions: min, max, clamp, lerp, sin, cos…'}
+            spellcheck="false"
+            oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
+            onkeydown={(e) => e.stopPropagation()}
+          />
+          {#if spec.unit && spec.unit !== 'fraction'}<span class="expression-unit">{spec.unit}</span>{/if}
+          <button
+            class="expression-toggle"
+            type="button"
+            aria-label={`Use a number for ${label}`}
+            aria-pressed="true"
+            title="Switch to a number"
+            onclick={() => onchange(expression.fallback)}
+          >ƒx</button>
+        </div>
+        {#if expressionError}<span class="expression-error" role="status">{expressionError}</span>{/if}
+      </div>
+    {:else}
+      <NumberField
+        {id}
+        value={value as number}
+        step={spec.step ?? 0.01}
+        min={spec.min}
+        max={spec.max}
+        width={advanced ? numericFieldWidth : '72px'}
+        unit={spec.unit === 'fraction' ? '' : spec.unit}
+        trailingAction={advanced ? {
+          label: `Use an expression for ${label}`,
+          title: expression ? 'Expression enabled; switch to a number' : 'Use an expression with scene time variables',
+          active: !!expression,
+          onclick: () => onchange({ $expr: String(value), fallback: Number(value) }),
+        } : undefined}
+        {onchange}
+      />
+      {#if spec.min !== undefined && spec.max !== undefined}
+        <Slider value={value as number} min={spec.min} max={spec.max} step={spec.step ?? 0.01} curve={spec.sliderCurve} label={label} width={advanced ? '72px' : '100px'} {onchange} />
+      {/if}
     {/if}
   {:else if spec.type === 'angle'}
     <NumberField {id} value={value as number} step={1} unit="°" {onchange} />
@@ -93,16 +141,19 @@
     />
   {:else if spec.type === 'text'}
     <!-- Se aplica al dejar de escribir un momento (cada pulsación rehace las letras). -->
-    <textarea
-      {id}
-      class="sv-text"
-      rows="2"
-      spellcheck="false"
-      value={value as string}
-      aria-label={label}
-      oninput={(e) => onchange(e.currentTarget.value)}
-      onkeydown={(e) => e.stopPropagation()}
-    ></textarea>
+    <div class="text-control">
+      <textarea
+        {id}
+        class="sv-text"
+        rows="2"
+        spellcheck="false"
+        value={value as string}
+        aria-label={label}
+        oninput={(e) => onchange(e.currentTarget.value)}
+        onkeydown={(e) => e.stopPropagation()}
+      ></textarea>
+      {#if spec.expression}<small class="text-expression-hint">Use &#123;&#123;scene.time&#125;&#125; or &#123;&#123;scene.countDown(10)&#125;&#125; for live values.</small>{/if}
+    </div>
   {:else if spec.type === 'font'}
     <input
       {id}
@@ -137,5 +188,66 @@
   }
   .sv-font { height: 20px; }
   .sv-text { resize: vertical; min-height: 36px; }
+  .text-control { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: var(--sv-space-2); }
+  .text-expression-hint { color: var(--sv-text-muted); font-size: var(--sv-font-size-9); line-height: 1.3; }
+  .expression-control { position: relative; display: flex; flex: 0 0 var(--sv-field-width, 132px); flex-direction: column; width: var(--sv-field-width, 132px); min-width: 0; }
+  .expression-field {
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-4);
+    width: 100%;
+    height: 20px;
+    min-width: 0;
+    padding: 0 var(--sv-space-6);
+    box-sizing: border-box;
+    background: var(--sv-surface-field);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+  }
+  .expression-field:focus-within { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .expression-field[data-invalid] { border-color: var(--sv-signal-error); }
+  .expression-error {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + var(--sv-space-4));
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    padding: var(--sv-space-4) var(--sv-space-6);
+    box-sizing: border-box;
+    color: var(--sv-signal-error);
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-signal-error);
+    font-size: var(--sv-font-size-9);
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .sv-expression {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: var(--sv-text-primary);
+    background: none;
+    border: 0;
+    outline: none;
+    font: inherit;
+  }
+  .expression-toggle {
+    flex: none;
+    width: 12px;
+    height: 16px;
+    padding: 0;
+    color: var(--sv-text-disabled);
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 8px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .expression-toggle:hover,
+  .expression-toggle[aria-pressed='true'] { color: var(--sv-accent-fill); }
+  .expression-unit { flex: none; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .sv-text:focus, .sv-font:focus { border-color: var(--sv-accent-fill); }
 </style>

@@ -19,6 +19,8 @@ interface ParamBase {
   ramp?: boolean;
   /** Curve used by the parameter's slider; number fields remain in their original units. */
   sliderCurve?: 'linear' | 'quadratic';
+  /** Show the advanced formula editor for a numeric field. Enabled by default. */
+  expression?: boolean;
   /** The "no effect" value it grows from (0 by default; scale, 1). */
   neutral?: number;
   /** A point that is a place in the drawing can be dragged on the canvas. Yes by default. */

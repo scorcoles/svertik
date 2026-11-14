@@ -13,6 +13,7 @@ export * from './matrix';
 export * from './shapes';
 export * from './fonts';
 export * from './animation';
+export * from './expression';
 export * from './interactions';
 export { validateScene, type SceneReport } from './validate';
 export * from './modifiers';

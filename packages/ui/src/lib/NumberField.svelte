@@ -15,6 +15,7 @@
     width?: string;
     error?: boolean;
     disabled?: boolean;
+    trailingAction?: { label: string; title: string; active?: boolean; onclick: () => void };
     onchange?: (value: number) => void;
   }
   let {
@@ -29,6 +30,7 @@
     width = '72px',
     error = false,
     disabled = false,
+    trailingAction,
     onchange,
   }: Props = $props();
 
@@ -100,7 +102,7 @@
 
 <div
   class="sv-field"
-  style:width
+  style={`width: ${width}; flex: 0 0 ${width}`}
   data-state={scrubbing && moved ? 'scrub' : error || invalid ? 'error' : editing ? 'edit' : 'idle'}
   data-disabled={disabled || undefined}
 >
@@ -128,11 +130,22 @@
     onblur={() => editing && commit()}
   />
   {#if unit}<span class="unit" aria-hidden="true">{unit}</span>{/if}
+  {#if trailingAction}
+    <button
+      class="trailing-action"
+      type="button"
+      aria-label={trailingAction.label}
+      aria-pressed={trailingAction.active || undefined}
+      title={trailingAction.title}
+      onclick={trailingAction.onclick}
+    >ƒx</button>
+  {/if}
 </div>
 
 <style>
   .sv-field {
     display: flex;
+    flex: none;
     align-items: center;
     gap: var(--sv-space-4);
     height: 20px;
@@ -160,4 +173,19 @@
   input:not([readonly]) { cursor: text; }
   .unit,
   .prefix { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .trailing-action {
+    flex: none;
+    width: 12px;
+    height: 16px;
+    padding: 0;
+    color: var(--sv-text-secondary);
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 8px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .trailing-action:hover,
+  .trailing-action[aria-pressed='true'] { color: var(--sv-accent-fill); }
 </style>

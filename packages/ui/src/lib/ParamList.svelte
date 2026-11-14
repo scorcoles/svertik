@@ -1,7 +1,7 @@
 <script lang="ts">
   // Varios parámetros seguidos. Une en una sola fila una casilla `x` con su color `xColor`
   // (Fill + Fill color, Stroke + Stroke color): así la casilla y la muestra quedan alineadas.
-  import type { ParamSpec } from '@svertik/engine';
+  import { isNumericExpression, type ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
   import PaintField from './PaintField.svelte';
   import ParamControl from './ParamControl.svelte';
@@ -31,7 +31,7 @@
   let linked = $state<Record<string, boolean>>({});
   function changePair(a: string, b: string, which: 0 | 1, v: number) {
     const cur: [number, number] = [Number(values?.[a] ?? 0), Number(values?.[b] ?? 0)];
-    if (!linked[a]) return onchange(which === 0 ? a : b, v);
+    if (!linked[a] || !Number.isFinite(v)) return onchange(which === 0 ? a : b, v);
     const [x, y] = proportional(cur, which, v);
     onchange(a, x);
     onchange(b, y);
@@ -76,10 +76,11 @@
     </ParamRow>
   {:else if it.pair}
     {@const pair = it.pair}
+    {@const expanded = isNumericExpression(values?.[it.name]) || isNumericExpression(values?.[pair.name])}
     <div class="pair">
-      <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {...k(it.name, it.spec)} onchange={(v) => changePair(it.name, pair.name, 0, v as number)} />
-      <ParamControl name={pair.name} spec={pair.spec} value={values?.[pair.name]} {...k(pair.name, pair.spec)} onchange={(v) => changePair(it.name, pair.name, 1, v as number)} />
-      <span class="link" data-on={linked[it.name] || undefined}>
+      <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} fieldWidth={expanded ? '132px' : '80px'} {...k(it.name, it.spec)} onchange={(v) => changePair(it.name, pair.name, 0, v as number)} />
+      <ParamControl name={pair.name} spec={pair.spec} value={values?.[pair.name]} fieldWidth={expanded ? '132px' : '80px'} {...k(pair.name, pair.spec)} onchange={(v) => changePair(it.name, pair.name, 1, v as number)} />
+      <span class="link" data-on={linked[it.name] || undefined} style:left={expanded ? '252px' : '200px'}>
         <IconButton
           icon={linked[it.name] ? 'link' : 'unlink'}
           label={linked[it.name] ? `Unlink ${labelOf(it.name, it.spec)} and ${labelOf(pair.name, pair.spec)}` : `Link ${labelOf(it.name, it.spec)} and ${labelOf(pair.name, pair.spec)} (keep proportion)`}
@@ -97,7 +98,7 @@
   .color { display: flex; }
   /* El candado, a la derecha de los dos campos, entre las dos filas, con un corchete que las une. */
   .pair { position: relative; }
-  .link { position: absolute; left: 176px; top: 50%; translate: 0 -50%; display: flex; align-items: center; }
+  .link { position: absolute; left: 200px; top: 50%; translate: 0 -50%; display: flex; align-items: center; }
   .link::before { content: ''; position: absolute; left: -6px; top: -7px; bottom: -7px; width: 4px; border: 1px solid var(--sv-rule-strong); border-left: 0; }
   .link[data-on]::before { border-color: var(--sv-accent-fill); }
   .link :global(.sv-icon-button) { width: 20px; height: 20px; }

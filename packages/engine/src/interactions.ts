@@ -10,6 +10,7 @@
 //   On leave, it goes back to its place (unless `stay`).
 // `createPlayer` puts this together with the timeline: exported code and the editor's Play mode use it.
 import { ease, lerpValue, readTarget, sampleScene, writeTarget, type Ease, type Track } from './animation';
+import { sceneHasExpressions } from './expression';
 import type { DocumentResult, SceneNode, SceneV2 } from './document';
 import { apply as applyMat, invert } from './matrix';
 import type { Engine } from './engine';
@@ -297,7 +298,9 @@ export interface PlayerOptions {
 export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2, options: PlayerOptions = {}) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const inter = createInteractions(() => scene);
-  const anim = scene.animation?.tracks.length ? scene.animation : null;
+  const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
+    ? scene.animation ?? { duration: 3, loop: true, fps: 30, tracks: [] }
+    : null;
   const autoplay = !!anim && anim.autoplay !== false;
   const live = engine.mount(svg, anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene);
   const t0 = performance.now();

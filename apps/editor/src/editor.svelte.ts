@@ -5,6 +5,8 @@ import {
   createEngine,
   importSVG,
   isScene,
+  isNumericExpression,
+  hasTextExpressions,
   outlineNode,
   packNode,
   unpackNode,
@@ -603,8 +605,16 @@ export class Editor {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at || at.node.kind !== 'shape') return;
     at.node.params[name] = value;
-    this.#autoKey({ node: id, on: 'shape', param: name }, value);
+    this.#parameterChanged({ node: id, on: 'shape', param: name }, value);
     this.record();
+  }
+
+  #parameterChanged(target: TrackTarget, value: unknown) {
+    const expression = isNumericExpression(value) || (target.on === 'shape' && target.param === 'text' && hasTextExpressions(value));
+    if (expression) {
+      const anim = this.#ensureAnimation();
+      anim.tracks = anim.tracks.filter((t) => !(t.node === target.node && t.on === target.on && t.param === target.param && (t.modifier ?? '') === (target.modifier ?? '')));
+    } else this.#autoKey(target, value);
   }
 
   /** Primitivas sobre las que actúan los selectores de color del rail: la selección, o la forma del efecto elegido. */
@@ -1490,7 +1500,7 @@ export class Editor {
     if (!this.current?.params) return;
     this.current.params[name] = value;
     const owner = this.activeNode;
-    if (owner) this.#autoKey({ node: owner.id, on: 'modifier', modifier: this.current.id, param: name }, value);
+    if (owner) this.#parameterChanged({ node: owner.id, on: 'modifier', modifier: this.current.id, param: name }, value);
     if (registry.get(this.current.type)?.params[name]?.type === 'point') this.showMarker(value as [number, number]);
     this.busy = true;
     clearTimeout(this.#busyTimer);

@@ -147,6 +147,7 @@ interface SceneV2 {
    - Anchor and center parameters (e.g. `center: [0.5, 0.5]`, `pivot: [0.5, 0.5]`) use normalized fractions where `[0.5, 0.5]` is the exact centre of the node's bounding box.
    - Spatial parameters with unit `fraction` (such as `radius: 0.6` in Spherize or Twist) are relative to the bounding box dimension.
 5. **Filters & Masks Run Last:** Modifiers of kind `filter` (`shadow`, `blur`, `glow`, `grain`, `displace`, `bevel`, `thicken`, `tone`) and `mask` are applied natively by SVG **after the full geometry stack has evaluated**, regardless of where they sit in the `stack` array.
+6. **Expressions:** Supported numeric parameters may use `{ "$expr": "...", "fallback": 12 }` instead of a number. Expressions are evaluated per frame with `scene.time` in seconds, `scene.frame`, `scene.fps` (30 by default), `scene.duration`, and `scene.progress`. The safe math language supports `min`, `max`, `clamp`, `lerp`, `sin`, `cos`, `tan`, `abs`, `round`, `floor`, `ceil`, `sqrt`, `pow`, `pi`, and `e`, plus `scene.countDown(seconds)`; it does not execute JavaScript. Text shape content also interpolates expressions inside braces, e.g. `{{scene.time}}` or `{{scene.countDown(10)}}`. A numeric expression replaces keyframes on the same parameter. Render-time measurements are machine-dependent diagnostics and are not available to expressions.
 
 ---
 

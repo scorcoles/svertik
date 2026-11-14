@@ -15,7 +15,7 @@
   let { label, for: htmlFor, tall = false, keyState, onkey, children }: Props = $props();
 </script>
 
-<div class="sv-param" data-tall={tall || undefined}>
+<div class="sv-param" data-tall={tall || undefined} data-keyed={onkey ? true : undefined}>
   {#if onkey}
     <button
       type="button"
@@ -35,7 +35,7 @@
   /* Rombo de animación: vacío (sin animar), contorno turquesa (animado), relleno (clave aquí). */
   .key {
     position: absolute;
-    left: 6px;
+    left: 4px;
     top: 50%;
     width: 7px;
     height: 7px;
@@ -62,6 +62,7 @@
     height: var(--sv-size-row);
     padding: 0 var(--sv-space-8);
   }
+  .sv-param[data-keyed] label { padding-left: var(--sv-space-8); }
   .sv-param[data-tall] { height: auto; align-items: flex-start; padding-top: var(--sv-space-4); padding-bottom: var(--sv-space-4); }
   .sv-param[data-tall] label { padding-top: var(--sv-space-2); }
   label {

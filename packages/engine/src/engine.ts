@@ -6,6 +6,7 @@ import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
+import { evaluateSceneExpressions } from './expression';
 
 export interface ModifierInstance {
   /** Stable id: animation tracks refer to it. */
@@ -190,7 +191,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   }
 
   const documents = createDocumentEvaluator(runStack, filtersOf, { maskOf });
-  const evaluateDocument = (scene: SceneV2) => documents.evaluate(scene);
+  const evaluateDocument = (scene: SceneV2) => documents.evaluate(evaluateSceneExpressions(scene));
   const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;
 
   return {
