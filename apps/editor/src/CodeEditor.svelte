@@ -49,7 +49,9 @@
       '.cm-foldGutter .cm-gutterElement': { color: v('text-muted'), padding: '0 4px', cursor: 'pointer' },
       '.cm-activeLine': { backgroundColor: 'transparent' },
       '&.cm-focused .cm-activeLine': { backgroundColor: v('surface-panel') },
-      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: `${v('accent-selection')} !important` },
+      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: '#fff !important' },
+      '.cm-selected-text': { color: '#000 !important' },
+      '.cm-content ::selection': { backgroundColor: '#fff !important', color: '#000 !important' },
       '&.cm-focused .cm-cursor': { borderLeftColor: v('accent-fill') },
       '&.cm-focused': { outline: 'none' },
       '.cm-foldPlaceholder': { backgroundColor: v('surface-raised'), border: 'none', color: v('text-secondary'), padding: '0 6px', margin: '0 2px' },
@@ -84,6 +86,13 @@
           foldGutter({ openText: '▾', closedText: '▸' }),
           history(),
           drawSelection(),
+          EditorView.decorations.compute(['selection'], (state) =>
+            Decoration.set(
+              state.selection.ranges
+                .filter((range) => !range.empty)
+                .map((range) => Decoration.mark({ class: 'cm-selected-text' }).range(range.from, range.to)),
+            ),
+          ),
           indentOnInput(),
           bracketMatching(),
           highlightActiveLine(),
