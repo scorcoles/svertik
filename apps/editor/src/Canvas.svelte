@@ -19,7 +19,7 @@
     /** El lienzo publica aquí cómo poner una primitiva en el centro de lo que se ve (lo usa el rail). */
     placeAtCenter?: (type: string) => void;
     status?: CanvasStatus | null;
-    ondiagnostic?: (level: 'error' | 'warning', message: string) => void;
+    ondiagnostic?: (level: 'error' | 'warning', message: string, stack?: string) => void;
   }
   let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null), ondiagnostic }: Props = $props();
 
@@ -108,7 +108,7 @@
       } else if (nextCost <= SLOW) slowReported = false;
     } catch (e) {
       renderError = e instanceof Error ? e.message : String(e);
-      ondiagnostic?.('error', renderError);
+      ondiagnostic?.('error', renderError, e instanceof Error ? e.stack : undefined);
     }
   });
 

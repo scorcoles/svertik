@@ -14,13 +14,14 @@
     oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>;
     maximized: boolean;
     onmaximize: () => void;
-    ondiagnostic: (source: string, level: 'error' | 'warning', message: string) => void;
+    ondiagnostic: (source: string, level: 'error' | 'warning', message: string, stack?: string) => void;
+    onactivity: (action: string, detail?: string) => void;
   }
-  let { editor, oncopy, maximized, onmaximize, ondiagnostic }: Props = $props();
+  let { editor, oncopy, maximized, onmaximize, ondiagnostic, onactivity }: Props = $props();
 
   const engine = createEngine(builtins);
   let tab = $state('JS');
-  let error = $state<{ message: string; line: number | null } | null>(null);
+  let error = $state<{ message: string; line: number | null; stack?: string } | null>(null);
   let cursor = $state<[number, number]>([1, 1]);
 
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
@@ -71,11 +72,12 @@
       try {
         editor.applyScene(validate(JSON.parse(text)));
         error = null;
+        onactivity('Applied JSON scene');
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         const pos = /position (\d+)/.exec(message);
         const line = pos ? text.slice(0, Number(pos[1])).split('\n').length : null;
-        error = { message, line };
+        error = { message, line, stack: e instanceof Error ? e.stack : undefined };
       }
     }, 300);
   }
@@ -87,12 +89,13 @@
       try {
         editor.applyScene(validate(m.scene));
         error = null;
+        onactivity('Applied JavaScript scene');
       } catch (e) {
-        error = { message: e instanceof Error ? e.message : String(e), line: null };
+        error = { message: e instanceof Error ? e.message : String(e), line: null, stack: e instanceof Error ? e.stack : undefined };
       }
       runner.idle();
     } else {
-      error = { message: m.message, line: m.line ?? (tab === 'JS' ? syntaxErrorLine(lastRun) : null) };
+      error = { message: m.message, line: m.line ?? (tab === 'JS' ? syntaxErrorLine(lastRun) : null), stack: m.stack };
     }
   });
 
@@ -122,7 +125,7 @@
   const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: 'flat output · read-only' };
 
   $effect(() => {
-    if (error) ondiagnostic('Code', 'error', `${error.line ? `Line ${error.line}: ` : ''}${error.message}`);
+    if (error) ondiagnostic('Code', 'error', `${error.line ? `Line ${error.line}: ` : ''}${error.message}`, error.stack);
     for (const warning of warnings) ondiagnostic('Code', 'warning', warning);
   });
 </script>

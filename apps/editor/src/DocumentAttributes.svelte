@@ -49,13 +49,18 @@
           }}
         />
       </ParamRow>
-      <ParamRow label="Width" for="doc-w">
-        <NumberField id="doc-w" value={doc.width} min={1} step={1} unit="px" onchange={(v) => editor.setDocument({ width: v, height: doc.height }, false)} />
-      </ParamRow>
-      <ParamRow label="Height" for="doc-h">
-        <NumberField id="doc-h" value={doc.height} min={1} step={1} unit="px" onchange={(v) => editor.setDocument({ width: doc.width, height: v }, false)} />
-      </ParamRow>
-      <div class="actions"><Button label="Fit to drawing" onclick={() => editor.fitDocument()} /></div>
+      <div class="dimensions">
+        <ParamRow label="Width" for="doc-w">
+          <NumberField id="doc-w" value={doc.width} min={1} step={1} unit="px" onchange={(v) => editor.setDocument({ width: v, height: doc.height }, false)} />
+        </ParamRow>
+        <ParamRow label="Height" for="doc-h">
+          <NumberField id="doc-h" value={doc.height} min={1} step={1} unit="px" onchange={(v) => editor.setDocument({ width: doc.width, height: v }, false)} />
+        </ParamRow>
+        <span class="swap"><IconButton icon="swap" label="Swap document width and height" onclick={() => editor.setDocument({ width: doc.height, height: doc.width })} /></span>
+      </div>
+      <div class="actions">
+        <Button label="Fit to drawing" onclick={() => editor.fitDocument()} />
+      </div>
     {/if}
     <p class="note">
       {doc
@@ -109,7 +114,9 @@
   header { display: flex; align-items: center; gap: var(--sv-space-8); height: 28px; padding: 0 var(--sv-space-8); }
   h2 { flex: 1; margin: 0; font-size: var(--sv-font-size-11); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .actions { display: flex; gap: var(--sv-space-8); padding: var(--sv-space-4) var(--sv-space-8); }
+  .dimensions { position: relative; }
+  .swap { position: absolute; left: 176px; top: 50%; translate: 0 -50%; display: flex; }
+  .actions { display: flex; justify-content: center; gap: var(--sv-space-8); padding: var(--sv-space-12) var(--sv-space-8) var(--sv-space-4); }
   .chips { display: flex; flex-wrap: wrap; gap: 4px; padding: var(--sv-space-4) var(--sv-space-8) var(--sv-space-4) 100px; }
   .chip { width: 14px; height: 14px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15); }
   .name {

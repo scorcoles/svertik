@@ -13,6 +13,7 @@
   const anim = $derived(editor.animation);
   const duration = $derived(anim?.duration ?? 3);
   const fps = $derived(anim?.fps ?? 30);
+  const lastFrame = $derived(Math.floor(duration * fps + 1e-6));
   let area = $state<HTMLDivElement>();
   /** Ancho visible de las pistas (sin el margen de los lados). */
   let visible = $state(400);
@@ -76,6 +77,11 @@
   function togglePlay() {
     if (!editor.playing && editor.time >= duration - 1e-6) editor.setTime(0);
     editor.playing = !editor.playing;
+  }
+  function stepFrame(direction: -1 | 1) {
+    editor.playing = false;
+    const current = Math.round(editor.time * fps);
+    editor.setTime(Math.max(0, Math.min(lastFrame, current + direction)) / fps);
   }
 
   // ── Cabezal: arrastrar en la regla
@@ -203,7 +209,9 @@
 <section class="timeline" aria-label="Timeline" onkeydown={keydown}>
   <header>
     <IconButton icon="to-start" label="Go to start" onclick={() => editor.setTime(0)} />
+    <IconButton icon="step-back" label="Previous frame" disabled={editor.time <= 0} onclick={() => stepFrame(-1)} />
     <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause' : 'Play'} active={editor.playing} onclick={togglePlay} />
+    <IconButton icon="step-forward" label="Next frame" disabled={editor.time >= lastFrame / fps - 1e-6} onclick={() => stepFrame(1)} />
     <span class="time">{editor.time.toFixed(2)}<span class="dim"> / {duration.toFixed(2)} s</span></span>
     <span class="rule" aria-hidden="true"></span>
     <label class="field">Duration <NumberField value={duration} min={0.1} step={0.1} unit="s" width="64px" onchange={(v) => editor.setDuration(v)} /></label>

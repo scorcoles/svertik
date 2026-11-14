@@ -123,6 +123,8 @@ export const icons = {
   // Reproducción
   play: 'M4.5 2.5v11l9-5.5z',
   pause: 'M4.5 2.5v11 M11.5 2.5v11',
+  'step-back': 'M4 2.5v11 M12 3.5L5 8l7 4.5z',
+  'step-forward': 'M12 2.5v11 M4 3.5L11 8l-7 4.5z',
   'to-start': 'M3.5 2.5v11 M13.5 2.5v11l-8-5.5z',
   timeline: 'M1.5 4.5h13 M1.5 8h13 M1.5 11.5h13 M5.5 2.5v11 M10 6.5l1.5 1.5-1.5 1.5-1.5-1.5z',
   // Interfaz
@@ -140,6 +142,7 @@ export const icons = {
   down: 'M4 6l4 4 4-4',
   trash: 'M2.5 4.5h11 M6.5 4.5v-2h3v2 M4 4.5l.5 9h7l.5-9',
   bug: 'M8 4.5a2 2 0 1 0 0-4a2 2 0 1 0 0 4 M6 5h4v6a3 3 0 0 1-6 0V7a2 2 0 0 1 2-2 M10 7a2 2 0 0 1 2 2v2a4 4 0 0 1-8 0V9 M4 7 2 5 M12 7l2-2 M4 9H1.5 M12 9h2.5 M4 12H1.5 M12 12h2.5 M6 14l-1 1 M10 14l1 1',
+  swap: 'M4 1.5v11 M1.5 4L4 1.5 6.5 4 M12 14.5v-11 M9.5 12l2.5 2.5 2.5-2.5',
   undo: 'M5.5 3.5l-3 3 3 3 M2.5 6.5h7a3.5 3.5 0 0 1 0 7h-3',
   redo: 'M10.5 3.5l3 3-3 3 M13.5 6.5h-7a3.5 3.5 0 0 0 0 7h3',
   save: 'M2.5 2.5h9l2 2v9h-11z M5 2.5v3.5h5v-3.5 M5 13.5v-4h6v4',

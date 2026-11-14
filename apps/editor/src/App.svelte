@@ -18,6 +18,7 @@
   import ExportReport from './ExportReport.svelte';
   import NotesPanel from './NotesPanel.svelte';
   import DiagnosticsPanel from './DiagnosticsPanel.svelte';
+  import { formatBytes, inspectSvgComplexity, summarizeScene, svgComplexityWarnings, type SvgComplexity } from './debug-report';
   import Toolbar from './Toolbar.svelte';
   import ModifierRail from './ModifierRail.svelte';
   import type { CanvasStatus } from './canvas-status';
@@ -28,17 +29,27 @@
   let canvasStatus = $state<CanvasStatus | null>(null);
   // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
   // panel no van en el arranque, sino en la fase de la UI.
-  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>; maximized: boolean; onmaximize: () => void; ondiagnostic: (source: string, level: 'error' | 'warning', message: string) => void }> | undefined>(undefined);
+  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>; maximized: boolean; onmaximize: () => void; ondiagnostic: (source: string, level: 'error' | 'warning', message: string, stack?: string) => void; onactivity: (action: string, detail?: string) => void }> | undefined>(undefined);
   let panelMaximized = $state(false);
   let diagnosticsOpen = $state(false);
-  let diagnostics = $state<{ id: number; level: 'error' | 'warning'; source: string; message: string; time: number }[]>([]);
+  type DiagnosticEntry = { id: number; level: 'error' | 'warning'; source: string; message: string; time: number; stack?: string };
+  type ActivityEntry = { time: number; action: string; detail?: string };
+  let diagnostics = $state<DiagnosticEntry[]>([]);
+  let activities = $state<ActivityEntry[]>([]);
+  let latestSvg = $state<SvgComplexity | null>(null);
   let diagnosticId = 0;
-  function addDiagnostic(source: string, level: 'error' | 'warning', message: string) {
+  function addDiagnostic(source: string, level: 'error' | 'warning', message: string, stack?: string) {
     const last = diagnostics.at(-1);
-    if (last?.source === source && last.level === level && last.message === message) return;
-    diagnostics = [...diagnostics.slice(-199), { id: ++diagnosticId, level, source, message, time: Date.now() }];
+    if (last?.source === source && last.level === level && last.message === message && last.stack === stack) return;
+    diagnostics = [...diagnostics.slice(-199), { id: ++diagnosticId, level, source, message, time: Date.now(), ...(stack ? { stack } : {}) }];
   }
-  const logCodeDiagnostic = (source: string, level: 'error' | 'warning', message: string) => addDiagnostic(source, level, message);
+  function recordActivity(action: string, detail?: string) {
+    const last = activities.at(-1);
+    if (last?.action === action && last.detail === detail && Date.now() - last.time < 3000) return;
+    activities = [...activities.slice(-49), { time: Date.now(), action, ...(detail ? { detail } : {}) }];
+  }
+  const logCodeDiagnostic = (source: string, level: 'error' | 'warning', message: string, stack?: string) => addDiagnostic(source, level, message, stack);
+  const sceneSummary = $derived(diagnosticsOpen ? summarizeScene(editor.scene, false) : null);
   const togglePanelMaximized = () => (panelMaximized = !panelMaximized);
   function toggleDiagnostics() {
     diagnosticsOpen = !diagnosticsOpen;
@@ -85,6 +96,47 @@
     toastTimer = setTimeout(() => (toast = null), 1600);
   };
   const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
+  function reportSvgImport(source: string, action: string) {
+    if (!/<svg[\s>]/i.test(source)) return;
+    latestSvg = inspectSvgComplexity(source);
+    const detail = latestSvg.analysisSkipped
+      ? `${formatBytes(latestSvg.bytes)}; structure scan skipped`
+      : `${formatBytes(latestSvg.bytes)}; ${latestSvg.elements.toLocaleString()} elements; ${latestSvg.pathCommands.toLocaleString()} path commands`;
+    recordActivity(action, detail);
+    for (const warning of svgComplexityWarnings(latestSvg)) addDiagnostic('SVG import', 'warning', warning);
+  }
+  function makeDebugReport() {
+    const scene = editor.scene ? $state.snapshot(editor.scene) as SceneV2 : null;
+    const nav = typeof navigator === 'undefined' ? null : navigator;
+    return {
+      format: 'svertik-debug-report',
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      app: { version, modifierCount: builtins.length },
+      environment: nav ? {
+        userAgent: nav.userAgent,
+        language: nav.language,
+        platform: nav.platform,
+        devicePixelRatio: window.devicePixelRatio,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      } : null,
+      scene: summarizeScene(scene),
+      mostRecentSvgImport: latestSvg,
+      recentEvents: activities,
+      diagnostics: diagnostics.map(({ time, ...entry }) => ({ time: new Date(time).toISOString(), ...entry })),
+    };
+  }
+  function downloadDebugBundle(includeProject: boolean) {
+    const report = makeDebugReport();
+    const projectFile = includeProject ? editor.projectFile() : null;
+    const bundle = {
+      report,
+      ...(projectFile ? { project: JSON.parse(projectFile) as unknown } : {}),
+    };
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    download(`svertik-debug-${stamp}.json`, JSON.stringify(bundle, null, 2), 'application/json');
+    recordActivity('Downloaded debug report', includeProject ? 'Project included by user' : 'Metadata only');
+  }
   /** La escena en el instante que se ve (para exportar el fotograma: el Delay de Effector depende de él). */
   const frame = () => {
     const s = snapshot();
@@ -97,11 +149,14 @@
     // Un proyecto (.svrtk, o el JSON de una escena): se abre entero. Si no, es un SVG que se añade.
     if (/\.(svrtk|json)$/i.test(file.name) || /^\s*\{/.test(text)) {
       guard(() => {
-        if (editor.openProject(text)) say(`Opened ${file.name}`);
-        else editor.error = 'That file is not a svertik project.';
+        if (editor.openProject(text)) {
+          recordActivity('Opened project');
+          say(`Opened ${file.name}`);
+        } else editor.error = 'That file is not a svertik project.';
       });
       return;
     }
+    reportSvgImport(text, 'Imported SVG');
     editor.load(text, file.name);
   }
   function saveProject() {
@@ -127,7 +182,11 @@
   // Sustituir el SVG del objeto seleccionado (desde sus atributos).
   let replaceInput: HTMLInputElement;
   async function replaceFile(file: File) {
-    if (editor.currentNode) editor.replaceSource(editor.currentNode.id, await file.text(), file.name);
+    if (editor.currentNode) {
+      const source = await file.text();
+      reportSvgImport(source, 'Replaced SVG source');
+      editor.replaceSource(editor.currentNode.id, source, file.name);
+    }
   }
   async function copy(text: string, what: string): Promise<boolean> {
     try {
@@ -141,6 +200,7 @@
   }
   /** PNG del fotograma actual, a doble resolución y con fondo transparente (lo dibuja el navegador). */
   async function exportPNG(scale = 2) {
+    recordActivity('Exported PNG');
     const svg = engine.toSVG(frame());
     const vb = /viewBox="([^"]+)"/.exec(svg)?.[1]?.split(/\s+/).map(Number) ?? [0, 0, 100, 100];
     const [w, h] = [Math.max(1, Math.round(vb[2]! * scale)), Math.max(1, Math.round(vb[3]! * scale))];
@@ -170,6 +230,7 @@
   }
   function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') {
     if (editor.openProject(JSON.stringify(which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : which === 'pointer' ? pointerProject() : demoProject()))) {
+      recordActivity('Opened demo', which);
       editor.selected = null;
       editor.timelineOpen = true;
       editor.setTime(0);
@@ -184,6 +245,7 @@
   // Lottie: la animación para apps y webs; lo que no se puede llevar, en un informe al terminar.
   let report = $state<{ title: string; summary: string; warnings: string[] } | null>(null);
   function exportLottie() {
+    recordActivity('Exported Lottie');
     const { data, warnings, frames } = toLottie(engine, snapshot(), { name: editor.name });
     const text = JSON.stringify(data);
     const name = `${editor.name}.lottie.json`;
@@ -193,6 +255,7 @@
   }
   // SVG animado: un solo .svg que se anima solo (CSS dentro), sin JavaScript.
   function exportAnimatedSVG() {
+    recordActivity('Exported animated SVG');
     const { svg, warnings, frames } = toAnimatedSVG(engine, snapshot());
     const name = `${editor.name}.animated.svg`;
     download(name, svg, 'image/svg+xml');
@@ -200,6 +263,7 @@
     report = { title: `Saved ${name}`, summary: `${frames} frame${frames === 1 ? '' : 's'}, ${kb} KB. Plays on its own in any browser (also as an <img>).${warnings.length ? ' Notes:' : ''}`, warnings };
   }
   function exportSVG() {
+    recordActivity('Exported SVG');
     const name = `${editor.name}.svertik.svg`;
     download(name, engine.toSVG(frame()), 'image/svg+xml');
     say(`Saved ${name}`);
@@ -276,6 +340,7 @@
     }
     if (/<svg[\s>]/i.test(text)) {
       e.preventDefault();
+      reportSvgImport(text, 'Pasted SVG');
       editor.load(text, 'pasted.svg');
     }
   }
@@ -295,8 +360,8 @@
       e.returnValue = '';
     };
     addEventListener('beforeunload', leave);
-    const runtimeError = (e: ErrorEvent) => addDiagnostic('Runtime', 'error', e.message || 'Unknown runtime error');
-    const rejected = (e: PromiseRejectionEvent) => addDiagnostic('Runtime', 'error', e.reason instanceof Error ? e.reason.message : String(e.reason));
+    const runtimeError = (e: ErrorEvent) => addDiagnostic('Runtime', 'error', e.message || 'Unknown runtime error', e.error instanceof Error ? e.error.stack : undefined);
+    const rejected = (e: PromiseRejectionEvent) => addDiagnostic('Runtime', 'error', e.reason instanceof Error ? e.reason.message : String(e.reason), e.reason instanceof Error ? e.reason.stack : undefined);
     addEventListener('error', runtimeError);
     addEventListener('unhandledrejection', rejected);
     return () => {
@@ -373,15 +438,27 @@
           ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
         ].join(' ')}
     >
-      {#if !panelMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} ondiagnostic={(level, message) => addDiagnostic('Canvas', level, message)} />{/if}
+      {#if !panelMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} ondiagnostic={(level, message, stack) => addDiagnostic('Canvas', level, message, stack)} />{/if}
       {#if editor.notesOpen && editor.scene}<NotesPanel {editor} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
-      {#if diagnosticsOpen}<DiagnosticsPanel entries={diagnostics} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { diagnosticsOpen = false; panelMaximized = false; }} onclear={() => (diagnostics = [])} oncopy={copy} />{/if}
+      {#if diagnosticsOpen}<DiagnosticsPanel
+        entries={diagnostics}
+        {sceneSummary}
+        {latestSvg}
+        {activities}
+        maximized={panelMaximized}
+        onmaximize={togglePanelMaximized}
+        onclose={() => { diagnosticsOpen = false; panelMaximized = false; }}
+        onclear={() => (diagnostics = [])}
+        oncopy={copy}
+        report={() => JSON.stringify(makeDebugReport(), null, 2)}
+        onbundle={downloadDebugBundle}
+      />{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp}
         {#if !panelMaximized}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
         {/if}
-        <CodePanelComp editor={editor} oncopy={copy} maximized={panelMaximized} onmaximize={togglePanelMaximized} ondiagnostic={logCodeDiagnostic} />
+        <CodePanelComp editor={editor} oncopy={copy} maximized={panelMaximized} onmaximize={togglePanelMaximized} ondiagnostic={logCodeDiagnostic} onactivity={recordActivity} />
       {/if}
       {#if !panelMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>

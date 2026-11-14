@@ -3,7 +3,7 @@ import type { SceneV2 } from '@svertik/engine';
 
 export type RunnerMessage =
   | { type: 'scene'; scene: SceneV2 }
-  | { type: 'error'; message: string; line: number | null };
+  | { type: 'error'; message: string; line: number | null; stack?: string };
 
 // Código del worker. El script se envuelve en una función: `onFrame` viene de fuera
 // y la función devuelve la `scene` que haya declarado el usuario.
@@ -25,7 +25,7 @@ self.onmessage = (e) => {
       if (!scene || !(Array.isArray(scene.objects) || Array.isArray(scene.stack))) throw new Error('The code must declare const scene = { … }');
       self.postMessage({ type: 'scene', scene });
     } catch (err) {
-      self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err) });
+      self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err), stack: String(err && err.stack || '') });
       return;
     }
   }
