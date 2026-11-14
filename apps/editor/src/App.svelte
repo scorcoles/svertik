@@ -5,7 +5,7 @@
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
-  import { Checkbox } from '@svertik/ui';
+  import { Checkbox, IconButton } from '@svertik/ui';
   import Canvas from './Canvas.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
@@ -17,6 +17,7 @@
   import UnsavedDialog from './UnsavedDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import NotesPanel from './NotesPanel.svelte';
+  import DiagnosticsPanel from './DiagnosticsPanel.svelte';
   import Toolbar from './Toolbar.svelte';
   import ModifierRail from './ModifierRail.svelte';
   import type { CanvasStatus } from './canvas-status';
@@ -27,9 +28,28 @@
   let canvasStatus = $state<CanvasStatus | null>(null);
   // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
   // panel no van en el arranque, sino en la fase de la UI.
-  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void; maximized: boolean; onmaximize: () => void }> | undefined>(undefined);
+  let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>; maximized: boolean; onmaximize: () => void; ondiagnostic: (source: string, level: 'error' | 'warning', message: string) => void }> | undefined>(undefined);
   let panelMaximized = $state(false);
+  let diagnosticsOpen = $state(false);
+  let diagnostics = $state<{ id: number; level: 'error' | 'warning'; source: string; message: string; time: number }[]>([]);
+  let diagnosticId = 0;
+  function addDiagnostic(source: string, level: 'error' | 'warning', message: string) {
+    const last = diagnostics.at(-1);
+    if (last?.source === source && last.level === level && last.message === message) return;
+    diagnostics = [...diagnostics.slice(-199), { id: ++diagnosticId, level, source, message, time: Date.now() }];
+  }
+  const logCodeDiagnostic = (source: string, level: 'error' | 'warning', message: string) => addDiagnostic(source, level, message);
   const togglePanelMaximized = () => (panelMaximized = !panelMaximized);
+  function toggleDiagnostics() {
+    diagnosticsOpen = !diagnosticsOpen;
+    if (diagnosticsOpen) {
+      editor.notesOpen = false;
+      editor.codeOpen = false;
+      editor.timelineOpen = false;
+      editor.playing = false;
+      panelMaximized = false;
+    }
+  }
   // Las paletas del selector de color, para todos los ColorField de la app.
   providePalettes({
     get list() {
@@ -109,12 +129,14 @@
   async function replaceFile(file: File) {
     if (editor.currentNode) editor.replaceSource(editor.currentNode.id, await file.text(), file.name);
   }
-  async function copy(text: string, what: string) {
+  async function copy(text: string, what: string): Promise<boolean> {
     try {
       await navigator.clipboard.writeText(text);
       say(`${what} copied`);
+      return true;
     } catch {
       say(`Could not copy ${what}`);
+      return false;
     }
   }
   /** PNG del fotograma actual, a doble resolución y con fondo transparente (lo dibuja el navegador). */
@@ -273,7 +295,19 @@
       e.returnValue = '';
     };
     addEventListener('beforeunload', leave);
-    return () => removeEventListener('beforeunload', leave);
+    const runtimeError = (e: ErrorEvent) => addDiagnostic('Runtime', 'error', e.message || 'Unknown runtime error');
+    const rejected = (e: PromiseRejectionEvent) => addDiagnostic('Runtime', 'error', e.reason instanceof Error ? e.reason.message : String(e.reason));
+    addEventListener('error', runtimeError);
+    addEventListener('unhandledrejection', rejected);
+    return () => {
+      removeEventListener('beforeunload', leave);
+      removeEventListener('error', runtimeError);
+      removeEventListener('unhandledrejection', rejected);
+    };
+  });
+
+  $effect(() => {
+    if (editor.error) addDiagnostic('Editor', 'error', editor.error);
   });
 
   // Las fuentes que usan los textos de la escena: la incluida, o se bajan de Fontsource.
@@ -307,7 +341,7 @@
     };
   });
   $effect(() => {
-    if (!editor.codeOpen && !editor.notesOpen) panelMaximized = false;
+    if (!editor.codeOpen && !editor.notesOpen && !diagnosticsOpen) panelMaximized = false;
   });
 </script>
 
@@ -334,18 +368,20 @@
       style:grid-template-rows={panelMaximized ? 'minmax(0, 1fr)' : [
           'minmax(0, 1fr)',
           ...(editor.notesOpen && editor.scene ? ['minmax(120px, 25%)'] : []),
+          ...(diagnosticsOpen ? ['minmax(100px, 22%)'] : []),
           ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
           ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
         ].join(' ')}
     >
-      {#if !panelMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} />{/if}
+      {#if !panelMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} ondiagnostic={(level, message) => addDiagnostic('Canvas', level, message)} />{/if}
       {#if editor.notesOpen && editor.scene}<NotesPanel {editor} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
+      {#if diagnosticsOpen}<DiagnosticsPanel entries={diagnostics} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { diagnosticsOpen = false; panelMaximized = false; }} onclear={() => (diagnostics = [])} oncopy={copy} />{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp}
         {#if !panelMaximized}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
         {/if}
-        <CodePanelComp editor={editor} oncopy={copy} maximized={panelMaximized} onmaximize={togglePanelMaximized} />
+        <CodePanelComp editor={editor} oncopy={copy} maximized={panelMaximized} onmaximize={togglePanelMaximized} ondiagnostic={logCodeDiagnostic} />
       {/if}
       {#if !panelMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
@@ -382,6 +418,9 @@
     <div class="status-meta">
       <span>svertik {version} alpha</span>
       <span>engine · {builtins.length} modifiers</span>
+      <span class="diagnostics-toggle">
+        <IconButton icon="bug" label={diagnosticsOpen ? 'Close debug output' : `Open debug output${diagnostics.length ? ` (${diagnostics.length})` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
+      </span>
     </div>
   </footer>
   <input
@@ -475,6 +514,10 @@
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   .status-meta { position: absolute; right: var(--sv-space-8); display: flex; align-items: center; gap: var(--sv-space-12); white-space: nowrap; }
+  .diagnostics-toggle { display: flex; align-items: center; }
+  .diagnostics-toggle :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
+  .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }
+  .diagnostics-toggle :global(.sv-icon-button:hover) { color: var(--sv-text-primary); }
   .toast {
     max-width: min(560px, 90vw);
     position: fixed;

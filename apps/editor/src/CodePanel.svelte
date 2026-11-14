@@ -11,11 +11,12 @@
 
   interface Props {
     editor: Editor;
-    oncopy: (text: string, what: string) => void;
+    oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>;
     maximized: boolean;
     onmaximize: () => void;
+    ondiagnostic: (source: string, level: 'error' | 'warning', message: string) => void;
   }
-  let { editor, oncopy, maximized, onmaximize }: Props = $props();
+  let { editor, oncopy, maximized, onmaximize, ondiagnostic }: Props = $props();
 
   const engine = createEngine(builtins);
   let tab = $state('JS');
@@ -111,14 +112,19 @@
     editor.preview = null;
   });
 
-  function copy() {
-    if (!editor.scene) return;
-    if (tab === 'JSON') oncopy(jsonDoc, 'JSON');
-    else if (tab === 'JS') oncopy(exportJS(snapshot(), editor.script), 'JS');
-    else oncopy(engine.toSVG(frame()), 'SVG');
+  async function copy(): Promise<boolean> {
+    if (!editor.scene) return false;
+    if (tab === 'JSON') return (await oncopy(jsonDoc, 'JSON')) !== false;
+    if (tab === 'JS') return (await oncopy(exportJS(snapshot(), editor.script), 'JS')) !== false;
+    return (await oncopy(engine.toSVG(frame()), 'SVG')) !== false;
   }
 
   const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: 'flat output · read-only' };
+
+  $effect(() => {
+    if (error) ondiagnostic('Code', 'error', `${error.line ? `Line ${error.line}: ` : ''}${error.message}`);
+    for (const warning of warnings) ondiagnostic('Code', 'warning', warning);
+  });
 </script>
 
 <section class="code-panel" aria-label="Code" style:--code-font-size={`${11 * editor.textZoom / 100}px`}>

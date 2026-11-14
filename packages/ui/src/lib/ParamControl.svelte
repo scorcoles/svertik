@@ -152,7 +152,7 @@
         oninput={(e) => onchange(e.currentTarget.value)}
         onkeydown={(e) => e.stopPropagation()}
       ></textarea>
-      {#if spec.expression}<small class="text-expression-hint">Use &#123;&#123;scene.time&#125;&#125; or &#123;&#123;scene.countDown(10)&#125;&#125; for live values.</small>{/if}
+      {#if spec.expression}<small class="text-expression-hint">Use &#123;&#123;scene.time&#125;&#125;, &#123;&#123;fixed(scene.time, 2)&#125;&#125;, or &#123;&#123;fixed(scene.time, 2, 2)&#125;&#125; for live values.</small>{/if}
     </div>
   {:else if spec.type === 'font'}
     <input

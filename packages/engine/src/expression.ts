@@ -166,6 +166,26 @@ export function evaluateExpression(source: string, context: ExpressionContext): 
   return value;
 }
 
+/** Text-only formatter: fixed(value, decimals[, integerDigits]). */
+export function evaluateTextExpression(source: string, context: ExpressionContext): string {
+  const fixed = source.trim().match(/^fixed\((.*),\s*(\d+)(?:\s*,\s*(\d+))?\)$/);
+  if (!fixed) {
+    const value = evaluateExpression(source, context);
+    return String(Math.round(value * 1e6) / 1e6);
+  }
+  const decimals = Number(fixed[2]);
+  const integerDigits = fixed[3] === undefined ? 0 : Number(fixed[3]);
+  if (decimals > 10 || integerDigits > 12) throw new Error('fixed() supports up to 10 decimal places and 12 integer digits.');
+  const value = evaluateExpression(fixed[1]!, context);
+  const formatted = value.toFixed(decimals);
+  if (!integerDigits) return formatted;
+  const [integer = '', fraction] = formatted.split('.');
+  const sign = integer.startsWith('-') ? '-' : '';
+  const digits = sign ? integer.slice(1) : integer;
+  const whole = sign + digits.padStart(integerDigits, '0');
+  return fraction === undefined ? whole : `${whole}.${fraction}`;
+}
+
 export function isNumericExpression(value: unknown): value is NumericExpression {
   return !!value && typeof value === 'object' && typeof (value as NumericExpression).$expr === 'string' && typeof (value as NumericExpression).fallback === 'number';
 }
@@ -215,8 +235,7 @@ export function evaluateSceneExpressions(scene: SceneV2): SceneV2 {
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
           node.params.text = node.params.text.replace(/\{\{([\s\S]*?)\}\}/g, (whole, source: string) => {
             try {
-              const n = evaluateExpression(source.trim(), context);
-              return String(Math.round(n * 1e6) / 1e6);
+              return evaluateTextExpression(source.trim(), context);
             } catch { return whole; }
           });
         }

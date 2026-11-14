@@ -19,8 +19,9 @@
     /** El lienzo publica aquí cómo poner una primitiva en el centro de lo que se ve (lo usa el rail). */
     placeAtCenter?: (type: string) => void;
     status?: CanvasStatus | null;
+    ondiagnostic?: (level: 'error' | 'warning', message: string) => void;
   }
-  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null) }: Props = $props();
+  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null), ondiagnostic }: Props = $props();
 
   // Motor del lienzo; «Redraw» lo cambia por uno nuevo (sin nada guardado de antes) y repinta todo.
   let engine = $state.raw(createEngine(builtins));
@@ -35,6 +36,22 @@
   /** Lo que tarda en recalcular y pintar (ms, suavizado). Pasado SLOW, aviso. */
   let cost = $state<number | null>(null);
   const SLOW = 50;
+  let slowReported = false;
+
+  function slowCandidates(items: SceneNode[]): string[] {
+    const found: string[] = [];
+    const modifierTypes = (stack: SceneNode['stack']): string[] => stack.flatMap((m) => [m.type, ...modifierTypes(m.children ?? [])]);
+    const visit = (node: SceneNode) => {
+      const types = modifierTypes(node.stack);
+      if (types.length) {
+        const effects = [...new Set(types)].map((type) => builtins.find((m) => m.type === type)?.label ?? type);
+        found.push(`${node.name || node.id}: ${effects.join(', ')}`);
+      }
+      if (node.kind === 'group') node.children.forEach(visit);
+    };
+    items.forEach(visit);
+    return found.slice(0, 4);
+  }
   let dropping = $state(false);
   /**
    * Encuadre del lienzo, en coordenadas del documento. Se fija al abrir y con Fit (⇧1);
@@ -81,9 +98,17 @@
       // Tiempo de recálculo, suavizado (para el aviso de rendimiento).
       const ms = performance.now() - t0;
       const prev = untrack(() => cost);
-      cost = prev === null ? ms : prev * 0.7 + ms * 0.3;
+      const nextCost = prev === null ? ms : prev * 0.7 + ms * 0.3;
+      cost = nextCost;
+      if (nextCost > SLOW && !slowReported) {
+        const candidates = slowCandidates(scene.objects);
+        const detail = candidates.length ? ` Inspect: ${candidates.join(' · ')}.` : ' Inspect imported path and text complexity.';
+        ondiagnostic?.('warning', `Render time is ${Math.round(nextCost)} ms (warning threshold: ${SLOW} ms).${detail}`);
+        slowReported = true;
+      } else if (nextCost <= SLOW) slowReported = false;
     } catch (e) {
       renderError = e instanceof Error ? e.message : String(e);
+      ondiagnostic?.('error', renderError);
     }
   });
 
