@@ -5,19 +5,28 @@
 
   // Utilidades que crean objetos que trabajan con otros (instancias…). Lo que necesita un objeto de
   // partida se apaga sin selección.
-  let { editor }: { editor: Editor } = $props();
+  let { editor, compact = false }: { editor: Editor; compact?: boolean } = $props();
   // Efectos de la familia Utils (Follow Path…): van a la pila del objeto seleccionado.
   const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils' && t !== 'connect' && t !== 'trace'); // Connect y Trace: con Connector y Tracer
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger class="sv-group-trigger" disabled={!editor.scene}>
+  <DropdownMenu.Trigger
+    class="sv-group-trigger{compact ? ' is-compact' : ''}"
+    disabled={!editor.scene}
+    title={compact ? 'Utils' : undefined}
+    aria-label={compact ? 'Utils' : undefined}
+  >
     <Icon name="instance" />
-    Utils
-    <span class="caret" aria-hidden="true">▾</span>
+    {#if !compact}Utils <span class="caret" aria-hidden="true">▾</span>{/if}
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
-    <DropdownMenu.Content class="sv-menu" align="start" sideOffset={4}>
+    <DropdownMenu.Content
+      class="sv-menu"
+      align="start"
+      side={compact ? 'right' : 'bottom'}
+      sideOffset={compact ? 6 : 4}
+    >
       <DropdownMenu.Item
         class="sv-menu-item"
         disabled={!editor.activeNode}
@@ -63,5 +72,11 @@
 </DropdownMenu.Root>
 
 <style>
+  :global(.sv-group-trigger.is-compact) {
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

@@ -51,6 +51,9 @@ export const modifierTypes = builtins.map((m) => m.type);
 /** Default canvas colour: the one used until the document sets its own. */
 export const DEFAULT_CANVAS = '#b0b0b0';
 
+/** Relleno de las primitivas nuevas: se ve sobre el lienzo claro de serie. */
+export const DEFAULT_FILL = '#333333';
+
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
 export const effectors = new Set(['step', 'range', 'field', 'stagger']);
@@ -185,6 +188,10 @@ export class Editor {
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
   canvas = $state(readPref('svertik.canvas'));
+  /** Relleno y contorno de las primitivas nuevas (los selectores de color del rail). */
+  fillColor = $state(DEFAULT_FILL);
+  strokeColor = $state('#ededed');
+  strokeOn = $state(false);
 
   // ── Paletas: las de serie y las propias (en este navegador, como el color del lienzo)
 
@@ -398,7 +405,13 @@ export class Editor {
       id: `${type}-${uid()}`,
       name,
       shape: type,
-      params: { ...resolveParams(def.params), ...params },
+      params: {
+        ...resolveParams(def.params),
+        fillColor: this.fillColor,
+        strokeColor: this.strokeColor,
+        stroke: this.strokeOn,
+        ...params,
+      },
       stack: [],
       transform: { x: Math.round(at.x * 100) / 100, y: Math.round(at.y * 100) / 100 },
     };
@@ -558,6 +571,51 @@ export class Editor {
     this.record();
   }
 
+  /** Primitivas sobre las que actúan los selectores de color del rail: la selección, o la forma del efecto elegido. */
+  #colorTargets(): ShapeNode[] {
+    const roots: SceneNode[] = this.selectedNodes.length ? this.selectedNodes : this.activeNode ? [this.activeNode] : [];
+    const shapes: ShapeNode[] = [];
+    const collect = (node: SceneNode) => {
+      if (node.kind === 'shape') shapes.push(node);
+      else if (node.kind === 'group') for (const { node: child } of walkNodes(node.children)) collect(child);
+    };
+    for (const node of roots) collect(node);
+    return shapes;
+  }
+  /** Relleno que muestran los selectores del rail: el de la selección o el de las primitivas nuevas. */
+  get currentFill(): string {
+    return String(this.#colorTargets()[0]?.params.fillColor ?? this.fillColor);
+  }
+  /** Contorno que muestran los selectores del rail: el de la selección o el de las primitivas nuevas. */
+  get currentOutline(): string {
+    return String(this.#colorTargets()[0]?.params.strokeColor ?? this.strokeColor);
+  }
+  /** Relleno del rail: con selección, el suyo (y lo enciende); sin ella, el de las primitivas nuevas. */
+  setFillColor(color: string) {
+    const targets = this.#colorTargets();
+    if (!targets.length) {
+      this.fillColor = color;
+      return;
+    }
+    for (const n of targets) {
+      this.setShapeParam(n.id, 'fillColor', color);
+      if (n.params.fill === false) this.setShapeParam(n.id, 'fill', true);
+    }
+  }
+  /** Contorno del rail: con selección, el suyo (y lo enciende); sin ella, el de las primitivas nuevas. */
+  setOutlineColor(color: string) {
+    const targets = this.#colorTargets();
+    if (!targets.length) {
+      this.strokeColor = color;
+      this.strokeOn = true;
+      return;
+    }
+    for (const n of targets) {
+      this.setShapeParam(n.id, 'strokeColor', color);
+      if (!n.params.stroke) this.setShapeParam(n.id, 'stroke', true);
+    }
+  }
+
   /** Cambia el SVG de un objeto, conservando su pila y su posición. */
   replaceSource(id: string, source: string, name: string) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
@@ -589,13 +647,6 @@ export class Editor {
     const b = this.contentBox;
     if (!b || b.width <= 0 || b.height <= 0) return;
     this.setDocument({ width: Math.ceil(b.width), height: Math.ceil(b.height), x: b.x + b.width / 2, y: b.y + b.height / 2 });
-  }
-
-  setCanvas(color: string) {
-    this.canvas = color;
-    // Preferencia del usuario: se recuerda entre documentos y sesiones (en este navegador).
-    writePref('svertik.canvas', color);
-    this.record();
   }
 
   // ── Nodos
@@ -1563,6 +1614,9 @@ export class Editor {
     this.playing = false;
     this.timelineOpen = false;
     this.codeOpen = false;
+    // Fondo de serie: no se hereda el que tuviera otro documento (ni la preferencia guardada).
+    this.canvas = '';
+    writePref('svertik.canvas', '');
     this.error = null;
     this.#history = [];
     this.#index = -1;

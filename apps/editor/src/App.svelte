@@ -18,8 +18,11 @@
   import UnsavedDialog from './UnsavedDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import Toolbar from './Toolbar.svelte';
+  import ModifierRail from './ModifierRail.svelte';
 
   const editor = new Editor();
+  // Lo publica el lienzo: poner una primitiva en el centro de lo que se ve (doble clic en el rail).
+  let placeAtCenter = $state<((type: string) => void) | undefined>(undefined);
   // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
   // panel no van en el arranque, sino en la fase de la UI.
   let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void }> | undefined>(undefined);
@@ -312,6 +315,7 @@
     onnew={() => guard(() => editor.newFile())}
   />
   <main>
+    <ModifierRail {editor} {placeAtCenter} />
     <div
       class="left"
       style:grid-template-rows={[
@@ -320,7 +324,7 @@
         ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
       ].join(' ')}
     >
-      <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} />
+      <Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter />
       {#if editor.codeOpen && editor.scene && CodePanelComp}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="resize" title="Drag to resize" onpointerdown={startResize}></div>
@@ -337,12 +341,12 @@
         <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
         <label title="The edge of the document: what is exported and shown in Play"><Checkbox bind:checked={editor.showBounds} label="Show document bounds" disabled={!editor.scene} /> Bounds</label>
       </div>
-      <footer>
-        <span>svertik {version} alpha</span>
-        <span>engine · {builtins.length} modifiers</span>
-      </footer>
     </aside>
   </main>
+  <footer class="status">
+    <span>svertik {version} alpha</span>
+    <span>engine · {builtins.length} modifiers</span>
+  </footer>
   <input
     bind:this={fileInput}
     type="file"
@@ -373,9 +377,14 @@
 </div>
 
 <style>
-  .app { display: grid; grid-template-rows: auto 1fr; height: 100dvh; }
-  main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 0; }
-  .left { display: grid; min-height: 0; min-width: 0; }
+  .app { display: grid; grid-template-rows: auto 1fr auto; height: 100dvh; }
+  main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 300px;
+    grid-template-areas: 'rail left inspector';
+    min-height: 0;
+  }
+  .left { grid-area: left; display: grid; min-height: 0; min-width: 0; }
   .resize {
     cursor: ns-resize;
     background: var(--sv-surface-panel);
@@ -383,6 +392,7 @@
   }
   .resize:hover { background: var(--sv-accent-selection); }
   .inspector {
+    grid-area: inspector;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -401,13 +411,14 @@
   .view strong { color: var(--sv-text-secondary); }
   .view label { display: flex; align-items: center; gap: var(--sv-space-6); cursor: pointer; }
   .view.off { opacity: 0.35; }
-  .inspector footer {
+  /* Barra de estado: cruza toda la ventana, debajo del rail, el lienzo y el inspector. */
+  .status {
     display: flex;
     justify-content: space-between;
-    flex: none;
-    height: 28px;
     align-items: center;
+    height: 28px;
     padding: 0 var(--sv-space-8);
+    background: var(--sv-surface-panel);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
     color: var(--sv-text-disabled);
     font-size: var(--sv-font-size-10);
@@ -424,7 +435,11 @@
     font-weight: var(--sv-font-weight-bold);
   }
   @media (max-width: 760px) {
-    main { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) auto; }
+    main {
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-rows: minmax(280px, 1fr) auto;
+      grid-template-areas: 'rail left' 'rail inspector';
+    }
     .inspector { border-left: 0; border-top: var(--sv-border-1) solid var(--sv-rule-default); max-height: 55dvh; }
   }
 </style>

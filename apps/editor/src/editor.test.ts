@@ -256,6 +256,36 @@ describe('primitivas', () => {
     e.undo();
     expect((locateNode(e.scene!.objects, id)!.node as { params: Record<string, unknown> }).params.radius).toBe(0);
   });
+
+  it('los colores del rail: sin selección son los de las primitivas nuevas, con selección los suyos', () => {
+    const e = new Editor();
+    // Sin nada: los selectores muestran (y cambian) los valores de las primitivas nuevas.
+    expect(e.currentFill).toBe('#333333');
+    expect(e.currentOutline).toBe('#ededed');
+    e.setFillColor('#ff0000');
+    e.setOutlineColor('#00ff00');
+    expect(e.fillColor).toBe('#ff0000');
+    expect(e.strokeColor).toBe('#00ff00');
+    expect(e.strokeOn).toBe(true);
+
+    // La primitiva nueva nace con esos valores.
+    e.addShape('star');
+    const id = e.currentNode!.id;
+    const shape = () => (locateNode(e.scene!.objects, id)!.node as { params: Record<string, unknown> }).params;
+    expect(shape()).toMatchObject({ fillColor: '#ff0000', strokeColor: '#00ff00', stroke: true });
+
+    // Con la primitiva seleccionada, el selector edita su relleno/contorno y no los de las nuevas.
+    e.setFillColor('#0000ff');
+    e.setOutlineColor('#ffffff');
+    expect(shape()).toMatchObject({ fillColor: '#0000ff', strokeColor: '#ffffff' });
+    expect(e.fillColor).toBe('#ff0000');
+    expect(e.strokeColor).toBe('#00ff00');
+
+    // Con un grupo elegido, el color llega a las primitivas de dentro.
+    e.group();
+    e.setFillColor('#123456');
+    expect(shape()).toMatchObject({ fillColor: '#123456' });
+  });
 });
 
 describe('copiar y pegar', () => {

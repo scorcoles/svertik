@@ -30,18 +30,9 @@
 </div>
 
 <style>
+  /* En el rail vertical: sin caja propia (la superficie la pone el rail) y del mismo tamaño que los menús. */
+  .tools { display: flex; flex-direction: column; align-items: center; gap: var(--sv-space-2); }
   .tool { display: flex; }
-  .sep { height: 1px; margin: var(--sv-space-2) var(--sv-space-2); background: var(--sv-rule-default); }
-  .tools {
-    position: absolute;
-    top: var(--sv-space-12);
-    left: var(--sv-space-12);
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    gap: var(--sv-space-2);
-    padding: var(--sv-space-4);
-    background: var(--sv-surface-panel);
-    border: var(--sv-border-1) solid var(--sv-rule-default);
-  }
+  .tools :global(.sv-icon-button) { width: 32px; height: 32px; }
+  .sep { width: 20px; height: 1px; margin: var(--sv-space-2) 0; background: var(--sv-rule-default); }
 </style>

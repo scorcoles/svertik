@@ -1,14 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
-  import { DropdownMenu } from 'bits-ui';
-  import { Button, Icon, IconButton, type IconName } from '@svertik/ui';
+  import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
-  import { samples, type SampleName } from './samples';
   import { align, distribute, type Align, type Move } from './arrange';
   import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
-  import Tools from './Tools.svelte';
   import TextEdit from './TextEdit.svelte';
+  import DropArea from './DropArea.svelte';
   import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
 
   interface Props {
@@ -17,8 +15,10 @@
     onfile: (file: File) => void;
     /** Abre una demo (la escena actual se cambia por ella, preguntando si hay cambios). */
     ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') => void;
+    /** El lienzo publica aquí cómo poner una primitiva en el centro de lo que se ve (lo usa el rail). */
+    placeAtCenter?: (type: string) => void;
   }
-  let { editor, onimport, onfile, ondemo }: Props = $props();
+  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable() }: Props = $props();
 
   // Motor del lienzo; «Redraw» lo cambia por uno nuevo (sin nada guardado de antes) y repinta todo.
   let engine = $state.raw(createEngine(builtins));
@@ -469,11 +469,15 @@
   }
 
   /** Doble clic en la herramienta: la primitiva, a su tamaño por defecto, en el centro de lo que se ve. */
-  function placeAtCenter(type: string) {
+  function centerShape(type: string) {
     const r = stage?.getBoundingClientRect();
     const c = r && clientToDoc(r.left + r.width / 2, r.top + r.height / 2);
     editor.addShape(type, {}, c ? { x: c[0], y: c[1] } : undefined);
   }
+  // Se lo pasamos a la app para que el rail (fuera del lienzo) pueda colocar primitivas al centro.
+  $effect(() => {
+    placeAtCenter = centerShape;
+  });
 
   function pick(e: PointerEvent) {
     if (space || e.button !== 0 || !editor.scene) return;
@@ -711,7 +715,6 @@
   ondragleave={() => (dropping = false)}
   ondrop={drop}
 >
-  <Tools {editor} oncenter={placeAtCenter} />
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
@@ -914,37 +917,7 @@
       </span>
     </footer>
   {:else}
-    <!-- Tarjeta con fondo propio: se lee igual sobre cualquier color de lienzo. -->
-    <div class="drop">
-      <span class="icon"><Icon name="import" /></span>
-      <strong>Drop an SVG or a .svrtk project here</strong>
-      <span class="muted">or paste it (⌘V), or draw with the tools on the left</span>
-      <div class="start">
-        <Button kind="primary" label="Choose file…" onclick={onimport} />
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
-            {#snippet child({ props })}<Button {...props} label="Demos ▾" />{/snippet}
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('intro')}><Icon name="play" /><span class="label">Intro: the logo</span></DropdownMenu.Item>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /><span class="label">Shatter: a triangle that explodes</span></DropdownMenu.Item>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('reel')}><Icon name="play" /><span class="label">Reel: motion graphics in three acts</span></DropdownMenu.Item>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('orbit')}><Icon name="play" /><span class="label">Orbit: the Utils working together</span></DropdownMenu.Item>
-              <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('pointer')}><Icon name="play" /><span class="label">Pointer: it follows your mouse</span></DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-      </div>
-      <span class="samples muted">
-        or start from a sample:
-        {#each Object.keys(samples) as name, i (name)}
-          {#if i > 0}<span aria-hidden="true">·</span>{/if}
-          <button type="button" onclick={() => editor.load(samples[name as SampleName], `${name}.svg`)}>{name}</button>
-        {/each}
-      </span>
-      {#if editor.error}<p class="error" role="alert">{editor.error}</p>{/if}
-    </div>
+    <DropArea {editor} {onimport} {ondemo} />
   {/if}
 </section>
 
@@ -1160,32 +1133,8 @@
     font-size: var(--sv-font-size-10);
     color: var(--sv-text-secondary);
   }
-  .muted { color: var(--sv-text-muted); }
   .cost { color: var(--sv-text-disabled); font-variant-numeric: tabular-nums; }
   .cost[data-slow] { color: var(--sv-signal-error); }
-  .drop {
-    display: grid;
-    justify-items: center;
-    gap: var(--sv-space-12);
-    width: min(440px, 100% - 32px);
-    padding: 40px var(--sv-space-24, 24px);
-    color: var(--sv-text-muted);
-    text-align: center;
-    background: var(--sv-surface-panel);
-    border: var(--sv-border-1) solid var(--sv-rule-strong);
-    box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
-    outline: 1px dashed transparent;
-    outline-offset: 8px;
-    transition: outline-color 120ms;
-  }
-  /* Al arrastrar un archivo encima, el marco discontinuo de soltar. */
-  [data-dragging] .drop { outline-color: var(--sv-accent-fill); }
-  .drop .icon { display: grid; place-items: center; width: 36px; height: 36px; color: var(--sv-accent-fill); border: var(--sv-border-1) solid var(--sv-rule-default); }
-  .drop strong { color: var(--sv-text-primary); font-size: var(--sv-font-size-12); }
-  .start { display: flex; gap: var(--sv-space-8); margin-top: var(--sv-space-4); }
-  .samples { font-size: var(--sv-font-size-10); display: flex; gap: var(--sv-space-6); flex-wrap: wrap; justify-content: center; }
-  .samples button { padding: 0; font: inherit; color: var(--sv-text-secondary); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-  .samples button:hover { color: var(--sv-accent-fill); }
   .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-10); }
   .canvas > .error { position: absolute; top: var(--sv-space-12); left: var(--sv-space-12); }
 </style>

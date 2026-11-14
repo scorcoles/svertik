@@ -32,7 +32,8 @@
   const toggleNode = (...params: string[]) => {
     for (const param of params) editor.toggleKey({ node: node.id, on: 'node', param });
   };
-  const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => s.group === 'Style'));
+  // El relleno y el contorno se editan en el rail (abajo a la izquierda); aquí, el resto del estilo.
+  const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => s.group === 'Style' && n !== 'fillColor' && n !== 'strokeColor'));
   // Texto: la fuente (familia, peso y cursiva) va en su propio bloque, después del texto.
   const FONT = new Set(['font', 'weight', 'italic']);
   const isText = $derived(node.kind === 'shape' && node.shape === 'text');
