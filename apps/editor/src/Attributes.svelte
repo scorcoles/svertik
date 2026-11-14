@@ -24,7 +24,7 @@
   const onkey = (param: string) => editor.toggleKey(target(param));
   // Para los efectos que usan otro objeto: todos menos el dueño del efecto.
   const others = $derived(
-    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id).map((n) => ({ id: n.id, label: n.name })) : [],
+    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id && (m?.type !== 'gravity' || (n.kind !== 'effector' && ![...walkNodes([n])].some(({ node }) => node.id === editor.activeNode?.id) && ![...walkNodes(editor.activeNode ? [editor.activeNode] : [])].some(({ node }) => node.id === n.id)))).map((n) => ({ id: n.id, label: n.name })) : [],
   );
   const def = $derived(m ? registry.get(m.type) : undefined);
   // Sin grupo: arriba. Con grupo: secciones plegables, en el orden del esquema.
@@ -87,10 +87,10 @@
             <ParamRow label="On" for="mod-on" keyState={keyOf('enabled')} onkey={() => onkey('enabled')}>
               <Checkbox id="mod-on" checked={m.enabled !== false} label="On" onchange={(v) => editor.setEnabled(m.id, v)} />
             </ParamRow>
-            <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
+            <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
-                <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
+                <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
           </div>

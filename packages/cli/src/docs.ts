@@ -31,6 +31,7 @@ function range(s: ParamSpec): string {
   if (s.type === 'enum') return s.options.map((o) => '`' + o + '`').join(', ');
   if (s.type === 'number') return [s.min !== undefined ? `min ${s.min}` : '', s.max !== undefined ? `max ${s.max}` : '', s.step !== undefined ? `step ${s.step}` : ''].filter(Boolean).join(', ');
   if (s.type === 'node') return 'id of another node';
+  if (s.type === 'nodes') return 'array of node ids';
   if (s.type === 'point') return s.unit === 'fraction' ? '[x, y], fractions of the box (0–1)' : '[x, y], px';
   if (s.type === 'angle') return 'degrees';
   if (s.type === 'seed') return 'integer';

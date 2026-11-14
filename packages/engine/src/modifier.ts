@@ -43,6 +43,8 @@ export type ParamSpec =
   | (ParamBase & { type: 'enum'; default: string; options: readonly string[] })
   /** Another node of the scene (its id); empty = none. */
   | (ParamBase & { type: 'node'; default: string })
+  /** Several scene objects, selected as a set of node ids. */
+  | (ParamBase & { type: 'nodes'; default: string[] })
   /** Free text (several lines). */
   | (ParamBase & { type: 'text'; default: string })
   /** Name of a registered font (see fonts.ts). */
@@ -232,6 +234,7 @@ export function randomizeParams(schema: ParamSchema, current: Record<string, unk
       case 'boolean':
       case 'color':
       case 'node':
+      case 'nodes':
       case 'text':
       case 'font':
         break;

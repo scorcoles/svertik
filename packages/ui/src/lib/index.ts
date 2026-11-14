@@ -6,6 +6,7 @@ export { default as PaintField } from './PaintField.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as IconButton } from './IconButton.svelte';
 export { icons, iconSVG, type IconName } from './icons';
+export { default as NodeTargets } from './NodeTargets.svelte';
 export { default as NumberField } from './NumberField.svelte';
 export { default as Panel } from './Panel.svelte';
 export { default as ParamControl } from './ParamControl.svelte';

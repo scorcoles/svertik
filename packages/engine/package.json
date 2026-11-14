@@ -32,6 +32,7 @@
     "corpus:update": "tsx test/corpus/update.ts"
   },
   "dependencies": {
+    "earcut": "3.0.2",
     "opentype.js": "2.0.0",
     "polygon-clipping": "0.15.7",
     "svgpath": "^2.6.0"

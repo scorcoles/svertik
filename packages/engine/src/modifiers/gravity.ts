@@ -1,9 +1,12 @@
 import { mapPoints, type Geometry, type Shape } from '../geometry';
-import { fallBody, gravityBody } from './gravity-physics';
+import { collisionBody, fallWorld, type CollisionBody, type CollisionWorld } from './gravity-collisions';
+import { fallBody, gravityBody, type FallPose } from './gravity-physics';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 // Stable input geometries share their mass properties and deterministic simulation checkpoints.
-const bodyPlans = new WeakMap<Geometry, { shapes: Shape[]; body?: ReturnType<typeof gravityBody> }[]>();
+const bodyPlans = new WeakMap<Geometry, { shapes: Shape[]; body?: ReturnType<typeof gravityBody>; collider?: CollisionBody | null }[]>();
+
+const collisionWorlds = new WeakMap<Geometry, { key: string; world: CollisionWorld; indices: Map<Shape[], number> }>();
 
 /** Exact maximum along the plane normal, including cubic extrema. */
 function support(geo: Geometry): number {
@@ -40,10 +43,12 @@ export const gravity = defineModifier({
     time: { type: 'number', default: 1, min: 0, max: 60, step: 0.01, label: 'Time (s)' },
     gravity: { type: 'number', default: 1, min: 0, max: 10, step: 0.01, label: 'Gravity', unit: 'fraction' },
     floor: { type: 'point', default: [0.5, 1.5], unit: 'fraction', label: 'Floor position' },
+    rotation: { type: 'angle', default: 0, label: 'Floor rotation', ramp: false },
+    collisions: { type: 'boolean', default: false, label: 'Collisions', animatable: false, group: 'Contacts' },
+    solids: { type: 'nodes', default: [], label: 'Solids', animatable: false, random: false, group: 'Contacts' },
     physics: { type: 'boolean', default: true, label: 'Rigid bodies', animatable: false },
     friction: { type: 'number', default: 0.7, min: 0, max: 1, step: 0.01, label: 'Friction', ramp: false },
     bounce: { type: 'number', default: 0.15, min: 0, max: 1, step: 0.01, label: 'Bounce', ramp: false },
-    rotation: { type: 'angle', default: 0, label: 'Floor rotation', ramp: false },
   },
   apply(geo, p, ctx) {
     const time = Math.min(60, Math.max(0, p.time));
@@ -65,6 +70,28 @@ export const gravity = defineModifier({
       parts = [...groups.values()].map((shapes) => ({ shapes }));
       bodyPlans.set(geo, parts);
     }
+    let coupled: Map<Shape[], FallPose> | null = null;
+    if (p.physics && (p.collisions || p.solids.length)) {
+      const solids = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
+      const key = JSON.stringify(solids.map((g) => g.shapes.map((s) => [s.subpaths, s.style.fill])));
+      let cache = collisionWorlds.get(geo);
+      if (!cache || cache.key !== key) {
+        const bodies: CollisionBody[] = [], indices = new Map<Shape[], number>();
+        const detail = Math.max(Math.max(ctx.bounds.width, ctx.bounds.height) * 0.006, 0.25);
+        for (const entry of parts) {
+          const part = { ...geo, shapes: entry.shapes };
+          const body = entry.body === undefined ? (entry.body = gravityBody(part)) : entry.body;
+          const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body, false, detail)) : entry.collider;
+          if (collider) { indices.set(entry.shapes, bodies.length); bodies.push(collider); }
+        }
+        for (const solid of solids) { const collider = collisionBody(solid, undefined, true, detail); if (collider) bodies.push(collider); }
+        cache = { key, world: { bodies }, indices };
+        collisionWorlds.set(geo, cache);
+      }
+      const acceleration = Math.max(0, p.gravity) * (Math.max(ctx.bounds.width, ctx.bounds.height) || 1);
+      const poses = fallWorld(cache.world, floor, angle, acceleration, time, Math.max(0, Math.min(1, p.friction)), Math.max(0, Math.min(1, p.bounce)), p.collisions);
+      coupled = new Map([...cache.indices].map(([shapes, index]) => [shapes, poses[index]!]));
+    }
     // Calculate transforms by group, then preserve the original paint order.
     const transforms = new Map<Shape, (point: readonly [number, number]) => [number, number]>();
     for (const entry of parts) {
@@ -77,7 +104,7 @@ export const gravity = defineModifier({
           continue;
         }
         const acceleration = Math.max(0, p.gravity) * (Math.max(ctx.bounds.width, ctx.bounds.height) || 1);
-        const pose = fallBody(body, floor, angle, acceleration, time, Math.max(0, Math.min(1, p.friction)), Math.max(0, Math.min(1, p.bounce)), shapes[0]?.impulse);
+        const pose = coupled?.get(shapes) ?? fallBody(body, floor, angle, acceleration, time, Math.max(0, Math.min(1, p.friction)), Math.max(0, Math.min(1, p.bounce)), shapes[0]?.impulse);
         const cs = Math.cos(pose.angle), sn = Math.sin(pose.angle);
         const transform = ([x, y]: readonly [number, number]): [number, number] => [
           pose.x + (x - body.center[0]) * cs - (y - body.center[1]) * sn,

@@ -42,6 +42,10 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       const spec = schema[k];
       if (!spec) warnings.push(`${where}: unknown parameter "${k}"`);
       else if (spec.type === 'node' && typeof v === 'string' && v) nodeRefs.push({ from: where, param: k, id: v });
+      else if (spec.type === 'nodes') {
+        if (!Array.isArray(v) || v.some((id) => typeof id !== 'string')) errors.push(`${where}: "${k}" must be an array of node ids`);
+        else for (const id of v) if (id) nodeRefs.push({ from: where, param: k, id });
+      }
     }
   };
 

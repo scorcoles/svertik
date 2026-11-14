@@ -15,6 +15,7 @@
     onchange: (name: string, value: unknown) => void;
     /** Objetos que se pueden elegir en los parámetros `node`. */
     nodes?: { id: string; label: string }[];
+    onselectnode?: (id: string) => void;
     /** Colores del documento (muestras del selector de color). */
     swatches?: string[];
     /** Fuentes disponibles (parámetros `font`). */
@@ -23,7 +24,7 @@
     keyOf?: (name: string) => 'none' | 'animated' | 'key';
     onkey?: (name: string) => void;
   }
-  let { params, values, onchange, nodes, swatches, fonts, keyOf, onkey }: Props = $props();
+  let { params, values, onchange, nodes, onselectnode, swatches, fonts, keyOf, onkey }: Props = $props();
   const k = (name: string, spec: ParamSpec) => (onkey && spec.animatable !== false ? { keyState: keyOf?.(name), onkey: () => onkey(name) } : {});
 
   type Item = { name: string; spec: ParamSpec; color?: string; pair?: { name: string; spec: ParamSpec } };
@@ -90,7 +91,7 @@
       </span>
     </div>
   {:else}
-    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {swatches} {fonts} {...k(it.name, it.spec)} onchange={(v) => onchange(it.name, v)} />
+    <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} {nodes} {onselectnode} {swatches} {fonts} {...k(it.name, it.spec)} onchange={(v) => onchange(it.name, v)} />
   {/if}
 {/each}
 

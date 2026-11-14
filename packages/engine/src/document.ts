@@ -644,7 +644,9 @@ export function onlyFor(scene: SceneV2, id: string): SceneV2 {
   const todo = [id];
   const refs = (list: ModifierInstance[], out: string[]) => {
     for (const m of list) {
-      for (const v of Object.values(m.params ?? {})) if (typeof v === 'string' && byId.has(v)) out.push(v);
+      for (const v of Object.values(m.params ?? {})) {
+        for (const id of Array.isArray(v) ? v : [v]) if (typeof id === 'string' && byId.has(id)) out.push(id);
+      }
       refs(m.children ?? [], out);
     }
   };

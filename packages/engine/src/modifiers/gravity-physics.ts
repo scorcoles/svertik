@@ -1,9 +1,10 @@
 import { cubicAt, type Geometry, type Impulse, type SubPath, type Vec2 } from '../geometry';
 
-interface Body {
+export interface Body {
   points: Vec2[];
   center: Vec2;
   inertia: number;
+  mass: number;
 }
 
 const cross = (o: Vec2, a: Vec2, b: Vec2) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -70,7 +71,7 @@ export function gravityBody(geo: Geometry): Body | null {
   const local = (outline.length ? outline : [points[0]!]).map(([x, y]): Vec2 => [x - center[0], y - center[1]]);
   const radius2 = Math.max(...local.map(([x, y]) => x * x + y * y), 1e-8);
   const inertia = area2 > 1e-10 ? moment / (6 * area2) - center[0] ** 2 - center[1] ** 2 : radius2 / 2;
-  return { points: local, center, inertia: Math.max(radius2 * 1e-4, inertia) };
+  return { points: local, center, inertia: Math.max(radius2 * 1e-4, inertia), mass: Math.max(area2 / 2, radius2 * 1e-4) };
 }
 
 export interface FallPose {

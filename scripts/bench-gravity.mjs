@@ -1,5 +1,5 @@
 // Motor-only timings: three passes after warm-up, sampling the demo at 10 Hz.
-// Run: node scripts/bench-gravity.mjs
+// Run: node scripts/bench-gravity.mjs [--solids] [--collisions]
 import { createRequire } from 'node:module';
 const require = createRequire(new URL('../packages/cli/package.json', import.meta.url));
 const { register } = await import(require.resolve('tsx/esm/api').replace('.cjs', '.mjs'));
@@ -9,6 +9,8 @@ const { builtins, createEngine, validateScene } = await import('../packages/engi
 const { registerBundledFonts } = await import('../packages/cli/src/lib.ts');
 await registerBundledFonts();
 const scene = gravityProject().scene;
+if (process.argv.includes('--solids')) scene.objects[0].stack.find((m) => m.type === 'gravity').params.solids = ['gravity-boom'];
+if (process.argv.includes('--collisions')) scene.objects[0].stack.find((m) => m.type === 'gravity').params.collisions = true;
 const report = validateScene(scene);
 if (report.errors.length) throw Error(JSON.stringify(report));
 const median = (xs) => xs.sort((a,b)=>a-b)[Math.floor(xs.length / 2)];

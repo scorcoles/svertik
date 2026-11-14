@@ -1,7 +1,7 @@
 <script lang="ts">
   import { BLEND_MODES, EASES, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
-  import { Button, Checkbox, ColorField, IconButton, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
+  import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, type Editor } from './editor.svelte';
 
   interface Props {
@@ -75,20 +75,8 @@
     </Section>
   {/if}
   {#if node.kind === 'effector'}
-    {@const free = others.filter((n) => n.kind !== 'effector' && !node.targets.includes(n.id))}
     <Section title="Targets">
-      {#each node.targets as id (id)}
-        {@const t = others.find((n) => n.id === id)}
-        <ParamRow label="">
-          <button type="button" class="target" disabled={!t} onclick={() => t && (editor.selected = t.id)}>{t?.name ?? 'missing object'}</button>
-          <span class="mini">
-            <IconButton icon="trash" label="Remove target" onclick={() => editor.setEffectorTarget(node.id, id, false)} />
-          </span>
-        </ParamRow>
-      {/each}
-      <ParamRow label={node.targets.length ? '' : 'Add'}>
-        <Select value="+ Add target" options={['+ Add target', ...free.map((n) => n.name)]} label="Add target" onchange={(v) => { const t = free.find((n) => n.name === v); if (t) editor.setEffectorTarget(node.id, t.id, true); }} />
-      </ParamRow>
+      <NodeTargets value={node.targets} nodes={others.filter((n) => n.kind !== 'effector').map((n) => ({ id: n.id, label: n.name }))} onadd={(id) => editor.setEffectorTarget(node.id, id, true)} onremove={(id) => editor.setEffectorTarget(node.id, id, false)} onselect={(id) => (editor.selected = id)} />
       <ParamRow label="Delay" for="eff-delay">
         <NumberField id="eff-delay" value={node.delay ?? 0} min={0} step={0.05} unit="s" onchange={(v) => editor.setEffectorDelay(node.id, v)} />
       </ParamRow>
@@ -333,22 +321,6 @@
   .name:focus { border-bottom-color: var(--sv-accent-fill); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .mini { display: flex; }
-  .target {
-    flex: 1;
-    min-width: 0;
-    padding: 0 var(--sv-space-4);
-    font: inherit;
-    text-align: left;
-    color: var(--sv-text-primary);
-    background: none;
-    border: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .target:hover { color: var(--sv-accent-fill); }
-  .target:disabled { color: var(--sv-text-disabled); cursor: default; }
   .dim { color: var(--sv-text-muted); }
   .interaction { margin: 0 0 var(--sv-space-6); padding-bottom: var(--sv-space-4); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }

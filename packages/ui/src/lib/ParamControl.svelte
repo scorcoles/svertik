@@ -6,6 +6,7 @@
   import PaintField from './PaintField.svelte';
   import type { IconName } from './icons';
   import NumberField from './NumberField.svelte';
+  import NodeTargets from './NodeTargets.svelte';
   import ParamRow from './ParamRow.svelte';
   import PointField from './PointField.svelte';
   import Segmented from './Segmented.svelte';
@@ -19,6 +20,7 @@
     onchange: (value: unknown) => void;
     /** Para los parámetros `node`: los objetos que se pueden elegir. */
     nodes?: { id: string; label: string }[];
+    onselectnode?: (id: string) => void;
     /** Colores del documento, para las muestras del selector de color. */
     swatches?: string[];
     /** Para los parámetros `font`: las fuentes que se pueden elegir. */
@@ -28,7 +30,7 @@
     keyState?: 'none' | 'animated' | 'key';
     onkey?: () => void;
   }
-  let { name, spec, value: given, onchange, nodes = [], swatches, fonts = [], fieldWidth, keyState, onkey }: Props = $props();
+  let { name, spec, value: given, onchange, nodes = [], onselectnode, swatches, fonts = [], fieldWidth, keyState, onkey }: Props = $props();
   // Un parámetro que no viene (proyecto escrito a mano, versión anterior…) se enseña con su valor por defecto.
   const value = $derived(given ?? spec.default);
   const advanced = $derived(spec.type === 'number' && spec.expression !== false);
@@ -60,6 +62,9 @@
   const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => ICONS[o])));
 </script>
 
+{#if spec.type === 'nodes'}
+  <NodeTargets value={value as string[]} {nodes} {label} onselect={onselectnode} onadd={(id) => onchange([...new Set([...(value as string[]), id])])} onremove={(id) => onchange((value as string[]).filter((node) => node !== id))} />
+{:else}
 <ParamRow {label} for={id} tall={spec.type === 'text'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey}>
   {#if spec.type === 'number'}
     {#if expression}
@@ -172,6 +177,7 @@
     <Checkbox {id} checked={value as boolean} {onchange} />
   {/if}
 </ParamRow>
+{/if}
 
 <style>
   .reset { display: flex; }
