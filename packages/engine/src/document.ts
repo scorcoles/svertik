@@ -87,6 +87,33 @@ const transformGeo = (geo: Geometry, m: Mat): Geometry => {
   return mapPoints(geo, ([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
 };
 
+/** The box of the drawing with `m` applied: the same as `bounds(transformGeo(geo, m))`, without
+ *  building the transformed drawing (this runs per node and per pass, and the drawing can be big). */
+const boundsOf = (geo: Geometry, m: Mat): Bounds => {
+  if (m.every((v, i) => v === IDENTITY[i])) return bounds(geo);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x: number, y: number) => {
+    const tx = m[0] * x + m[2] * y + m[4];
+    const ty = m[1] * x + m[3] * y + m[5];
+    if (tx < x0) x0 = tx;
+    if (ty < y0) y0 = ty;
+    if (tx > x1) x1 = tx;
+    if (ty > y1) y1 = ty;
+  };
+  for (const shape of geo.shapes) {
+    for (const sp of shape.subpaths) {
+      add(sp.start[0], sp.start[1]);
+      for (const s of sp.segs) {
+        add(s.c1[0], s.c1[1]);
+        add(s.c2[0], s.c2[1]);
+        add(s.p[0], s.p[1]);
+      }
+    }
+  }
+  if (x0 === Infinity) return { x: 0, y: 0, width: 0, height: 0 };
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+};
+
 /** The node's blend on its shapes; one a shape already has (from a child) wins. */
 const withBlend = (shapes: Shape[], blend: BlendMode | undefined): Shape[] =>
   !blend || blend === 'normal' ? shapes : shapes.map((s) => (s.style['mix-blend-mode'] ? s : { ...s, style: { ...s.style, 'mix-blend-mode': blend } }));
@@ -372,7 +399,7 @@ export function createDocumentEvaluator(
           const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
           results.set(node.id, entry.result);
-          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: bounds(transformGeo(entry.result, world)) });
+          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: boundsOf(entry.result, world) });
           if (node.visible === false) return [];
           return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend)));
         }
@@ -412,7 +439,7 @@ export function createDocumentEvaluator(
         // The children are already in group coordinates: their real matrix is the group's times theirs.
         for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
         results.set(node.id, result);
-        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: bounds(transformGeo(result, world)) });
+        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: boundsOf(result, world) });
         if (node.visible === false) return [];
         return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes), node.opacity), node.blend)));
       };
@@ -453,7 +480,7 @@ export function createDocumentEvaluator(
         const g = finalResults.get(id);
         const info = nodes.get(id);
         if (!g || !info) continue;
-        const c = centroid(transformGeo(g, info.matrix));
+        const c = centroid(g, info.matrix);
         if (!c) continue;
         const arr = history.get(id) ?? [];
         const last = arr[arr.length - 1];

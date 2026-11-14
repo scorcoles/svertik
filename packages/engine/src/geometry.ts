@@ -238,19 +238,48 @@ export function insidePolygons(polys: Vec2[][], [x, y]: Vec2): boolean {
  * Centre of a drawing that doesn't change when it turns: the centroid of its surfaces (closed; holes
  * subtract if they wind the other way) or, without any, the mean of its points. Null if empty.
  */
-export function centroid(geo: Geometry): Vec2 | null {
+/** Samples per segment of `centroid`. */
+const SAMPLES = 8;
+
+export function centroid(geo: Geometry, m?: readonly number[]): Vec2 | null {
+  // With `m`, the centroid of the drawing transformed (its points mapped before being sampled), with
+  // nothing allocated: `flatten` would build a point per sample just to add it up.
+  const mm = m ?? [1, 0, 0, 1, 0, 0];
+  const m0 = mm[0]!, m1 = mm[1]!, m2 = mm[2]!, m3 = mm[3]!, m4 = mm[4]!, m5 = mm[5]!;
   let a = 0, cx = 0, cy = 0, n = 0, sx = 0, sy = 0;
   for (const s of geo.shapes) {
     for (const sp of s.subpaths) {
-      const pts = flatten(sp, 8);
-      for (const q of pts) (sx += q[0]), (sy += q[1]), n++;
-      if (!sp.closed) continue;
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i]!, q = pts[(i + 1) % pts.length]!;
-        const c = p[0] * q[1] - q[0] * p[1];
+      // The first point of the subpath, and the previous one as it is sampled.
+      let px = m0 * sp.start[0] + m2 * sp.start[1] + m4;
+      let py = m1 * sp.start[0] + m3 * sp.start[1] + m5;
+      const fx = px, fy = py;
+      let qx = px, qy = py;
+      sx += px; sy += py; n++;
+      for (const seg of sp.segs) {
+        const c1x = m0 * seg.c1[0] + m2 * seg.c1[1] + m4, c1y = m1 * seg.c1[0] + m3 * seg.c1[1] + m5;
+        const c2x = m0 * seg.c2[0] + m2 * seg.c2[1] + m4, c2y = m1 * seg.c2[0] + m3 * seg.c2[1] + m5;
+        const ex = m0 * seg.p[0] + m2 * seg.p[1] + m4, ey = m1 * seg.p[0] + m3 * seg.p[1] + m5;
+        for (let i = 1; i <= SAMPLES; i++) {
+          const t = i / SAMPLES, u = 1 - t;
+          const A = u * u * u, B = 3 * u * u * t, C = 3 * u * t * t, D = t * t * t;
+          const x = A * px + B * c1x + C * c2x + D * ex;
+          const y = A * py + B * c1y + C * c2y + D * ey;
+          sx += x; sy += y; n++;
+          if (sp.closed) {
+            const c = qx * y - x * qy;
+            a += c;
+            cx += (qx + x) * c;
+            cy += (qy + y) * c;
+          }
+          qx = x; qy = y;
+        }
+        px = ex; py = ey;
+      }
+      if (sp.closed) {
+        const c = qx * fy - fx * qy;
         a += c;
-        cx += (p[0] + q[0]) * c;
-        cy += (p[1] + q[1]) * c;
+        cx += (qx + fx) * c;
+        cy += (qy + fy) * c;
       }
     }
   }
