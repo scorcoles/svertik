@@ -9,7 +9,10 @@ export function regionOf(shapes: Shape[], step: number): MultiPolygon {
   for (const s of shapes) {
     const rings = s.subpaths.filter((sp) => sp.closed).map((sp) => ring(sp, step)).filter((r) => r.length >= 4);
     if (!rings.length) continue;
-    parts.push(rings.slice(1).reduce<MultiPolygon>((acc, r) => xor(acc, [r]), [[rings[0]!]]));
+    // Apply even-odd fill in one polygon-clipping pass. Repeated XORs become quadratic for SVGs
+    // that encode pixel artwork as many closed rectangular subpaths (such as the welcome logo).
+    const [first, ...rest] = rings;
+    parts.push(xor([[first!]], ...rest.map((r) => [[r]])));
   }
   if (!parts.length) return [];
   const [a, ...more] = parts as [MultiPolygon, ...MultiPolygon[]];

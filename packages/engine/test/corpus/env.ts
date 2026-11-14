@@ -4,7 +4,9 @@
 
 import { Window } from 'happy-dom';
 
-const g = globalThis as unknown as { DOMParser?: unknown };
-g.DOMParser ??= new Window().DOMParser;
+const g = globalThis as unknown as { DOMParser?: unknown; document?: unknown };
+const win = new Window();
+g.DOMParser ??= win.DOMParser;
+g.document ??= win.document;
 
 export {};

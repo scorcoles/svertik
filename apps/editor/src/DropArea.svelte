@@ -2,7 +2,6 @@
   import { DropdownMenu } from 'bits-ui';
   import { Button, Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
-  import { samples, type SampleName } from './samples';
 
   interface Props {
     editor: Editor;
@@ -40,13 +39,6 @@
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </div>
-    <span class="samples muted">
-      or start from a sample:
-      {#each Object.keys(samples) as name, i (name)}
-        {#if i > 0}<span aria-hidden="true">·</span>{/if}
-        <button type="button" onclick={() => editor.load(samples[name as SampleName], `${name}.svg`)}>{name}</button>
-      {/each}
-    </span>
     {#if editor.error}<p class="error" role="alert">{editor.error}</p>{/if}
   </div>
 </div>
@@ -96,26 +88,6 @@
     display: flex;
     gap: var(--sv-space-8);
     margin-top: var(--sv-space-4);
-  }
-  .samples {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sv-space-6);
-    justify-content: center;
-    font-size: var(--sv-font-size-10);
-  }
-  .samples button {
-    padding: 0;
-    font: inherit;
-    color: var(--sv-text-secondary);
-    background: none;
-    border: 0;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-  .samples button:hover {
-    color: var(--sv-accent-fill);
   }
   .error {
     margin: 0;

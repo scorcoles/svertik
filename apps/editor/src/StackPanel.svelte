@@ -150,6 +150,7 @@
 <section class="stack" aria-label="Stack">
   <header>
     {#if editor.scene}<span class="count" title="Objects">{editor.objectCount}</span>{/if}
+    <span class="spacer" aria-hidden="true"></span>
     <IconButton icon="expand-all" label="Expand all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
     <IconButton icon="collapse-all" label="Collapse all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
     <IconButton
@@ -176,6 +177,7 @@
 <style>
   .stack { display: flex; flex-direction: column; min-height: 0; max-height: 50%; padding-bottom: var(--sv-space-8); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   header { display: flex; align-items: center; gap: var(--sv-space-4); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); flex: none; }
+  .spacer { flex: 1; }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); margin-right: var(--sv-space-4); }
   .rows { overflow-y: auto; }
   .drag { position: relative; }
