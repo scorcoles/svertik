@@ -229,16 +229,21 @@ All shapes share a standard styling block:
    - `innerRadius` (number, default 60, px): Inner valley radius.
    - `points` (number, default 5, min 2, max 64): Number of tips (2 = needle/diamond, 5 = classic star).
 
-5. **`line`**
+5. **`cross`**
+   - A filled plus sign, placed immediately after Star in the primitive rail.
+   - `size` (number, default 140, px): Overall width and height.
+   - `width` (number, default 28, px): Thickness of the arms, clamped to Size. Both fields are animatable. Rotate the object by 45° for an X.
+
+6. **`line`**
    - `length` (number, default 200, px): Segment length.
    - `angle` (angle, default 0, degrees): Line angle. Defaults to stroke only.
 
-6. **`spiral`**
+7. **`spiral`**
    - `radius` (number, default 100, px): Maximum outer radius.
    - `turns` (number, default 3, min 0.5): Number of Archimedean rotations.
    - `decay` (number, default 0, -1 to 1): Outward expansion rate. Defaults to stroke only.
 
-7. **`text`**
+8. **`text`**
    - Converts strings to precise vector outlines where each glyph is an element.
    - `text` (text, default `"svertik"`): Multi-line string.
    - `fontSize` (number, default 72, px): Font size.
@@ -247,11 +252,6 @@ All shapes share a standard styling block:
    - `align` (`"left" | "center" | "right"`, default `"center"`): Paragraph alignment.
    - `anchor` (`"ink" | "left" | "center" | "right"`, default `"ink"`): Transform anchor point.
    - `font` (font, default `"JetBrains Mono"`): Registered font family name.
-
-8. **`cross`**
-   - A filled plus sign, placed immediately before Pawn in the primitive rail.
-   - `size` (number, default 140, px): Overall width and height.
-   - `width` (number, default 28, px): Thickness of the arms, clamped to Size. Both fields are animatable. Rotate the object by 45° for an X.
 
 9. **`pawn`**
    - svertik test model (a chess pawn with smooth curves and straight steps, analogous to the 3D Utah Teapot).
@@ -528,6 +528,7 @@ Distribute modifier evaluation across elements. All container effectors accept n
 
 49. **`mask`**: Native SVG masking (`<mask id="...">`) driven by another node.
     - `source` (node): Mask node ID.
+    - `whole` (boolean, def false): Whole elements (shape mode). Discard elements crossing the boundary rather than clipping them. Clone copies remain indivisible, including compound copies. Uses the filled outline, holes and strokes after the geometry stack; invert keeps only complete elements outside.
     - `mode` (`"shape" | "luminance"`, def `"shape"`), `invert` (boolean, def false)
 
 50. **`opacity`**: Node transparency control.
@@ -677,13 +678,17 @@ In **Color**, select `solid` to assign a colour with the colour picker; Target c
 
 ### Filling a shape with other objects
 
-For a regular pattern, create a small Cross, apply **Clone → Grid**, then **Mask** with a triangle as its source. Make the grid cover the whole triangle and hide the triangle itself: hidden objects still work as masks. The mask trims the crosses at the boundary. For a random distribution, use **Clone → Object → Inside** and select the triangle; this places particle centres inside it, and an additional Mask trims any arms crossing its border.
+For a regular pattern, create a small Cross, apply **Clone → Grid**, then **Mask** with a triangle as its source. Make the grid cover the whole triangle and hide the triangle itself: hidden objects still work as masks. Enable **Whole elements** in Mask to discard boundary-crossing copies and keep every cross complete. With it off, the mask trims the crosses at the boundary. For a random distribution, use **Clone → Object → Inside** and select the triangle; this places particle centres inside it, and an additional Mask trims any arms crossing its border.
 
 `apps/editor/public/demos/cross-fill.svrtk` is an editable regular-grid example on an 800×650 document. Size and Width belong to the source Cross; Columns, Rows and Spacing belong to Clone; the triangle controls the mask.
 
-Clone Grid sliders support up to **64 columns × 64 rows**, with a quadratic slider curve for finer control at small counts.
+Clone Grid sliders support up to **64 columns × 64 rows**, with a quadratic slider curve for finer control at small counts. Columns and Rows can be linked to change proportionally. Count is hidden in Grid: the total is Columns × Rows.
 
 
 ### Clone: concentric radial rings
 
 In **Clone → Radial**, **Rings** chooses 1–64 concentric circles; **Count** is the number of copies on each ring. **Radius** sets the innermost radius and **Ring spacing** adds the distance between successive radii, in source-size fractions. Both ring controls support animation; fractional ring counts are rounded. Copies keep unique element tags, ordered from the innermost ring outwards, so Step and Color work across the whole result. Selecting Clone shows all rings on the canvas, with a handle for spacing. One ring preserves the previous radial result.
+
+### Arrow primitive
+
+`arrow` generates a continuous closed outline pointing right. `length` (240 px) and `width` (24 px) set its total length and body thickness. `startHead` (default `none`) and `endHead` (default `triangle`) independently select `none`, `triangle`, `v`, `square` or `circle`. Different head types can be combined; both `none` produces a plain body. `headLength` (0.28, 0.01–0.5) is the head length divided by total length; `headWidth` (3, 1–12) multiplies body width. The round head is elliptical when these proportions differ. `notch` (0.45, 0–0.9) controls V depth. All numeric dimensions/proportions support animation and expressions; rotate the node to change direction. Heads and body share one outline, including cubic curves for round heads, so stroke never draws internal seams.

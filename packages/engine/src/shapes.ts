@@ -244,6 +244,57 @@ export const cross = defineShape({
   },
 });
 
+/** A single continuous outline, including circular heads as exact cubic arcs. */
+export const arrow = defineShape({
+  type: 'arrow', label: 'Arrow',
+  params: {
+    length: { type: 'number', default: 240, min: 1, step: 1, unit: 'px', label: 'Length' },
+    width: { type: 'number', default: 24, min: 1, step: 1, unit: 'px', label: 'Body width' },
+    startHead: { type: 'enum', default: 'none', options: ['none', 'triangle', 'v', 'square', 'circle'] as const, label: 'Start head', animatable: false },
+    endHead: { type: 'enum', default: 'triangle', options: ['none', 'triangle', 'v', 'square', 'circle'] as const, label: 'End head', animatable: false },
+    headLength: { type: 'number', default: 0.28, min: 0.01, max: 0.5, step: 0.01, unit: 'fraction', label: 'Head / length' },
+    headWidth: { type: 'number', default: 3, min: 1, max: 12, step: 0.1, label: 'Head / body width' },
+    notch: { type: 'number', default: 0.45, min: 0, max: 0.9, step: 0.01, unit: 'fraction', label: 'V depth' },
+    ...style,
+  },
+  build({ length, width, startHead, endHead, headLength, headWidth, notch }) {
+    const L = Math.max(1, length), b = Math.max(1, width) / 2;
+    const h = b * Math.max(1, headWidth);
+    const d = L * Math.min(0.5, Math.max(0.01, headLength));
+    // Each head runs from the upper body junction around the end to the lower junction.
+    const head = (sign: number, tip: string): SubPath => {
+      if (tip === 'none') return { start: [sign * L / 2, -sign * b], segs: [line([sign * L / 2, -sign * b], [sign * L / 2, sign * b])], closed: false };
+      const x = L / 2, back = x - d;
+      const points: Vec2[] = tip === 'v'
+        ? [[back + d * notch, -b], [back, -h], [x, 0], [back, h], [back + d * notch, b]]
+        : tip === 'square'
+          ? [[back, -b], [back, -h], [x, -h], [x, h], [back, h], [back, b]]
+          : [[back, -b], [back, -h], [x, 0], [back, h], [back, b]];
+      let path: SubPath;
+      if (tip === 'circle') {
+        // An elliptical round head: independent length and width, joined without internal seams.
+        const rx = d / 2, cx = x - rx;
+        const a = Math.asin(Math.min(1, b / h));
+        const from = Math.PI + a, to = 3 * Math.PI - a;
+        const point = (t: number): Vec2 => [cx + rx * Math.cos(t), h * Math.sin(t)];
+        const segs: Cubic[] = [];
+        const angles = [from, ...[1.5, 2, 2.5].map(t => t * Math.PI).filter(t => t > from && t < to), to];
+        for (let i = 0; i < angles.length - 1; i++) {
+          const t0 = angles[i]!, t1 = angles[i + 1]!;
+          const k = 4 / 3 * Math.tan((t1 - t0) / 4), p0 = point(t0), p1 = point(t1);
+          segs.push({ c1: [p0[0] - k * rx * Math.sin(t0), p0[1] + k * h * Math.cos(t0)], c2: [p1[0] + k * rx * Math.sin(t1), p1[1] - k * h * Math.cos(t1)], p: p1 });
+        }
+        path = { start: point(from), segs, closed: false };
+      } else path = { start: points[0]!, segs: points.slice(1).map((p, i) => line(points[i]!, p)), closed: false };
+      const map = ([x, y]: Vec2): Vec2 => [sign * x, sign * y];
+      return { start: map(path.start), segs: path.segs.map(s => ({ c1: map(s.c1), c2: map(s.c2), p: map(s.p) })), closed: false };
+    };
+    const end = head(1, endHead);
+    const start = head(-1, startHead);
+    return [{ start: end.start, closed: true, segs: [...end.segs, line(end.segs.at(-1)!.p, start.start), ...start.segs, line(start.segs.at(-1)!.p, end.start)] }];
+  },
+});
+
 export const pawn = defineShape({
   type: 'pawn',
   label: 'Pawn',
@@ -414,7 +465,7 @@ function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: V
 }
 
 // The pawn, always last (it is the test shape).
-export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, text, cross, pawn];
+export const shapes = [rectangle, ellipseShape, polygon, star, cross, arrow, lineShape, spiral, text, pawn];
 export const shapeRegistry = new Map<string, ShapeDef>(shapes.map((s) => [s.type, s as ShapeDef]));
 
 /** A primitive's geometry, with its style. */

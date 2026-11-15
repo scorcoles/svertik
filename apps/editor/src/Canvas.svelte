@@ -474,6 +474,8 @@
         ? { width: r2(Math.abs(dx)), height: r2(Math.abs(dy)) }
         : type === 'line'
           ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
+          : type === 'arrow'
+            ? { length: r2(Math.abs(dx)), width: r2(Math.abs(dy) / 3) }
           : type === 'cross'
             ? { size: r2(Math.max(Math.abs(dx), Math.abs(dy))), width: r2(Math.max(Math.abs(dx), Math.abs(dy)) * 0.2) }
           : type === 'pawn'

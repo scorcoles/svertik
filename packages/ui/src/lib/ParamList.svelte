@@ -81,7 +81,7 @@
     <div class="pair">
       <ParamControl name={it.name} spec={it.spec} value={values?.[it.name]} fieldWidth={expanded ? '132px' : '80px'} {...k(it.name, it.spec)} onchange={(v) => changePair(it.name, pair.name, 0, v as number)} />
       <ParamControl name={pair.name} spec={pair.spec} value={values?.[pair.name]} fieldWidth={expanded ? '132px' : '80px'} {...k(pair.name, pair.spec)} onchange={(v) => changePair(it.name, pair.name, 1, v as number)} />
-      <span class="link" data-on={linked[it.name] || undefined} style:left={expanded ? '252px' : '200px'}>
+      <span class="link" data-on={linked[it.name] || undefined}>
         <IconButton
           icon={linked[it.name] ? 'link' : 'unlink'}
           label={linked[it.name] ? `Unlink ${labelOf(it.name, it.spec)} and ${labelOf(pair.name, pair.spec)}` : `Link ${labelOf(it.name, it.spec)} and ${labelOf(pair.name, pair.spec)} (keep proportion)`}
@@ -98,8 +98,10 @@
 <style>
   .color { display: flex; }
   /* El candado, a la derecha de los dos campos, entre las dos filas, con un corchete que las une. */
-  .pair { position: relative; }
-  .link { position: absolute; left: 200px; top: 50%; translate: 0 -50%; display: flex; align-items: center; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) 28px; }
+  .pair > :global(.sv-param) { grid-column: 1; min-width: 0; }
+  .pair :global(.sv-slider) { min-width: 0; }
+  .link { position: relative; grid-column: 2; grid-row: 1 / 3; align-self: center; justify-self: start; display: flex; align-items: center; }
   .link::before { content: ''; position: absolute; left: -6px; top: -7px; bottom: -7px; width: 4px; border: 1px solid var(--sv-rule-strong); border-left: 0; }
   .link[data-on]::before { border-color: var(--sv-accent-fill); }
   .link :global(.sv-icon-button) { width: 20px; height: 20px; }

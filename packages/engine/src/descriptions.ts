@@ -57,7 +57,7 @@ export const effectDescriptions: Record<string, string> = {
   tint: 'Pushes the colour towards a target colour. Inside Step the amount grows copy by copy (white lightens, black darkens).',
   paint: 'Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order.',
   gradient: "A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). Relative to each shape's box, so it follows the shape.",
-  mask: "Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). The mask can be hidden and still works.",
+  mask: "Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). Whole elements discards copies crossing the boundary instead of clipping them (shape mode). The mask can be hidden and still works.",
   opacity: 'Makes the drawing transparent. With Range or Field, letters or pieces that appear or fade away.',
   // Filters (SVG filters, computed by the browser)
   shadow: 'Drop shadow: a blurred, shifted copy behind the drawing, in one colour.',
@@ -78,6 +78,7 @@ export const shapeDescriptions: Record<string, string> = {
   line: 'A straight line, by length and angle. Stroke only by default.',
   spiral: 'An Archimedean spiral, by radius and number of turns. Stroke only by default.',
   text: 'Text turned into outlines, one piece per letter (so Step, Stagger and Range can treat letters, words and lines separately). Uses the registered fonts.',
+  arrow: 'A continuous arrow outline with independent Start head and End head selectors: none, triangular, V, square or round. Head / length sets the head length relative to the total; Head / body width controls its width. V depth controls the chevron notch. Numeric proportions can be animated.',
   cross: 'A filled plus sign: Size controls the overall extent and Width the thickness of its arms, clamped to Size. Rotate the object 45 degrees for an X.',
   pawn: "A chess pawn: svertik's test shape, with curves and straight parts.",
 };

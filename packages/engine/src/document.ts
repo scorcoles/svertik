@@ -158,7 +158,7 @@ export type TargetLookup = (id: string) => Geometry | null;
 export function createDocumentEvaluator(
   runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup) => Geometry,
   filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
-  options: { trails?: boolean; maskOf?: (stack: ModifierInstance[]) => { source: string; mode: string; invert: boolean } | null } = {},
+  options: { trails?: boolean; maskOf?: (stack: ModifierInstance[]) => { source: string; mode: string; invert: boolean; whole?: boolean } | null } = {},
 ): DocumentEvaluator {
   const maskOf = options.maskOf ?? (() => null);
   // Trails (Trace): the scene evaluated at earlier times, with another evaluator (without trails, so it
@@ -254,7 +254,7 @@ export function createDocumentEvaluator(
     let finalResults = new Map<string, Geometry>();
     let fx = new Map<string, FilterChain>();
     let innerFx = new Map<string, { chain: FilterChain; ref: Bounds; node: string }>();
-    let masked = new Map<string, { source: string; mode: string; invert: boolean }>();
+    let masked = new Map<string, { source: string; mode: string; invert: boolean; whole?: boolean }>();
 
     for (let passNo = 0; passNo < 3; passNo++) {
       nodes = new Map<string, NodeInfo>();
@@ -327,7 +327,7 @@ export function createDocumentEvaluator(
       masked = new Map();
       const withMask = (node: SceneNode, shapes: Shape[]): Shape[] => {
         const m = maskOf(stackOf(node));
-        if (!m || !shapes.length || m.source === node.id) return shapes;
+        if (!m || (m.whole && m.mode === 'shape') || !shapes.length || m.source === node.id) return shapes;
         const id = `${node.id}--mask`;
         masked.set(id, m);
         return shapes.map((s) => ({ ...s, wrap: [id, ...(s.wrap ?? [])] }));

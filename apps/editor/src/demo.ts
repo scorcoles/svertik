@@ -602,11 +602,11 @@ export function crossFillProject() {
     svertik: 'project', version: 1, name: 'Cross Fill', canvas: '#F2E8DA',
     scene: {
       version: 2, document: { width: 800, height: 650 },
-      notes: 'A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Native SVG Mask trims crosses at the edge.',
+      notes: 'A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Mask with Whole elements discards crosses crossing the edge, keeping every cross complete.',
       objects: [
         { kind: 'shape', id: 'cross-pattern', name: 'Cross', shape: 'cross', params: { size: 18, width: 4, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
           { id: 'cross-grid', type: 'clone', params: { mode: 'grid', columns: 18, rows: 16, spacing: [1.55, 1.55] } },
-          { id: 'cross-mask', type: 'mask', params: { source: 'triangle-mask', mode: 'shape' } },
+          { id: 'cross-mask', type: 'mask', params: { source: 'triangle-mask', mode: 'shape', whole: true } },
         ] },
         { kind: 'shape', id: 'triangle-mask', name: 'Triangle', shape: 'polygon', params: { radius: 270, sides: 3, fill: true, fillColor: '#ffffff', stroke: false }, stack: [], visible: false },
       ],

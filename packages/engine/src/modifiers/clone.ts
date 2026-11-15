@@ -15,8 +15,8 @@ export const clone = defineModifier({
   reframe: true,
   params: {
     mode: { type: 'enum', default: 'grid', options: ['grid', 'radial', 'linear', 'object'] as const, animatable: false },
-    count: { type: 'number', default: 6, min: 1, max: 64, step: 1, label: 'Count', ramp: false },
-    columns: { type: 'number', default: 3, min: 1, max: 64, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic' },
+    count: { type: 'number', default: 6, min: 1, max: 64, step: 1, label: 'Count', ramp: false, showIf: { mode: ['radial', 'linear', 'object'] } },
+    columns: { type: 'number', default: 3, min: 1, max: 64, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic', pair: 'rows' },
     rows: { type: 'number', default: 3, min: 1, max: 64, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic' },
     spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false, linkable: true },
     radius: { type: 'number', default: 1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', ramp: false },

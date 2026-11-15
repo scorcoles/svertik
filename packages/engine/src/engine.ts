@@ -161,6 +161,12 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       }
       if (memo) memo.steps[i] = { key, geo, dynamic, ref };
     });
+    // Mask is a post-process, even when it precedes Clone in the stack.
+    const lastMask = [...stack].reverse().find(inst => inst.enabled !== false && registry.get(inst.type)?.mask && inst.params?.source);
+    if (lastMask) {
+      const def = registry.get(lastMask.type)!;
+      geo = keepInner(geo, def.apply(geo, resolveParams(def.params, lastMask.params), { bounds: ref, resolution: res, target, trail, children: [] }));
+    }
     if (memo) memo.steps.length = stack.length;
     if (refs) refs[''] = ref;
     return geo;
@@ -179,13 +185,13 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   }
 
   /** The mask of a stack (the last active one), with its parameters. */
-  function maskOf(stack: ModifierInstance[]): { source: string; mode: string; invert: boolean } | null {
-    let out: { source: string; mode: string; invert: boolean } | null = null;
+  function maskOf(stack: ModifierInstance[]): { source: string; mode: string; invert: boolean; whole: boolean } | null {
+    let out: { source: string; mode: string; invert: boolean; whole: boolean } | null = null;
     for (const inst of stack) {
       const def = registry.get(inst.type);
       if (inst.enabled === false || !def?.mask) continue;
       const p = resolveParams(def.params, inst.params) as Record<string, unknown>;
-      if (p.source) out = { source: String(p.source), mode: String(p.mode ?? 'shape'), invert: !!p.invert };
+      if (p.source) out = { source: String(p.source), mode: String(p.mode ?? 'shape'), invert: !!p.invert, whole: !!p.whole };
     }
     return out;
   }

@@ -9,7 +9,7 @@
       "width": 800,
       "height": 650
     },
-    "notes": "A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Native SVG Mask trims crosses at the edge.",
+    "notes": "A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Mask with Whole elements discards crosses crossing the edge, keeping every cross complete.",
     "objects": [
       {
         "kind": "shape",
@@ -42,7 +42,8 @@
             "type": "mask",
             "params": {
               "source": "triangle-mask",
-              "mode": "shape"
+              "mode": "shape",
+              "whole": true
             }
           }
         ]

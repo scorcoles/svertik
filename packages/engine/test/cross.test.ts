@@ -18,9 +18,9 @@ describe('Cross primitive', () => {
     expect(area(100, 20)).toBeCloseTo(3600);
     expect(area(100, 40)).toBeCloseTo(6400);
   });
-  it('clamps overly wide arms and sits immediately above Pawn', () => {
+  it('clamps overly wide arms and sits immediately after Star', () => {
     expect(area(100, 200)).toBeCloseTo(10000);
-    expect(shapes.at(-2)!.type).toBe('cross');
+    expect(shapes[shapes.findIndex((s) => s.type === 'star') + 1]!.type).toBe('cross');
     expect(shapes.at(-1)!.type).toBe('pawn');
     expect(validateScene({ version: 2, objects: [{ kind: 'shape', id: 'c', name: 'Cross', shape: 'cross', params: { size: 18, width: 4 }, stack: [] }] })).toEqual({ errors: [], warnings: [] });
   });

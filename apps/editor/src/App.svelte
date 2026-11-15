@@ -36,6 +36,7 @@
   type DiagnosticEntry = { id: number; level: 'error' | 'warning'; source: string; message: string; time: number; stack?: string };
   type ActivityEntry = { time: number; action: string; detail?: string };
   let diagnostics = $state<DiagnosticEntry[]>([]);
+  const warningCount = $derived(diagnostics.filter(entry => entry.level === 'warning').length);
   let activities = $state<ActivityEntry[]>([]);
   let latestSvg = $state<SvgComplexity | null>(null);
   let diagnosticId = 0;
@@ -511,8 +512,8 @@
     <div class="status-meta">
       <span>svertik {version} alpha</span>
       <span>engine · {builtins.length} modifiers</span>
-      <span class="diagnostics-toggle">
-        <IconButton icon="bug" label={diagnosticsOpen ? 'Close debug output' : `Open debug output${diagnostics.length ? ` (${diagnostics.length})` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
+      <span class="diagnostics-toggle" data-warning={warningCount > 0 || undefined}>
+        <IconButton icon="bug" label={`${diagnosticsOpen ? 'Close' : 'Open'} debug output${diagnostics.length ? ` (${diagnostics.length})` : ''}${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
       </span>
     </div>
   </footer>
@@ -613,6 +614,7 @@
   .diagnostics-toggle :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
   .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }
   .diagnostics-toggle :global(.sv-icon-button:hover) { color: var(--sv-text-primary); }
+  .diagnostics-toggle[data-warning] :global(.sv-icon-button) { color: var(--sv-signal-warning, #f5a544); }
   .toast {
     max-width: min(560px, 90vw);
     position: fixed;
