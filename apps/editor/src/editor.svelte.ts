@@ -1392,10 +1392,7 @@ export class Editor {
       at?.list.splice(at.index, 1);
     }
     this.selected = this.scene?.objects[0]?.id ?? null;
-    if (this.objectCount === 0) {
-      this.scene = null;
-      this.selected = null;
-    }
+    this.also = [];
     this.record(true);
   }
 
@@ -1881,11 +1878,6 @@ export class Editor {
     if (!n) return;
     n.list.splice(n.index, 1);
     this.selected = n.list[Math.min(n.index, n.list.length - 1)]?.id ?? n.parent?.id ?? null;
-    // Sin objetos no hay escena: vuelta al estado vacío.
-    if (this.objectCount === 0) {
-      this.scene = null;
-      this.selected = null;
-    }
     this.record(true);
   }
 

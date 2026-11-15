@@ -122,10 +122,26 @@ describe('Editor', () => {
     expect(e.current?.params?.growth).toBe(0.5);
   });
 
-  it('quitar el único objeto vuelve al estado vacío', () => {
-    const e = fresh();
-    e.remove(e.scene!.objects[0]!.id);
-    expect(e.scene).toBeNull();
+  it.each([1, 2])('keeps the document open after deleting all %s objects', (count) => {
+    const e = new Editor();
+    e.newFile(800, 600);
+    e.name = 'Keep this document';
+    e.scene!.notes = 'Keep these notes';
+    for (let i = 0; i < count; i++) e.addShape('rectangle');
+    e.selected = e.scene!.objects[0]!.id;
+    e.also = e.scene!.objects.slice(1).map(n => n.id);
+    e.removeSelection();
+    expect(e.scene?.objects).toEqual([]);
+    expect(e.scene?.document).toMatchObject({ width: 800, height: 600 });
+    expect(e.scene?.notes).toBe('Keep these notes');
+    expect(e.name).toBe('Keep this document');
+    expect(e.selected).toBeNull();
+    expect(e.also).toEqual([]);
+    e.undo();
+    expect(e.scene?.objects).toHaveLength(count);
+    e.redo();
+    expect(e.scene?.objects).toEqual([]);
+    expect(e.scene?.document).toMatchObject({ width: 800, height: 600 });
   });
 
   it('rechaza lo que no es SVG', () => {
