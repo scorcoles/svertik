@@ -62,6 +62,20 @@ describe('single-cycle MP4 export', () => {
     expect(encoder.close).toHaveBeenCalledOnce();
   });
 
+  it('frames mobile video as the screen, with the scene at its visible size and position', async () => {
+    await downloadMP4({ toSVG: render() } as unknown as Engine, makeScene(true, true), {
+      background: '#fff', name: 'Mobile',
+      viewport: { width: 390, height: 844, pixelRatio: 2, scene: { x: 15.6, y: 33.76, width: 358.8, height: 776.48 } },
+    });
+    expect(encoder.supported).toHaveBeenCalledWith('avc', expect.objectContaining({ width: 780, height: 1688 }));
+    const blob = vi.mocked(URL.createObjectURL).mock.calls[0]![0] as Blob;
+    const svg = await blob.text();
+    expect(svg).toContain('viewBox="0 0 390 844"');
+    expect(svg).toContain('x="15.6" y="33.76" width="358.8" height="776.48" overflow="visible"');
+    expect(svg).toContain('viewBox="0 0 101 99"');
+    expect(encoder.add.mock.calls.reduce((sum, call) => sum + call[1], 0)).toBeCloseTo(2.05, 8);
+  });
+
   it('cancels without downloading a partial video', async () => {
     const controller = new AbortController();
     await expect(downloadMP4({ toSVG: render() } as unknown as Engine, makeScene(true, true), {

@@ -5,6 +5,11 @@ import { sceneDuration } from '@svertik/engine/scene';
 interface VideoOptions {
   background: string;
   name: string;
+  /** CSS viewport and scene bounds captured at export start (mobile Play). */
+  viewport?: {
+    width: number; height: number; pixelRatio: number;
+    scene: { x: number; y: number; width: number; height: number };
+  };
   signal?: AbortSignal;
   onProgress?: (progress: number) => void;
 }
@@ -27,8 +32,11 @@ export async function downloadMP4(engine: Engine, original: SceneV1, options: Vi
   const viewBox = /viewBox="([^"]+)"/.exec(first)?.[1];
   const dimensions = viewBox?.trim().split(/\s+/).map(Number);
   if (!dimensions || dimensions.length !== 4 || !dimensions.every(Number.isFinite)) throw new Error('Invalid video bounds.');
-  const width = Math.max(2, Math.ceil(dimensions[2]! / 2) * 2);
-  const height = Math.max(2, Math.ceil(dimensions[3]! / 2) * 2);
+  const viewport = options.viewport;
+  if (viewport && (![viewport.width, viewport.height, viewport.pixelRatio, viewport.scene.width, viewport.scene.height].every(n => Number.isFinite(n) && n > 0) ||
+    ![viewport.scene.x, viewport.scene.y].every(Number.isFinite))) throw new Error('Invalid screen bounds.');
+  const width = Math.max(2, Math.ceil((viewport ? viewport.width * viewport.pixelRatio : dimensions[2]!) / 2) * 2);
+  const height = Math.max(2, Math.ceil((viewport ? viewport.height * viewport.pixelRatio : dimensions[3]!) / 2) * 2);
   if (!await canEncodeVideo('avc', { width, height, frameRate: fps, quality: QUALITY_HIGH })) {
     throw new Error('MP4 export is not supported in this browser. Try Chrome, Edge or Safari.');
   }
@@ -45,9 +53,15 @@ export async function downloadMP4(engine: Engine, original: SceneV1, options: Vi
     for (let i = 0; i < count; i++) {
       options.signal?.throwIfAborted();
       const t = i / fps;
-      const svg = (i === 0 ? first : frameAt(t))
-        .replace(/viewBox="[^"]+"/, `viewBox="${viewBox}"`)
-        .replace('<svg ', `<svg width="${width}" height="${height}" `);
+      let svg = (i === 0 ? first : frameAt(t)).replace(/viewBox="[^"]+"/, `viewBox="${viewBox}"`);
+      if (viewport) {
+        const rect = viewport.scene;
+        // A nested SVG preserves the player's aspect-fit placement and visible overflow.
+        const nested = svg.replace('<svg ', `<svg x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" overflow="visible" `);
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewport.width} ${viewport.height}">${nested}</svg>`;
+      } else {
+        svg = svg.replace('<svg ', `<svg width="${width}" height="${height}" `);
+      }
       const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
       try {
         const image = new Image();

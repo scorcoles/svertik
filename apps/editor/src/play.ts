@@ -72,6 +72,12 @@ async function start(m: typeof import('@svertik/engine/player')) {
   video.addEventListener('click', async () => {
     if (exportController) { exportController.abort(); return; }
     const controller = exportController = new AbortController();
+    // Freeze the mobile screen framing before loading the encoder or changing orientation.
+    const rect = stage.getBoundingClientRect();
+    const viewport = matchMedia('(pointer: coarse)').matches ? {
+      width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio || 1,
+      scene: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+    } : undefined;
     video.textContent = 'Cancel';
     video.setAttribute('aria-label', 'Cancel MP4 export');
     video.title = 'Cancel MP4 export';
@@ -82,6 +88,7 @@ async function start(m: typeof import('@svertik/engine/player')) {
       await downloadMP4(createEngine(effects), scene, {
         background: getComputedStyle(document.body).backgroundColor,
         name: sceneName,
+        viewport,
         signal: controller.signal,
         onProgress: progress => say(`Exporting MP4… ${Math.round(progress * 100)}%`, 0),
       });
