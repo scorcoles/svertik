@@ -5,6 +5,14 @@ export default defineConfig({
   plugins: [svelte()],
   base: './',
   build: {
+    rolldownOptions: {
+      onwarn(warning, defaultHandler) {
+        // The editor intentionally bundles every effect through modifiers/index.ts.
+        // Dynamic effect imports still matter in the separate Play build.
+        if (warning.code === 'INEFFECTIVE_DYNAMIC_IMPORT') return;
+        defaultHandler(warning);
+      },
+    },
     rollupOptions: {
       output: {
         // El motor se divide en runtime (engine) y efectos (modifiers): el arranque carga una fase u
