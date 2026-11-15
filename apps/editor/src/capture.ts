@@ -1,8 +1,5 @@
-/** Copy the rendered frame, without advancing or re-evaluating the player. */
-export function copyFrame(svg: SVGSVGElement, background: string): Promise<void> {
-  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
-    return Promise.reject(new Error('Image clipboard is unavailable'));
-  }
+/** Download the rendered frame, without advancing or re-evaluating the player. */
+export async function downloadFrame(svg: SVGSVGElement, background: string, name = 'svertik'): Promise<void> {
   // Freeze the DOM before any asynchronous work; playback can continue normally.
   const snapshot = svg.cloneNode(true) as SVGSVGElement;
   const rect = svg.getBoundingClientRect();
@@ -16,11 +13,19 @@ export function copyFrame(svg: SVGSVGElement, background: string): Promise<void>
   snapshot.style.width = `${width}px`;
   snapshot.style.height = `${height}px`;
   const source = new XMLSerializer().serializeToString(snapshot);
-  const png = rasterize(source, width, height, background);
-  // Pass the promise immediately, while the click's user activation is still live (Safari).
-  // Consume conversion errors even if clipboard.write rejects before reading the promise.
-  void png.catch(() => {});
-  return navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+  const png = await rasterize(source, width, height, background);
+  const url = URL.createObjectURL(png);
+  const link = Object.assign(document.createElement('a'), {
+    href: url, download: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'svertik'}-capture.png`,
+  });
+  document.body.append(link);
+  try {
+    link.click();
+  } finally {
+    link.remove();
+    // Allow the browser to start downloading before releasing the blob.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 }
 
 async function rasterize(source: string, width: number, height: number, background: string): Promise<Blob> {

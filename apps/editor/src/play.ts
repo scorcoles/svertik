@@ -3,7 +3,7 @@
 // Y solo lo que la escena usa: sus efectos se cargan al vuelo (ver «prepareScene»).
 import { runStages, type BootStage } from './stages';
 import { createFpsMeter } from './fpsmeter';
-import { copyFrame } from './capture';
+import { downloadFrame } from './capture';
 import { decodeState } from './share';
 
 /**
@@ -16,17 +16,17 @@ const PLAY_STAGES: BootStage[] = [
 
 const stage = document.getElementById('stage') as unknown as SVGSVGElement;
 const msg = document.getElementById('msg')!;
-const edit = document.getElementById('edit') as HTMLAnchorElement;
 const tools = document.getElementById('tools')!;
 const capture = document.getElementById('capture') as HTMLButtonElement;
+let sceneName = 'svertik';
 capture.addEventListener('click', async () => {
   if (capture.disabled) return;
   capture.disabled = true;
   try {
-    await copyFrame(stage, getComputedStyle(document.body).backgroundColor);
-    say('Frame copied to clipboard');
+    await downloadFrame(stage, getComputedStyle(document.body).backgroundColor, sceneName);
+    say('Frame downloaded');
   } catch {
-    say('Could not copy the frame. Check clipboard permissions.');
+    say('Could not download the frame.');
   } finally {
     capture.disabled = false;
   }
@@ -52,10 +52,9 @@ async function start(m: typeof import('@svertik/engine/player')) {
   const state = await decodeState(hash[1]!);
   if (!state) return say('No scene in this link.', 0);
   const scene = state.scene;
+  sceneName = state.name;
   document.title = `${state.name} · svertik`;
   if (state.canvas) document.body.style.background = state.canvas;
-  // El editor abre la misma escena (#s=…).
-  edit.href = `./#s=${hash[1]}`;
   // Los efectos que la escena pide (y solo ellos). Los que no existen se avisan por consola.
   const unknown = sceneEffectTypes(scene).filter((t) => !effectTypes.includes(t));
   if (unknown.length) console.warn(`svertik: effects that don't exist: ${unknown.join(', ')}`);

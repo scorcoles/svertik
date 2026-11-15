@@ -23,7 +23,7 @@
       #stage { width: min(92vw, 100%); height: 92vh; overflow: visible; }
       #tools { position: fixed; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0.46; transition: opacity 180ms; }
       #tools[data-active], #tools:focus-within { opacity: 1; }
-      #tools a, #tools button {
+      #tools button {
         display: grid; place-items: center; height: 28px; padding: 0 10px; font: inherit; color: #fff; text-decoration: none;
         background: rgb(10 12 16 / 0.94); border: 1px solid rgb(255 255 255 / 0.48); cursor: pointer;
       }
@@ -37,13 +37,9 @@
     <div id="boot" role="status" aria-label="Loading svertik"><ul></ul></div>
     <svg id="stage" aria-label="svertik scene"></svg>
     <nav id="tools">
-      <button type="button" id="capture" disabled aria-label="Copy current frame as PNG" title="Copy current frame as PNG">
+      <button type="button" id="capture" disabled aria-label="Download current frame as PNG" title="Download current frame as PNG">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13v11h-13z M4 6a1.25 1.25 0 1 0 2.5 0A1.25 1.25 0 1 0 4 6 M2 12l4-4 2.5 2 2.5-3 3 4" /></svg>
       </button>
-      <button type="button" id="share" aria-label="Share a link to this scene" title="Share a link to this scene">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.5 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M4.5 6a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M11.5 9.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M6.3 7.1l3.4-1.7 M6.3 8.9l3.4 1.7" /></svg>
-      </button>
-      <a id="edit" href="./" title="Open this scene in the svertik editor">Edit in svertik</a>
     </nav>
     <p id="msg" hidden aria-live="polite"></p>
     <script type="module" src="./src/play.ts"></script>

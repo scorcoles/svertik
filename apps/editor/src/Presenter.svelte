@@ -3,7 +3,7 @@
   // reproductor que el código exportado (línea de tiempo, hover, clic, enter, «reducir movimiento»):
   // lo que se ve aquí es lo que verá la web. Esc (o la ×) vuelve al editor.
   import { builtins, createEngine, createPlayer, type SceneV1 } from '@svertik/engine';
-  import { copyFrame } from './capture';
+  import { downloadFrame } from './capture';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
@@ -70,10 +70,10 @@
     if (!svg || capturing) return;
     capturing = true;
     try {
-      await copyFrame(svg, editor.canvas || DEFAULT_CANVAS);
-      say('Frame copied to clipboard');
+      await downloadFrame(svg, editor.canvas || DEFAULT_CANVAS, editor.name);
+      say('Frame downloaded');
     } catch {
-      say('Could not copy the frame. Check clipboard permissions.');
+      say('Could not download the frame.');
     } finally {
       capturing = false;
     }
@@ -112,7 +112,7 @@
 <div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || DEFAULT_CANVAS}>
   <svg bind:this={svg} class="stage" aria-label="svertik scene"></svg>
   <div class="tools" data-active={controlsVisible || undefined}>
-    <button type="button" onclick={capture} disabled={capturing} aria-label="Copy current frame as PNG" title="Copy current frame as PNG">
+    <button type="button" onclick={capture} disabled={capturing} aria-label="Download current frame as PNG" title="Download current frame as PNG">
       <Icon name="image" />
     </button>
     <button type="button" onclick={share} aria-label="Share a link to this scene" title="Share a link to this scene">
