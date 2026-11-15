@@ -4,7 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, validateScene, type SceneV2 } from '@svertik/engine';
+import { builtins, createEngine, validateScene, type SceneV1 } from '@svertik/engine';
 import { generateDocs } from '../src/docs';
 import { registerBundledFonts } from '../src/lib';
 
@@ -22,7 +22,7 @@ describe('docs', () => {
     const engine = createEngine(builtins);
     for (const f of readdirSync(join(out, 'reference/effects'))) {
       const mod = jsonOf(readFileSync(join(out, 'reference/effects', f), 'utf8'));
-      const scene = { version: 2, objects: [{ kind: 'shape', id: 'base', name: 'Base', shape: 'star', params: {}, stack: [mod] }] } as SceneV2;
+      const scene = { version: 1, objects: [{ kind: 'shape', id: 'base', name: 'Base', shape: 'star', params: {}, stack: [mod] }] } as SceneV1;
       expect(validateScene(scene), f).toEqual({ errors: [], warnings: [] });
       expect(() => engine.toSVG(scene), f).not.toThrow();
     }
@@ -32,7 +32,7 @@ describe('docs', () => {
     const engine = createEngine(builtins);
     for (const f of readdirSync(join(out, 'reference/shapes'))) {
       const node = jsonOf(readFileSync(join(out, 'reference/shapes', f), 'utf8'));
-      const scene = { version: 2, objects: [node] } as SceneV2;
+      const scene = { version: 1, objects: [node] } as SceneV1;
       expect(validateScene(scene), f).toEqual({ errors: [], warnings: [] });
       expect(engine.toSVG(scene), f).toMatch(/<path/);
     }
@@ -40,8 +40,8 @@ describe('docs', () => {
 
   it('el ejemplo de AGENTS.md es válido', () => {
     const md = readFileSync(join(import.meta.dirname, '../../engine/AGENTS.md'), 'utf8');
-    const src = /const scene: SceneV2 = (\{[\s\S]*?\n\});/.exec(md)![1]!;
-    const scene = new Function(`return ${src}`)() as SceneV2;
+    const src = /const scene: SceneV1 = (\{[\s\S]*?\n\});/.exec(md)![1]!;
+    const scene = new Function(`return ${src}`)() as SceneV1;
     expect(validateScene(scene)).toEqual({ errors: [], warnings: [] });
     expect(createEngine(builtins).toSVG(scene)).toMatch(/<path/);
   });

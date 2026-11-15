@@ -1,5 +1,5 @@
 import { sceneDuration } from './scene';
-import type { SceneNode, SceneV2 } from './document';
+import type { SceneNode, SceneV1 } from './document';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
 export interface NumericExpression {
@@ -196,7 +196,7 @@ export function hasTextExpressions(value: unknown): value is string {
 }
 
 /** True when a scene contains a formula (used to treat it as time-driven animation). */
-export function sceneHasExpressions(scene: SceneV2): boolean {
+export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>) => Object.values(params ?? {}).some(isNumericExpression);
   const stackHas = (stack: SceneNode['stack']): boolean => stack.some((m) => has(m.params) || stackHas(m.children ?? []));
   const nodeHas = (node: SceneNode): boolean =>
@@ -205,9 +205,9 @@ export function sceneHasExpressions(scene: SceneV2): boolean {
 }
 
 /** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
-export function evaluateSceneExpressions(scene: SceneV2): SceneV2 {
+export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
   if (!sceneHasExpressions(scene)) return scene;
-  const out = structuredClone(scene) as SceneV2;
+  const out = structuredClone(scene) as SceneV1;
   const time = out.at ?? 0;
   const fps = out.animation?.fps ?? 30;
   const duration = sceneDuration(out);
@@ -241,7 +241,7 @@ export function evaluateSceneExpressions(scene: SceneV2): SceneV2 {
           });
         }
       }
-      if (node.kind === 'group' && node.composition) params(node.composition.params);
+      if (node.kind === 'group' && node.composition) { params(node.composition.params); params(node.composition.modulation?.params); }
       stack(node.stack);
       if (node.kind === 'group') nodes(node.children);
     }

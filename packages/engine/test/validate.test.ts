@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validateScene } from '../src';
 
 const base = () => ({
-  version: 2,
+  version: 1,
   objects: [
     {
       kind: 'shape', id: 'a', name: 'A', shape: 'ellipse', params: { width: 10 },
@@ -20,7 +20,7 @@ describe('validateScene', () => {
 
   it('errors: what prevents using it', () => {
     expect(validateScene(null).errors).toHaveLength(1);
-    expect(validateScene({ version: 1, objects: [] }).errors).toEqual(['version must be 2']);
+    expect(validateScene({ version: 0, objects: [] }).errors).toEqual(['version must be 1']);
     const s = base();
     s.objects[0].stack[0].type = 'nope';
     s.objects[1].shape = 'blob';

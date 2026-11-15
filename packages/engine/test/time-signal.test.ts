@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, sampleScene, validateScene, type SceneV2 } from '../src';
+import { bounds, builtins, createEngine, sampleScene, validateScene, type SceneV1 } from '../src';
 import { pulseSignal, shakeSignal, waveform, wiggleSignal } from '../src/modifiers/time-signal';
 import { prepareScene } from '../src/prepare';
 
-const scene = (type: string, params: Record<string, unknown> = {}): SceneV2 => ({
-  version: 2, animation: { duration: 4, tracks: [] }, objects: [{ kind: 'shape', id: 'c', name: 'Cross', shape: 'cross', params: { size: 20, width: 4 }, stack: [
+const scene = (type: string, params: Record<string, unknown> = {}): SceneV1 => ({
+  version: 1, animation: { duration: 4, tracks: [] }, objects: [{ kind: 'shape', id: 'c', name: 'Cross', shape: 'cross', params: { size: 20, width: 4 }, stack: [
     { id: 'grid', type: 'clone', params: { mode: 'grid', columns: 3, rows: 1, spacing: [2, 1] } },
     { id: 'signal', type, params: { time: { $expr: 'scene.time', fallback: 0 }, ...(type === 'shake' ? {} : { elementPhase: 0 }), ...params }, children: [{ id: 'move', type: 'transform', params: { y: 20, scale: 1.2 } }] },
   ] }],
 });
 const engine = createEngine(builtins);
-const at = (s: SceneV2, t: number) => engine.evaluateDocument(sampleScene(s, t)).geometry;
+const at = (s: SceneV1, t: number) => engine.evaluateDocument(sampleScene(s, t)).geometry;
 
 describe('Time modulators', () => {
   it('oscillates around neutral values, with per-element and whole-object pivots', () => {

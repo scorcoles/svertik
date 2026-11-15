@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, ease, mixColor, parseColor, rgbToOklab, sampleScene, setKey, toHex, trackTime, valueAt, type SceneV2 } from '../src';
+import { builtins, createEngine, ease, mixColor, parseColor, rgbToOklab, sampleScene, setKey, toHex, trackTime, valueAt, type SceneV1 } from '../src';
 
-const scene = (): SceneV2 => ({
-  version: 2,
+const scene = (): SceneV1 => ({
+  version: 1,
   objects: [{ kind: 'shape', id: 's', name: 's', shape: 'star', params: { radius: 50, fillColor: '#000000' }, stack: [{ id: 'w', type: 'wave', params: { amplitude: 0 } }] }],
   animation: {
     duration: 2,
@@ -31,7 +31,7 @@ describe('animation', () => {
     const sc = scene();
     sampleScene(sc, 1);
     expect(sc.objects[0]!.transform).toBeUndefined();
-    const plain: SceneV2 = { version: 2, objects: [] };
+    const plain: SceneV1 = { version: 1, objects: [] };
     expect(sampleScene(plain, 1)).toBe(plain);
   });
 
@@ -121,8 +121,8 @@ describe('repeating a track', () => {
 
 describe('turning an effect on and off', () => {
   it('a track on enabled turns it off and on at each key', () => {
-    const s: SceneV2 = {
-      version: 2,
+    const s: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'shape', id: 'n', name: 'n', shape: 'rectangle', params: {}, stack: [{ id: 'm', type: 'rgbsplit', params: { distance: 5 } }] }],
       animation: { duration: 2, tracks: [{ id: 'e', node: 'n', on: 'modifier', modifier: 'm', param: 'enabled', keys: [{ t: 0, value: false, ease: 'hold' }, { t: 1, value: true }] }] },
     };

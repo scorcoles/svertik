@@ -11,20 +11,20 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { SceneV2 } from '../../src/scene';
+import type { SceneV1 } from '../../src/scene';
 import type { CorpusCase } from './run';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const read = (file: string): SceneV2 => {
+const read = (file: string): SceneV1 => {
   const raw = JSON.parse(readFileSync(resolve(here, file), 'utf8')) as unknown;
   const data = raw as { svertik?: string; scene?: unknown };
-  return (data.svertik === 'project' ? data.scene : raw) as SceneV2;
+  return (data.svertik === 'project' ? data.scene : raw) as SceneV1;
 };
 
-const recipes = read('recipes.json') as unknown as SceneV2[];
+const recipes = read('recipes.json') as unknown as SceneV1[];
 
 /** Un grupo con `n` elipses y un efecto encima: el caso que hace doler a ese efecto. */
-function heavy(effect: string, n = 6, extra: Record<string, unknown> = {}): SceneV2 {
+function heavy(effect: string, n = 6, extra: Record<string, unknown> = {}): SceneV1 {
   const children = Array.from({ length: n }, (_, i) => ({
     kind: 'shape' as const,
     id: `k${i}`,
@@ -34,16 +34,16 @@ function heavy(effect: string, n = 6, extra: Record<string, unknown> = {}): Scen
     stack: [],
   }));
   return {
-    version: 2,
+    version: 1,
     objects: [{ kind: 'group', id: 'g', name: 'g', children, stack: [{ id: 'fx', type: effect, params: extra }] }],
     animation: { duration: 2, loop: true, tracks: [] },
-  } as SceneV2;
+  } as SceneV1;
 }
 
 /** Una escena con un objeto y una pila de efectos, para medir cada efecto por separado. */
-function solo(effect: string, params: Record<string, unknown> = {}): SceneV2 {
+function solo(effect: string, params: Record<string, unknown> = {}): SceneV1 {
   return {
-    version: 2,
+    version: 1,
     objects: [
       {
         kind: 'shape',
@@ -55,7 +55,7 @@ function solo(effect: string, params: Record<string, unknown> = {}): SceneV2 {
       },
     ],
     animation: { duration: 2, loop: true, tracks: [] },
-  } as SceneV2;
+  } as SceneV1;
 }
 
 /** Todos los casos del corpus. */

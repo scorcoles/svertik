@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, sampleScene, validateScene, compositionTime, sceneDuration, type GroupNode, type SceneV2 } from '../src';
+import { bounds, builtins, createEngine, sampleScene, validateScene, compositionTime, sceneDuration, type GroupNode, type SceneV1 } from '../src';
 import { prepareScene } from '../src/prepare';
 
-const inner = (): SceneV2 => ({ version: 2, document: { width: 300, height: 200 }, animation: { duration: 4, tracks: [
+const inner = (): SceneV1 => ({ version: 1, document: { width: 300, height: 200 }, animation: { duration: 4, tracks: [
   { id: 'move', node: 'box', on: 'node', param: 'x', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 4, value: 80 }] },
 ] }, objects: [{ kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 20, height: 20 }, stack: [] }] });
 const comp = (id: string, scene = inner(), params: Record<string, unknown> = {}): GroupNode => ({ kind: 'group', id, name: id, children: [], stack: [], composition: { scene, params } });
 const engine = createEngine(builtins);
-const root = (...objects: GroupNode[]): SceneV2 => ({ version: 2, objects });
-const at = (s: SceneV2, t: number) => engine.evaluateDocument(sampleScene(s, t));
+const root = (...objects: GroupNode[]): SceneV1 => ({ version: 1, objects });
+const at = (s: SceneV1, t: number) => engine.evaluateDocument(sampleScene(s, t));
 
 describe('Compositions', () => {
   it('samples independent clocks with isolated IDs and black-box selection', () => {
@@ -75,8 +75,37 @@ describe('Compositions', () => {
     expect(validateScene(s)).toEqual({ errors: [], warnings: [] });
     for (const t of [0.2, 1, 0.6]) expect(bounds(at(s, t * 2).geometry)).toEqual(bounds(at(local, t).geometry));
   });
+  it('keyframes the local clock for forward playback, a hold and reverse seeking', () => {
+    const s = root(comp('a', inner(), { time: 0 }));
+    s.animation = { duration: 4, tracks: [{ id: 'remap', node: 'a', on: 'composition', param: 'time', keys: [
+      { t: 0, value: 0, ease: 'linear' }, { t: 1, value: 2, ease: 'hold' },
+      { t: 2, value: 2, ease: 'linear' }, { t: 3, value: 0 },
+    ] }] };
+    expect(validateScene(s)).toEqual({ errors: [], warnings: [] });
+    expect(bounds(at(s, 0.5).geometry).x).toBeCloseTo(10);
+    expect(at(s, 1).geometry).toEqual(at(s, 1.9).geometry);
+    expect(at(s, 2.5).geometry).toEqual(at(s, 0.5).geometry);
+    expect(at(s, 3).geometry).toEqual(at(s, 0).geometry);
+  });
+  it('quantizes the local clock while retaining the exact final frame', () => {
+    expect(compositionTime(0.21, 3, { frameRate: 6 })).toBeCloseTo(1 / 6);
+    expect(compositionTime(0.29, 3, { frameRate: 6 })).toBeCloseTo(1 / 6);
+    expect(compositionTime(4, 3.1, { frameRate: 6 })).toBe(3.1);
+    const s = root(comp('a', inner(), { frameRate: 6 }));
+    expect(at(s, 0.21).geometry).toEqual(at(s, 0.29).geometry);
+  });
+  it('modulates clocks with shared signals before quantization, deterministically', () => {
+    const sine = { type: 'oscillate' as const, params: { frequency: 1, amplitude: 0.5 } };
+    expect(compositionTime(0.25, 4, {}, sine)).toBeCloseTo(0.75);
+    expect(compositionTime(0.25, 4, { frameRate: 2 }, sine)).toBe(0.5);
+    expect(compositionTime(0.25, 4, {}, { ...sine, enabled: false })).toBe(0.25);
+    const n = comp('a'); n.composition!.modulation = { type: 'wiggle', params: { amplitude: 0.2, seed: 3 } };
+    const s = root(n); const first = at(s, 1).geometry; at(s, 3);
+    expect(at(s, 1).geometry).toEqual(first);
+    expect(validateScene(s)).toEqual({ errors: [], warnings: [] });
+  });
   it('provides a selectable frame for an empty composition', () => {
-    const doc = at(root(comp('empty', { version: 2, objects: [], document: { width: 400, height: 300 } })), 1);
+    const doc = at(root(comp('empty', { version: 1, objects: [], document: { width: 400, height: 300 } })), 1);
     expect(doc.nodes.get('empty')!.box).toEqual({ x: -200, y: -150, width: 400, height: 300 });
     expect(doc.geometry.shapes).toHaveLength(0);
   });

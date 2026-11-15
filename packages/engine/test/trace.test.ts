@@ -5,13 +5,13 @@
 // calculada de golpe puede salir distinta.
 
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, sampleScene, type SceneV2 } from '../src';
+import { builtins, createEngine, sampleScene, type SceneV1 } from '../src';
 
 const engine = () => createEngine(builtins);
 
 /** Un grupo con un objeto que se mueve y una estela que lo sigue. */
-const scene = (): SceneV2 => ({
-  version: 2,
+const scene = (): SceneV1 => ({
+  version: 1,
   objects: [
     {
       kind: 'group',

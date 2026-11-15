@@ -1,3 +1,5 @@
+import type { SceneNode, SceneV1, Track } from '@svertik/engine';
+
 // La demo del menú: un proyecto pequeño que enseña texto, escalonados, curvas, copias y trazos que se dibujan.
 // 6 s en bucle: el círculo se dibuja, los puntos brotan con muelle, el título entra desde el centro,
 // el subtítulo llega después y, al final, todo se apaga para volver a empezar.
@@ -9,7 +11,7 @@ export function demoProject() {
     name: 'svertik demo',
     canvas: '#0d0d10',
     scene: {
-      version: 2,
+      version: 1,
       objects: [
         {
           kind: 'shape',
@@ -107,7 +109,7 @@ export function shatterProject() {
     name: 'svertik shatter',
     canvas: '#0b0b0e',
     scene: {
-      version: 2,
+      version: 1,
       objects: [
         // Destello del impacto, por delante de todo (casi siempre transparente).
         { kind: 'shape', id: 'flash', name: 'Flash', shape: 'rectangle', params: { width: 1300, height: 860, fillColor: '#ffffff' }, stack: [], opacity: 0 },
@@ -191,7 +193,7 @@ export function reelProject() {
     name: 'svertik reel',
     canvas: BG,
     scene: {
-      version: 2,
+      version: 1,
       document: { width: 1280, height: 720 },
       objects: [
         // ── Pie: el acto en curso y una barra que avanza con el bucle.
@@ -374,7 +376,7 @@ export function orbitProject() {
     name: 'orbit',
     canvas: '#0d0d10',
     scene: {
-      version: 2,
+      version: 1,
       document: { width: 960, height: 540 },
       objects: [
         {
@@ -443,7 +445,7 @@ export function pointerProject() {
     name: 'pointer',
     canvas: '#0d0d10',
     scene: {
-      version: 2,
+      version: 1,
       document: { width: 960, height: 540 },
       objects: [
         {
@@ -488,7 +490,7 @@ export function gravityProject() {
     name: 'Gravity · círculo fragmentado',
     canvas: '#F2E8DA',
     scene: {
-      version: 2,
+      version: 1,
       document: { width: 1280, height: 900 },
       notes: 'Círculo centrado en un canvas de 1280×900, de color #D2502F. Damage con cinco cortes Through, seguido de Explosion y Gravity con cuerpos rígidos. Al inicio el círculo está centrado; los cortes crecen entre 0.4 y 1.1 s, recibe el impulso de Explosion entre 1.2 y 1.24 s y Gravity integra la velocidad de salida y el giro desde 1.2 s. Explosión muy enérgica (fuerza 3, giro 900°/s), con dispersión amplia: muchas piezas salen deliberadamente del encuadre y conservan su inercia. El suelo virtual queda en Y=378. Selecciona Gravity para mover o girar el suelo. Usa los controles inferiores para reproducir sin abrir el timeline. Las piezas colisionan con el suelo, no entre sí. BOOM aparece detrás de los fragmentos, en mayúsculas y del mismo color #D2502F, con una entrada casi simultánea muy rápida, de 1.26 a 1.44 s, y un pequeño rebote. Queda grande y centrado (tamaño de texto 400 px). Circle hace una pequeña anticipación de escala antes de estallar (0.94 → 1.06 → 1), con retorno suave a escala normal hasta 1.42 s. Confetti emite una ráfaga de 200 partículas de #D2502F al estallar, con giro rápido, caída y desvanecimiento; se oculta antes de 1.2 s.',
       objects: [
@@ -601,7 +603,7 @@ export function crossFillProject() {
   return {
     svertik: 'project', version: 1, name: 'Cross Fill', canvas: '#F2E8DA',
     scene: {
-      version: 2, document: { width: 800, height: 650 },
+      version: 1, document: { width: 800, height: 650 },
       notes: 'A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Mask with Whole elements discards crosses crossing the edge, keeping every cross complete.',
       objects: [
         { kind: 'shape', id: 'cross-pattern', name: 'Cross', shape: 'cross', params: { size: 18, width: 4, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
@@ -619,7 +621,7 @@ export function motionProject() {
   return {
     svertik: 'project' as const, version: 1 as const, name: 'Motion', canvas: '#F2E8DA',
     scene: {
-      version: 2 as const, document: { width: 1000, height: 700 },
+      version: 1 as const, document: { width: 1000, height: 700 },
       notes: 'A grid of crosses animated without keyframes. Wiggle adds independent smooth rotation and horizontal drift; Oscillate sends a sine wave through vertical position, scale and hue. Open the children of each modulator to set the motion amplitudes. Time uses scene.time; change it to remap the local clock.',
       animation: { duration: 12, loop: true, autoplay: true, fps: 30, tracks: [] },
       objects: [{ kind: 'shape' as const, id: 'motion-cross', name: 'Cross', shape: 'cross', params: { size: 20, width: 5, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
@@ -641,7 +643,7 @@ export function rhythmProject() {
   return {
     svertik: 'project' as const, version: 1 as const, name: 'Rhythm', canvas: '#F2E8DA',
     scene: {
-      version: 2 as const, document: { width: 1000, height: 500 },
+      version: 1 as const, document: { width: 1000, height: 500 },
       notes: 'Five crosses breathe in rhythm with Pulse (scale and hue). At 2 seconds, Shake sends an impact through them with 0.15 seconds between elements. Pulse uses cycle fractions for attack and decay; Shake uses seconds for start, duration and delay. Both follow scene.time and need no keyframes.',
       animation: { duration: 6, loop: true, autoplay: true, fps: 30, tracks: [] },
       objects: [{ kind: 'shape' as const, id: 'rhythm-cross', name: 'Cross', shape: 'cross', params: { size: 70, width: 16, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
@@ -658,19 +660,73 @@ export function rhythmProject() {
   };
 }
 
+/** A lighter BOOM copy keeps several compositions responsive while preserving the standalone demo. */
+function compositionBoomScene() {
+  const project = gravityProject() as { scene: SceneV1; canvas: string };
+  const scene: SceneV1 = structuredClone(project.scene);
+  const visit = (nodes: SceneNode[]) => {
+    for (const node of nodes) {
+      if (node.id === 'gravity-confetti') {
+        const particles = node.stack.find((modifier) => modifier.type === 'particles');
+        if (particles) particles.params = { ...particles.params, count: 60 };
+      }
+      if (node.kind === 'group') visit(node.children);
+    }
+  };
+  visit(scene.objects);
+  return { scene, canvas: project.canvas };
+}
+
 /** The same BOOM scene twice, each with its own local clock and ID scope. */
 export function compositionsProject() {
-  const source = gravityProject();
+  const source = compositionBoomScene();
   return {
     svertik: 'project' as const, version: 1 as const, name: 'Compositions', canvas: source.canvas,
     scene: {
-      version: 2 as const, document: { width: 1400, height: 900 },
+      version: 1 as const, document: { width: 1400, height: 900 },
       notes: 'Two independent copies of the BOOM scene. Boom runs at normal speed; Boom slow at 60%. Open either composition to edit its own Circle, Boom and confetti. Return with the breadcrumb above. Both scenes have identical local IDs safely isolated from one another. Their effects, physics, expressions and keyframes follow their local clocks.',
       animation: { duration: 5, loop: true, autoplay: true, fps: 30, tracks: [] },
       objects: [
         { kind: 'group' as const, id: 'boom-normal', name: 'Boom', children: [], stack: [], transform: { x: -350, scale: 0.45 }, composition: { scene: source.scene, params: { time: { $expr: 'scene.time', fallback: 0 }, speed: 1, loop: 'hold' } } },
         { kind: 'group' as const, id: 'boom-slow', name: 'Boom slow', children: [], stack: [], transform: { x: 350, scale: 0.45 }, composition: { scene: structuredClone(source.scene), params: { time: { $expr: 'scene.time', fallback: 0 }, speed: 0.6, loop: 'hold' } } },
       ],
+    },
+  };
+}
+
+/** Keyframed local clocks: advance, freeze, rewind, plus clock modulation and stop motion. */
+export function timeRemapProject() {
+  const source = compositionBoomScene();
+  const duration = 5.5;
+  const objects = [0, 1, 2].map(i => {
+    const scene = structuredClone(source.scene);
+    (scene.animation as import('@svertik/engine').Animation).markers = [{ id: 'local-impact', name: 'Explosion', t: 1.24 }];
+    return {
+      kind: 'group' as const, id: `remap-${i}`, name: ['Freeze & rewind', 'Clock signal', 'Stop motion'][i]!, children: [], stack: [],
+      transform: { x: (i - 1) * 450, scale: 0.3 },
+      composition: { scene, params: { time: 0, frameRate: i === 2 ? 8 : 0, loop: 'hold' },
+        ...(i === 1 ? { modulation: { type: 'oscillate' as const, params: { time: { $expr: 'scene.time', fallback: 0 }, amplitude: 0.08, frequency: 1.5, perElement: false } } } : {}) },
+    };
+  });
+  const tracks: Track[] = objects.map((node, i) => {
+    const delay = i * 0.25;
+    return { id: `remap-track-${i}`, node: node.id, on: 'composition', param: 'time', keys: [
+      { t: 0, value: 0, ease: delay ? 'hold' : 'linear' },
+      ...(delay ? [{ t: delay, value: 0, ease: 'linear' as const }] : []),
+      { t: 1.5 + delay, value: 1.65, ease: 'hold' },
+      { t: 2.3 + delay, value: 1.65, ease: 'ease-in-out' },
+      { t: 4.3 + delay, value: 0, ease: 'hold' },
+      { t: duration, value: 0 },
+    ] };
+  });
+  return {
+    svertik: 'project' as const, version: 1 as const, name: 'Time Remap', canvas: source.canvas,
+    scene: { version: 1 as const, document: { width: 1500, height: 750 }, objects,
+      notes: 'Three BOOM compositions with keyframed Time: advance to the explosion, hold, then rewind to restore the circle. The middle copy adds a small Oscillate signal to its clock; the right copy updates at 8 FPS. Their starts are staggered. Timeline markers name the main beats; the child Explosion marker can be used as an offset in the Composition inspector.',
+      animation: { duration, fps: 30, loop: true, autoplay: true, tracks, markers: [
+        { id: 'beat-impact', name: 'Impact', t: 1.2 }, { id: 'beat-freeze', name: 'Freeze', t: 1.5 },
+        { id: 'beat-rewind', name: 'Rewind', t: 2.3 }, { id: 'beat-rest', name: 'Rest', t: 4.3 },
+      ] },
     },
   };
 }

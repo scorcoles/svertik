@@ -17,7 +17,7 @@ import {
   shapeDescriptions,
   shapes,
   type SceneNode,
-  type SceneV2,
+  type SceneV1,
 } from '@svertik/engine';
 
 // The SVG importer uses DOMParser: in Node, happy-dom's.
@@ -52,7 +52,7 @@ export async function registerFontFile(spec: string) {
 }
 
 export interface Loaded {
-  scene: SceneV2;
+  scene: SceneV1;
   name: string;
 }
 
@@ -60,7 +60,7 @@ export interface Loaded {
 export function loadInput(text: string, fileName: string): Loaded {
   const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(svrtk|json|svg)$/i, '');
   if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
-    return { scene: { version: 2, objects: [{ kind: 'object', id: 'object-1', name: `${base}.svg`, source: text, stack: [] }] }, name: base };
+    return { scene: { version: 1, objects: [{ kind: 'object', id: 'object-1', name: `${base}.svg`, source: text, stack: [] }] }, name: base };
   }
   const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: unknown };
   const scene = data.svertik === 'project' ? data.scene : data;
@@ -73,10 +73,10 @@ export function loadInput(text: string, fileName: string): Loaded {
  * have been played a little before (otherwise the trail would be empty). The scenes already
  * prepared are remembered, so a sequence of frames is not replayed from the start each time.
  */
-const prepared = new WeakSet<SceneV2>();
+const prepared = new WeakSet<SceneV1>();
 
 /** Plays the stretch before `t` so that the trails of the scene are complete. */
-function prepareTrail(scene: SceneV2, t: number): void {
+function prepareTrail(scene: SceneV1, t: number): void {
   if (prepared.has(scene)) return;
   prepared.add(scene);
   const window = sceneTrailWindow(scene);
@@ -87,7 +87,7 @@ function prepareTrail(scene: SceneV2, t: number): void {
 }
 
 /** The plain SVG at time `t` (s); with `background`, a background rectangle. */
-export function renderSVG(scene: SceneV2, t = 0, background?: string): string {
+export function renderSVG(scene: SceneV1, t = 0, background?: string): string {
   prepareTrail(scene, t);
   const svg = engine.toSVG(sampleScene(scene, t));
   if (!background) return svg;
@@ -102,7 +102,7 @@ export function renderPNG(svg: string, scale = 2): Buffer {
 }
 
 /** The animation's frames: times from 0 to the duration, at `fps`. */
-export function frameTimes(scene: SceneV2, fps?: number): number[] {
+export function frameTimes(scene: SceneV1, fps?: number): number[] {
   const anim = scene.animation;
   if (!anim) return [0];
   const f = fps ?? anim.fps ?? 30;
@@ -128,7 +128,7 @@ export function describeEffects() {
 }
 
 /** Summary of a project: objects, their effects and the animation. */
-export function describeScene(scene: SceneV2): string {
+export function describeScene(scene: SceneV1): string {
   const lines: string[] = [];
   const walk = (nodes: SceneNode[], depth: number) => {
     for (const node of nodes) {

@@ -5,7 +5,7 @@ import { bounds, mapPoints, type Geometry, type Shape } from './geometry';
 import { buildShape } from './shapes';
 import { toSVG } from './render';
 import { invert, type Mat } from './matrix';
-import { walkNodes, type DocumentResult, type GroupNode, type ObjectNode, type SceneNode, type SceneV2 } from './document';
+import { walkNodes, type DocumentResult, type GroupNode, type ObjectNode, type SceneNode, type SceneV1 } from './document';
 import type { ModifierInstance } from './engine';
 
 /** Where a node is: its list and position, and the group containing it. */
@@ -41,7 +41,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
  * as a reference, like Mosaic or Clone, still finds it). Returns the pack and whether it was animated
  * (its animation stays inside and isn't seen until it is unpacked), or null if it can't be done.
  */
-export function packNode(scene: SceneV2, id: string, doc: DocumentResult, key: string): { node: ObjectNode; animated: boolean } | null {
+export function packNode(scene: SceneV1, id: string, doc: DocumentResult, key: string): { node: ObjectNode; animated: boolean } | null {
   const at = locate(scene.objects, id);
   const world = doc.geometryOf(id);
   if (!at || !world) return null;
@@ -97,7 +97,7 @@ export function packNode(scene: SceneV2, id: string, doc: DocumentResult, key: s
  * If any id already exists in the scene (a duplicated pack), what is inside gets new ids.
  * Returns the id of the restored node, or null.
  */
-export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) => string): string | null {
+export function unpackNode(scene: SceneV1, id: string, freshId: (old: string) => string): string | null {
   const at = locate(scene.objects, id);
   const pack = at?.list[at.index];
   if (!at || !pack || pack.kind !== 'object' || !pack.packed?.original) return null;
@@ -150,7 +150,7 @@ export function unpackNode(scene: SceneV2, id: string, freshId: (old: string) =>
  * What animated the shape's parameters (the size, the text itself…) has nothing left to apply to and is removed.
  * Returns how many tracks or interactions were removed, or null if the node is not a primitive.
  */
-export function outlineNode(scene: SceneV2, id: string): { removed: number } | null {
+export function outlineNode(scene: SceneV1, id: string): { removed: number } | null {
   const at = locate(scene.objects, id);
   const node = at?.list[at.index];
   if (!at || !node || node.kind !== 'shape') return null;

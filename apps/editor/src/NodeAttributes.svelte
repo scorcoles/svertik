@@ -2,7 +2,7 @@
   import { BLEND_MODES, EASES, compositionParams, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
-  import { PRESETS, type Editor } from './editor.svelte';
+  import { PRESETS, registry, type Editor } from './editor.svelte';
 
   interface Props {
     editor: Editor;
@@ -29,6 +29,10 @@
     { value: 'toggle', label: 'Toggle an effect' },
   ] as const;
   // Animación: rombos de los parámetros de la primitiva y de la colocación.
+  function changeScale(value: number) {
+    if (editor.selectedNodes.length > 1) editor.scaleSelection(Math.max(0.01, value) / (p.scale || 1));
+    else editor.setNode(node.id, 'scale', value);
+  }
   const shapeKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'shape', param }));
   const nodeKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'node', param }));
   const toggleNode = (...params: string[]) => {
@@ -55,10 +59,32 @@
   <span class="meta">{kindLabel}</span>
 </header>
 <div class="params">
+  {#if editor.selectedNodes.length > 1}<p class="note">Scale applies to all {editor.selectedNodes.length} selected objects around their shared center.</p>{/if}
   {#if node.kind === 'group' && node.composition}
     <Section title="Composition">
       <div class="actions"><Button label="Open composition" onclick={() => editor.openComposition(node.id)} /></div>
-      <ParamList params={Object.entries(compositionParams)} values={{ time: { $expr: 'scene.time', fallback: 0 }, ...node.composition.params }} onchange={(name, value) => editor.setCompositionParam(node.id, name, value)} />
+      <div class="actions">
+        <Button label={editor.keyState({ node: node.id, on: 'composition', param: 'time' }) === 'key' ? 'Remove time key' : editor.track({ node: node.id, on: 'composition', param: 'time' }) ? 'Add time key' : 'Animate time'} onclick={() => editor.toggleCompositionKey(node.id, 'time')} />
+        <Button label="Follow scene time" onclick={() => editor.setCompositionParam(node.id, 'time', { $expr: 'scene.time', fallback: 0 })} />
+      </div>
+      <ParamList params={Object.entries(compositionParams)} values={{ time: { $expr: 'scene.time', fallback: 0 }, ...node.composition.params }} keyOf={(param) => (void editor.time, void editor.animation?.tracks.length, editor.keyState({ node: node.id, on: 'composition', param }))} onkey={(param) => editor.toggleCompositionKey(node.id, param)} onchange={(name, value) => editor.setCompositionParam(node.id, name, value)} />
+      <ParamRow label="Clock signal">
+        <Select value={node.composition.modulation?.type ?? 'none'} options={['none', 'oscillate', 'wiggle', 'pulse', 'shake']} label="Clock signal" onchange={(type) => editor.setClockModulator(node.id, type)} />
+      </ParamRow>
+      {#if node.composition.modulation}
+        {@const signal = node.composition.modulation}
+        <Section title="Clock signal · seconds">
+          <ParamList params={Object.entries(registry.get(signal.type)!.params).filter(([name]) => !['perElement', 'elementPhase', 'elementDelay'].includes(name))} values={signal.params} onchange={(name, value) => editor.setClockSignalParam(node.id, name, value)} />
+        </Section>
+      {/if}
+      {#if node.composition.scene.animation?.markers?.length}
+        <ParamRow label="From marker">
+          <Select value="—" options={['—', ...node.composition.scene.animation.markers.map((m, i) => `${i + 1}. ${m.name}`)]} label="Start from marker" onchange={(name) => {
+            const marker = node.kind === 'group' && node.composition?.scene.animation?.markers?.[parseInt(name, 10) - 1];
+            if (marker) editor.setCompositionParam(node.id, 'offset', marker.t);
+          }} />
+        </ParamRow>
+      {/if}
     </Section>
   {/if}
   {#if node.kind === 'instance'}
@@ -112,8 +138,8 @@
       </span>
     </ParamRow>
     <ParamRow label="Scale" for="node-scale" keyState={nodeKey('scale')} onkey={() => toggleNode('scale')}>
-      <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={(v) => editor.setNode(node.id, 'scale', v)} />
-      <Slider value={p.scale} min={0} max={scaleSliderMax} step={0.01} curve="quadratic" label="Scale" onchange={(v) => editor.setNode(node.id, 'scale', v)} />
+      <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={changeScale} />
+      <Slider value={p.scale} min={0} max={scaleSliderMax} step={0.01} curve="quadratic" label="Scale" onchange={changeScale} />
     </ParamRow>
     <ParamRow label="Rotation" for="node-rot" keyState={nodeKey('rotation')} onkey={() => toggleNode('rotation')}>
       <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />

@@ -1,7 +1,7 @@
 // La escena de la página de demostración: un SVG y su configuración en JSON, como el «Flash Player»
 // de antes: el motor, el dibujo y el JSON, y se reproduce.
 import { play } from './player';
-import type { SceneV2 } from '@svertik/engine/player';
+import type { SceneV1 } from '@svertik/engine/player';
 
 const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
   <rect x="30" y="30" width="340" height="340" fill="#09fdd1"/>
@@ -9,8 +9,8 @@ const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
   <rect x="160" y="160" width="80" height="80" fill="#ededed"/>
 </svg>`;
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   document: { width: 720, height: 400 },
   objects: [
     {

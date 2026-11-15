@@ -15,12 +15,12 @@
 
 import { builtins, createEngine } from '../../src';
 import { sampleScene } from '../../src/animation';
-import type { SceneV2 } from '../../src/scene';
+import type { SceneV1 } from '../../src/scene';
 
 export interface CorpusCase {
   /** Nombre del caso (y de su huella en el fichero dorado). */
   id: string;
-  scene: SceneV2;
+  scene: SceneV1;
   /** Fotogramas por vuelta. */
   frames?: number;
   /** Vueltas a dar: la segunda comprueba el bucle de la animación. */

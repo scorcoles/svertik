@@ -4,7 +4,7 @@
   // Entre dos claves se dibuja la curva del tramo (el easing de la primera); al pulsarla se elige otra.
   import { Popover } from 'bits-ui';
   import { tick } from 'svelte';
-  import { EASES, ease, shapeRegistry, walkNodes, type Ease, type Track } from '@svertik/engine';
+  import { EASES, ease, compositionParams, shapeRegistry, walkNodes, type Ease, type Track } from '@svertik/engine';
   import { Checkbox, IconButton, NumberField, Select } from '@svertik/ui';
   import { locateNode, locateModifier, registry, type Editor } from './editor.svelte';
 
@@ -92,6 +92,19 @@
     window.addEventListener('pointerup', up);
   }
 
+  function adjacentKey(tr: Track, direction: -1 | 1) {
+    const t = editor.time;
+    const keys = [...tr.keys].sort((a, b) => a.t - b.t);
+    const key = direction < 0
+      ? [...keys].reverse().find((k) => k.t < t - 1e-6)
+      : keys.find((k) => k.t > t + 1e-6);
+    if (key) {
+      editor.playing = false;
+      selected = { track: tr.id, t: key.t };
+      editor.setTime(key.t);
+    }
+  }
+
   // ── Curvas de los tramos
   /** La curva de un easing en una caja de w × h (con sitio para lo que se pasa de 0 a 1). */
   function curve(name: Ease | undefined, w: number, h: number, pad = 4) {
@@ -111,6 +124,7 @@
     return tr?.keys.find((k) => k.t === selected!.t) ? { tr, key: tr.keys.find((k) => k.t === selected!.t)! } : null;
   });
   function keydown(e: KeyboardEvent) {
+    if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -141,6 +155,7 @@
   function labelOf(tr: { node: string; on: string; modifier?: string; param: string }) {
     const n = editor.scene ? locateNode(editor.scene.objects, tr.node)?.node : undefined;
     const node = n?.name ?? '?';
+    if (tr.on === 'composition') return { node, what: 'Time Remap', param: compositionParams[tr.param as keyof typeof compositionParams]?.label ?? tr.param };
     if (tr.on === 'node') return { node, what: '', param: tr.param };
     if (tr.on === 'shape') {
       const spec = n && n.kind === 'shape' ? shapeRegistry.get(n.shape)?.params[tr.param] : undefined;
@@ -204,6 +219,7 @@
         </label>
       {/if}
     {/if}
+    <IconButton icon="marker" label="Add marker at current time" onclick={() => editor.addMarker()} />
     <span class="spacer"></span>
     <!-- Zoom de la línea de tiempo (también ⌘ + rueda, o pellizcar, sobre las pistas). -->
     <span class="zoom">
@@ -214,6 +230,19 @@
     </span>
     <IconButton icon="down" label="Close timeline" onclick={() => (editor.timelineOpen = false)} />
   </header>
+  {#if anim?.markers?.length}
+    <details class="markers">
+      <summary>Markers ({anim.markers.length})</summary>
+      {#each anim.markers as marker (marker.id)}
+        <div class="marker-editor">
+          <input value={marker.name} aria-label="Marker name" onchange={(e) => editor.setMarker(marker.id, 'name', e.currentTarget.value)} onkeydown={(e) => e.stopPropagation()} />
+          <NumberField value={marker.t} min={0} max={duration} step={1 / fps} unit="s" label={`${marker.name} time`} onchange={(t) => editor.setMarker(marker.id, 't', t)} />
+          <IconButton icon="play" label={`Go to ${marker.name}`} onclick={() => { editor.playing = false; editor.setTime(marker.t); }} />
+          <IconButton icon="trash" label={`Remove marker ${marker.name}`} onclick={() => editor.removeMarker(marker.id)} />
+        </div>
+      {/each}
+    </details>
+  {/if}
   <div class="body">
     <div class="labels">
       <!-- Encima de las capas: desplegar y plegar todas. -->
@@ -234,6 +263,10 @@
             {@const l = labelOf(tr)}
             <div class="label track" title={`${l.node}${l.what ? ` · ${l.what}` : ''} · ${l.param}`}>
               {#if l.what}<span class="dim">{l.what} · </span>{/if}<span class="param">{l.param}</span>{#if (tr.repeat ?? 1) !== 1}<span class="dim" title="Repeats">&nbsp;↻{tr.repeat === 0 ? '' : tr.repeat}</span>{/if}
+              <span class="key-nav" aria-label="Navigate keyframes">
+                <button type="button" title="Previous keyframe" aria-label={`Previous keyframe on ${l.node} · ${l.param}`} disabled={!tr.keys.some((k) => k.t < editor.time - 1e-6)} onclick={() => adjacentKey(tr, -1)}>‹</button>
+                <button type="button" title="Next keyframe" aria-label={`Next keyframe on ${l.node} · ${l.param}`} disabled={!tr.keys.some((k) => k.t > editor.time + 1e-6)} onclick={() => adjacentKey(tr, 1)}>›</button>
+              </span>
               <button type="button" class="x" title="Stop animating this" aria-label="Remove track" onclick={() => editor.removeTrack(tr.id)}>×</button>
             </div>
           {/each}
@@ -246,6 +279,9 @@
       <div class="ruler" onpointerdown={scrub}>
         {#each ticks as t (t)}
           <span class="tick" style:left="{x(t)}px">{tickLabel(t)}</span>
+        {/each}
+        {#each anim?.markers ?? [] as marker (marker.id)}
+          <button type="button" class="marker" style:left="{x(marker.t)}px" title={`${marker.name} · ${marker.t.toFixed(2)} s`} aria-label={`Go to marker ${marker.name}`} onpointerdown={(e) => e.stopPropagation()} onclick={() => { editor.playing = false; editor.setTime(marker.t); }}></button>
         {/each}
       </div>
       {#each groups as g (g.id)}
@@ -335,6 +371,12 @@
   .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .field { display: flex; align-items: center; gap: var(--sv-space-6); color: var(--sv-text-secondary); }
   .spacer { flex: 1; }
+  .markers { padding: 4px 8px; border-bottom: 1px solid var(--sv-rule-default); color: var(--sv-text-secondary); flex: none; max-height: 150px; overflow-y: auto; }
+  .markers summary { cursor: pointer; }
+  .marker-editor { display: flex; align-items: center; gap: 6px; padding-top: 4px; }
+  .marker-editor input { width: 140px; min-width: 0; font: inherit; color: var(--sv-text-primary); background: var(--sv-surface-field); border: 1px solid var(--sv-rule-default); }
+  .marker { position: absolute; bottom: 0; z-index: 2; width: 8px; height: 9px; padding: 0; translate: -50% 0; background: var(--sv-accent-fill); border: 0; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); cursor: pointer; }
+  .marker:focus-visible { outline: 2px solid var(--sv-text-primary); clip-path: none; }
   .body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; overflow-y: auto; }
   .labels { border-right: var(--sv-border-1) solid var(--sv-rule-default); }
   .ruler-gap, .ruler { height: 20px; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
@@ -349,7 +391,13 @@
   .label.group .fold { width: 14px; color: var(--sv-text-muted); }
   .label.group .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--sv-font-weight-bold); }
   .label.group .count { margin-left: auto; font-size: var(--sv-font-size-10); }
-  .label.track { padding-left: 26px; }
+  .label.track { padding-left: 26px; padding-right: 48px; }
+  .label.track .param { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .key-nav { position: absolute; right: 22px; display: flex; align-items: center; opacity: 0.55; }
+  .key-nav button { width: 13px; height: 16px; padding: 0; color: var(--sv-text-secondary); background: none; border: 0; font: 14px/1 var(--sv-font-mono, monospace); cursor: pointer; }
+  .key-nav button:hover:not(:disabled), .key-nav button:focus-visible { color: var(--sv-accent-fill); opacity: 1; }
+  .key-nav button:disabled { opacity: 0.25; cursor: default; }
+  .label.track:hover .key-nav { opacity: 1; }
   .lane.group { background: rgb(255 255 255 / 0.025); }
   .key.summary { width: 7px; height: 7px; background: var(--sv-text-secondary); cursor: pointer; }
   .label .param { color: var(--sv-text-primary); }

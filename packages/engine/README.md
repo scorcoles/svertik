@@ -8,7 +8,7 @@ the result is recomputed. It is the engine behind the svertik editor.
 import { builtins, createEngine } from '@svertik/engine';
 
 const svg = createEngine(builtins).toSVG({
-  version: 2,
+  version: 1,
   objects: [{ kind: 'shape', id: 'star', name: 'Star', shape: 'star', params: {}, stack: [{ id: 'tw', type: 'twist', params: { angle: 60 } }] }],
 });
 ```

@@ -1,6 +1,6 @@
 // El JS del panel de código: escena generada arriba, script del usuario abajo.
 import { parser } from '@lezer/javascript';
-import { sceneFonts, walkNodes, type ModifierInstance, type SceneNode, type SceneV2 } from '@svertik/engine';
+import { sceneFonts, walkNodes, type ModifierInstance, type SceneNode, type SceneV1 } from '@svertik/engine';
 
 /** Primera línea con error de sintaxis (los SyntaxError de JS no dicen dónde). */
 export function syntaxErrorLine(text: string): number | null {
@@ -37,7 +37,7 @@ export function inlineLiteral(value: unknown): string {
 
 const sourceLiteral = (source: string) => '`' + source.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${') + '`';
 
-export function sceneTypes(v2: SceneV2): string[] {
+export function sceneTypes(scene: SceneV1): string[] {
   const types = new Set<string>();
   const add = (stack: ModifierInstance[]) => {
     for (const m of stack) {
@@ -45,12 +45,12 @@ export function sceneTypes(v2: SceneV2): string[] {
       if (m.children) add(m.children);
     }
   };
-  for (const { node } of walkNodes(v2.objects)) add(node.stack);
+  for (const { node } of walkNodes(scene.objects)) add(node.stack);
   return [...types];
 }
 
 /** Nombre de variable a partir del nombre del archivo: «Star Logo.svg» → starLogo. Únicos. */
-function variableNames(scene: SceneV2): Map<string, string> {
+function variableNames(scene: SceneV1): Map<string, string> {
   const out = new Map<string, string>();
   const used = new Set(['scene', 'source', 'engine', 'live', 'onFrame', 'createEngine']);
   for (const { node } of walkNodes(scene.objects)) {
@@ -82,15 +82,15 @@ function writeNode(node: SceneNode, vars: Map<string, string>, indent: string): 
 }
 
 /** La parte generada: import, una constante por SVG y la escena. */
-export function generatedPart(v2: SceneV2): string {
-  const vars = variableNames(v2);
+export function generatedPart(scene: SceneV1): string {
+  const vars = variableNames(scene);
   const consts: string[] = [];
-  for (const { node } of walkNodes(v2.objects)) if (node.kind === 'object' && !node.packed) consts.push(`const ${vars.get(node.id)} = ${sourceLiteral(node.source)};`);
-  const { objects, ...rest } = v2;
+  for (const { node } of walkNodes(scene.objects)) if (node.kind === 'object' && !node.packed) consts.push(`const ${vars.get(node.id)} = ${sourceLiteral(node.source)};`);
+  const { objects, ...rest } = scene;
   const head = Object.entries(rest).map(([k, v]) => `  ${k}: ${inlineLiteral(v)},`);
   const sceneText = ['{', ...head, '  objects: [', ...objects.map((n) => `    ${writeNode(n, vars, '    ')},`), '  ],', '}'].join('\n');
   return [
-    `import { createEngine, ${[...sceneTypes(v2), ...(v2.animation?.tracks.length || v2.interactions?.length ? ['createPlayer'] : [])].join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
+    `import { createEngine, ${[...sceneTypes(scene), ...(scene.animation?.tracks.length || scene.interactions?.length ? ['createPlayer'] : [])].join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
     '',
     ...consts,
     '',
@@ -101,7 +101,7 @@ export function generatedPart(v2: SceneV2): string {
 }
 
 /** El texto completo que se ve en la pestaña JS. */
-export function jsDocument(scene: SceneV2, script: string) {
+export function jsDocument(scene: SceneV1, script: string) {
   return generatedPart(scene) + script;
 }
 
@@ -133,13 +133,13 @@ export function sourceRanges(text: string): [number, number][] {
 export const sourceRange = (text: string) => sourceRanges(text)[0] ?? null;
 
 /** Fragmento autosuficiente para pegar en otra web: añade el motor y onFrame. */
-export function exportJS(v2: SceneV2, script: string): string {
-  const types = sceneTypes(v2);
+export function exportJS(scene: SceneV1, script: string): string {
+  const types = sceneTypes(scene);
   // Con animación o interacciones, el reproductor del motor (línea de tiempo, hover, clic y «reducir movimiento»).
-  const player = !!(v2.animation?.tracks.length || v2.interactions?.length);
+  const player = !!(scene.animation?.tracks.length || scene.interactions?.length);
   // Con textos, sus fuentes (libres, de Fontsource) se bajan antes de dibujar.
-  const fonts = sceneFonts(v2).length > 0;
-  const head = generatedPart(v2);
+  const fonts = sceneFonts(scene).length > 0;
+  const head = generatedPart(scene);
   return (
     (fonts ? head.replace('import { createEngine', 'import { createEngine, loadFonts') : head) +
     (fonts ? `// Las fuentes de los textos (Fontsource, en jsDelivr).\nawait loadFonts(scene);\n\n` : '') +

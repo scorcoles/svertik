@@ -7,7 +7,7 @@ const project = JSON.stringify({
   version: 1,
   name: 'demo',
   scene: {
-    version: 2,
+    version: 1,
     objects: [
       { kind: 'shape', id: 't', name: 'Title', shape: 'text', params: { text: 'Hi', size: 60 }, stack: [{ id: 'd', type: 'damage', params: {} }] },
       { kind: 'shape', id: 's', name: 'Star', shape: 'star', params: {}, stack: [], transform: { x: 150 } },

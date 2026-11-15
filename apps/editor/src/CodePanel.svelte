@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { builtins, createEngine, validateScene, type SceneNode, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, validateScene, type SceneNode, type SceneV1 } from '@svertik/engine';
   import { IconButton, Tabs } from '@svertik/ui';
   import CopyButton from './CopyButton.svelte';
   import TextZoom from './TextZoom.svelte';
@@ -24,14 +24,14 @@
   let error = $state<{ message: string; line: number | null; stack?: string } | null>(null);
   let cursor = $state<[number, number]>([1, 1]);
 
-  const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
+  const snapshot = () => $state.snapshot(editor.scene) as SceneV1;
   const frame = () => {
     const s = snapshot();
     s.at = editor.time;
     return s;
   };
   const jsonDoc = $derived(editor.scene ? sceneJSON(editor.scene) : '');
-  const jsDoc = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as SceneV2, editor.script) : '');
+  const jsDoc = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as SceneV1, editor.script) : '');
   const jsFold = $derived(sourceRanges(jsDoc));
   // En el JSON, los SVG van en una sola línea larga: también se pliegan.
   const jsonFold = $derived([...jsonDoc.matchAll(/"source": "/g)].map((m) => {
@@ -56,11 +56,11 @@
 
   // Errores: no se aplica. Avisos (parámetros mal escritos, pistas que no apuntan a nada): se aplica y se dice.
   let warnings = $state<string[]>([]);
-  function validate(s: unknown): SceneV2 {
+  function validate(s: unknown): SceneV1 {
     const report = validateScene(s, builtins);
     if (report.errors.length) throw new Error(report.errors[0]);
     warnings = report.warnings;
-    return s as SceneV2;
+    return s as SceneV1;
   }
 
   // ── JSON editable

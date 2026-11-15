@@ -3,7 +3,7 @@
 // `transform` and `opacity` animations (smooth; the browser accelerates them); what changes shape, in
 // segments that switch on and off. Filters do go (they are SVG); interactions don't.
 
-import type { SceneV2 } from './document';
+import type { SceneV1 } from './document';
 import type { Engine } from './engine';
 import type { Geometry, Shape } from './geometry';
 import type { Mat } from './matrix';
@@ -21,7 +21,7 @@ const n2 = (v: number) => String(Math.round(v * 100) / 100);
 const n4 = (v: number) => String(Math.round(v * 10000) / 10000);
 const matrixCSS = (m: Mat) => `matrix(${n4(m[0])},${n4(m[1])},${n4(m[2])},${n4(m[3])},${n2(m[4])},${n2(m[5])})`;
 
-export function toAnimatedSVG(engine: Engine, scene: SceneV2): AnimatedSVGExport {
+export function toAnimatedSVG(engine: Engine, scene: SceneV1): AnimatedSVGExport {
   const a = analyzeMotion(engine, scene);
   const { frames, fps } = a;
   const duration = frames / fps;

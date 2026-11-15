@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, outlineNode, packNode, unpackNode, type SceneV2 } from '../src';
+import { builtins, createEngine, outlineNode, packNode, unpackNode, type SceneV1 } from '../src';
 
-const scene = (): SceneV2 => ({
-  version: 2,
+const scene = (): SceneV1 => ({
+  version: 1,
   objects: [
     {
       kind: 'group',
@@ -55,8 +55,8 @@ describe('pack', () => {
 
   it('what used it as a reference still finds it', () => {
     const e = createEngine(builtins);
-    const s: SceneV2 = {
-      version: 2,
+    const s: SceneV1 = {
+      version: 1,
       objects: [
         { kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape', source: 'star', columns: 2, rows: 2, fit: 'whole', gutter: [0, 0] } }] },
         { kind: 'shape', id: 'star', name: 'Star', shape: 'star', params: {}, stack: [{ id: 'tw', type: 'twist', params: { angle: 90 } }], visible: false },
@@ -86,8 +86,8 @@ describe('pack', () => {
 describe('convert to outlines', () => {
   it('the primitive becomes an object of paths that looks the same, with its effects', () => {
     const e = createEngine(builtins);
-    const s: SceneV2 = {
-      version: 2,
+    const s: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'shape', id: 'st', name: 'Star', shape: 'star', params: { points: 6 }, stack: [{ id: 'tw', type: 'twist', params: { angle: 60 } }], transform: { x: 40, y: -20, rotation: 15, scale: 1.3 }, opacity: 0.7 }],
       animation: { duration: 2, tracks: [
         { id: 'a', node: 'st', on: 'shape', param: 'points', keys: [{ t: 0, value: 5 }, { t: 2, value: 8 }] },

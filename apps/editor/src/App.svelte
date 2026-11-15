@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Component } from 'svelte';
-  import { builtins, createEngine, hasFont, sceneFonts, toAnimatedSVG, toLottie, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, hasFont, sceneFonts, toAnimatedSVG, toLottie, type SceneV1 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
@@ -97,7 +97,7 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (toast = null), 1600);
   };
-  const snapshot = () => $state.snapshot(editor.scene) as SceneV2;
+  const snapshot = () => $state.snapshot(editor.scene) as SceneV1;
   function reportSvgImport(source: string, action: string) {
     if (!/<svg[\s>]/i.test(source)) return;
     latestSvg = inspectSvgComplexity(source);
@@ -108,7 +108,7 @@
     for (const warning of svgComplexityWarnings(latestSvg)) addDiagnostic('SVG import', 'warning', warning);
   }
   function makeDebugReport() {
-    const scene = editor.scene ? $state.snapshot(editor.scene) as SceneV2 : null;
+    const scene = editor.scene ? $state.snapshot(editor.scene) as SceneV1 : null;
     const nav = typeof navigator === 'undefined' ? null : navigator;
     return {
       format: 'svertik-debug-report',
@@ -382,7 +382,7 @@
   // Las fuentes que usan los textos de la escena: la incluida, o se bajan de Fontsource.
   $effect(() => {
     if (!editor.scene) return;
-    for (const f of sceneFonts($state.snapshot(editor.scene) as SceneV2)) {
+    for (const f of sceneFonts($state.snapshot(editor.scene) as SceneV1)) {
       if (!hasFont(f.key)) void ensureFont(f.family, f.weight, f.italic).then((ok) => ok && editor.fontsTick++);
     }
   });

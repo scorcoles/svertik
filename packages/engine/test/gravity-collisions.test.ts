@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, mapPoints, onlyFor, validateScene, type Geometry, type SceneV2, type Vec2 } from '../src';
+import { bounds, builtins, createEngine, mapPoints, onlyFor, validateScene, type Geometry, type SceneV1, type Vec2 } from '../src';
 import { collisionBody, fallWorld } from '../src/modifiers/gravity-collisions';
 
 const stacked = '<svg viewBox="0 0 40 110"><rect width="40" height="40"/><rect y="70" width="40" height="40"/></svg>';
 const input = (time: number, collisions = true) => ({ source: stacked, stack: [{ id: 'g', type: 'gravity', params: { time, collisions, bounce: 0, friction: 0.8, floor: [0.5, 1.5] } }] });
 const parts = (geo: Geometry) => geo.shapes.map((shape) => bounds({ ...geo, shapes: [shape] })).sort((a, b) => a.y - b.y);
 
-function targetScene(targetSource: string, time = 5): SceneV2 {
+function targetScene(targetSource: string, time = 5): SceneV1 {
   return {
-    version: 2, document: { width: 400, height: 400 },
+    version: 1, document: { width: 400, height: 400 },
     objects: [
       { kind: 'shape', id: 'falling', name: 'Falling', shape: 'rectangle', params: { width: 20, height: 20 }, transform: { y: -100 }, stack: [{ id: 'fall', type: 'gravity', params: { time, solids: ['solid'], floor: [0.5, 30], bounce: 0, friction: 1 } }] },
       { kind: 'object', id: 'solid', name: 'Solid', source: targetSource, stack: [] },
@@ -49,9 +49,9 @@ describe('gravity collisions', () => {
     expect(result.nodes.get('solid')!.box).toEqual({ x: -100, y: -10, width: 200, height: 20 });
   });
   it('collides with more than one selected solid', () => {
-    const scene: SceneV2 = { version: 2, objects: [
+    const scene: SceneV1 = { version: 1, objects: [
       { kind: 'group', id: 'pieces', name: 'Pieces', children: [-60, 60].map((x, i) => ({ kind: 'shape', id: `piece-${i}`, name: 'Piece', shape: 'rectangle', params: { width: 20, height: 20 }, transform: { x, y: -100 }, stack: [] })), stack: [{ id: 'gravity', type: 'gravity', params: { time: 4, bounce: 0, solids: ['left', 'right'], floor: [0.5, 30] } }] },
-      ...[-60, 60].map((x, i): SceneV2['objects'][number] => ({ kind: 'shape', id: i ? 'right' : 'left', name: 'Platform', shape: 'rectangle', params: { width: 50, height: 10 }, transform: { x, y: i * 50 }, stack: [] })),
+      ...[-60, 60].map((x, i): SceneV1['objects'][number] => ({ kind: 'shape', id: i ? 'right' : 'left', name: 'Platform', shape: 'rectangle', params: { width: 50, height: 10 }, transform: { x, y: i * 50 }, stack: [] })),
     ] };
     expect(validateScene(scene)).toEqual({ errors: [], warnings: [] });
     const geo = createEngine(builtins).evaluateDocument(scene).geometryOf('pieces')!;

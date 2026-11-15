@@ -4,7 +4,7 @@
   "name": "Compositions",
   "canvas": "#F2E8DA",
   "scene": {
-    "version": 2,
+    "version": 1,
     "document": {
       "width": 1400,
       "height": 900
@@ -30,7 +30,7 @@
         },
         "composition": {
           "scene": {
-            "version": 2,
+            "version": 1,
             "document": {
               "width": 1280,
               "height": 900
@@ -139,7 +139,7 @@
                         "fallback": 0
                       },
                       "emission": "burst",
-                      "count": 200,
+                      "count": 60,
                       "lifetime": 3.4,
                       "emitter": "point",
                       "center": [
@@ -290,7 +290,7 @@
         },
         "composition": {
           "scene": {
-            "version": 2,
+            "version": 1,
             "document": {
               "width": 1280,
               "height": 900
@@ -399,7 +399,7 @@
                         "fallback": 0
                       },
                       "emission": "burst",
-                      "count": 200,
+                      "count": 60,
                       "lifetime": 3.4,
                       "emitter": "point",
                       "center": [

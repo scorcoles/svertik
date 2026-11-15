@@ -18,8 +18,8 @@ Primera tanda: **Vibration, Oscillator, Shake y Pulse**, compartiendo la lógica
 - [ ] **Random Walk**: deriva aleatoria continua, sin saltos entre valores.
 - [ ] **Wind / Turbulence**: movimiento orgánico con ráfagas y varias escalas de ruido.
 - [ ] **Orbit**: movimiento circular o elíptico, con fase y orientación.
-- [ ] **Steps / Stop Motion**: actualización del movimiento a intervalos, como animación a pocos FPS.
-- [ ] **Time Warp**: acelerar, frenar, congelar, invertir o hacer ping-pong sobre una animación.
+- [x] **Steps / Stop Motion** (Playback FPS en Composiciones): actualización del movimiento a intervalos, como animación a pocos FPS.
+- [x] **Time Remap / Time Warp** (claves, señales de reloj y reproducción): acelerar, frenar, congelar, invertir o hacer ping-pong sobre una animación.
 - [ ] **Echo / Trail**: copias de estados anteriores con separación temporal y desvanecimiento; revisar lo que ya cubre Trace.
 - [ ] **Sequencer**: alternar valores siguiendo un patrón rítmico.
 - [ ] **Envelope**: entrada, mantenimiento y salida para modular o disparar otros efectos.
@@ -28,7 +28,8 @@ Primera tanda: **Vibration, Oscillator, Shake y Pulse**, compartiendo la lógica
 
 - [x] Escenas anidadas, como composiciones de After Effects: desde la escena contenedora se tratan como una caja negra y se pueden abrir para editar sus objetos.
 - [x] Reloj local por composición, con duración propia. La contenedora controla inicio, offset, velocidad, reproducción inversa, bucle y remapeo temporal.
-- [ ] Aplicar los moduladores de tiempo al reloj de una composición, además de a parámetros individuales.
+- [x] Aplicar Oscillate, Wiggle, Pulse y Shake al reloj de una composición, además de a efectos geométricos.
+- [x] Marcadores de timeline editables, saltos desde los controles de tiempo y reutilización como offset local.
 - [x] Resolver keyframes, expresiones, partículas y física con el mismo tiempo local, también al recorrer la animación hacia atrás o exportar.
 - [x] Crear composiciones vacías, desde una selección o importando proyectos/JSON; edición por niveles con navegación, guardado íntegro y deshacer.
 - [ ] Ejecutar interacciones de los objetos internos desde la escena contenedora (se conservan y funcionan al abrir la composición).

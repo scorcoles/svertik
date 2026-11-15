@@ -1,7 +1,7 @@
 # svertik Guide for AI Agents (Headless & No-MCP)
 
 > **svertik** is a non-destructive SVG procedural generation and motion graphics engine.  
-> Projects and scenes are expressed in **pure JSON (`SceneV2`)**, evaluated through a stack of modifiers on cubic Bézier paths, and output as standard SVG. **No UI or MCP server is needed** to generate demos, construct scenes, or build animated graphics.
+> Projects and scenes are expressed in **pure JSON (`SceneV1`)**, evaluated through a stack of modifiers on cubic Bézier paths, and output as standard SVG. **No UI or MCP server is needed** to generate demos, construct scenes, or build animated graphics.
 
 ---
 
@@ -39,10 +39,10 @@ pnpm svertik effects --json
 ### 2. Programmatic TypeScript / Node.js
 
 ```ts
-import { builtins, createEngine, validateScene, type SceneV2 } from '@svertik/engine';
+import { builtins, createEngine, validateScene, type SceneV1 } from '@svertik/engine';
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   document: { width: 800, height: 450 },
   objects: [
     {
@@ -70,9 +70,9 @@ const svg = engine.toSVG(scene);
 
 ---
 
-## ⚡ Golden Rules for `SceneV2`
+## ⚡ Golden Rules for `SceneV1`
 
-1. **`version: 2`**: Mandatory field.
+1. **`version: 1`**: Mandatory field.
 2. **Layer Order (`objects`)**: The **first object in the array (`index 0`) is drawn in FRONT** (closest to the viewer), identical to layer stacks in Figma or Illustrator.
 3. **Unique IDs**: Every `id` across `objects` and modifier `stack` items must be unique within its scene. Compositions have isolated nested scenes, so their internal IDs may repeat in other compositions.
 4. **Coordinate System**: Y increases downwards. Rotations are clockwise in degrees.
@@ -85,4 +85,6 @@ const svg = engine.toSVG(scene);
 
 ## Compositions
 
-Store a composition as a `kind: "group"` with `children: []` and `composition: { scene: SceneV2, params?: { time, start, speed, offset, reverse, loop } }`. The nested scene owns its IDs, notes, document, animation and interactions. References stay inside that scope. `time` normally stores `{ "$expr": "scene.time", "fallback": 0 }` and is evaluated in the parent; descendants use the remapped local clock. `loop` is `hold`, `loop` or `pingpong`. Do not put stored objects in both `children` and `composition.scene.objects`. See the Compositions section of `docs/ENGINE_AND_EFFECTS.md` for the current interaction/cropping limitations.
+Store a composition as a `kind: "group"` with `children: []` and `composition: { scene: SceneV1, params?: { time, start, speed, offset, reverse, loop, frameRate }, modulation?: { type, params } }`. The nested scene owns its IDs, notes, document, animation and interactions. References stay inside that scope. `time` normally stores `{ "$expr": "scene.time", "fallback": 0 }` and is evaluated in the parent; descendants use the remapped local clock. `loop` is `hold`, `loop` or `pingpong`. Do not put stored objects in both `children` and `composition.scene.objects`. See the Compositions section of `docs/ENGINE_AND_EFFECTS.md` for the current interaction/cropping limitations.
+
+Composition clock fields support tracks with `on: "composition"`. Numeric time keys can freeze/reverse a scene; a Time expression replaces those keys. `frameRate: 0` means free playback, positive values quantize local time. Clock modulation accepts Oscillate/Wiggle/Pulse/Shake signals in seconds. Named local timeline markers are stored as `animation.markers: [{ id, name, t }]`.

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { builtins, createEngine } from '../src';
 import { registerFont } from '../src/fonts';
-import type { SceneV2 } from '../src/scene';
+import type { SceneV1 } from '../src/scene';
 import { cases, needsFont } from './corpus/scenes';
 import { keyOf, readGolden } from './corpus/golden';
 import { runCorpus } from './corpus/run';
@@ -62,12 +62,12 @@ describe('corpus', () => {
 
   it('una escena sin pila de efectos se dibuja como con la pila vacía', () => {
     // Las recetas de la documentación omiten la pila cuando no hay efectos: el motor no debe romperse.
-    const without: SceneV2 = {
-      version: 2,
+    const without: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'shape', id: 'a', name: 'a', shape: 'star', params: { radius: 40, points: 5, fillColor: '#09fdd1' } } as never],
     };
-    const withEmpty: SceneV2 = {
-      version: 2,
+    const withEmpty: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'shape', id: 'a', name: 'a', shape: 'star', params: { radius: 40, points: 5, fillColor: '#09fdd1' }, stack: [] }],
     };
     const e = createEngine(builtins);

@@ -15,7 +15,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                   Scene (SceneV2)                      │
+│                   Scene (SceneV1)                      │
 │  - Document bounds (fixed viewBox or fit-to-drawing)   │
 │  - Objects array (1st element is in FRONT, like layers)│
 └──────────────────────────┬─────────────────────────────┘
@@ -74,11 +74,11 @@ pnpm svertik effects --json
 ### B. Programmatic TypeScript / Node.js
 
 ```ts
-import { builtins, createEngine, validateScene, type SceneV2 } from '@svertik/engine';
+import { builtins, createEngine, validateScene, type SceneV1 } from '@svertik/engine';
 import { writeFileSync } from 'node:fs';
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   document: { width: 800, height: 600, x: 0, y: 0 },
   objects: [
     {
@@ -110,13 +110,13 @@ writeFileSync('out.svg', svg, 'utf8');
 
 ---
 
-## 3. Scene Specification (`SceneV2`)
+## 3. Scene Specification (`SceneV1`)
 
-A scene is a plain JSON structure typed as `SceneV2`:
+A scene is a plain JSON structure typed as `SceneV1`:
 
 ```ts
-interface SceneV2 {
-  version: 2;                         // Required: must be 2
+interface SceneV1 {
+  version: 1;                         // Required: must be 1
   document?: {                        // Optional: fixed frame/viewBox
     width: number;                    // Canvas width in px
     height: number;                   // Canvas height in px
@@ -716,19 +716,19 @@ The shared **Rhythm** demo (`apps/editor/public/demos/rhythm-crosses.svrtk`) pul
 
 ### Compositions — nested scenes and local clocks
 
-A composition is stored as a group with empty `children` and a `composition` containing its isolated SceneV2 and clock parameters. It stays a single selectable object in the parent; its child scene is expanded only for rendering. Local node/effect IDs can repeat in other compositions; references resolve within their own scene. Files remain SceneV2 JSON and `.svrtk` projects embed all nested scenes.
+A composition is stored as a group with empty `children` and a `composition` containing its isolated SceneV1 and clock parameters. It stays a single selectable object in the parent; its child scene is expanded only for rendering. Local node/effect IDs can repeat in other compositions; references resolve within their own scene. Files remain SceneV1 JSON and `.svrtk` projects embed all nested scenes.
 
 ```json
 {
   "kind": "group", "id": "comp-1", "name": "Composition", "children": [], "stack": [],
   "composition": {
-    "scene": { "version": 2, "document": { "width": 1400, "height": 900 }, "objects": [] },
+    "scene": { "version": 1, "document": { "width": 1400, "height": 900 }, "objects": [] },
     "params": { "time": { "$expr": "scene.time", "fallback": 0 }, "speed": 1, "loop": "hold" }
   }
 }
 ```
 
-- **Utils → Empty composition / Composition from selection / Import composition…**. Import accepts `.svrtk` and SceneV2 JSON without replacing the current project. A selection must share a parent; include linked objects/targets so references are not broken. Its tracks and interactions move into the child scene, retaining paint order and placement.
+- **Utils → Empty composition / Composition from selection / Import composition…**. Import accepts `.svrtk` and SceneV1 JSON without replacing the current project. A selection must share a parent; include linked objects/targets so references are not broken. Its tracks and interactions move into the child scene, retaining paint order and placement.
 - Select the composition and use **Open composition** in the inspector. Its objects, document, notes and timeline are edited locally. The toolbar breadcrumbs return to ancestors and restore the parent playhead. Saving and undo/redo always retain the whole project, even while editing inside it.
 - `time` is evaluated in the parent scene; by default it follows parent time. `start` holds the first local frame until that parent time. `speed` multiplies elapsed time (0 freezes; negative plays backwards with a suitable offset). `offset` is added in seconds. `reverse` reverses the resulting local clock. `loop` is `hold` (clamp to the child duration), `loop`, or `pingpong`.
 - Local keyframes, numeric/text expressions, temporal effectors, Particles and Gravity receive this local clock. Numeric clock fields accept expressions for remapping. Each nested scene uses its own duration and FPS. Missing parent timelines derive a duration from their compositions.
@@ -736,3 +736,19 @@ A composition is stored as a group with empty `children` and a `composition` con
 - Cyclic or deeper-than-32 nesting is rejected. Existing document caches still reuse unchanged geometry/effect results; exporting SVG/PNG and sampled animation evaluates the same nested scene clocks.
 
 **Compositions: BOOM at two speeds** (`apps/editor/public/demos/compositions-boom.svrtk`) places two copies of the BOOM demo side by side at normal and 60% speed.
+
+### Time Remap, clock signals, stop motion and markers
+
+Composition numeric clock fields support tracks with `on: "composition"`: `time`, `start`, `speed`, `offset`, and `frameRate`. Use **Animate time** in the inspector to replace the default scene.time expression with a numeric key at the playhead. Editing Time then auto-keys an existing track; equal values or hold easing freeze a frame, descending values rewind. **Follow scene time** restores the expression and removes the Time track. Expressions have the usual priority over keyframes on the same field.
+
+`composition.modulation` optionally stores `{ type: "oscillate" | "wiggle" | "pulse" | "shake", params, enabled? }`. **Clock signal** selects it in the inspector. These share the exact signal schemas with their geometric effects; amplitude and offset are seconds added to the primary remapped clock before wrapping/reversal/quantization. Signal Time follows the parent clock unless overridden. A single composition has one signal; Per element controls do not apply to its clock.
+
+**Playback FPS** (`frameRate`, default 0 = free) quantizes the resulting local time downward to intervals of 1/FPS. This can run an 8- or 12-FPS composition in a 30-FPS parent; child expressions, particles and physics all use the same sampled instant. The exact final frame is retained when playback is held at the child's duration.
+
+`animation.markers` is an optional array of `{ id, name, t }` in scene-local seconds. Add markers at the playhead with the timeline flag button, rename/change time/remove them in the Markers list, and click their ruler flags to seek. The compact playback controls offer **Markers** jumps even with the timeline closed. A composition's **From marker** picker copies a child marker's time into Offset. Markers are scoped to each scene and preserved in projects, navigation and undo; shortening the timeline clamps them to its duration.
+
+**Time Remap: freeze and rewind BOOM** (`apps/editor/public/demos/time-remap-boom.svrtk`) demonstrates keyed clocks, a hold, reverse playback, a clock signal and 8-FPS stop motion across three staggered copies.
+
+### Scaling multiple selected objects
+
+With several objects selected, canvas corner handles scale the entire selection about its combined document-space bounding-box center. Geometry sizes and spacing change proportionally; no group is created. The inspector's Scale field/slider applies the same relative factor to the selection. Parent/child selections are deduplicated to avoid double transforms; nested group placements and existing x/y/scale tracks are updated, and each drag is one undo operation.

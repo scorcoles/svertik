@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, type SceneV2 } from '@svertik/engine';
+import { bounds, builtins, createEngine, type SceneV1 } from '@svertik/engine';
 import { Editor, locateNode } from './editor.svelte';
 import { samples } from './samples';
 
@@ -7,7 +7,7 @@ import { samples } from './samples';
 const stack = (e: Editor) => e.scene!.objects.at(-1)!.stack;
 
 /** La caja de lo dibujado en el documento, para comprobar que nada se mueve. */
-const box = (e: Editor) => bounds(createEngine(builtins).evaluateDocument(e.scene as SceneV2).geometry);
+const box = (e: Editor) => bounds(createEngine(builtins).evaluateDocument(e.scene as SceneV1).geometry);
 
 const fresh = () => {
   const e = new Editor();
@@ -885,7 +885,7 @@ describe('Reproducción sin timeline', () => {
 
 describe('Centrar en el documento', () => {
   const refresh = (e: Editor) => {
-    const doc = createEngine(builtins).evaluateDocument(e.scene as SceneV2);
+    const doc = createEngine(builtins).evaluateDocument(e.scene as SceneV1);
     e.infos = doc.nodes;
     e.contentBox = bounds(doc.geometry);
     return doc;
@@ -968,7 +968,7 @@ it('seleccionar todo incluye todas las capas raíz sin duplicar los hijos de gru
 it('los documentos nuevos nacen con un tamaño fijo de 1400×900, también al importar o crear la primera forma', () => {
   const e = new Editor();
   e.newFile();
-  expect(e.scene).toMatchObject({ version: 2, document: { width: 1400, height: 900 }, objects: [] });
+  expect(e.scene).toMatchObject({ version: 1, document: { width: 1400, height: 900 }, objects: [] });
   expect(e.dirty).toBe(false);
   e.addShape('rectangle');
   expect(e.scene!.document).toEqual({ width: 1400, height: 900 });
@@ -980,7 +980,7 @@ it('los documentos nuevos nacen con un tamaño fijo de 1400×900, también al im
 
 it('abrir una escena existente en auto conserva su documento automático', () => {
   const e = fresh();
-  const scene = JSON.parse(JSON.stringify(e.scene)) as SceneV2;
+  const scene = JSON.parse(JSON.stringify(e.scene)) as SceneV1;
   delete scene.document;
   expect(e.openProject(JSON.stringify(scene))).toBe(true);
   expect(e.scene!.document).toBeUndefined();
@@ -1032,7 +1032,7 @@ describe('Composition editing', () => {
   });
   it('imports a project as an isolated scene and opens another project from inside it', () => {
     const e = fresh();
-    expect(e.importComposition(JSON.stringify({ svertik: 'project', name: 'Imported', scene: { version: 2, notes: 'Keep these notes', objects: [], document: { width: 800, height: 600 } } }))).toBe(true);
+    expect(e.importComposition(JSON.stringify({ svertik: 'project', name: 'Imported', scene: { version: 1, notes: 'Keep these notes', objects: [], document: { width: 800, height: 600 } } }))).toBe(true);
     const id = e.selected!; e.openComposition(id);
     expect(e.scene!.notes).toBe('Keep these notes');
     e.createComposition(); const nested = e.selected!; e.openComposition(nested);
@@ -1051,4 +1051,69 @@ describe('Composition editing', () => {
     expect(n.kind === 'group' && n.children).toEqual([]);
   });
 
+});
+
+describe('Scale multiple objects', () => {
+  const setup = () => {
+    const e = new Editor(); e.newFile();
+    e.addShape('rectangle', { width: 20, height: 20 }, { x: -50, y: 0 }); const a = e.selected!;
+    e.addShape('rectangle', { width: 20, height: 20 }, { x: 50, y: 0 }); const b = e.selected!;
+    e.also = [a]; return { e, a, b };
+  };
+  it('scales geometry and spacing about a shared center without compounding a drag', () => {
+    const { e, a, b } = setup(); const scale = e.captureSelectionScale()!;
+    scale(2); scale(3); e.flush();
+    expect(e.scene!.objects.find(n => n.id === a)!.transform).toMatchObject({ x: -150, scale: 3 });
+    expect(e.scene!.objects.find(n => n.id === b)!.transform).toMatchObject({ x: 150, scale: 3 });
+    e.undo(); expect(e.scene!.objects.find(n => n.id === a)!.transform?.scale ?? 1).toBe(1);
+  });
+  it('does not scale a child twice when its parent is also selected', () => {
+    const { e, a } = setup(); e.selected = a; e.group(); const group = e.selected!;
+    e.also = [a]; e.scaleSelection(2);
+    expect(e.scene!.objects.find(n => n.id === group)!.transform?.scale).toBe(2);
+    expect(e.scene!.objects.find(n => n.id === group)!.kind === 'group' && (e.scene!.objects.find(n => n.id === group) as any).children[0].transform.scale).toBeUndefined();
+  });
+  it('scales objects in rotated groups around the selection center in document space', () => {
+    const { e, a, b } = setup();
+    e.selected = a; e.group(); e.setNode(e.selected!, 'rotation', 45, true);
+    e.selected = b; e.group(); e.setNode(e.selected!, 'rotation', -30, true);
+    e.selected = a; e.also = [b];
+    const before = createEngine(builtins).evaluateDocument(JSON.parse(JSON.stringify(e.scene)));
+    const aa = before.nodes.get(a)!.box, bb = before.nodes.get(b)!.box;
+    const cx = (Math.min(aa.x, bb.x) + Math.max(aa.x + aa.width, bb.x + bb.width)) / 2;
+    e.scaleSelection(2);
+    const doc = createEngine(builtins).evaluateDocument(JSON.parse(JSON.stringify(e.scene)));
+    const left = doc.nodes.get(a)!.box, right = doc.nodes.get(b)!.box;
+    expect(left.x + left.width / 2).toBeCloseTo(-100 - cx);
+    expect(right.x + right.width / 2).toBeCloseTo(100 - cx);
+    expect(left.width).toBeCloseTo(40 * Math.SQRT2);
+  });
+});
+
+
+describe('Time Remap editing', () => {
+  it('converts the clock expression to numeric keys and auto-keys subsequent edits', () => {
+    const e = fresh(); const id = e.createComposition()!;
+    e.setTime(0.5); e.toggleCompositionKey(id, 'time');
+    const target = { node: id, on: 'composition' as const, param: 'time' };
+    expect(e.track(target)!.keys[0]!.value).toBe(0.5);
+    e.setTime(1); e.setCompositionParam(id, 'time', 2);
+    expect(e.track(target)!.keys).toHaveLength(2);
+    e.setCompositionParam(id, 'time', { $expr: 'scene.time', fallback: 0 });
+    expect(e.track(target)).toBeUndefined();
+  });
+  it('manages markers locally and persists clock modulation', () => {
+    const e = fresh(); const id = e.createComposition()!;
+    e.setClockModulator(id, 'pulse');
+    e.setClockSignalParam(id, 'amplitude', 0.5);
+    e.setTime(1); e.addMarker(); const marker = e.animation!.markers![0]!;
+    e.setMarker(marker.id, 'name', 'Impact');
+    e.setMarker(marker.id, 't', 1.25);
+    e.openComposition(id); expect(e.animation!.markers).toBeUndefined();
+    e.addMarker(); e.leaveComposition(0);
+    expect(e.animation!.markers![0]!.name).toBe('Impact');
+    const saved = JSON.parse(e.projectFile()!);
+    expect(saved.scene.objects[0].composition.modulation.params.amplitude).toBe(0.5);
+    e.removeMarker(marker.id); expect(e.animation!.markers).toEqual([]);
+  });
 });

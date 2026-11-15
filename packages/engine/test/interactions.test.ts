@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, createInteractions, type SceneV2 } from '../src';
+import { builtins, createEngine, createInteractions, type SceneV1 } from '../src';
 
-const scene = (): SceneV2 => ({
-  version: 2,
+const scene = (): SceneV1 => ({
+  version: 1,
   objects: [
     { kind: 'group', id: 'g', name: 'g', stack: [], children: [{ kind: 'shape', id: 'a', name: 'a', shape: 'star', params: {}, stack: [] }] },
     { kind: 'shape', id: 'b', name: 'b', shape: 'star', params: {}, stack: [] },
@@ -41,8 +41,8 @@ describe('interacciones', () => {
 });
 
 describe('interacciones: acciones', () => {
-  const base = (interactions: SceneV2['interactions']): SceneV2 => ({
-    version: 2,
+  const base = (interactions: SceneV1['interactions']): SceneV1 => ({
+    version: 1,
     objects: [{ kind: 'shape', id: 'b', name: 'b', shape: 'star', params: {}, stack: [{ id: 'g', type: 'slices', params: { seed: 1 } }, { id: 'w', type: 'wave', params: {} }] }],
     animation: { duration: 2, autoplay: false, tracks: [] },
     interactions,
@@ -85,9 +85,9 @@ describe('interacciones: acciones', () => {
 });
 
 describe('follow (pointer)', () => {
-  const doc = (sc: SceneV2) => createEngine(builtins).evaluateDocument({ ...sc, document: { width: 200, height: 100 } });
-  const base = (follow: Record<string, unknown>): SceneV2 => ({
-    version: 2,
+  const doc = (sc: SceneV1) => createEngine(builtins).evaluateDocument({ ...sc, document: { width: 200, height: 100 } });
+  const base = (follow: Record<string, unknown>): SceneV1 => ({
+    version: 1,
     document: { width: 200, height: 100 },
     objects: [{ kind: 'shape', id: 'a', name: 'a', shape: 'rectangle', params: { width: 20, height: 20 }, stack: [{ id: 'sp', type: 'spherize', params: { center: [0.5, 0.5] } }] }],
     interactions: [{ id: 'f', node: 'a', trigger: 'pointer', action: 'follow', target: { node: 'a', on: 'node', param: 'position' }, to: null, duration: 0, ...follow }],

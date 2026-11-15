@@ -5,7 +5,7 @@
 // What Lottie doesn't have (filters, masks, interactions) isn't exported, and the warnings say so.
 
 import { parseColor } from './color';
-import type { SceneV2 } from './document';
+import type { SceneV1 } from './document';
 import type { Engine } from './engine';
 import type { Gradient, Shape, SubPath } from './geometry';
 import type { Mat } from './matrix';
@@ -28,7 +28,7 @@ const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const apply = (m: Mat, [x, y]: readonly [number, number]): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 
-export function toLottie(engine: Engine, scene: SceneV2, options: { name?: string } = {}): LottieExport {
+export function toLottie(engine: Engine, scene: SceneV1, options: { name?: string } = {}): LottieExport {
   const a = analyzeMotion(engine, scene);
   const [vx, vy, vw, vh] = a.viewBox;
   const toDoc = (p: readonly [number, number]): [number, number] => [r2(p[0] - vx), r2(p[1] - vy)];

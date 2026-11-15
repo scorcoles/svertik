@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { covers, simplify } from '../src/clip';
 import { sampleScene } from '../src/animation';
-import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type SceneV2, type Shape, type StackInput } from '../src';
+import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type SceneV1, type Shape, type StackInput } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
 const scene = (stack: StackInput['stack']): StackInput => ({ source: square, stack });
@@ -500,7 +500,7 @@ describe('mosaic', () => {
 describe('mosaic with another object as the shape', () => {
   it('each cell holds the object shape, fitted without distortion', () => {
     const doc = createEngine(builtins).evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [
         { kind: 'object', id: 'd', name: 'd', source: square, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape', source: 'tri', columns: 2, rows: 2, gutter: [0, 0], fit: 'whole' } }] },
         { kind: 'shape', id: 'tri', name: 'tri', shape: 'polygon', params: { sides: 3 }, stack: [], transform: { x: 500 } },
@@ -551,8 +551,8 @@ describe('damage', () => {
   });
 
   it('reuses its cracks while Growth changes, with the same result as without reusing', () => {
-    const doc: SceneV2 = {
-      version: 2,
+    const doc: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'object', id: 'o', name: 'o', source: square, stack: [{ id: 'd', type: 'damage', params: { seed: 7, growth: 0.6 } }] }],
     };
     const e = createEngine(builtins);
@@ -694,7 +694,7 @@ describe('range, field and opacity', () => {
   it('in the scene, each effect says which box it measures on (refs)', () => {
     const engine = createEngine(builtins);
     const doc = engine.evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [{ kind: 'shape', id: 'n', name: 'n', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [
         { id: 'before', type: 'spherize' },
         { id: 'c', type: 'clone', params: { mode: 'linear', count: 3, offset: [2, 0] } },
@@ -944,7 +944,7 @@ describe('rgb split', () => {
 
 describe('rgb split with effects inside (only on the copies)', () => {
   const scene = (children: { id: string; type: string; params?: Record<string, unknown>; children?: unknown[] }[]) => ({
-    version: 2 as const,
+    version: 1 as const,
     objects: [{ kind: 'shape' as const, id: 'n', name: 'n', shape: 'rectangle', params: { width: 100, height: 40, fillColor: '#ffffff' }, transform: { x: 50 }, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 6 }, children: children as never }] }],
   });
   it('Blur inside: a <filter> only for the copies; the drawing without it', () => {
@@ -1048,7 +1048,7 @@ describe('metaball', () => {
   const circle = (id: string, x: number, r: number) => ({ kind: 'shape' as const, id, name: id, shape: 'ellipse', params: { width: 2 * r, height: 2 * r }, stack: [], transform: { x } });
   const run = (gap: number, params: Record<string, unknown> = {}) =>
     createEngine(builtins).evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'm', type: 'metaball', params: { reach: 40, ...params } }], children: [circle('a', -gap / 2, 50), circle('b', gap / 2, 35)] }],
     }).geometry;
   const loops = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).filter((sp) => sp.closed).length;
@@ -1098,7 +1098,7 @@ describe('follow path', () => {
   // A 10 square running along a line from (0,0) to (200,0) (and a closed circle of radius 100).
   const box = (params: Record<string, unknown>, path: Record<string, unknown> = { kind: 'shape', id: 'p', name: 'p', shape: 'line', params: { length: 200 }, stack: [], transform: { x: 100 } }) =>
     createEngine(builtins).evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [
         { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [{ id: 'f', type: 'followpath', params: { target: 'p', ...params } }], transform: { x: -500, y: 300 } },
         path,
@@ -1121,7 +1121,7 @@ describe('follow path', () => {
     // A long rectangle: lying down where the circle runs vertically if it turns; unchanged if not.
     const long = (orient: boolean) =>
       createEngine(builtins).evaluateDocument({
-        version: 2,
+        version: 1,
         objects: [
           { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 40, height: 4 }, stack: [{ id: 'f', type: 'followpath', params: { target: 'p', position: 0, orient } }] },
           circle,
@@ -1141,7 +1141,7 @@ describe('connect', () => {
   const sq = (id: string, x: number, y = 0) => ({ kind: 'shape' as const, id, name: id, shape: 'rectangle', params: { width: 40, height: 40 }, stack: [], transform: { x, y } });
   const run = (params: Record<string, unknown>, a = sq('a', 0), b = sq('b', 200)) => {
     const doc = createEngine(builtins).evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [
         { kind: 'shape', id: 'l', name: 'l', shape: 'line', params: { strokeColor: '#ff0000' }, stack: [{ id: 'c', type: 'connect', params: { from: 'a', to: 'b', ...params } }], transform: { x: 999, y: -50 } },
         a,
@@ -1184,7 +1184,7 @@ describe('connect', () => {
 describe('trace', () => {
   // A square going from x = 0 to x = 100 in 1 s (linear), and the line with Trace behind.
   const scene = (params: Record<string, unknown> = {}) => ({
-    version: 2,
+    version: 1,
     objects: [
       { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [] },
       { kind: 'shape', id: 'l', name: 'l', shape: 'line', params: { strokeColor: '#00ff00' }, stack: [{ id: 't', type: 'trace', params: { target: 'b', length: 0.5, samples: 10, smooth: false, ...params } }], transform: { x: 40, y: 70 } },
@@ -1236,7 +1236,7 @@ describe('look at', () => {
   // A long rectangle (front to the right) at the origin and a point (circle) to look at.
   const run = (params: Record<string, unknown>, tx: number, ty: number) =>
     createEngine(builtins).evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [
         { kind: 'shape', id: 'a', name: 'a', shape: 'rectangle', params: { width: 60, height: 6 }, stack: [{ id: 'l', type: 'lookat', params: { target: 't', ...params } }] },
         { kind: 'shape', id: 't', name: 't', shape: 'ellipse', params: { width: 10, height: 10 }, stack: [], transform: { x: tx, y: ty } },
@@ -1261,7 +1261,7 @@ describe('look at', () => {
 describe('trace in a loop', () => {
   it('when a lap starts, the trail carries on from the end of the previous one', () => {
     const scene = {
-      version: 2,
+      version: 1,
       objects: [
         { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: 10, height: 10 }, stack: [] },
         { kind: 'shape', id: 'l', name: 'l', shape: 'line', params: {}, stack: [{ id: 't', type: 'trace', params: { target: 'b', length: 0.5, samples: 10, smooth: false } }] },

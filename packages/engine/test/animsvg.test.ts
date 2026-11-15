@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, toAnimatedSVG, type SceneV2 } from '../src';
+import { builtins, createEngine, toAnimatedSVG, type SceneV1 } from '../src';
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   objects: [
     { kind: 'shape', id: 'a', name: 'Mover', shape: 'star', params: {}, stack: [{ id: 's', type: 'shadow' }], transform: { x: 0 } },
     { kind: 'shape', id: 'b', name: 'Wavy', shape: 'rectangle', params: {}, stack: [{ id: 'w', type: 'wave', params: { amplitude: 0.1 } }], transform: { x: 300 } },

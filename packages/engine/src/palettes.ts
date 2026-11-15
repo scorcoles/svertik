@@ -1,7 +1,7 @@
 // Palettes: the built-in ones, the colours a scene uses and swapping them for a palette's.
 
 import { parseColor, rgbToOklab, toHex } from './color';
-import { walkNodes, type SceneV2 } from './document';
+import { walkNodes, type SceneV1 } from './document';
 import type { ModifierInstance } from './engine';
 
 /** The name of the "palette" with the document's colours (first in the picker). */
@@ -28,7 +28,7 @@ const HEX = /#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi;
 const full = (m: string) => (m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}` : m).toLowerCase();
 
 /** Every string in the scene that may hold colours: parameters, SVG sources and animation keys. */
-function eachText(scene: SceneV2, fn: (value: string, set: (v: string) => void) => void) {
+function eachText(scene: SceneV1, fn: (value: string, set: (v: string) => void) => void) {
   const visit = (obj: Record<string, unknown>) => {
     for (const [k, v] of Object.entries(obj)) if (typeof v === 'string') fn(v, (nv) => (obj[k] = nv));
   };
@@ -42,7 +42,7 @@ function eachText(scene: SceneV2, fn: (value: string, set: (v: string) => void) 
 }
 
 /** The colours (hex) the scene uses, without repeats, in order of appearance. */
-export function sceneColors(scene: SceneV2): string[] {
+export function sceneColors(scene: SceneV1): string[] {
   const out = new Set<string>();
   eachText(scene, (v) => {
     for (const m of v.match(HEX) ?? []) out.add(full(m));
@@ -72,7 +72,7 @@ export function paletteMap(colors: string[], palette: string[]): Map<string, str
 }
 
 /** Swaps the scene's colours (in place) for the palette's. Returns how many colours changed. */
-export function applyPalette(scene: SceneV2, palette: string[]): number {
+export function applyPalette(scene: SceneV1, palette: string[]): number {
   const map = paletteMap(sceneColors(scene), palette);
   let changed = 0;
   for (const [a, b] of map) if (a !== b) changed++;

@@ -1,6 +1,6 @@
 // La escena viaja en la URL (#s=…), comprimida con deflate y en base64url.
 // Solo la forma de la escena (sus tipos y cómo reconocerla): el motor se carga aparte, cuando toca.
-import { isScene, type SceneV2 } from '@svertik/engine/scene';
+import { isScene, type SceneV1 } from '@svertik/engine/scene';
 
 const toB64url = (bytes: Uint8Array) => {
   let s = '';
@@ -18,7 +18,7 @@ async function pipe(bytes: Uint8Array, stream: CompressionStream | Decompression
 }
 
 export interface SharedState {
-  scene: SceneV2;
+  scene: SceneV1;
   name: string;
   script?: string;
   /** Color del lienzo del editor. */

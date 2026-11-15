@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, type SceneV2, validateScene } from '../src';
+import { bounds, builtins, createEngine, type SceneV1, validateScene } from '../src';
 
 const source = '<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#D2502F"/></svg>';
 const run = (params: Record<string, unknown> = {}) => createEngine(builtins).evaluateStack({ source, stack: [{ id: 'p', type: 'particles', params }] });
@@ -43,7 +43,7 @@ describe('particles', () => {
     expect(run({ ...quiet, count: 1, keepSource: true }).shapes).toHaveLength(2);
   });
   it('the complete source object, including all colours and paths, becomes one particle', () => {
-    const scene: SceneV2 = { version: 2, objects: [
+    const scene: SceneV1 = { version: 1, objects: [
       { kind: 'object', id: 'emitter', name: 'Emitter', source: '<svg viewBox="0 0 20 10"><rect width="10" height="10" fill="red"/><rect x="10" width="10" height="10" fill="blue"/></svg>', stack: [{ id: 'p', type: 'particles', params: { ...quiet, count: 3, size: 0.2 } }] },
     ] };
     expect(validateScene(scene)).toEqual({ errors: [], warnings: [] });
@@ -54,7 +54,7 @@ describe('particles', () => {
     expect(doc.geometry.shapes.every((s) => s.node === 'emitter')).toBe(true);
   });
   it('generated particles on a group remain selectable as that group', () => {
-    const scene: SceneV2 = { version: 2, objects: [{ kind: 'group', id: 'emitter-group', name: 'Emitter', children: [{ kind: 'shape', id: 'child', name: 'Child', shape: 'rectangle', params: {}, stack: [] }], stack: [{ id: 'p', type: 'particles', params: { count: 3 } }] }] };
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'group', id: 'emitter-group', name: 'Emitter', children: [{ kind: 'shape', id: 'child', name: 'Child', shape: 'rectangle', params: {}, stack: [] }], stack: [{ id: 'p', type: 'particles', params: { count: 3 } }] }] };
     expect(validateScene(scene)).toEqual({ errors: [], warnings: [] });
     expect(createEngine(builtins).evaluateDocument(scene).geometry.shapes.every((s) => s.node === 'emitter-group')).toBe(true);
   });

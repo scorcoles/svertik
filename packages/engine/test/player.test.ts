@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, type SceneV2 } from '../src';
+import { builtins, type SceneV1 } from '../src';
 import { effectLoaders, effectTypes } from '../src/modifiers/manifest';
 import { prepareScene, sceneEffectTypes, sceneHasText, sceneNeedsImporter } from '../src/prepare';
 
@@ -18,7 +18,7 @@ describe('manifiesto de efectos', () => {
 });
 
 describe('qué necesita una escena', () => {
-  const scene = (objects: unknown[]): SceneV2 => ({ version: 2, objects: objects as SceneV2['objects'] });
+  const scene = (objects: unknown[]): SceneV1 => ({ version: 1, objects: objects as SceneV1['objects'] });
 
   it('los efectos de las pilas, y los de dentro de ellos', () => {
     const s = scene([
@@ -63,7 +63,7 @@ describe('qué necesita una escena', () => {
 describe('preparar una escena', () => {
   it('carga solo los efectos que usa', async () => {
     const defs = await prepareScene({
-      version: 2,
+      version: 1,
       objects: [{ kind: 'shape', id: 'a', name: 'A', shape: 'star', params: {}, stack: [{ id: 'x', type: 'twist', params: {} }] }],
     });
     expect(defs.map((d) => d.type)).toEqual(['twist']);
@@ -72,7 +72,7 @@ describe('preparar una escena', () => {
   it('avisa de los efectos que no existen', async () => {
     await expect(
       prepareScene({
-        version: 2,
+        version: 1,
         objects: [{ kind: 'shape', id: 'a', name: 'A', shape: 'star', params: {}, stack: [{ id: 'x', type: 'nope', params: {} }] }],
       }),
     ).rejects.toThrow(/nope/);

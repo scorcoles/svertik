@@ -1,6 +1,6 @@
 [
  {
-  "version": 2,
+  "version": 1,
   "document": {
    "width": 800,
    "height": 450,
@@ -79,7 +79,7 @@
   }
  },
  {
-  "version": 2,
+  "version": 1,
   "document": {
    "width": 600,
    "height": 600,
@@ -143,7 +143,7 @@
   ]
  },
  {
-  "version": 2,
+  "version": 1,
   "document": {
    "width": 800,
    "height": 500,
@@ -241,7 +241,7 @@
   }
  },
  {
-  "version": 2,
+  "version": 1,
   "document": {
    "width": 600,
    "height": 600,
@@ -386,7 +386,7 @@
   }
  },
  {
-  "version": 2,
+  "version": 1,
   "document": {
    "width": 800,
    "height": 600,
@@ -560,7 +560,7 @@
   }
  },
  {
-  "version": 2,
+  "version": 1,
   "document": {
    "width": 600,
    "height": 600,

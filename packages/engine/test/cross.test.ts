@@ -22,6 +22,6 @@ describe('Cross primitive', () => {
     expect(area(100, 200)).toBeCloseTo(10000);
     expect(shapes[shapes.findIndex((s) => s.type === 'star') + 1]!.type).toBe('cross');
     expect(shapes.at(-1)!.type).toBe('pawn');
-    expect(validateScene({ version: 2, objects: [{ kind: 'shape', id: 'c', name: 'Cross', shape: 'cross', params: { size: 18, width: 4 }, stack: [] }] })).toEqual({ errors: [], warnings: [] });
+    expect(validateScene({ version: 1, objects: [{ kind: 'shape', id: 'c', name: 'Cross', shape: 'cross', params: { size: 18, width: 4 }, stack: [] }] })).toEqual({ errors: [], warnings: [] });
   });
 });

@@ -4,7 +4,7 @@
   "name": "Biosphere · Kinetic Pulse",
   "canvas": "#05060b",
   "scene": {
-    "version": 2,
+    "version": 1,
     "document": {
       "width": 1920,
       "height": 1080

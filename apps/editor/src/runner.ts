@@ -1,8 +1,8 @@
 // Ejecuta el JS del panel en un Web Worker: sin acceso a la página y con freno si se cuelga.
-import type { SceneV2 } from '@svertik/engine';
+import type { SceneV1 } from '@svertik/engine';
 
 export type RunnerMessage =
-  | { type: 'scene'; scene: SceneV2 }
+  | { type: 'scene'; scene: SceneV1 }
   | { type: 'error'; message: string; line: number | null; stack?: string };
 
 // Código del worker. El script se envuelve en una función: `onFrame` viene de fuera

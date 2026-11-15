@@ -1,7 +1,7 @@
 // Animation: keyframe tracks on any parameter (of an effect, of a primitive or of a node's
 // placement). `sampleScene` gives the scene at a time: the rest of the engine doesn't change.
 import { mixColor, parseColor, toHex } from './color';
-import type { SceneNode, SceneV2 } from './document';
+import type { SceneNode, SceneV1 } from './document';
 import type { ModifierInstance } from './engine';
 import { hasTextExpressions, isNumericExpression, sceneHasExpressions } from './expression';
 
@@ -32,7 +32,7 @@ export interface Keyframe {
 export interface Track {
   id: string;
   node: string;
-  on: 'node' | 'shape' | 'modifier';
+  on: 'node' | 'shape' | 'modifier' | 'composition';
   modifier?: string;
   /** With `modifier`, also `enabled`: turns the effect on and off (true / false, jumps at each key). */
   param: string;
@@ -54,6 +54,7 @@ export interface Animation {
   /** Frames per second keys snap to (24, 25, 30, 60…). */
   fps?: number;
   tracks: Track[];
+  markers?: { id: string; name: string; t: number }[];
 }
 
 const EASE_OUT: Record<'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'expo-out' | 'back-out' | 'elastic-out' | 'bounce-out', (x: number) => number> = {
@@ -159,22 +160,25 @@ function findNode(nodes: SceneNode[], id: string): SceneNode | null {
 }
 
 /** The current (unanimated) value of what a track points at. */
-export function readTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'modifier' | 'param'>): unknown {
+export function readTarget(scene: SceneV1, tr: Pick<Track, 'node' | 'on' | 'modifier' | 'param'>): unknown {
   const n = findNode(scene.objects, tr.node);
   if (!n) return undefined;
   if (tr.on === 'node') return tr.param === 'opacity' ? (n.opacity ?? 1) : ((n.transform as Record<string, unknown> | undefined)?.[tr.param] ?? (tr.param === 'scale' ? 1 : 0));
+  if (tr.on === 'composition') return n.kind === 'group' && n.composition ? n.composition.params?.[tr.param] ?? (tr.param === 'time' ? scene.at ?? 0 : tr.param === 'speed' ? 1 : 0) : undefined;
   if (tr.on === 'shape') return n.kind === 'shape' ? n.params[tr.param] : undefined;
   const m = tr.modifier ? findModifier(n.stack, tr.modifier) : null;
   if (m && tr.param === 'enabled') return m.enabled !== false;
   return m?.params?.[tr.param];
 }
 
-export function writeTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'modifier' | 'param'>, value: unknown) {
+export function writeTarget(scene: SceneV1, tr: Pick<Track, 'node' | 'on' | 'modifier' | 'param'>, value: unknown) {
   const n = findNode(scene.objects, tr.node);
   if (!n || value === undefined) return;
   if (tr.on === 'node') {
     if (tr.param === 'opacity') n.opacity = value as number;
     else n.transform = { ...n.transform, [tr.param]: value };
+  } else if (tr.on === 'composition') {
+    if (n.kind === 'group' && n.composition) n.composition.params = { ...n.composition.params, [tr.param]: value };
   } else if (tr.on === 'shape') {
     if (n.kind === 'shape') n.params = { ...n.params, [tr.param]: value };
   } else {
@@ -185,10 +189,10 @@ export function writeTarget(scene: SceneV2, tr: Pick<Track, 'node' | 'on' | 'mod
 }
 
 /** The scene at time `t` (seconds): a copy with the tracks' values set. */
-export function sampleScene(scene: SceneV2, t: number): SceneV2 {
+export function sampleScene(scene: SceneV1, t: number): SceneV1 {
   const anim = scene.animation;
   if (!anim && !sceneHasExpressions(scene)) return scene;
-  const out = structuredClone(scene) as SceneV2;
+  const out = structuredClone(scene) as SceneV1;
   for (const tr of anim?.tracks ?? []) {
     const target = readTarget(out, tr);
     if (isNumericExpression(target) || (tr.on === 'shape' && tr.param === 'text' && hasTextExpressions(target))) continue;

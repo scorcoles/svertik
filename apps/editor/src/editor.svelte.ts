@@ -1,11 +1,16 @@
-// Estado del editor: la escena (v2: varios objetos y grupos), la selección, el historial y la URL.
+// Estado del editor: la escena (scene: varios objetos y grupos), la selección, el historial y la URL.
 import {
   bounds,
+  apply,
+  invert,
+  pivotPoint,
   builtins,
   createEngine,
   importSVG,
   isScene,
   isNumericExpression,
+  evaluateSceneExpressions,
+  sceneDuration,
   hasTextExpressions,
   outlineNode,
   packNode,
@@ -36,7 +41,7 @@ import {
   type InstanceNode,
   type ObjectNode,
   type SceneNode,
-  type SceneV2,
+  type SceneV1,
   type ShapeNode,
   validateScene,
   applyPalette,
@@ -57,7 +62,7 @@ export const DEFAULT_CANVAS = '#b0b0b0';
 export const DEFAULT_FILL = '#333333';
 
 export const DEFAULT_DOCUMENT = { width: 1400, height: 900 };
-const newScene = (objects: SceneNode[] = []): SceneV2 => ({ version: 2, document: { ...DEFAULT_DOCUMENT }, objects });
+const newScene = (objects: SceneNode[] = []): SceneV1 => ({ version: 1, document: { ...DEFAULT_DOCUMENT }, objects });
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
@@ -114,7 +119,7 @@ export function locateNode(nodes: SceneNode[], id: string | null, parent: GroupN
 }
 
 /** Un modificador y el nodo cuya pila lo contiene. */
-export function locateModifier(scene: SceneV2, id: string | null): (Location & { owner: SceneNode }) | null {
+export function locateModifier(scene: SceneV1, id: string | null): (Location & { owner: SceneNode }) | null {
   if (!id) return null;
   for (const { node } of walkNodes(scene.objects)) {
     const at = locate(node.stack, id);
@@ -131,7 +136,7 @@ export type PresetName = (typeof PRESETS)[number];
 export type TrackTarget = Pick<Track, 'node' | 'on' | 'modifier' | 'param'>;
 
 /** Escribe un valor en lo que apunta una pista (en la escena viva del editor). */
-function writeTrackTarget(scene: SceneV2, tr: TrackTarget, value: unknown) {
+function writeTrackTarget(scene: SceneV1, tr: TrackTarget, value: unknown) {
   if (value === undefined) return;
   const at = locateNode(scene.objects, tr.node);
   if (!at) return;
@@ -139,6 +144,8 @@ function writeTrackTarget(scene: SceneV2, tr: TrackTarget, value: unknown) {
   if (tr.on === 'node') {
     if (tr.param === 'opacity') n.opacity = value as number;
     else n.transform = { ...n.transform, [tr.param]: value as number };
+  } else if (tr.on === 'composition') {
+    if (n.kind === 'group' && n.composition) n.composition.params = { ...n.composition.params, [tr.param]: value };
   } else if (tr.on === 'shape') {
     if (n.kind === 'shape') n.params[tr.param] = value;
   } else {
@@ -188,11 +195,11 @@ function freshNode(n: SceneNode): SceneNode {
 }
 
 export class Editor {
-  #rootScene = $state<SceneV2 | null>(null);
+  #rootScene = $state<SceneV1 | null>(null);
   compositionPath = $state<string[]>([]);
   #compositionViews: { time: number }[] = [];
   get projectScene() { return this.#rootScene; }
-  get scene(): SceneV2 | null {
+  get scene(): SceneV1 | null {
     let scene = this.#rootScene;
     for (const id of this.compositionPath) {
       const n = scene && locateNode(scene.objects, id)?.node;
@@ -201,7 +208,7 @@ export class Editor {
     }
     return scene;
   }
-  set scene(value: SceneV2 | null) {
+  set scene(value: SceneV1 | null) {
     let scene = this.#rootScene;
     for (let i = 0; i < this.compositionPath.length; i++) {
       const n = scene && locateNode(scene.objects, this.compositionPath[i]!)?.node;
@@ -238,15 +245,64 @@ export class Editor {
   setCompositionParam(id: string, name: string, value: unknown) {
     const n = this.scene && locateNode(this.scene.objects, id)?.node;
     if (!n || n.kind !== 'group' || !n.composition) return;
-    n.composition.params = { ...n.composition.params, [name]: value }; this.record();
+    n.composition.params = { ...n.composition.params, [name]: value };
+    this.#parameterChanged({ node: id, on: 'composition', param: name }, value); this.record();
   }
-  createComposition(fromSelection = false, imported?: SceneV2, name = 'Composition') {
+  setClockModulator(id: string, type: string) {
+    const n = this.scene && locateNode(this.scene.objects, id)?.node;
+    if (!n || n.kind !== 'group' || !n.composition) return;
+    if (type === 'none') delete n.composition.modulation;
+    else if (['oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) n.composition.modulation = {
+      type: type as 'oscillate' | 'wiggle' | 'pulse' | 'shake', params: { ...resolveParams(registry.get(type)!.params), time: { $expr: 'scene.time', fallback: 0 }, amplitude: 0.25, perElement: false },
+    };
+    this.record(true);
+  }
+  setClockSignalParam(id: string, name: string, value: unknown) {
+    const n = this.scene && locateNode(this.scene.objects, id)?.node;
+    if (!n || n.kind !== 'group' || !n.composition?.modulation) return;
+    const signal = n.composition.modulation;
+    signal.params = { ...signal.params, [name]: value }; this.record();
+  }
+  toggleCompositionKey(id: string, param: string) {
+    if (!this.scene) return;
+    const n = locateNode(this.scene.objects, id)?.node;
+    if (!n || n.kind !== 'group' || !n.composition) return;
+    const target: TrackTarget = { node: id, on: 'composition', param };
+    const current = readTarget(this.scene, target);
+    if (isNumericExpression(current)) {
+      const resolved = evaluateSceneExpressions({ ...$state.snapshot(this.scene) as SceneV1, at: this.time });
+      n.composition.params = { ...n.composition.params, [param]: readTarget(resolved, target) };
+    } else if (param === 'time' && n.composition.params?.time === undefined) {
+      n.composition.params = { ...n.composition.params, time: this.time };
+    }
+    this.toggleKey(target);
+  }
+  addMarker() {
+    const anim = this.#ensureAnimation();
+    const names = new Set(anim.markers?.map(m => m.name));
+    let i = 1; while (names.has(`Marker ${i}`)) i++;
+    const name = `Marker ${i}`;
+    anim.markers ??= [];
+    anim.markers.push({ id: `marker-${uid()}`, name, t: this.time });
+    this.record(true);
+  }
+  setMarker(id: string, key: 'name' | 't', value: string | number) {
+    const marker = this.animation?.markers?.find(m => m.id === id); if (!marker) return;
+    if (key === 'name') marker.name = String(value).trim() || 'Marker';
+    else if (Number.isFinite(Number(value))) marker.t = Math.max(0, Math.min(this.animation!.duration, Number(value)));
+    else return;
+    this.record();
+  }
+  removeMarker(id: string) {
+    if (this.animation?.markers) { this.animation.markers = this.animation.markers.filter(m => m.id !== id); this.record(true); }
+  }
+  createComposition(fromSelection = false, imported?: SceneV1, name = 'Composition') {
     if (!this.scene) return;
     const parent = this.scene;
     let objects: SceneNode[] = [];
     let target = parent.objects; let index = 0;
     const tracks: Track[] = [];
-    let interactions: SceneV2['interactions'];
+    let interactions: SceneV1['interactions'];
     if (fromSelection) {
       const locations = this.selectedNodes.map(n => locateNode(parent.objects, n.id)!).filter(Boolean);
       if (!locations.length) return;
@@ -281,7 +337,7 @@ export class Editor {
       }
       for (const l of [...locations].reverse()) target.splice(l.index, 1);
     }
-    const scene: SceneV2 = imported ?? { version: 2, document: { ...(parent.document ?? DEFAULT_DOCUMENT) }, objects,
+    const scene: SceneV1 = imported ?? { version: 1, document: { ...(parent.document ?? DEFAULT_DOCUMENT) }, objects,
       animation: { duration: parent.animation?.duration ?? 3, fps: parent.animation?.fps ?? 30, loop: true, tracks }, ...(interactions?.length ? { interactions } : {}) };
     const node: GroupNode = { kind: 'group', id: `composition-${uid()}`, name, stack: [], children: [], composition: { scene,
       params: { time: { $expr: 'scene.time', fallback: 0 }, speed: 1, loop: 'hold' } } };
@@ -951,7 +1007,7 @@ export class Editor {
     if (!this.scene || !id) return;
     this.flush();
     const engine = (this.#packEngine ??= createEngine(builtins));
-    const doc = engine.evaluateDocument($state.snapshot(this.scene) as SceneV2);
+    const doc = engine.evaluateDocument($state.snapshot(this.scene) as SceneV1);
     const r = packNode(this.scene, id, doc, uid());
     if (!r) return;
     this.selected = r.node.id;
@@ -1055,7 +1111,7 @@ export class Editor {
     if (at.parent) {
       // Group pivots follow their children's bounds. Probe the actual result rather than
       // treating the parent's matrix as fixed while its child moves.
-      const scene = $state.snapshot(this.scene) as SceneV2;
+      const scene = $state.snapshot(this.scene) as SceneV1;
       scene.at = this.time;
       const probe = locateNode(scene.objects, id)!.node;
       const engine = createEngine(builtins);
@@ -1086,6 +1142,79 @@ export class Editor {
     this.#autoKey({ node: id, on: 'node', param: 'y' }, y);
     this.record(true);
   }
+
+  /** Capture a shared world-space pivot once, so pointer drags never compound their scale. */
+  captureSelectionScale(): ((factor: number) => void) | null {
+    if (!this.scene) return null;
+    const chosen = this.selectedNodes.filter(n => n.kind !== 'effector');
+    const ids = new Set(chosen.map(n => n.id));
+    const roots = chosen.filter(n => {
+      let parent = locateNode(this.scene!.objects, n.id)?.parent;
+      while (parent) { if (ids.has(parent.id)) return false; parent = locateNode(this.scene!.objects, parent.id)?.parent; }
+      return true;
+    });
+    const scene = $state.snapshot(this.scene) as SceneV1; scene.at = this.time;
+    const doc = createEngine(builtins).evaluateDocument(scene);
+    const boxes = roots.flatMap(n => { const info = doc.nodes.get(n.id); return info ? [info.box] : []; });
+    if (!boxes.length) return null;
+    const x0 = Math.min(...boxes.map(b => b.x)), y0 = Math.min(...boxes.map(b => b.y));
+    const x1 = Math.max(...boxes.map(b => b.x + b.width)), y1 = Math.max(...boxes.map(b => b.y + b.height));
+    const center: [number, number] = [(x0 + x1) / 2, (y0 + y1) / 2];
+    const initial = roots.flatMap(n => {
+      const info = doc.nodes.get(n.id); if (!info) return [];
+      const p = placementOf(n), q = apply(info.matrix, pivotPoint(info.bounds, p.pivot));
+      const parent = locateNode(this.scene!.objects, n.id)?.parent;
+      const matrix = parent && doc.nodes.get(parent.id)?.matrix;
+      const toParent = matrix ? invert(matrix) : [1, 0, 0, 1, 0, 0];
+      return [{ id: n.id, p, q, toParent, nested: !!parent && !parent.composition }];
+    });
+    return (factor: number) => {
+      if (!this.scene || !Number.isFinite(factor)) return;
+      const k = Math.max(0.0001, factor);
+      for (const { id, p, q, toParent: m } of initial) {
+        const n = locateNode(this.scene.objects, id)?.node; if (!n) continue;
+        const dx = (q[0] - center[0]) * (k - 1), dy = (q[1] - center[1]) * (k - 1);
+        const x = p.x + m[0]! * dx + m[2]! * dy, y = p.y + m[1]! * dx + m[3]! * dy;
+        n.transform = { ...n.transform, x, y, scale: p.scale * k };
+      }
+      // Ordinary groups pivot around changing child bounds. Solve their placement response in
+      // document space rather than assuming their parent matrix stays fixed during the resize.
+      if (initial.some(item => item.nested)) {
+        const probe = $state.snapshot(this.scene) as SceneV1; probe.at = this.time;
+        const engine = createEngine(builtins);
+        const measure = (id: string) => {
+          const info = engine.evaluateDocument(probe).nodes.get(id)!;
+          const n = locateNode(probe.objects, id)!.node;
+          return apply(info.matrix, pivotPoint(info.bounds, placementOf(n).pivot));
+        };
+        for (let pass = 0; pass < 3; pass++) for (const item of initial.filter(i => i.nested)) {
+          const n = locateNode(probe.objects, item.id)!.node;
+          const target = [center[0] + k * (item.q[0] - center[0]), center[1] + k * (item.q[1] - center[1])];
+          for (let i = 0; i < 4; i++) {
+            const c = measure(item.id), dx = target[0]! - c[0], dy = target[1]! - c[1];
+            if (Math.abs(dx) + Math.abs(dy) < 1e-6) break;
+            const p = placementOf(n);
+            n.transform = { ...n.transform, x: p.x + 1 }; const a = measure(item.id);
+            n.transform = { ...n.transform, x: p.x, y: p.y + 1 }; const b = measure(item.id);
+            const ax = a[0] - c[0], ay = a[1] - c[1], bx = b[0] - c[0], by = b[1] - c[1], det = ax * by - ay * bx;
+            n.transform = { ...n.transform, x: p.x, y: p.y };
+            if (Math.abs(det) < 1e-12) break;
+            n.transform = { ...n.transform, x: p.x + (dx * by - dy * bx) / det, y: p.y + (dy * ax - dx * ay) / det };
+          }
+        }
+        for (const item of initial.filter(i => i.nested)) {
+          const n = locateNode(this.scene.objects, item.id)!.node;
+          n.transform = { ...n.transform, ...locateNode(probe.objects, item.id)!.node.transform };
+        }
+      }
+      for (const { id } of initial) {
+        const p = placementOf(locateNode(this.scene.objects, id)!.node);
+        for (const param of ['x', 'y', 'scale'] as const) this.#autoKey({ node: id, on: 'node', param }, p[param]);
+      }
+      this.record();
+    };
+  }
+  scaleSelection(factor: number) { this.captureSelectionScale()?.(factor); }
 
   /** Mueve varios nodos a la vez (alinear, distribuir, arrastrar una selección): un solo paso de historial. */
   moveNodes(moves: { id: string; dx: number; dy: number }[], now = true) {
@@ -1203,7 +1332,7 @@ export class Editor {
   }
   #ensureAnimation(): Animation {
     const s = this.scene!;
-    s.animation ??= { duration: 3, loop: true, fps: 30, tracks: [] };
+    s.animation ??= { duration: sceneDuration(s), loop: true, fps: 30, tracks: [] };
     return s.animation;
   }
   /** La pista de un parámetro, si está animado. */
@@ -1275,7 +1404,7 @@ export class Editor {
   }
   #applyTime() {
     if (!this.scene?.animation) return;
-    const sampled = sampleScene($state.snapshot(this.scene) as SceneV2, this.time);
+    const sampled = sampleScene($state.snapshot(this.scene) as SceneV1, this.time);
     for (const tr of this.scene.animation.tracks) {
       const v = readTarget(sampled, tr);
       writeTrackTarget(this.scene, tr, v);
@@ -1284,6 +1413,7 @@ export class Editor {
   setDuration(d: number) {
     const anim = this.#ensureAnimation();
     anim.duration = Math.max(0.1, d);
+    for (const marker of anim.markers ?? []) marker.t = Math.min(marker.t, anim.duration);
     if (this.time > anim.duration) this.setTime(anim.duration);
     this.record();
   }
@@ -1473,7 +1603,7 @@ export class Editor {
       it.axis = it.axis ?? 'both';
       delete it.range;
     } else {
-      const v = Number(readTarget($state.snapshot(this.scene) as SceneV2, target) ?? 0) || 0;
+      const v = Number(readTarget($state.snapshot(this.scene) as SceneV1, target) ?? 0) || 0;
       it.range = kind === 'angle' ? [v - 45, v + 45] : target.param === 'scale' || target.param === 'opacity' ? [0, 1] : [v - 1, v + 1];
       it.axis = it.axis === 'y' ? 'y' : 'x';
     }
@@ -1710,11 +1840,11 @@ export class Editor {
   }
 
   /** Sustituye la escena entera (desde el panel de código). Devuelve false si no cambia nada. */
-  applyScene(v2: SceneV2) {
+  applyScene(scene: SceneV1) {
     if (!this.scene) return false;
-    if (JSON.stringify(v2) === JSON.stringify($state.snapshot(this.scene))) return false;
-    this.scene = v2;
-    if (this.selected && !locateNode(v2.objects, this.selected) && !locateModifier(v2, this.selected)) this.selected = v2.objects[0]?.id ?? null;
+    if (JSON.stringify(scene) === JSON.stringify($state.snapshot(this.scene))) return false;
+    this.scene = scene;
+    if (this.selected && !locateNode(scene.objects, this.selected) && !locateModifier(scene, this.selected)) this.selected = scene.objects[0]?.id ?? null;
     this.record();
     return true;
   }
@@ -1813,7 +1943,7 @@ export class Editor {
   #restore(i: number) {
     const snap = this.#history[i];
     if (!snap) return;
-    const { scene, name, script, canvas } = JSON.parse(snap) as { scene: SceneV2 | null; name: string; script?: string; canvas?: string };
+    const { scene, name, script, canvas } = JSON.parse(snap) as { scene: SceneV1 | null; name: string; script?: string; canvas?: string };
     this.#rootScene = scene;
     this.compositionPath = this.compositionPath.slice(0, this.compositionBreadcrumbs.length);
     this.#compositionViews = this.#compositionViews.slice(0, this.compositionPath.length);
@@ -1934,7 +2064,7 @@ export class Editor {
     }
     this.flush();
     const state = this.#history[this.#index];
-    const encoded = await encodeState({ scene: $state.snapshot(this.#rootScene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    const encoded = await encodeState({ scene: $state.snapshot(this.#rootScene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     const fits = encoded.length < MAX_HASH;
     history.replaceState(null, '', `${location.pathname}${location.search}${fits ? `#s=${encoded}` : ''}`);
     this.#inURL = fits ? state : undefined;
@@ -1953,7 +2083,7 @@ export class Editor {
    */
   async shareURL(): Promise<string | null> {
     if (!this.scene) return null;
-    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     if (encoded.length >= MAX_HASH) return null;
     // La página de Play, junto al editor: carga solo el motor (mucho menos que el editor entero).
     const dir = location.pathname.replace(/[^/]*$/, '');

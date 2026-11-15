@@ -1,7 +1,7 @@
 import { expandCompositions } from './composition';
 // The scene (what is saved and exported as JSON) and the engine that evaluates it.
 
-import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
+import { createDocumentEvaluator, type DocumentResult, type SceneV1 } from './document';
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
@@ -38,10 +38,10 @@ export interface Engine {
   /** The result of each step of the stack: [source, after the 1st, after the 2nd, …]. */
   evaluateStackSteps(input: StackInput): Geometry[];
   /** The scene: the whole document, the placed sources and per-node info. */
-  evaluateDocument(scene: SceneV2): DocumentResult;
-  toSVG(scene: SceneV2, options?: ToSVGOptions): string;
+  evaluateDocument(scene: SceneV1): DocumentResult;
+  toSVG(scene: SceneV1, options?: ToSVGOptions): string;
   /** Draws the scene into an <svg> and returns how to update it. */
-  mount(svg: SVGSVGElement, scene: SceneV2, options?: ToSVGOptions): { update(scene: SceneV2): void; doc(): DocumentResult | null };
+  mount(svg: SVGSVGElement, scene: SceneV1, options?: ToSVGOptions): { update(scene: SceneV1): void; doc(): DocumentResult | null };
 }
 
 const DEFAULT_RESOLUTION = 0.01;
@@ -198,8 +198,8 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   }
 
   const documents = createDocumentEvaluator(runStack, filtersOf, { maskOf });
-  const evaluateDocument = (scene: SceneV2) => documents.evaluate(expandCompositions(evaluateSceneExpressions(scene), registry));
-  const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;
+  const evaluateDocument = (scene: SceneV1) => documents.evaluate(expandCompositions(evaluateSceneExpressions(scene), registry));
+  const flat = (scene: SceneV1) => evaluateDocument(scene).geometry;
 
   return {
     evaluateStack,
@@ -209,7 +209,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     mount(svg, scene, options) {
       // The last thing painted (to know where each object is: "follow" needs it).
       let last: DocumentResult | null = null;
-      const paint = (s: SceneV2) => {
+      const paint = (s: SceneV1) => {
         last = evaluateDocument(s);
         renderInto(svg, last.geometry, options);
       };

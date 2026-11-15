@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, isScene, renderInto, type Geometry, type SceneV2 } from '../src';
+import { bounds, builtins, createEngine, isScene, renderInto, type Geometry, type SceneV1 } from '../src';
 
 const rect = (w: number, h: number, fill = '#000') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`;
@@ -7,14 +7,14 @@ const engine = () => createEngine(builtins);
 
 describe('scene', () => {
   it('recognises a scene (and rejects what is not one)', () => {
-    expect(isScene({ version: 2, objects: [] })).toBe(true);
+    expect(isScene({ version: 1, objects: [] })).toBe(true);
     expect(isScene({ version: 1, source: rect(10, 10), stack: [] })).toBe(false);
     expect(isScene(null)).toBe(false);
   });
 
   it('each object is centred on the origin and moves with its position', () => {
-    const scene: SceneV2 = {
-      version: 2,
+    const scene: SceneV1 = {
+      version: 1,
       objects: [
         { kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] },
         { kind: 'object', id: 'b', name: 'b', source: rect(20, 20), stack: [], transform: { x: 100 } },
@@ -28,8 +28,8 @@ describe('scene', () => {
   });
 
   it('each object has its own stack and its own reference box', () => {
-    const scene: SceneV2 = {
-      version: 2,
+    const scene: SceneV1 = {
+      version: 1,
       objects: [
         { kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [{ id: 't', type: 'transform', params: { scale: 2 } }] },
         { kind: 'object', id: 'b', name: 'b', source: rect(10, 10), stack: [], transform: { x: 50 } },
@@ -42,11 +42,11 @@ describe('scene', () => {
 
   it('grouping moves nothing; moving the group moves its children', () => {
     const child = (id: string, x: number) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack: [], transform: { x } });
-    const loose: SceneV2 = { version: 2, objects: [child('a', 0), child('b', 30)] };
-    const grouped: SceneV2 = { version: 2, objects: [{ kind: 'group', id: 'g', name: 'g', stack: [], children: [child('a', 0), child('b', 30)] }] };
+    const loose: SceneV1 = { version: 1, objects: [child('a', 0), child('b', 30)] };
+    const grouped: SceneV1 = { version: 1, objects: [{ kind: 'group', id: 'g', name: 'g', stack: [], children: [child('a', 0), child('b', 30)] }] };
     const e = engine();
     expect(bounds(e.evaluateDocument(grouped).geometry)).toEqual(bounds(e.evaluateDocument(loose).geometry));
-    const moved = { ...grouped, objects: [{ ...grouped.objects[0]!, transform: { y: 7 } }] } as SceneV2;
+    const moved = { ...grouped, objects: [{ ...grouped.objects[0]!, transform: { y: 7 } }] } as SceneV1;
     const doc = e.evaluateDocument(moved);
     expect(doc.nodes.get('b')!.box.y).toBeCloseTo(2);
     expect(doc.nodes.get('g')!.box.y).toBeCloseTo(2);
@@ -54,8 +54,8 @@ describe('scene', () => {
 
   it('Step on a group treats each child as an element', () => {
     const child = (id: string, x: number) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack: [], transform: { x } });
-    const scene: SceneV2 = {
-      version: 2,
+    const scene: SceneV1 = {
+      version: 1,
       objects: [
         {
           kind: 'group',
@@ -72,8 +72,8 @@ describe('scene', () => {
   });
 
   it('invisible is not painted; opacity multiplies', () => {
-    const scene: SceneV2 = {
-      version: 2,
+    const scene: SceneV1 = {
+      version: 1,
       objects: [
         { kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [], visible: false },
         { kind: 'object', id: 'b', name: 'b', source: rect(10, 10), stack: [], opacity: 0.5 },
@@ -85,21 +85,21 @@ describe('scene', () => {
   });
 
   it('the viewBox fits what is there, or the fixed document size', () => {
-    const one: SceneV2 = { version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(100, 50), stack: [] }] };
+    const one: SceneV1 = { version: 1, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(100, 50), stack: [] }] };
     expect(engine().evaluateDocument(one).geometry.viewBox).toEqual([-55, -30, 110, 60]);
     expect(engine().evaluateDocument({ ...one, document: { width: 400, height: 300 } }).geometry.viewBox).toEqual([-200, -150, 400, 300]);
   });
 
   it('toSVG and mount accept a scene', () => {
     const e = engine();
-    expect(e.toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('<path');
-    expect(e.toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('viewBox="-5.5 -5.5 11 11"');
+    expect(e.toSVG({ version: 1, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('<path');
+    expect(e.toSVG({ version: 1, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [] }] })).toContain('viewBox="-5.5 -5.5 11 11"');
   });
 });
 
 describe('primitives', () => {
-  const shape = (s: string, params: Record<string, unknown> = {}, extra: object = {}): SceneV2 => ({
-    version: 2,
+  const shape = (s: string, params: Record<string, unknown> = {}, extra: object = {}): SceneV1 => ({
+    version: 1,
     objects: [{ kind: 'shape', id: 's', name: s, shape: s, params, stack: [], ...extra }],
   });
 
@@ -136,7 +136,7 @@ describe('primitives', () => {
 describe('node flips', () => {
   it('flipX mirrors around the node centre without moving it', () => {
     const tri = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L10 0L0 10Z"/></svg>';
-    const scene: SceneV2 = { version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: tri, stack: [], transform: { flipX: true } }] };
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'object', id: 'a', name: 'a', source: tri, stack: [], transform: { flipX: true } }] };
     const doc = engine().evaluateDocument(scene);
     expect(doc.nodes.get('a')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
     // The right-angle vertex goes from the left (−5, −5) to the right (5, −5).
@@ -157,7 +157,7 @@ describe('boolean', () => {
     }, 0);
   const run = (mode: string) =>
     engine().evaluateDocument({
-      version: 2,
+      version: 1,
       // Two 10 squares overlapping by half: the first in the list, in front.
       objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'b', type: 'boolean', params: { mode } }], children: [at('front', 5), at('back', 0)] }],
     }).geometry;
@@ -176,7 +176,7 @@ describe('boolean', () => {
     const lined = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -5 10 10"><rect x="-5" y="-5" width="10" height="10"/><path d="M-20 0 L20 0" fill="none" stroke="#000"/></svg>`;
     const go = (mode: string) =>
       engine().evaluateDocument({
-        version: 2,
+        version: 1,
         objects: [{ kind: 'group', id: 'g', name: 'g', stack: [{ id: 'b', type: 'boolean', params: { mode } }], children: [at('front', 5), { kind: 'object', id: 'back', name: 'back', source: lined, stack: [] }] }],
       }).geometry;
     const lineOf = (geo: Geometry) => geo.shapes.find((s) => s.subpaths.some((sp) => !sp.closed));
@@ -189,18 +189,18 @@ describe('boolean', () => {
 
   it('without tagged elements, each shape is one', () => {
     const two = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="10" height="10"/><rect x="5" width="10" height="10"/></svg>`;
-    const geo = engine().evaluateDocument({ version: 2, objects: [{ kind: 'object', id: 'o', name: 'o', source: two, stack: [{ id: 'b', type: 'boolean', params: { mode: 'intersect' } }] }] }).geometry;
+    const geo = engine().evaluateDocument({ version: 1, objects: [{ kind: 'object', id: 'o', name: 'o', source: two, stack: [{ id: 'b', type: 'boolean', params: { mode: 'intersect' } }] }] }).geometry;
     expect(area(geo)).toBeCloseTo(50);
   });
 });
 
 describe('effects that use another object', () => {
-  const dot = (id: string, stack: SceneV2['objects'][number]['stack']) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
+  const dot = (id: string, stack: SceneV1['objects'][number]['stack']) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
   const path = { kind: 'shape' as const, id: 'p', name: 'p', shape: 'line', params: { length: 200, angle: 0 }, stack: [], transform: { x: 50, y: 30 } };
 
   it('Clone on the outline: the copies, spread along the other object path', () => {
     const doc = engine().evaluateDocument({
-      version: 2,
+      version: 1,
       objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'p', count: 5, align: false } }]), path],
     });
     const box = doc.nodes.get('d')!.box;
@@ -212,12 +212,12 @@ describe('effects that use another object', () => {
   });
 
   it('Clone without an object (or with one that does not exist) leaves the drawing as it was', () => {
-    const doc = engine().evaluateDocument({ version: 2, objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'nope' } }])] });
+    const doc = engine().evaluateDocument({ version: 1, objects: [dot('d', [{ id: 'c', type: 'clone', params: { mode: 'object', target: 'nope' } }])] });
     expect(doc.nodes.get('d')!.box).toEqual({ x: -5, y: -5, width: 10, height: 10 });
   });
 
   it('Path Wrap stretches the drawing along the path', () => {
-    const doc = engine().evaluateDocument({ version: 2, objects: [dot('d', [{ id: 'w', type: 'pathwrap', params: { target: 'p' } }]), path] });
+    const doc = engine().evaluateDocument({ version: 1, objects: [dot('d', [{ id: 'w', type: 'pathwrap', params: { target: 'p' } }]), path] });
     const box = doc.nodes.get('d')!.box;
     expect(box.x).toBeCloseTo(-50);
     expect(box.width).toBeCloseTo(200);
@@ -226,7 +226,7 @@ describe('effects that use another object', () => {
 });
 
 describe('pivot', () => {
-  const sq = (transform: object) => engine().evaluateDocument({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [], transform }] }).nodes.get('a')!.box;
+  const sq = (transform: object) => engine().evaluateDocument({ version: 1, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [], transform }] }).nodes.get('a')!.box;
   it('changing the pivot, without rotation or scale, does not move the object', () => {
     expect(sq({ pivot: [0, 0] })).toEqual({ x: -5, y: -5, width: 10, height: 10 });
   });
@@ -240,8 +240,8 @@ describe('pivot', () => {
 describe('blend modes', () => {
   it('the mode goes in style (it is CSS, not an SVG attribute); the child mode wins over the group', () => {
     const e = engine();
-    const scene: SceneV2 = {
-      version: 2,
+    const scene: SceneV1 = {
+      version: 1,
       objects: [
         {
           kind: 'group', id: 'g', name: 'g', stack: [], blend: 'screen',
@@ -267,8 +267,8 @@ describe('morph and explosion', () => {
       for (let i = 0; i < pts.length - 1; i++) a += pts[i]![0] * pts[i + 1]![1] - pts[i + 1]![0] * pts[i]![1];
       return sum + Math.abs(a) / 2;
     }, 0);
-  const scene = (amount: number): SceneV2 => ({
-    version: 2,
+  const scene = (amount: number): SceneV1 => ({
+    version: 1,
     objects: [
       { kind: 'shape', id: 'sq', name: 'sq', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'morph', params: { target: 'c', amount } }] },
       { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 50, height: 50 }, stack: [], visible: false },
@@ -280,7 +280,7 @@ describe('morph and explosion', () => {
   });
   it('explosion: the pieces move away from the centre', () => {
     const e = engine();
-    const base: SceneV2 = { version: 2, objects: [{ kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'mo', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0] } }] }] };
+    const base: SceneV1 = { version: 1, objects: [{ kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'mo', type: 'mosaic', params: { columns: 4, rows: 4, gutter: [0, 0] } }] }] };
     const before = e.evaluateDocument(base).nodes.get('r')!.box;
     base.objects[0]!.stack.push({ id: 'x', type: 'explosion', params: { amount: 1, force: 0.5 } });
     const after = e.evaluateDocument(base).nodes.get('r')!.box;
@@ -290,8 +290,8 @@ describe('morph and explosion', () => {
 
 describe('morph with steps', () => {
   it('the original, the steps and the target: each one an element', () => {
-    const scene: SceneV2 = {
-      version: 2,
+    const scene: SceneV1 = {
+      version: 1,
       objects: [
         { kind: 'shape', id: 'sq', name: 'sq', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'morph', params: { target: 'c', amount: 1, steps: 3 } }] },
         { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 50, height: 50 }, stack: [], transform: { x: 300 } },
@@ -329,8 +329,8 @@ describe('cache of effects that use another object', () => {
       return t ?? geo;
     },
   };
-  const scene = (otherX: number, targetW: number): SceneV2 => ({
-    version: 2,
+  const scene = (otherX: number, targetW: number): SceneV1 => ({
+    version: 1,
     objects: [
       { kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [{ id: 's', type: 'spy', params: { target: 'b' } }] },
       { kind: 'shape', id: 'b', name: 'b', shape: 'rectangle', params: { width: targetW, height: 10 }, stack: [], transform: { x: 100 } },
@@ -371,8 +371,8 @@ describe('step cache', () => {
       },
     };
     const e = createEngine([...builtins, heavy]);
-    const scene = (dx: number): SceneV2 => ({
-      version: 2,
+    const scene = (dx: number): SceneV1 => ({
+      version: 1,
       objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(10, 10), stack: [{ id: 'h', type: 'heavy' }, { id: 't', type: 'transform', params: { x: dx } }] }],
     });
     e.evaluateDocument(scene(0));
@@ -385,8 +385,8 @@ describe('step cache', () => {
 });
 
 describe('filters', () => {
-  const scene = (stack: SceneV2['objects'][number]['stack'], extra: Partial<SceneV2> = {}): SceneV2 => ({
-    version: 2,
+  const scene = (stack: SceneV1['objects'][number]['stack'], extra: Partial<SceneV1> = {}): SceneV1 => ({
+    version: 1,
     objects: [
       { kind: 'object', id: 'a', name: 'a', source: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="10" height="10"/><rect x="10" width="10" height="10"/></svg>`, stack },
       { kind: 'object', id: 'b', name: 'b', source: rect(10, 10), stack: [], transform: { x: 40 } },
@@ -435,11 +435,11 @@ describe('filters', () => {
 });
 
 describe('zoned filters', () => {
-  const one = (params: Record<string, unknown>, transform = {}): SceneV2 => ({
-    version: 2,
+  const one = (params: Record<string, unknown>, transform = {}): SceneV1 => ({
+    version: 1,
     objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(100, 50), stack: [{ id: 'b', type: 'blur', params }], transform }],
   });
-  const markup = (s: SceneV2) => engine().evaluateDocument(s).geometry.filters!.a!.markup;
+  const markup = (s: SceneV1) => engine().evaluateDocument(s).geometry.filters!.a!.markup;
 
   it('whole, without a mask; with an area, a mask with the gradient and the original outside it', () => {
     expect(markup(one({}))).not.toContain('feImage');
@@ -457,14 +457,14 @@ describe('zoned filters', () => {
 });
 
 describe('instance', () => {
-  const orig = (stack: SceneV2['objects'][number]['stack'] = [], transform = {}) =>
+  const orig = (stack: SceneV1['objects'][number]['stack'] = [], transform = {}) =>
     ({ kind: 'object' as const, id: 'a', name: 'a', source: rect(10, 10), stack, transform });
   const inst = (extra: Record<string, unknown> = {}) => ({ kind: 'instance' as const, id: 'i', name: 'i', of: 'a', stack: [], transform: { x: 100 }, ...extra });
 
   it('draws the original result (with its effects) in its own place, in front or behind', () => {
     const stack = [{ id: 't', type: 'transform', params: { scale: 2 } }];
     for (const objects of [[inst(), orig(stack, { x: -50 })], [orig(stack, { x: -50 }), inst()]]) {
-      const doc = engine().evaluateDocument({ version: 2, objects } as SceneV2);
+      const doc = engine().evaluateDocument({ version: 1, objects } as SceneV1);
       expect(doc.nodes.get('a')!.box).toEqual({ x: -60, y: -10, width: 20, height: 20 });
       expect(doc.nodes.get('i')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
       // Its shapes are its own (clicking selects the instance).
@@ -474,33 +474,33 @@ describe('instance', () => {
 
   it('follows the original when it changes; carries its own effects on top', () => {
     const e = engine();
-    const scene = { version: 2, objects: [orig(), inst({ stack: [{ id: 'r', type: 'transform', params: { scale: 0.5 } }] })] } as SceneV2;
+    const scene = { version: 1, objects: [orig(), inst({ stack: [{ id: 'r', type: 'transform', params: { scale: 0.5 } }] })] } as SceneV1;
     expect(e.evaluateDocument(scene).nodes.get('i')!.box.width).toBeCloseTo(5);
     (scene.objects[0] as { source: string }).source = rect(40, 40);
     expect(e.evaluateDocument(scene).nodes.get('i')!.box.width).toBeCloseTo(20);
   });
 
   it('shows even if the original is hidden (a master)', () => {
-    const doc = engine().evaluateDocument({ version: 2, objects: [{ ...orig(), visible: false }, inst()] } as SceneV2);
+    const doc = engine().evaluateDocument({ version: 1, objects: [{ ...orig(), visible: false }, inst()] } as SceneV1);
     expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['i']);
   });
 
   it('an instance of its own group, or in a circular chain, draws nothing (and does not hang)', () => {
     const scene = {
-      version: 2,
+      version: 1,
       objects: [
         { kind: 'group', id: 'g', name: 'g', stack: [], children: [orig(), { ...inst(), of: 'g' }] },
         { kind: 'instance', id: 'x', name: 'x', of: 'y', stack: [] },
         { kind: 'instance', id: 'y', name: 'y', of: 'x', stack: [] },
       ],
-    } as SceneV2;
+    } as SceneV1;
     const doc = engine().evaluateDocument(scene);
     expect(doc.geometry.shapes.map((s) => s.node)).toEqual(['a']);
   });
 
   it('of an original that does not exist: nothing, and validateScene warns', async () => {
     const { validateScene } = await import('../src/validate');
-    const scene = { version: 2, objects: [{ ...inst(), of: 'nope' }] } as SceneV2;
+    const scene = { version: 1, objects: [{ ...inst(), of: 'nope' }] } as SceneV1;
     expect(engine().evaluateDocument(scene).geometry.shapes).toHaveLength(0);
     const r = validateScene(scene);
     expect(r.errors).toEqual([]);
@@ -515,7 +515,7 @@ describe('effector', () => {
   });
 
   it('applies its effects to each target separately (each on its own box) and draws nothing', () => {
-    const doc = engine().evaluateDocument({ version: 2, objects: [eff(), obj('a', 0), obj('b', 100), obj('c', 200)] } as SceneV2);
+    const doc = engine().evaluateDocument({ version: 1, objects: [eff(), obj('a', 0), obj('b', 100), obj('c', 200)] } as SceneV1);
     expect(doc.nodes.get('a')!.box).toEqual({ x: -10, y: -10, width: 20, height: 20 });
     expect(doc.nodes.get('b')!.box).toEqual({ x: 90, y: -10, width: 20, height: 20 });
     expect(doc.nodes.get('c')!.box.width).toBe(10);
@@ -528,17 +528,17 @@ describe('effector', () => {
     const e = engine();
     // First its own (scale 0.5 around the centre: 2.5–7.5), then the effector one (+10): 12.5–17.5,
     // which once placed (source centre at 0) ends at 7.5. The other way round it would be 2.5.
-    expect(e.evaluateDocument({ version: 2, objects: [eff(move), own] } as SceneV2).nodes.get('a')!.box.x).toBeCloseTo(7.5);
-    expect(e.evaluateDocument({ version: 2, objects: [eff({ visible: false }), obj('a', 0)] } as SceneV2).nodes.get('a')!.box.width).toBe(10);
+    expect(e.evaluateDocument({ version: 1, objects: [eff(move), own] } as SceneV1).nodes.get('a')!.box.x).toBeCloseTo(7.5);
+    expect(e.evaluateDocument({ version: 1, objects: [eff({ visible: false }), obj('a', 0)] } as SceneV1).nodes.get('a')!.box.width).toBe(10);
   });
 
   it('delay: each target sees the effector animation a little later', async () => {
     const { sampleScene } = await import('../src/animation');
     const scene = {
-      version: 2,
+      version: 1,
       objects: [eff({ delay: 0.5 }), obj('a', 0), obj('b', 100)],
       animation: { duration: 2, tracks: [{ id: 't', node: 'e', on: 'modifier', modifier: 's', param: 'scale', keys: [{ t: 0, value: 1, ease: 'linear' }, { t: 1, value: 3, ease: 'linear' }] }] },
-    } as SceneV2;
+    } as SceneV1;
     const at = (t: number) => engine().evaluateDocument(sampleScene(scene, t)).nodes;
     // At 0.5 s: a, halfway (scale 2); b, still at the start (scale 1).
     expect(at(0.5).get('a')!.box.width).toBeCloseTo(20);
@@ -551,7 +551,7 @@ describe('effector', () => {
 
   it('validateScene accepts the effector and warns about targets that do not exist', async () => {
     const { validateScene } = await import('../src/validate');
-    const r = validateScene({ version: 2, objects: [eff({ targets: ['a', 'zzz'] }), obj('a', 0)] } as SceneV2);
+    const r = validateScene({ version: 1, objects: [eff({ targets: ['a', 'zzz'] }), obj('a', 0)] } as SceneV1);
     expect(r.errors).toEqual([]);
     expect(r.warnings.join(' ')).toMatch(/zzz/);
   });
@@ -560,9 +560,9 @@ describe('effector', () => {
 describe('onlyFor (reduced scene for trails)', () => {
   it('keeps the node, what its effects use, its original and its effectors, and nothing else', async () => {
     const { onlyFor } = await import('../src/document');
-    const o = (id: string, stack: SceneV2['objects'][number]['stack'] = []) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
+    const o = (id: string, stack: SceneV1['objects'][number]['stack'] = []) => ({ kind: 'object' as const, id, name: id, source: rect(10, 10), stack });
     const scene = {
-      version: 2,
+      version: 1,
       objects: [
         o('comet', [{ id: 'f', type: 'followpath', params: { target: 'orbit' } }]),
         o('orbit'),
@@ -571,7 +571,7 @@ describe('onlyFor (reduced scene for trails)', () => {
         { kind: 'effector', id: 'e', name: 'e', targets: ['comet'], stack: [{ id: 's', type: 'transform', params: { x: 1 } }] },
         { kind: 'group', id: 'g', name: 'g', stack: [], children: [o('inner')] },
       ],
-    } as SceneV2;
+    } as SceneV1;
     expect(onlyFor(scene, 'comet').objects.map((n) => n.id)).toEqual(['comet', 'orbit', 'e']);
     expect(onlyFor(scene, 'i').objects.map((n) => n.id)).toEqual(['comet', 'orbit', 'i', 'e']);
     expect(onlyFor(scene, 'inner').objects.map((n) => n.id)).toEqual(['g']);
@@ -580,12 +580,12 @@ describe('onlyFor (reduced scene for trails)', () => {
 
 describe('mask', () => {
   const scene = (params: Record<string, unknown>, maskVisible = false) => ({
-    version: 2,
+    version: 1,
     objects: [
       { kind: 'object', id: 'a', name: 'a', source: rect(100, 100, '#ff0000'), stack: [{ id: 'm', type: 'mask', params: { source: 'c', ...params } }] },
       { kind: 'shape', id: 'c', name: 'c', shape: 'ellipse', params: { width: 60, height: 60 }, stack: [], visible: maskVisible, transform: { x: 20 } },
     ],
-  }) as SceneV2;
+  }) as SceneV1;
 
   it('wraps the object in a <g mask> with the other (hidden) shape, already placed', () => {
     const svg = engine().toSVG(scene({}));
@@ -616,7 +616,7 @@ describe('mask', () => {
 
 describe('bevel, thicken and tone filters', () => {
   const svgWith = (type: string, params: Record<string, unknown> = {}) =>
-    engine().toSVG({ version: 2, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(50, 50, '#ff0000'), stack: [{ id: 'f', type, params }] }] } as SceneV2);
+    engine().toSVG({ version: 1, objects: [{ kind: 'object', id: 'a', name: 'a', source: rect(50, 50, '#ff0000'), stack: [{ id: 'f', type, params }] }] } as SceneV1);
 
   it('bevel: diffuse and specular light on the alpha, clipped to the drawing', () => {
     const s = svgWith('bevel');

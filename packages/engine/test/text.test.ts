@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { bounds, buildShape, builtins, createEngine, fontFor, registerFont, type SceneV2 } from '../src';
+import { bounds, buildShape, builtins, createEngine, fontFor, registerFont, type SceneV1 } from '../src';
 
 const woff = readFileSync(resolve(__dirname, '../../ui/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff'));
 await registerFont('JetBrains Mono', woff.buffer.slice(woff.byteOffset, woff.byteOffset + woff.byteLength));
@@ -52,7 +52,7 @@ describe('fonts with weight and italic', () => {
 describe('text anchor', () => {
   // Where the ink of a text placed at x = 0 ends up, by its anchor.
   const placed = (text: string, anchor: string) => {
-    const scene: SceneV2 = { version: 2, objects: [{ kind: 'shape', id: 't', name: 't', shape: 'text', params: { text, size: 100, anchor }, stack: [] }] };
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'shape', id: 't', name: 't', shape: 'text', params: { text, size: 100, anchor }, stack: [] }] };
     return createEngine(builtins).evaluateDocument(scene).nodes.get('t')!.box;
   };
   it('ink (default): the centre of the ink, at the position', () => {

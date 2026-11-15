@@ -67,11 +67,13 @@ export interface ShapeNode extends NodeBase {
   params: Record<string, unknown>;
 }
 
+export interface ClockModulation { type: 'oscillate' | 'wiggle' | 'pulse' | 'shake'; params?: Record<string, unknown>; enabled?: boolean }
+
 export interface GroupNode extends NodeBase {
   kind: 'group';
   children: SceneNode[];
   /** An isolated nested scene. Stored children are empty; the engine evaluates the local scene. */
-  composition?: { scene: SceneV2; params?: Record<string, unknown> };
+  composition?: { scene: SceneV1; params?: Record<string, unknown>; modulation?: ClockModulation };
 }
 
 /**
@@ -97,8 +99,8 @@ export interface EffectorNode extends NodeBase {
 
 export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode | EffectorNode;
 
-export interface SceneV2 {
-  version: 2;
+export interface SceneV1 {
+  version: 1;
   /** User notes about the scene; editor metadata, ignored by rendering and SVG export. */
   notes?: string;
   /** As in the layers of design tools: the first one in the list is in front. */
@@ -119,16 +121,16 @@ export interface SceneV2 {
 }
 
 /** The scene (what is saved and exported). */
-export type Scene = SceneV2;
+export type Scene = SceneV1;
 
 /** Is it an svertik scene? (for what comes from a file, the clipboard or the URL) */
-export function isScene(value: unknown): value is SceneV2 {
-  const s = value as Partial<SceneV2> | null;
-  return !!s && s.version === 2 && Array.isArray(s.objects);
+export function isScene(value: unknown): value is SceneV1 {
+  const s = value as Partial<SceneV1> | null;
+  return !!s && s.version === 1 && Array.isArray(s.objects);
 }
 
 /** Duration for scenes driven only by nested compositions (no parent timeline required). */
-export function sceneDuration(scene: SceneV2, depth = 0): number {
+export function sceneDuration(scene: SceneV1, depth = 0): number {
   if (scene.animation) return scene.animation.duration;
   if (depth > 32) return 3;
   let duration = 0;

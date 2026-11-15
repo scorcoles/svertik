@@ -14,7 +14,7 @@
 // El bundle lleva el motor y nada más: los efectos de la escena se cargan cuando llegan (cada uno es
 // un trozo aparte), y las fuentes y el importador de SVG solo si la escena los necesita.
 
-import { createEngine, createPlayer, isScene, prepareScene, registerFont, type SceneV2 } from '@svertik/engine/player';
+import { createEngine, createPlayer, isScene, prepareScene, registerFont, type SceneV1 } from '@svertik/engine/player';
 
 export interface PlayOptions {
   /** Cuánto tardó cada fotograma calculado (para medir). */
@@ -23,7 +23,7 @@ export interface PlayOptions {
 
 export interface Playing {
   /** La escena, tal y como se está reproduciendo. */
-  scene: SceneV2;
+  scene: SceneV1;
   /** El <svg> donde se dibuja. */
   svg: SVGSVGElement;
   /** Vuelve a pintar (si la escena ha cambiado). */
@@ -43,11 +43,11 @@ function resolveSVG(target: string | Element): SVGSVGElement {
 }
 
 /** Carga una escena de un JSON (un .svrtk o el JSON de la escena). */
-export async function loadScene(url: string): Promise<SceneV2> {
+export async function loadScene(url: string): Promise<SceneV1> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`svertik: no se puede leer «${url}» (${res.status})`);
   const data = (await res.json()) as { svertik?: string; scene?: unknown };
-  const scene = (data.svertik === 'project' ? data.scene : data) as SceneV2;
+  const scene = (data.svertik === 'project' ? data.scene : data) as SceneV1;
   if (!isScene(scene)) throw new Error(`svertik: «${url}» no es una escena`);
   return scene;
 }
@@ -56,7 +56,7 @@ export async function loadScene(url: string): Promise<SceneV2> {
  * Prepara la escena (baja solo sus efectos y, si hace falta, sus fuentes) y la dibuja.
  * Devuelve el reproductor, para poder pararlo o volver a pintar.
  */
-export async function play(scene: SceneV2, target: string | Element, options: PlayOptions = {}): Promise<Playing> {
+export async function play(scene: SceneV1, target: string | Element, options: PlayOptions = {}): Promise<Playing> {
   if (!isScene(scene)) throw new Error('svertik: la escena no es válida');
   const svg = resolveSVG(target);
   const effects = await prepareScene(scene);
@@ -67,7 +67,7 @@ export async function play(scene: SceneV2, target: string | Element, options: Pl
 
 /**
  * Reproduce todas las escenas marcadas: `<svg data-svertik="escena.json">` (un JSON) o
- * `<svg data-svertik-scene='{"version":2,…}'>` (la escena en el sitio).
+ * `<svg data-svertik-scene='{"version":1,…}'>` (la escena en el sitio).
  */
 export async function mountAll(root: ParentNode = document): Promise<Playing[]> {
   const out: Playing[] = [];
@@ -76,7 +76,7 @@ export async function mountAll(root: ParentNode = document): Promise<Playing[]> 
     const inline = el.getAttribute('data-svertik-scene');
     const url = el.getAttribute('data-svertik');
     try {
-      const scene = inline ? (JSON.parse(inline) as SceneV2) : await loadScene(url!);
+      const scene = inline ? (JSON.parse(inline) as SceneV1) : await loadScene(url!);
       out.push(await play(scene, el as Element));
     } catch (err) {
       console.error('svertik: no se pudo reproducir la escena', err);
@@ -93,4 +93,4 @@ if (typeof document !== 'undefined') {
 }
 
 export { createEngine, createPlayer, prepareScene, isScene, registerFont };
-export type { SceneV2 };
+export type { SceneV1 };

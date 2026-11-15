@@ -1,9 +1,10 @@
+import { signalSchemas } from './modifiers/signal-schemas';
 import { compositionParams } from './composition';
 // Scene validation: what comes from a file, the code panel or a link.
 // - errors: the scene can't be used (something essential is missing or a type is unknown);
 // - warnings: it can be used, but something will be silently ignored (a misspelt parameter, a track
 //   pointing at an effect that doesn't exist…).
-import type { SceneNode, SceneV2 } from './document';
+import type { SceneNode, SceneV1 } from './document';
 import type { ModifierInstance } from './engine';
 import type { ModifierDef, ParamSchema } from './modifier';
 import { builtins } from './modifiers';
@@ -26,11 +27,11 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   const chain = new Set(ancestors); chain.add(value);
   const errors: string[] = [];
   const warnings: string[] = [];
-  const raw = value as Partial<SceneV2> | null;
+  const raw = value as Partial<SceneV1> | null;
   if (!raw || typeof raw !== 'object') return { errors: ['Expected an object'], warnings };
-  if (raw.version !== 2) errors.push('version must be 2');
+  if (raw.version !== 1) errors.push('version must be 1');
   if (!Array.isArray(raw.objects)) return { errors: [...errors, 'objects must be an array'], warnings };
-  const scene = raw as SceneV2;
+  const scene = raw as SceneV1;
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 
   // Every node and effect, by id (for references), and repeated ids.
@@ -108,6 +109,12 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
         if (n.composition) {
           if (n.children?.length) errors.push(`${name(n)}: a composition stores its objects in composition.scene, not children`);
           checkParams(compositionParams, n.composition.params, `${name(n)} composition`);
+          const signal = n.composition.modulation;
+          if (signal) {
+            const schema = signalSchemas[signal.type];
+            if (!schema) errors.push(`${name(n)}: unknown clock modulator`);
+            else checkParams(schema, signal.params, `${name(n)} clock signal`);
+          }
           const nested = validateScene(n.composition.scene, modifiers, chain);
           errors.push(...nested.errors.map(e => `${name(n)} composition: ${e}`));
           warnings.push(...nested.warnings.map(e => `${name(n)} composition: ${e}`));
@@ -138,6 +145,9 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       const def = n.kind === 'shape' ? shapeRegistry.get(n.shape) : undefined;
       if (!def) warnings.push(`${label}: ${name(n)} is not a shape`);
       else if (!def.params[tr.param]) warnings.push(`${label}: ${def.label} has no parameter "${tr.param}"`);
+    } else if (tr.on === 'composition') {
+      if (n.kind !== 'group' || !n.composition) warnings.push(`${label}: ${name(n)} is not a composition`);
+      else if (!compositionParams[tr.param as keyof typeof compositionParams] || (compositionParams as ParamSchema)[tr.param]?.animatable === false) warnings.push(`${label}: composition parameter \"${tr.param}\" cannot be animated`);
     } else if (tr.on === 'modifier') {
       const m = tr.modifier ? mods.get(tr.modifier) : undefined;
       if (!m) warnings.push(`${label}: modifier "${tr.modifier ?? ''}" does not exist`);
@@ -146,7 +156,15 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
         const def = registry.get(m.inst.type)!;
         if (!def.params[tr.param] && tr.param !== 'enabled') warnings.push(`${label}: ${def.label} has no parameter "${tr.param}"`);
       }
-    } else warnings.push(`${label}: "on" must be "node", "shape" or "modifier"`);
+    } else warnings.push(`${label}: "on" must be "node", "shape", "composition" or "modifier"`);
+  }
+
+  const markerIds = new Set<string>();
+  for (const marker of scene.animation?.markers ?? []) {
+    if (typeof marker.id !== 'string' || markerIds.has(marker.id)) warnings.push('Timeline markers need unique string ids');
+    markerIds.add(marker.id);
+    if (typeof marker.name !== 'string' || !marker.name.trim()) warnings.push('Timeline marker needs a name');
+    if (!Number.isFinite(marker.t) || marker.t < 0 || marker.t > scene.animation!.duration) warnings.push(`Marker "${marker.name}" is outside the timeline`);
   }
 
   // Interactions: who fires them and what they act on.

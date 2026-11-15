@@ -4,7 +4,7 @@
   "name": "Motion",
   "canvas": "#F2E8DA",
   "scene": {
-    "version": 2,
+    "version": 1,
     "document": {
       "width": 1000,
       "height": 700

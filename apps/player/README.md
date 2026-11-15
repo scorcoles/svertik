@@ -43,7 +43,7 @@ la escena) y `mountAll()` reproduce todas las escenas marcadas de la página.
 
 ## La escena
 
-Es el mismo JSON del editor (`SceneV2`): objetos, su pila de efectos, la animación y las interacciones.
+Es el mismo JSON del editor (`SceneV1`): objetos, su pila de efectos, la animación y las interacciones.
 Los efectos que nombra son los que se cargan (cada uno, un trozo aparte); los que no existen, avisan.
 
 ## Los trozos

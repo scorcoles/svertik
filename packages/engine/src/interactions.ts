@@ -12,7 +12,7 @@ import { sceneDuration } from './scene';
 // `createPlayer` puts this together with the timeline: exported code and the editor's Play mode use it.
 import { ease, lerpValue, readTarget, sampleScene, writeTarget, type Ease, type Track } from './animation';
 import { sceneHasExpressions } from './expression';
-import type { DocumentResult, SceneNode, SceneV2 } from './document';
+import type { DocumentResult, SceneNode, SceneV1 } from './document';
 import { apply as applyMat, invert } from './matrix';
 import type { Engine } from './engine';
 
@@ -61,13 +61,13 @@ interface State {
 const actionOf = (it: Interaction): Action => it.action ?? 'tween';
 
 /** follow: the value at rest (the scene's). The position, as [x, y]. */
-function restOf(scene: SceneV2, it: Interaction): unknown {
+function restOf(scene: SceneV1, it: Interaction): unknown {
   if (it.target.on === 'node' && it.target.param === 'position') {
     return [Number(readTarget(scene, { ...it.target, param: 'x' }) ?? 0), Number(readTarget(scene, { ...it.target, param: 'y' }) ?? 0)];
   }
   return readTarget(scene, it.target);
 }
-function writeFollow(scene: SceneV2, it: Interaction, v: unknown) {
+function writeFollow(scene: SceneV1, it: Interaction, v: unknown) {
   if (it.target.on === 'node' && it.target.param === 'position' && Array.isArray(v)) {
     writeTarget(scene, { ...it.target, param: 'x' }, v[0]);
     writeTarget(scene, { ...it.target, param: 'y' }, v[1]);
@@ -76,7 +76,7 @@ function writeFollow(scene: SceneV2, it: Interaction, v: unknown) {
 const isPair = (v: unknown): v is [number, number] => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number');
 
 /** State of a scene's interactions: it is told about events and gives the scene of the moment. */
-export function createInteractions(getScene: () => SceneV2) {
+export function createInteractions(getScene: () => SceneV1) {
   const states = new Map<string, State>();
   const parents = () => {
     const map = new Map<string, string | null>();
@@ -224,7 +224,7 @@ export function createInteractions(getScene: () => SceneV2) {
       return head;
     },
     /** The scene with the interactions' values on top (a copy if needed). */
-    apply(scene: SceneV2): SceneV2 {
+    apply(scene: SceneV1): SceneV1 {
       const touched = list().filter((it) => {
         const st = states.get(it.id);
         if (!st) return false;
@@ -232,7 +232,7 @@ export function createInteractions(getScene: () => SceneV2) {
         return act === 'seed' ? st.seed !== undefined : act === 'play' ? false : act === 'follow' ? st.value !== undefined : st.progress > 0;
       });
       if (!touched.length) return scene;
-      const out = scene === getScene() ? (structuredClone(scene) as SceneV2) : scene;
+      const out = scene === getScene() ? (structuredClone(scene) as SceneV1) : scene;
       for (const it of touched) {
         const st = states.get(it.id)!;
         const act = actionOf(it);
@@ -257,7 +257,7 @@ export function createInteractions(getScene: () => SceneV2) {
 }
 
 /** toggle: flips the effect's state (on ↔ off). */
-function toggleEnabled(scene: SceneV2, nodeId: string, modifier: string | undefined) {
+function toggleEnabled(scene: SceneV1, nodeId: string, modifier: string | undefined) {
   const find = (nodes: SceneNode[]): SceneNode | null => {
     for (const n of nodes) {
       if (n.id === nodeId) return n;
@@ -296,7 +296,7 @@ export interface PlayerOptions {
   onFrame?: (info: { ms: number; t: number }) => void;
 }
 
-export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2, options: PlayerOptions = {}) {
+export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1, options: PlayerOptions = {}) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const inter = createInteractions(() => scene);
   const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)

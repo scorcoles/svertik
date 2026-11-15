@@ -47,7 +47,7 @@ import { builtins, createEngine } from '@svertik/engine';
 
 const engine = createEngine(builtins);
 const scene = {
-  version: 2,
+  version: 1,
   objects: [
     {
       kind: 'object',

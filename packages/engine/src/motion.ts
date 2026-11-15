@@ -12,7 +12,7 @@ import { sceneHasExpressions } from './expression';
 
 /** Separates, in a layer key, the object from its filters. */
 const LAYER_SEP = '\u0001';
-import type { SceneV2 } from './document';
+import type { SceneV1 } from './document';
 import type { Engine } from './engine';
 import type { FilterDef, Shape } from './geometry';
 import { invert, type Mat } from './matrix';
@@ -50,7 +50,7 @@ export interface MotionAnalysis {
   heavy: string[];
 }
 
-export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
+export function analyzeMotion(engine: Engine, scene: SceneV1): MotionAnalysis {
   const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
     ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
@@ -186,7 +186,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
   return { fps, frames, viewBox, loop: anim?.loop !== false, autoplay: anim?.autoplay !== false, layers, filters, filtersChange, heavy };
 }
 
-function* walk(nodes: SceneV2['objects']): Generator<{ node: SceneV2['objects'][number] }> {
+function* walk(nodes: SceneV1['objects']): Generator<{ node: SceneV1['objects'][number] }> {
   for (const node of nodes) {
     yield { node };
     if (node.kind === 'group') yield* walk(node.children);

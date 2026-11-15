@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { bounds, buildShape, builtins, createEngine, validateScene, type SceneV2 } from '../src';
+import { bounds, buildShape, builtins, createEngine, validateScene, type SceneV1 } from '../src';
 
 const engine = createEngine(builtins);
 
@@ -21,12 +21,12 @@ describe('Arrow', () => {
     });
   }
   it('validates the animated proportion parameters', () => {
-    const scene: SceneV2 = { version: 2, objects: [{ kind: 'shape', id: 'a', name: 'Arrow', shape: 'arrow', params: { startHead: 'circle', endHead: 'v', headLength: 0.3, headWidth: 4, notch: 0.6 }, stack: [] }] };
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'shape', id: 'a', name: 'Arrow', shape: 'arrow', params: { startHead: 'circle', endHead: 'v', headLength: 0.3, headWidth: 4, notch: 0.6 }, stack: [] }] };
     expect(validateScene(scene)).toEqual({ errors: [], warnings: [] });
   });
 });
 
-const scene = (whole = true, invert = false): SceneV2 => ({ version: 2, objects: [
+const scene = (whole = true, invert = false): SceneV1 => ({ version: 1, objects: [
   { kind: 'shape', id: 'cross', name: 'Cross', shape: 'cross', params: { size: 20, width: 4 }, stack: [
     { id: 'mask', type: 'mask', params: { source: 'boundary', whole, invert } },
     { id: 'copies', type: 'clone', params: { mode: 'grid', columns: 3, rows: 1, spacing: [1.5, 1] } },
@@ -81,7 +81,7 @@ describe('Whole elements mask', () => {
   });
 
   it('handles projected crosses from the reported Step / Rotate 3D failure, including edge-on copies', () => {
-    const source = JSON.parse(readFileSync('test/fixtures/mask-projected-crosses.json', 'utf8')) as SceneV2;
+    const source = JSON.parse(readFileSync('test/fixtures/mask-projected-crosses.json', 'utf8')) as SceneV1;
     expect(validateScene(source)).toEqual({ errors: [], warnings: [] });
     for (const y of [25, 26, 27, 26 - 1e-12, 26 + 1e-12]) {
       const s = structuredClone(source);

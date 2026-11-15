@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
@@ -70,7 +70,7 @@
   $effect(() => {
     if (!editor.scene || !result) return;
     void editor.fontsTick; // al llegar una fuente, el texto se vuelve a dibujar
-    const scene = $state.snapshot(editor.scene) as SceneV2;
+    const scene = $state.snapshot(editor.scene) as SceneV1;
     // Mientras el script anima, se pintan sus objetos (sin tocar la escena guardada).
     if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
     // El instante, para lo que va con retraso (Delay de Effector).
@@ -324,8 +324,13 @@
     const node = editor.currentNode;
     const rest = editor.selectedNodes.filter((n) => n.id !== node?.id).map((n) => n.id);
     const frame = requestAnimationFrame(() => {
-      selection = node ? rectOf(node.id) : null;
       others = rest.map(rectOf).filter((r): r is Rect => !!r);
+      const main = node ? rectOf(node.id) : null;
+      const boxes = [...(main ? [main] : []), ...others];
+      if (boxes.length > 1) {
+        const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
+        selection = { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y };
+      } else selection = boxes[0] ?? null;
     });
     return () => cancelAnimationFrame(frame);
   });
@@ -377,14 +382,16 @@
   let gesture = $state<{ text: string; x: number; y: number; left?: boolean } | null>(null);
 
   function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate') {
-    const node = editor.currentNode;
+    const node = editor.currentNode && nodes.has(editor.currentNode.id) ? editor.currentNode : editor.selectedNodes.find(n => nodes.has(n.id));
     const info = node ? nodes.get(node.id) : undefined;
     if (!node || !info || !stage || space) return;
     e.preventDefault();
     e.stopPropagation();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const pivot = docToStage(...apply(info.matrix, pivotPoint(info.bounds, placementOf(node).pivot)));
+    const multiple = editor.selectedNodes.length > 1;
+    const scaleAll = multiple && mode === 'scale' ? editor.captureSelectionScale() : null;
+    const pivot: [number, number] | null = multiple && selection ? [selection.x + selection.w / 2, selection.y + selection.h / 2] : docToStage(...apply(info.matrix, pivotPoint(info.bounds, placementOf(node).pivot)));
     if (!pivot) return;
     const r = stage.getBoundingClientRect();
     const at = (ev: PointerEvent) => [ev.clientX - r.left - pivot[0], ev.clientY - r.top - pivot[1]] as const;
@@ -396,8 +403,9 @@
       const [x, y] = at(ev);
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
       if (mode === 'scale') {
-        const k = Math.round(Math.max(0.01, (p0.scale * Math.hypot(x, y)) / d0) * 100) / 100;
-        editor.setNode(node.id, 'scale', k);
+        const factor = Math.max(0.01, Math.hypot(x, y) / d0);
+        const k = Math.round((scaleAll ? factor : p0.scale * factor) * 100) / 100;
+        if (scaleAll) scaleAll(k); else editor.setNode(node.id, 'scale', k);
         gesture = { text: `× ${k.toFixed(2)}`, ...label };
       } else {
         let deg = p0.rotation + ((Math.atan2(y, x) - a0) * 180) / Math.PI;
@@ -409,11 +417,14 @@
     };
     const up = () => {
       gesture = null;
+      editor.flush();
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
   }
 
   // ── Centro de transformación: una cruz con círculo que se arrastra (⇧ = esquinas, bordes y centro)
@@ -808,12 +819,12 @@
         {#each corners as c (c)}
           {@const p = cornerAt(c, selection)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Rotate (⇧ snaps to 15°)" onpointerdown={(e) => transformFrom(e, 'rotate')}></span>
+          {#if editor.selectedNodes.length < 2}<span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Rotate (⇧ snaps to 15°)" onpointerdown={(e) => transformFrom(e, 'rotate')}></span>{/if}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
         {/each}
       {/if}
-      {#if pivotAt && selection && !editor.tool && !editor.current}
+      {#if pivotAt && selection && !editor.tool && !editor.current && editor.selectedNodes.length < 2}
         <button
           type="button"
           class="pivot"

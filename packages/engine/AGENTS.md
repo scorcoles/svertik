@@ -11,10 +11,10 @@ baked: change a parameter and the result is recomputed.
 ## Minimal use
 
 ```ts
-import { builtins, createEngine, validateScene, type SceneV2 } from '@svertik/engine';
+import { builtins, createEngine, validateScene, type SceneV1 } from '@svertik/engine';
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   document: { width: 800, height: 450 },
   objects: [
     {
@@ -68,16 +68,16 @@ bundle for a website is in `apps/player` (`pnpm --filter @svertik/player build`)
 The shape of a scene (its types and `isScene`) is in its own entry point, with nothing of the engine:
 
 ```ts
-import { isScene, type SceneV2 } from '@svertik/engine/scene';
+import { isScene, type SceneV1 } from '@svertik/engine/scene';
 ```
 
 Whoever only reads a scene (a link, a file, a test) uses it, so the engine stays in its own chunk.
 
-## The scene (`SceneV2`)
+## The scene (`SceneV1`)
 
 ```ts
 {
-  version: 2,
+  version: 1,
   objects: SceneNode[],            // the FIRST one is drawn IN FRONT (like layers in a design tool)
   document?: { width, height, x?, y? } | null, // fixed frame centred at (x, y); without it, fits the drawing
   resolution?: number,             // subdivision before deforming, fraction of each object's size (0.01)
@@ -156,4 +156,6 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 
 ### Compositions
 
-A group with `composition` stores a nested SceneV2; keep its `children` empty. Nested IDs/references are scoped to that scene. The engine samples its local clock (`time`, `start`, `speed`, `offset`, `reverse`, `loop`) and namespaces its rendered nodes. Repeated IDs in different compositions are valid. `validateScene` recursively checks nested scopes and rejects cycles/depth >32. `prepareScene` and font discovery include nested scenes. Numeric clock expressions run in the parent; child expressions/effects run locally. See `docs/ENGINE_AND_EFFECTS.md` for editor usage and current interaction/cropping limitations.
+A group with `composition` stores a nested SceneV1; keep its `children` empty. Nested IDs/references are scoped to that scene. The engine samples its local clock (`time`, `start`, `speed`, `offset`, `reverse`, `loop`) and namespaces its rendered nodes. Repeated IDs in different compositions are valid. `validateScene` recursively checks nested scopes and rejects cycles/depth >32. `prepareScene` and font discovery include nested scenes. Numeric clock expressions run in the parent; child expressions/effects run locally. See `docs/ENGINE_AND_EFFECTS.md` for editor usage and current interaction/cropping limitations.
+
+Time Remap: use tracks with `on: "composition"` for Time/Start/Speed/Offset/Playback FPS. `composition.modulation` shares signal schemas with Oscillate/Wiggle/Pulse/Shake, adding seconds before wrapping and quantization; `frameRate` quantizes final local time (0 means free). `animation.markers` stores `{ id, name, t }` in local seconds. See the Time Remap section of `docs/ENGINE_AND_EFFECTS.md`.

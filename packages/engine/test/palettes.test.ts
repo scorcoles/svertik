@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { applyPalette, paletteMap, PALETTES, sceneColors, type SceneV2 } from '../src';
+import { applyPalette, paletteMap, PALETTES, sceneColors, type SceneV1 } from '../src';
 
-const scene = (): SceneV2 => ({
-  version: 2,
+const scene = (): SceneV1 => ({
+  version: 1,
   objects: [
     { kind: 'shape', id: 'a', name: 'a', shape: 'rectangle', params: { fillColor: '#000000', strokeColor: '#FFFFFF' }, stack: [{ id: 'p', type: 'paint', params: { fillColor: '#808080' } }] },
     { kind: 'object', id: 'o', name: 'o', source: '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#f00" width="1" height="1"/></svg>', stack: [] },

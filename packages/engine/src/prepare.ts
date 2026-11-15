@@ -4,7 +4,7 @@
 // This is what makes the minimal player small: the scene's JSON says which effects it uses, and each
 // one is a chunk of its own that is only downloaded when the scene asks for it.
 
-import { loadFonts, type SceneNode, type SceneV2 } from './document';
+import { loadFonts, type SceneNode, type SceneV1 } from './document';
 import { setSVGImporter } from './importer';
 import { initKernels } from './kernels';
 import { effectLoaders } from './modifiers/manifest';
@@ -23,12 +23,12 @@ function stackTypes(stack: ModifierInstance[], out: Set<string>): void {
 }
 
 /** Every effect type the scene uses. */
-export function sceneEffectTypes(scene: SceneV2): string[] {
+export function sceneEffectTypes(scene: SceneV1): string[] {
   const out = new Set<string>();
   const walk = (nodes: SceneNode[]) => {
     for (const node of nodes) {
       stackTypes(node.stack ?? [], out);
-      if (node.kind === 'group') { walk(node.children); if (node.composition) walk(node.composition.scene.objects); }
+      if (node.kind === 'group') { walk(node.children); if (node.composition) { walk(node.composition.scene.objects); if (node.composition.modulation) out.add(node.composition.modulation.type); } }
       // A pack can keep the original node (to be able to unpack it): its effects count too.
       const packed = node.kind === 'object' ? node.packed : undefined;
       if (packed?.original) walk([packed.original]);
@@ -39,14 +39,14 @@ export function sceneEffectTypes(scene: SceneV2): string[] {
 }
 
 /** Does the scene have text? (then it needs a font, and opentype.js with it) */
-export function sceneHasText(scene: SceneV2): boolean {
+export function sceneHasText(scene: SceneV1): boolean {
   const walk = (nodes: SceneNode[]): boolean =>
     nodes.some((node) => (node.kind === 'shape' && node.shape === 'text') || (node.kind === 'group' && (walk(node.children) || !!node.composition && walk(node.composition.scene.objects))));
   return walk(scene.objects);
 }
 
 /** Does the scene bring the markup of an SVG? (then it needs the importer) */
-export function sceneNeedsImporter(scene: SceneV2): boolean {
+export function sceneNeedsImporter(scene: SceneV1): boolean {
   const walk = (nodes: SceneNode[]): boolean =>
     nodes.some((node) => (node.kind === 'object' && !node.packed) || (node.kind === 'group' && (walk(node.children) || !!node.composition && walk(node.composition.scene.objects))));
   return walk(scene.objects);
@@ -56,7 +56,7 @@ export function sceneNeedsImporter(scene: SceneV2): boolean {
  * Loads what the scene needs and returns the effects to build the engine with.
  * Throws if the scene asks for an effect that doesn't exist.
  */
-export async function prepareScene(scene: SceneV2): Promise<ModifierDef<any>[]> {
+export async function prepareScene(scene: SceneV1): Promise<ModifierDef<any>[]> {
   const types = sceneEffectTypes(scene);
   const unknown = types.filter((t) => !effectLoaders[t]);
   if (unknown.length) throw new Error(`svertik: efectos que no existen: ${unknown.join(', ')}`);

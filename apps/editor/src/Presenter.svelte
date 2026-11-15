@@ -2,7 +2,7 @@
   // Modo Play: la escena a pantalla completa, sin herramientas, sobre el color del lienzo. Usa el mismo
   // reproductor que el código exportado (línea de tiempo, hover, clic, enter, «reducir movimiento»):
   // lo que se ve aquí es lo que verá la web. Esc (o la ×) vuelve al editor.
-  import { builtins, createEngine, createPlayer, type SceneV2 } from '@svertik/engine';
+  import { builtins, createEngine, createPlayer, type SceneV1 } from '@svertik/engine';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
@@ -17,7 +17,7 @@
   let meter: FpsMeter | null = null;
 
   onMount(() => {
-    const scene = $state.snapshot(editor.scene) as SceneV2;
+    const scene = $state.snapshot(editor.scene) as SceneV1;
     meter = createFpsMeter(document.body);
     const player = svg ? createPlayer(createEngine(builtins), svg, scene, { onFrame: ({ ms }) => meter?.frame(ms) }) : null;
     const t = setTimeout(() => (hint = false), 2200);

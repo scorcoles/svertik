@@ -1,7 +1,7 @@
 # svertik Scene Recipes (Templates for AI Agents)
 
 > **Copy-pasteable JSON scene templates ready for headless rendering or engine scripting.**  
-> Every scene in this document complies with `SceneV2` and can be saved directly as `.json` or `.svrtk` and rendered via `pnpm svertik render <scene.json> -o out.svg`.
+> Every scene in this document complies with `SceneV1` and can be saved directly as `.json` or `.svrtk` and rendered via `pnpm svertik render <scene.json> -o out.svg`.
 
 ---
 
@@ -11,7 +11,7 @@ Text where each letter is an individual element. A sinusoidal wave sweeps across
 
 ```json
 {
-  "version": 2,
+  "version": 1,
   "document": { "width": 800, "height": 450, "x": 0, "y": 0 },
   "objects": [
     {
@@ -84,7 +84,7 @@ A 6-point star cloned in a radial pattern of 12 copies, twisted from the center,
 
 ```json
 {
-  "version": 2,
+  "version": 1,
   "document": { "width": 600, "height": 600, "x": 0, "y": 0 },
   "objects": [
     {
@@ -152,7 +152,7 @@ A vector polygon emblem afflicted with horizontal slice displacement, rectangula
 
 ```json
 {
-  "version": 2,
+  "version": 1,
   "document": { "width": 800, "height": 500, "x": 0, "y": 0 },
   "objects": [
     {
@@ -239,7 +239,7 @@ A group of circles that melt into each other dynamically using polynomial signed
 
 ```json
 {
-  "version": 2,
+  "version": 1,
   "document": { "width": 600, "height": 600, "x": 0, "y": 0 },
   "objects": [
     {
@@ -351,7 +351,7 @@ Combines the **Utils** node and effect family:
 
 ```json
 {
-  "version": 2,
+  "version": 1,
   "document": { "width": 800, "height": 600, "x": 0, "y": 0 },
   "objects": [
     {
@@ -513,7 +513,7 @@ A chess pawn shape rasterized into an ink halftone dot screen with tactile 3D be
 
 ```json
 {
-  "version": 2,
+  "version": 1,
   "document": { "width": 600, "height": 600, "x": 0, "y": 0 },
   "objects": [
     {

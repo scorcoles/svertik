@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { builtins, createEngine } from '../src';
 import { sampleScene } from '../src/animation';
 import { initKernels, kernels, setKernels } from '../src/kernels';
-import type { SceneV2 } from '../src/scene';
+import type { SceneV1 } from '../src/scene';
 
 // The tests run under vite: the file is read from disk and given to the kernel loader.
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,8 +19,8 @@ const there = existsSync(wasm);
 const bytes = there ? readFileSync(wasm) : null;
 
 /** The blobs that melt, in a group (so the effect sees several elements). */
-const blobs = (): SceneV2 => ({
-  version: 2,
+const blobs = (): SceneV1 => ({
+  version: 1,
   objects: [
     {
       kind: 'group',
@@ -36,7 +36,7 @@ const blobs = (): SceneV2 => ({
 });
 
 /** The SVG of a scene, frame by frame like the player (the engine is not idempotent). */
-const draw = (scene: SceneV2, frames = 12): string => {
+const draw = (scene: SceneV1, frames = 12): string => {
   const engine = createEngine(builtins);
   let svg = '';
   for (let i = 0; i < frames; i++) svg = engine.toSVG(sampleScene(scene, i / 30));

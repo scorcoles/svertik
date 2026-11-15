@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { SceneV2 } from '@svertik/engine';
+import type { SceneV1 } from '@svertik/engine';
 import { DEFAULT_SCRIPT, exportJS, extractScript, jsDocument, jsLiteral, sourceRanges, syntaxErrorLine } from './code';
 
 const svg = '<svg viewBox="0 0 10 10"><rect width="5" height="5"/></svg>';
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   objects: [
     { kind: 'object', id: 'a', name: 'Star Logo.svg', source: svg, stack: [{ id: 'w', type: 'wave', enabled: true, params: { phase: 0 } }] },
     {
@@ -65,7 +65,7 @@ describe('JS del panel', () => {
 
 describe('código con animación', () => {
   it('usa el reproductor del motor (línea de tiempo, interacciones y movimiento reducido)', () => {
-    const js = exportJS({ version: 2, objects: [], animation: { duration: 2, tracks: [{ id: 't', node: 'a', on: 'node', param: 'x', keys: [{ t: 0, value: 0 }] }] } }, '');
+    const js = exportJS({ version: 1, objects: [], animation: { duration: 2, tracks: [{ id: 't', node: 'a', on: 'node', param: 'x', keys: [{ t: 0, value: 0 }] }] } }, '');
     expect(js).toContain('createPlayer');
     expect(js).toContain('createPlayer(engine, document.querySelector');
     expect(js).toContain('reducir movimiento');

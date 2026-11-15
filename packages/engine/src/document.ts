@@ -16,7 +16,7 @@ import {
   type Placement,
   type Scene,
   type SceneNode,
-  type SceneV2,
+  type SceneV1,
 } from './scene';
 
 // The shape of a scene lives in its own module (scene.ts), with nothing of the engine: whoever only
@@ -142,7 +142,7 @@ const union = (boxes: Bounds[]): Bounds => {
 };
 
 export interface DocumentEvaluator {
-  evaluate(scene: SceneV2): DocumentResult;
+  evaluate(scene: SceneV1): DocumentResult;
 }
 
 /** Geometry of another node, already in the coordinates of the stack asking for it (or null if not known yet). */
@@ -196,7 +196,7 @@ export function createDocumentEvaluator(
   /** What came out last time (matrix and geometry of each node): the first pass starts from there. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
 
-  function evaluate(scene: SceneV2): DocumentResult {
+  function evaluate(scene: SceneV1): DocumentResult {
     const resolution = scene.resolution ?? 0.01;
     // El tiempo sin envolver: cuando la animación vuelve a empezar (el bucle), el tiempo sigue
     // creciendo, para que la estela pueda seguir el recorrido a través de la vuelta. Un salto
@@ -214,11 +214,11 @@ export function createDocumentEvaluator(
     const broken = brokenInstances(byId);
     // For trails: the scene without the time (animated values at their value at 0), as the cache key.
     // When the scene changes, the history of the trails is stale: it is cleared.
-    let pastBase: SceneV2 | null = null;
+    let pastBase: SceneV1 | null = null;
     const baseScene = () => {
       if (pastBase) return pastBase;
       const { at: _at, ...rest } = scene;
-      pastBase = rest as SceneV2;
+      pastBase = rest as SceneV1;
       const key = JSON.stringify(sampleScene(pastBase, 0), (k, v) => (k === 'at' ? undefined : v));
       if (key !== sceneKey) {
         sceneKey = key;
@@ -603,7 +603,7 @@ export function createDocumentEvaluator(
  * The stack each (visible) Effector adds to each of its targets. With `delay` and the scene at a time
  * (`at`), target n gets its effects with the Effector's tracks read n × delay earlier.
  */
-export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Map<string, ModifierInstance[]> {
+export function effectorStacks(scene: SceneV1, byId: Map<string, SceneNode>): Map<string, ModifierInstance[]> {
   const out = new Map<string, ModifierInstance[]>();
   for (const n of byId.values()) {
     if (n.kind !== 'effector' || n.visible === false || !(n.stack?.length)) continue;
@@ -638,7 +638,7 @@ export function effectorStacks(scene: SceneV2, byId: Map<string, SceneNode>): Ma
  * touch them…), again and again. For trails: no need to compute the rest at each past time.
  * What an effect uses is recognised by its parameter strings that are node ids.
  */
-export function onlyFor(scene: SceneV2, id: string): SceneV2 {
+export function onlyFor(scene: SceneV1, id: string): SceneV1 {
   const byId = new Map<string, SceneNode>();
   const rootOf = new Map<string, SceneNode>();
   for (const top of scene.objects) for (const { node } of walkNodes([top])) (byId.set(node.id, node), rootOf.set(node.id, top));
@@ -759,7 +759,7 @@ function mix(h: number, m: Mat): number {
  * antes de dibujarlas. La estela se traza con lo que el motor ya ha visto, así que para una imagen
  * fija hay que reproducir ese trozo antes (si no, la estela saldría vacía).
  */
-export function sceneTrailWindow(scene: SceneV2): number {
+export function sceneTrailWindow(scene: SceneV1): number {
   let max = 0;
   const walk = (nodes: SceneNode[]) => {
     for (const node of nodes) {
@@ -776,7 +776,7 @@ export function sceneTrailWindow(scene: SceneV2): number {
 }
 
 /** The fonts used by the scene's texts (also those inside a pack). */
-export function sceneFonts(scene: SceneV2) {
+export function sceneFonts(scene: SceneV1) {
   const params: Record<string, unknown>[] = [];
   const visit = (nodes: SceneNode[]) => {
     for (const { node } of walkNodes(nodes)) {
@@ -790,6 +790,6 @@ export function sceneFonts(scene: SceneV2) {
 }
 
 /** Downloads from Fontsource the fonts the scene uses that aren't registered yet. */
-export async function loadFonts(scene: SceneV2): Promise<void> {
+export async function loadFonts(scene: SceneV1): Promise<void> {
   await Promise.all(sceneFonts(scene).filter((f) => !hasFont(f.key)).map((f) => loadFont(f.family, f.weight, f.italic)));
 }

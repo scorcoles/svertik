@@ -12,6 +12,16 @@
 </script>
 
 <div class="time-controls" role="group" aria-label="Playback controls">
+  {#if editor.animation?.markers?.length}
+    <select class="marker-jump" aria-label="Jump to marker" title="Jump to marker" value="" onchange={(e) => {
+      const marker = editor.animation?.markers?.find(m => m.id === e.currentTarget.value);
+      if (marker) seek(marker.t);
+      e.currentTarget.value = '';
+    }}>
+      <option value="">Markers</option>
+      {#each editor.animation.markers as marker (marker.id)}<option value={marker.id}>{marker.name} · {marker.t.toFixed(2)} s</option>{/each}
+    </select>
+  {/if}
   <IconButton icon="to-start" label="Go to start" onclick={() => seek(0)} />
   <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause animation' : 'Play animation'} active={editor.playing} onclick={() => editor.togglePlayback()} />
   <input
@@ -42,5 +52,6 @@
   .scrubber:hover::-webkit-slider-thumb, .scrubber:focus-visible::-webkit-slider-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
   .scrubber:hover::-moz-range-thumb, .scrubber:focus-visible::-moz-range-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
   .scrubber:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
+  .marker-jump { max-width: 130px; height: 22px; font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-default); }
   .separator { color: var(--sv-text-disabled); }
 </style>

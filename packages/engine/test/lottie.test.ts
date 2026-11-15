@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, toLottie, type SceneV2 } from '../src';
+import { builtins, createEngine, toLottie, type SceneV1 } from '../src';
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   objects: [
     // It only moves and turns: one layer, with placement keys.
     { kind: 'shape', id: 'a', name: 'Mover', shape: 'star', params: {}, stack: [], transform: { x: 0 } },
@@ -50,14 +50,14 @@ describe('Lottie', () => {
   });
 
   it('without animation: one frame, no weight warnings', () => {
-    const still = toLottie(createEngine(builtins), { version: 2, objects: [scene.objects[0]!] });
+    const still = toLottie(createEngine(builtins), { version: 1, objects: [scene.objects[0]!] });
     expect(still.data).toMatchObject({ op: 1 });
     expect(still.warnings).toEqual([]);
   });
 
   it('the pieces of an explosion (they only move, turn and shrink): one layer with its keys, not frame by frame', () => {
-    const boom: SceneV2 = {
-      version: 2,
+    const boom: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'shape', id: 'p', name: 'Pieces', shape: 'rectangle', params: {}, stack: [{ id: 'c', type: 'clone', params: { mode: 'grid', columns: 3, rows: 2 } }, { id: 'x', type: 'explosion', params: { amount: 0 } }] }],
       animation: { duration: 1, fps: 10, tracks: [{ id: 'a', node: 'p', on: 'modifier', modifier: 'x', param: 'amount', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 1, value: 1 }] }] },
     };
@@ -73,8 +73,8 @@ describe('Lottie', () => {
 
 describe('Lottie: what comes in from invisible', () => {
   it('a text (or piece) that appears: fill at 100 % and opacity animated from 0, with the keys at their time', () => {
-    const fade: SceneV2 = {
-      version: 2,
+    const fade: SceneV1 = {
+      version: 1,
       objects: [{ kind: 'shape', id: 'r', name: 'Fade', shape: 'rectangle', params: {}, stack: [{ id: 'c', type: 'clone', params: { mode: 'grid', columns: 2, rows: 1 } }, { id: 'o', type: 'opacity', params: { opacity: 0 } }, { id: 'x', type: 'explosion', params: { amount: 0 } }] }],
       animation: {
         duration: 2,

@@ -1,4 +1,4 @@
-import type { SceneNode, SceneV2 } from '@svertik/engine';
+import type { SceneNode, SceneV1 } from '@svertik/engine';
 
 export interface SvgComplexity {
   bytes: number;
@@ -104,7 +104,7 @@ export function svgComplexityWarnings(svg: SvgComplexity): string[] {
   return warnings;
 }
 
-export function summarizeScene(scene: SceneV2 | null, includeSvgDetails = true): SceneComplexity | null {
+export function summarizeScene(scene: SceneV1 | null, includeSvgDetails = true): SceneComplexity | null {
   if (!scene) return null;
   const byKind: Record<string, number> = {};
   const modifiersByType: Record<string, number> = {};

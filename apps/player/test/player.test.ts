@@ -1,10 +1,10 @@
 // El reproductor, de punta a punta: prepara la escena (carga solo sus efectos) y la dibuja.
 import { describe, expect, it } from 'vitest';
 import { play, loadScene } from '../src/player';
-import type { SceneV2 } from '@svertik/engine/player';
+import type { SceneV1 } from '@svertik/engine/player';
 
-const scene: SceneV2 = {
-  version: 2,
+const scene: SceneV1 = {
+  version: 1,
   objects: [
     {
       kind: 'shape',
@@ -42,7 +42,7 @@ describe('reproductor', () => {
   });
 
   it('avisa si la escena no es válida', async () => {
-    await expect(play({ version: 1 } as unknown as SceneV2, document.body)).rejects.toThrow();
+    await expect(play({ version: 0, objects: [] } as unknown as SceneV1, document.body)).rejects.toThrow();
   });
 });
 
