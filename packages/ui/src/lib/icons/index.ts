@@ -137,6 +137,7 @@ export const icons = {
   'step-back': 'M4 2.5v11 M12 3.5L5 8l7 4.5z',
   'step-forward': 'M12 2.5v11 M4 3.5L11 8l-7 4.5z',
   'to-start': 'M3.5 2.5v11 M13.5 2.5v11l-8-5.5z',
+  stopwatch: 'M6 1.5h4 M8 1.5v2 M12.5 4l1.5-1.5 M8 5a5.5 5.5 0 1 0 0 11a5.5 5.5 0 1 0 0-11 M8 8v3l2 1',
   timeline: 'M1.5 4.5h13 M1.5 8h13 M1.5 11.5h13 M5.5 2.5v11 M10 6.5l1.5 1.5-1.5 1.5-1.5-1.5z',
   // Interfaz
   center: 'M8 1.5v4 M8 10.5v4 M1.5 8h4 M10.5 8h4 M7 7h2v2h-2z',

@@ -43,11 +43,21 @@
     uses: number;
     analysisSkipped: boolean;
   }
-  let { entries, sceneSummary, latestSvg, activities, maximized, onmaximize, onclose, onclear, oncopy, report, onbundle }: {
+  interface ProfileView {
+    running: boolean;
+    samples: number[];
+    frame: number;
+    total: number;
+    totalFrames: number;
+    fps: number;
+    duration: number;
+  }
+  let { entries, sceneSummary, latestSvg, activities, profile, maximized, onmaximize, onclose, onclear, oncopy, report, onbundle, onprofile }: {
     entries: Entry[];
     sceneSummary: SceneSummary | null;
     latestSvg: SvgSummary | null;
     activities: Activity[];
+    profile: ProfileView;
     maximized: boolean;
     onmaximize: () => void;
     onclose: () => void;
@@ -55,10 +65,25 @@
     oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>;
     report: () => string;
     onbundle: (includeProject: boolean) => void;
+    onprofile: () => void;
   } = $props();
 
   const timeOf = (time: number) => new Date(time).toLocaleTimeString();
   let includeProject = $state(false);
+  const profileMax = $derived(Math.max(50, Math.ceil(Math.max(0, ...profile.samples) / 25) * 25));
+  const profilePath = $derived.by(() => {
+    const n = profile.samples.length;
+    return profile.samples.map((ms, i) => `${i ? 'L' : 'M'}${4 + (n > 1 ? i / (n - 1) * 992 : 0)} ${90 - Math.min(1, ms / profileMax) * 78}`).join(' ');
+  });
+  const profileStats = $derived.by(() => {
+    if (!profile.samples.length) return null;
+    const sorted = [...profile.samples].sort((a, b) => a - b);
+    return {
+      average: profile.samples.reduce((sum, ms) => sum + ms, 0) / profile.samples.length,
+      p95: sorted[Math.max(0, Math.ceil(sorted.length * 0.95) - 1)]!,
+      peak: sorted.at(-1)!,
+    };
+  });
 </script>
 
 <section class="diagnostics" aria-labelledby="diagnostics-title">
@@ -66,6 +91,7 @@
     <h2 id="diagnostics-title">Debug output</h2>
     <span class="count">{entries.length}</span>
     <span class="spacer"></span>
+    <IconButton icon="stopwatch" label={profile.running ? 'Stop performance profile' : 'Measure one scene playback'} active={profile.running} disabled={!sceneSummary} onclick={onprofile} />
     <IconButton icon="trash" label="Clear diagnostic output" disabled={!entries.length} onclick={onclear} />
     <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? 'Restore editor layout' : 'Use all available space for diagnostics'} aria-pressed={maximized} onclick={onmaximize} />
     <IconButton icon="down" label="Close diagnostics panel" onclick={onclose} />
@@ -79,6 +105,25 @@
     {:else}<span>No scene loaded</span>{/if}
     {#if latestSvg}<span class="last-svg">Last SVG: {latestSvg.analysisSkipped ? 'structure scan skipped' : `${latestSvg.elements.toLocaleString()} elements · ${latestSvg.pathCommands.toLocaleString()} path commands`}; {formatBytes(latestSvg.bytes)} · {latestSvg.images} images · {latestSvg.filters} filters</span>{/if}
   </div>
+  {#if profile.running || profile.samples.length}
+    <section class="profile" aria-label="Frame render performance">
+      <div class="profile-meta">
+        <strong>Frame work (ms) · {profile.duration.toFixed(2)} s at {profile.fps} fps</strong>
+        {#if profile.running}
+          <span>{profile.frame}/{profile.total} samples{profile.total < profile.totalFrames ? ` of ${profile.totalFrames} frames` : ''}</span>
+        {:else if profileStats}
+          <span>avg {profileStats.average.toFixed(1)} ms · p95 {profileStats.p95.toFixed(1)} ms · peak {profileStats.peak.toFixed(1)} ms</span>
+        {/if}
+      </div>
+      <svg viewBox="0 0 1000 100" preserveAspectRatio="none" role="img" aria-label="Frame render time in milliseconds across the scene">
+        <line x1="4" x2="996" y1="90" y2="90" />
+        {#if profileMax >= 16.7}<line class="budget" x1="4" x2="996" y1={90 - 16.7 / profileMax * 78} y2={90 - 16.7 / profileMax * 78} />{/if}
+        {#if profileMax >= 50}<line class="warning" x1="4" x2="996" y1={90 - 50 / profileMax * 78} y2={90 - 50 / profileMax * 78} />{/if}
+        {#if profilePath}<path class="trace" d={profilePath} />{/if}
+      </svg>
+      <div class="profile-axis"><span>0 s</span><span>{profile.duration.toFixed(2)} s</span><span>16.7 ms target · 50 ms threshold · scale 0–{profileMax} ms</span></div>
+    </section>
+  {/if}
   <div class="output" role="log" aria-live="polite">
     <CopyButton label="Copy debug report" onclick={() => oncopy(report(), 'Debug report')} />
     {#if entries.length}
@@ -124,6 +169,18 @@
   .spacer { flex: 1; }
   .summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-space-4) var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .last-svg { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile { flex: none; min-height: 0; padding: 4px 6px 2px; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
+  .profile-meta { display: flex; justify-content: space-between; gap: 8px; min-width: 0; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .profile-meta strong, .profile-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-meta strong { color: var(--sv-text-primary); font-weight: var(--sv-font-weight-medium); }
+  .profile-meta span { font-variant-numeric: tabular-nums; }
+  .profile svg { display: block; width: 100%; height: clamp(34px, 7vh, 64px); overflow: visible; }
+  .profile line { stroke: var(--sv-rule-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .profile line.budget { stroke: var(--sv-accent-fill); stroke-dasharray: 3 5; opacity: 0.55; }
+  .profile line.warning { stroke: var(--sv-signal-warning, #ffd166); stroke-dasharray: 3 5; opacity: 0.65; }
+  .profile .trace { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .profile-axis { display: flex; gap: 10px; color: var(--sv-text-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+  .profile-axis span:last-child { margin-left: auto; }
   .output {
     position: relative;
     flex: 1;

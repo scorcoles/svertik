@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import type { Component } from 'svelte';
-  import { builtins, createEngine, hasFont, sceneFonts, toAnimatedSVG, toLottie, type SceneV1 } from '@svertik/engine';
+  import { builtins, createEngine, hasFont, sceneDuration, sceneFonts, toAnimatedSVG, toLottie, type SceneV1 } from '@svertik/engine';
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
@@ -39,6 +39,11 @@
   const warningCount = $derived(diagnostics.filter(entry => entry.level === 'warning').length);
   let activities = $state<ActivityEntry[]>([]);
   let latestSvg = $state<SvgComplexity | null>(null);
+  type PerformanceProfile = { running: boolean; samples: number[]; frame: number; total: number; totalFrames: number; fps: number; duration: number };
+  let profile = $state<PerformanceProfile>({ running: false, samples: [], frame: 0, total: 0, totalFrames: 0, fps: 30, duration: 0 });
+  let profileFrame = $state<{ runId: number; index: number } | null>(null);
+  let profileRunId = 0;
+  let profilePending: { runId: number; index: number; timer: ReturnType<typeof setTimeout>; setupMs: number; resolve: (ms: number | null) => void } | null = null;
   let diagnosticId = 0;
   function addDiagnostic(source: string, level: 'error' | 'warning', message: string, stack?: string) {
     const last = diagnostics.at(-1);
@@ -50,10 +55,91 @@
     if (last?.action === action && last.detail === detail && Date.now() - last.time < 3000) return;
     activities = [...activities.slice(-49), { time: Date.now(), action, ...(detail ? { detail } : {}) }];
   }
+  function onProfileFrame(runId: number, index: number, ms: number) {
+    const pending = profilePending;
+    if (!pending || pending.runId !== runId || pending.index !== index) return;
+    clearTimeout(pending.timer);
+    profilePending = null;
+    profile = { ...profile, samples: [...profile.samples, ms + pending.setupMs], frame: index + 1 };
+    pending.resolve(ms);
+  }
+  function stopPerformanceProfile() {
+    if (!profile.running) return;
+    profileRunId++;
+    const pending = profilePending;
+    if (pending) {
+      clearTimeout(pending.timer);
+      profilePending = null;
+      pending.resolve(null);
+    }
+    profileFrame = null;
+    profile = { ...profile, running: false };
+    editor.playing = false;
+    recordActivity('Performance profile stopped');
+  }
+  async function runPerformanceProfile() {
+    if (profile.running) { stopPerformanceProfile(); return; }
+    if (panelMaximized) { panelMaximized = false; await tick(); }
+    const sourceScene = editor.scene;
+    if (!sourceScene) return;
+    const runId = ++profileRunId;
+    const duration = Math.max(0.1, editor.animation?.duration ?? (sceneDuration(sourceScene) || 3));
+    const fps = Math.max(1, Math.min(120, Math.round(editor.animation?.fps ?? 30)));
+    const totalFrames = Math.ceil(duration * fps) + 1;
+    const total = Math.min(totalFrames, 600);
+    const frameIndex = (i: number) => total === totalFrames ? i : Math.round(i * (totalFrames - 1) / (total - 1));
+    profile = { running: true, samples: [], frame: 0, total, totalFrames, fps, duration };
+    editor.playing = false;
+    recordActivity('Performance profile started', `${duration.toFixed(2)} s · ${total} samples`);
+    const playbackStarted = performance.now();
+    try {
+      for (let i = 0; i < total; i++) {
+        if (profileRunId !== runId) break;
+        if (editor.scene !== sourceScene) { stopPerformanceProfile(); break; }
+        const atFrame = frameIndex(i);
+        const time = Math.min(duration, atFrame / fps);
+        const ms = await new Promise<number | null>((resolve) => {
+          const timer = setTimeout(() => {
+            if (profilePending?.runId === runId && profilePending.index === i) profilePending = null;
+            resolve(null);
+          }, 3000);
+          const started = performance.now();
+          profilePending = { runId, index: i, timer, setupMs: 0, resolve };
+          editor.setTime(time);
+          if (profilePending?.runId === runId && profilePending.index === i) profilePending.setupMs = performance.now() - started;
+          profileFrame = { runId, index: i };
+        });
+        if (ms === null) {
+          if (profileRunId === runId) addDiagnostic('Performance', 'error', 'Could not capture a canvas frame. Make sure the canvas is visible and try again.');
+          break;
+        }
+        await tick();
+        if (i + 1 < total) {
+          const nextTime = Math.min(duration, frameIndex(i + 1) / fps);
+          const target = playbackStarted + nextTime * 1000;
+          while (profileRunId === runId && performance.now() < target) {
+            await new Promise<void>((resolve) => setTimeout(resolve, Math.min(50, target - performance.now())));
+          }
+        }
+      }
+    } finally {
+      if (profileRunId === runId) {
+        profileFrame = null;
+        editor.playing = false;
+        editor.setTime(duration);
+        profile = { ...profile, running: false };
+        if (profile.samples.length) recordActivity('Performance profile complete', `${profile.samples.length} frames measured`);
+      }
+    }
+  }
   const logCodeDiagnostic = (source: string, level: 'error' | 'warning', message: string, stack?: string) => addDiagnostic(source, level, message, stack);
   const sceneSummary = $derived(diagnosticsOpen ? summarizeScene(editor.scene, false) : null);
-  const togglePanelMaximized = () => (panelMaximized = !panelMaximized);
+  const togglePanelMaximized = () => {
+    if (!panelMaximized && profile.running) stopPerformanceProfile();
+    panelMaximized = !panelMaximized;
+  };
   function toggleDiagnostics() {
+    if (diagnosticsOpen && profile.running) stopPerformanceProfile();
     diagnosticsOpen = !diagnosticsOpen;
     if (diagnosticsOpen) {
       editor.notesOpen = false;
@@ -449,25 +535,27 @@
       style:grid-template-rows={panelMaximized ? 'minmax(0, 1fr)' : [
           'minmax(0, 1fr)',
           ...(editor.notesOpen && editor.scene ? ['minmax(120px, 25%)'] : []),
-          ...(diagnosticsOpen ? ['minmax(100px, 22%)'] : []),
+          ...(diagnosticsOpen ? [profile.running || profile.samples.length ? 'minmax(180px, 34%)' : 'minmax(100px, 22%)'] : []),
           ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
           ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
         ].join(' ')}
     >
-      {#if !panelMaximized}<Canvas {editor} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} ondiagnostic={(level, message, stack) => addDiagnostic('Canvas', level, message, stack)} />{/if}
+      {#if !panelMaximized}<Canvas {editor} {profileFrame} onprofileframe={onProfileFrame} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} ondiagnostic={(level, message, stack) => addDiagnostic('Canvas', level, message, stack)} />{/if}
       {#if editor.notesOpen && editor.scene}<NotesPanel {editor} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
       {#if diagnosticsOpen}<DiagnosticsPanel
         entries={diagnostics}
         {sceneSummary}
         {latestSvg}
         {activities}
+        {profile}
         maximized={panelMaximized}
         onmaximize={togglePanelMaximized}
-        onclose={() => { diagnosticsOpen = false; panelMaximized = false; }}
+        onclose={() => { if (profile.running) stopPerformanceProfile(); diagnosticsOpen = false; panelMaximized = false; }}
         onclear={() => (diagnostics = [])}
         oncopy={copy}
         report={() => JSON.stringify(makeDebugReport(), null, 2)}
         onbundle={downloadDebugBundle}
+        onprofile={runPerformanceProfile}
       />{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp}
         {#if !panelMaximized}

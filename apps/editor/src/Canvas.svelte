@@ -21,8 +21,10 @@
     placeAtCenter?: (type: string) => void;
     status?: CanvasStatus | null;
     ondiagnostic?: (level: 'error' | 'warning', message: string, stack?: string) => void;
+    profileFrame?: { runId: number; index: number } | null;
+    onprofileframe?: (runId: number, index: number, ms: number) => void;
   }
-  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null), ondiagnostic }: Props = $props();
+  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null), ondiagnostic, profileFrame = null, onprofileframe }: Props = $props();
 
   // Motor del lienzo; «Redraw» lo cambia por uno nuevo (sin nada guardado de antes) y repinta todo.
   let engine = $state.raw(createEngine(builtins));
@@ -69,6 +71,8 @@
 
   $effect(() => {
     if (!editor.scene || !result) return;
+    // A profile frame can request a fresh render even when it lands at the same playhead time.
+    void profileFrame?.index;
     void editor.fontsTick; // al llegar una fuente, el texto se vuelve a dibujar
     const scene = $state.snapshot(editor.scene) as SceneV1;
     // Mientras el script anima, se pintan sus objetos (sin tocar la escena guardada).
@@ -101,6 +105,7 @@
       const prev = untrack(() => cost);
       const nextCost = prev === null ? ms : prev * 0.7 + ms * 0.3;
       cost = nextCost;
+      if (profileFrame) onprofileframe?.(profileFrame.runId, profileFrame.index, ms);
       if (nextCost > SLOW && !slowReported) {
         const candidates = slowCandidates(scene.objects);
         const detail = candidates.length ? ` Inspect: ${candidates.join(' · ')}.` : ' Inspect imported path and text complexity.';
