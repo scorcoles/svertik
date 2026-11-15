@@ -419,10 +419,24 @@
     const p0 = placementOf(node);
     const d0 = Math.hypot(x0, y0) || 1;
     const a0 = Math.atan2(y0, x0);
+    const startDoc = clientToDoc(e.clientX, e.clientY);
+    const pivotDoc = apply(info.matrix, pivotPoint(info.bounds, p0.pivot));
+    const toLocal = invert(info.matrix);
+    const localStart = startDoc ? apply(toLocal, startDoc) : null;
+    const localPivot = apply(toLocal, pivotDoc);
     const move = (ev: PointerEvent) => {
       const [x, y] = at(ev);
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
       if (mode === 'scale') {
+        const doc = clientToDoc(ev.clientX, ev.clientY);
+        if (ev.shiftKey && !multiple && localStart && doc) {
+          const local = apply(toLocal, doc);
+          const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * Math.max(0.01, Math.abs((local[0] - localPivot[0]) / (localStart[0] - localPivot[0] || 1)));
+          const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * Math.max(0.01, Math.abs((local[1] - localPivot[1]) / (localStart[1] - localPivot[1] || 1)));
+          editor.setNode(node.id, 'stretch', [sx, sy]);
+          gesture = { text: `${sx.toFixed(2)} × ${sy.toFixed(2)}`, ...label };
+          return;
+        }
         const factor = Math.max(0.01, Math.hypot(x, y) / d0);
         const k = Math.round((scaleAll ? factor : p0.scale * factor) * 100) / 100;
         if (scaleAll) scaleAll(k); else editor.setNode(node.id, 'scale', k);
@@ -877,7 +891,7 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           {#if editor.selectedNodes.length < 2}<span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Rotate (⇧ snaps to 15°)" onpointerdown={(e) => transformFrom(e, 'rotate')}></span>{/if}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
+          <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale (hold ⇧ to stretch freely)" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
         {/each}
       {/if}
       {#if pivotAt && selection && !editor.tool && !editor.current && editor.selectedNodes.length < 2}
