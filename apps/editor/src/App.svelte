@@ -614,6 +614,8 @@
         <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>
         <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
         <label title="The edge of the document: what is exported and shown in Play"><Checkbox bind:checked={editor.showBounds} label="Show document bounds" disabled={!editor.scene} /> Bounds</label>
+        <label class="guides-option"><Checkbox bind:checked={editor.showGuides} label="Show canvas guides" disabled={!editor.scene} /> Guides</label>
+        <label class="rulers-option"><Checkbox bind:checked={editor.showRulers} label="Show canvas rulers" disabled={!editor.scene} /> Rulers</label>
       </div>
     </aside>{/if}
   </main>
@@ -707,16 +709,21 @@
     border-left: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .view {
-    display: flex;
+    display: grid;
+    grid-template-columns: max-content repeat(4, max-content);
+    grid-template-rows: repeat(2, minmax(16px, auto));
     align-items: center;
-    gap: var(--sv-space-16);
+    column-gap: var(--sv-space-12);
+    row-gap: var(--sv-space-2);
     flex: none;
-    height: 32px;
-    padding: 0 var(--sv-space-8);
+    min-height: 44px;
+    padding: var(--sv-space-4) var(--sv-space-8);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
   }
-  .view strong { color: var(--sv-text-secondary); }
+  .view strong { grid-row: 1 / 3; color: var(--sv-text-secondary); }
   .view label { display: flex; align-items: center; gap: var(--sv-space-6); cursor: pointer; }
+  .view .rulers-option { grid-column: 2; grid-row: 2; }
+  .view .guides-option { grid-column: 3; grid-row: 2; }
   .view.off { opacity: 0.35; }
   /* Barra de estado: cruza toda la ventana, debajo del rail, el lienzo y el inspector. */
   .status {

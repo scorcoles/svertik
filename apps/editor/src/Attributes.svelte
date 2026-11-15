@@ -56,7 +56,9 @@
     </header>
     {#if editor.currentParent}
       <p class="note">
-        {editor.currentParent.type === 'rgbsplit'
+        {editor.currentParent.type === 'wiggle' && m.type === 'transform'
+          ? 'Wiggle rotates and scales around this Transform pivot. Drag the Pivot handle to change its center of action.'
+          : editor.currentParent.type === 'rgbsplit'
           ? 'Applies only to the colored copies (the drawing stays as it is). Blur or Glow soften them; Step spreads them by element.'
           : editor.currentParent.type === 'step'
           ? 'Per element: numbers grow ×1, ×2, ×3… Centers are each element’s own.'

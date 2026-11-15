@@ -175,6 +175,9 @@
       <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={changeScale} />
       <Slider value={p.scale} min={0} max={scaleSliderMax} step={0.01} curve="quadratic" label="Scale" onchange={changeScale} />
     </ParamRow>
+    <ParamRow label="Stretch" for="node-stretch">
+      <PointField id="node-stretch" label="Stretch" step={0.01} value={p.stretch ?? [1, 1]} onchange={(v) => editor.setNode(node.id, 'stretch', v)} />
+    </ParamRow>
     <ParamRow label="Rotation" for="node-rot" keyState={nodeKey('rotation')} onkey={() => toggleNode('rotation')}>
       <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />
     </ParamRow>
@@ -335,6 +338,8 @@
   <div class="actions">
     {#if node.kind === 'effector'}
       <!-- Un Effector no se empaqueta ni se agrupa: no dibuja nada. -->
+    {:else if node.kind === 'group' && node.composition}
+      <Button label="Release composition" title="Move the composition contents into a regular group and transfer its animation and interactions to this scene" onclick={() => editor.releaseComposition(node.id)} />
     {:else if node.kind === 'object' && node.packed}
       <Button label="Unpack" onclick={() => editor.unpack(node.id)} />
     {:else}
@@ -351,14 +356,14 @@
     {/if}
     {#if node.kind === 'group' && !node.composition}
       <Button label="Ungroup" onclick={() => editor.ungroup(node.id)} />
-    {:else if node.kind !== 'effector'}
+    {:else if node.kind !== 'effector' && node.kind !== 'group'}
       <Button label="Group" onclick={() => editor.group(node.id)} />
     {/if}
     <Button label="Remove" onclick={() => editor.remove(node.id)} />
   </div>
   <p class="note">
     {node.kind === 'group' && node.composition
-      ? 'A nested scene with its own timeline. Open composition to edit its objects; the breadcrumb returns to the parent. Time and speed control its local clock.'
+      ? 'A nested scene with its own timeline. Open composition to edit its objects; Release composition turns it into a regular group and transfers its contents, animation and interactions here.'
       : node.kind === 'object' && node.packed
       ? 'Packed: the result is frozen and nothing inside is computed. Effects you add go on top. Unpack to get the original back, with its effects and animation.'
       : node.kind === 'effector'

@@ -129,7 +129,7 @@
     return () => ro.disconnect();
   });
   // Margen alrededor del dibujo (igual que en el CSS de .view): el encaje se mide dentro.
-  const INSET = { left: 48, top: 48, right: 48, bottom: 56 };
+  const INSET = $derived({ left: editor.showRulers ? 20 : 48, top: editor.showRulers ? 20 : 48, right: 48, bottom: 56 });
   const box = $derived([stageSize[0] - INSET.left - INSET.right, stageSize[1] - INSET.top - INSET.bottom] as const);
   const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
   const percent = $derived(Math.round(fit * view.zoom * 100));
@@ -272,7 +272,9 @@
   const handleParams = $derived.by(() => {
     const m = editor.current;
     // Step gives each copy its own centre; Oscillate shares the nested modifier's pivot.
-    if (!m || (editor.currentParent && editor.currentParent.type !== 'oscillate')) return [];
+    const sharedPivot = editor.currentParent?.type === 'oscillate';
+    const wiggleTransformPivot = editor.currentParent?.type === 'wiggle' && m?.type === 'transform';
+    if (!m || (editor.currentParent && !sharedPivot && !wiggleTransformPivot)) return [];
     const def = registry.get(m.type);
     const params = def?.params ?? {};
     // Sin los que no se ven (showIf): el centro de la zona de un filtro, solo con zona.
@@ -331,6 +333,10 @@
   type Rect = { x: number; y: number; w: number; h: number };
   type SnapFeatures = { x: number[]; y: number[] };
   let snapGuides = $state<SnapFeatures>({ x: [], y: [] });
+  type GuideDrag = { axis: 'x' | 'y'; value: number; index: number | null };
+  type RulerTick = { value: number; screen: number; label: string };
+  let guideDrag = $state<GuideDrag | null>(null);
+  let rulerTicks = $state<{ x: RulerTick[]; y: RulerTick[] }>({ x: [], y: [] });
   let selection = $state<Rect | null>(null);
   /** Los demás nodos seleccionados (⇧ + clic): solo su recuadro. */
   let others = $state<Rect[]>([]);
@@ -372,11 +378,12 @@
       y.push(b.y, b.y + b.height / 2, b.y + b.height);
     }
     const d = editor.scene?.document;
-    if (d) {
-      const x0 = d.x ?? 0, y0 = d.y ?? 0, x1 = x0 + d.width, y1 = y0 + d.height;
-      x.push(x0, (x0 + x1) / 2, x1);
-      y.push(y0, (y0 + y1) / 2, y1);
-    }
+    const [x0, y0, width, height] = d ? [d.x ?? 0, d.y ?? 0, d.width, d.height] : docViewBox;
+    const x1 = x0 + width, y1 = y0 + height;
+    x.push(x0, (x0 + x1) / 2, x1);
+    y.push(y0, (y0 + y1) / 2, y1);
+    x.push(...(editor.scene?.guides?.x ?? []));
+    y.push(...(editor.scene?.guides?.y ?? []));
     return { x, y };
   }
   function snapAxis(moving: number[], targets: number[], threshold: number): { delta: number; guide: number } | null {
@@ -398,6 +405,84 @@
     const sy = axes.y ? snapAxis([point[1]], targets.y, threshold) : null;
     snapGuides = { x: sx ? [sx.guide] : [], y: sy ? [sy.guide] : [] };
     return [point[0] + (sx?.delta ?? 0), point[1] + (sy?.delta ?? 0)];
+  }
+  function rebuildRulers() {
+    const rect = stage?.getBoundingClientRect();
+    const ctm = result?.getScreenCTM();
+    if (!rect || !ctm) return (rulerTicks = { x: [], y: [] });
+    const scale = Math.abs(ctm.a) || 1;
+    const raw = 64 / scale;
+    const power = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map((n) => n * power).find((n) => n >= raw) ?? 10 * power;
+    const rulerTop = editor.showRulers ? 20 : 48;
+    const x0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[0] ?? 0;
+    const x1 = clientToDoc(rect.right, rect.top + rulerTop)?.[0] ?? 0;
+    const y0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[1] ?? 0;
+    const y1 = clientToDoc(rect.left + 48, rect.bottom)?.[1] ?? 0;
+    const make = (a: number, b: number, axis: 'x' | 'y'): RulerTick[] => {
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      const first = Math.ceil(lo / step) * step;
+      const decimals = step >= 1 ? 0 : Math.min(4, Math.max(1, -Math.floor(Math.log10(step))));
+      const out: RulerTick[] = [];
+      for (let value = first, guard = 0; value <= hi && guard < 300; value += step, guard++) {
+        const p = axis === 'x' ? docToStage(value, 0) : docToStage(0, value);
+        if (p) out.push({ value, screen: axis === 'x' ? p[0] : p[1], label: Number(value.toFixed(decimals)).toString() });
+      }
+      return out;
+    };
+    rulerTicks = { x: make(x0, x1, 'x'), y: make(y0, y1, 'y') };
+  }
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes; void editor.scene?.document;
+    const frame = requestAnimationFrame(rebuildRulers);
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function setGuides(axis: 'x' | 'y', values: number[]) {
+    if (!editor.scene) return;
+    editor.scene.guides = { x: [...(editor.scene.guides?.x ?? [])], y: [...(editor.scene.guides?.y ?? [])], [axis]: values };
+    if (!editor.scene.guides.x.length && !editor.scene.guides.y.length) delete editor.scene.guides;
+    editor.record(true);
+  }
+  function removeGuide(axis: 'x' | 'y', index: number, e: MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    const values = [...(editor.scene?.guides?.[axis] ?? [])];
+    values.splice(index, 1);
+    setGuides(axis, values);
+  }
+  function dragGuide(axis: 'x' | 'y', e: PointerEvent, index: number | null = null) {
+    if (!editor.scene || !stage || e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const initial = index === null ? clientToDoc(e.clientX, e.clientY)?.[axis === 'x' ? 0 : 1] : editor.scene.guides?.[axis][index];
+    if (initial === undefined) return;
+    guideDrag = { axis, index, value: initial };
+    const move = (ev: PointerEvent) => {
+      const p = clientToDoc(ev.clientX, ev.clientY);
+      if (p) guideDrag = { axis, index, value: p[axis === 'x' ? 0 : 1] };
+    };
+    const up = (ev: PointerEvent) => {
+      const current = guideDrag;
+      const rect = stage!.getBoundingClientRect();
+      const onRuler = editor.showRulers && (axis === 'x'
+        ? ev.clientY >= rect.top && ev.clientY <= rect.top + 20
+        : ev.clientX >= rect.left && ev.clientX <= rect.left + 20);
+      if (current && (index !== null || !onRuler)) {
+        const values = [...(editor.scene?.guides?.[axis] ?? [])];
+        if (onRuler && index !== null) values.splice(index, 1);
+        else if (index === null) values.push(current.value);
+        else values[index] = current.value;
+        setGuides(axis, values);
+      }
+      guideDrag = null;
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
   }
 
   // ── Organizar: alinear y distribuir la selección (en el documento), voltear
@@ -482,7 +567,7 @@
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
       if (mode === 'scale' || mode.startsWith('stretch-')) {
         let doc = clientToDoc(ev.clientX, ev.clientY);
-        if (doc && !ev.altKey) {
+        if (doc) {
           const axes = mode === 'stretch-x-left' || mode === 'stretch-x-right' ? { x: true, y: false }
             : mode === 'stretch-y-top' || mode === 'stretch-y-bottom' ? { x: false, y: true }
               : { x: true, y: true };
@@ -699,28 +784,48 @@
     if (e.shiftKey) return editor.toggleSelect(id);
     // Clic en algo ya seleccionado: se mueve toda la selección; si no, se selecciona solo él.
     if (!editor.isSelected(id)) editor.selected = id;
-    const ids = editor.selectedNodes.map((n) => n.id);
-    // Cada uno se mueve en las coordenadas de su grupo (si lo tiene).
-    const parts = ids.flatMap((nid) => {
+    let ids = editor.selectedNodes.map((n) => n.id);
+    const originalTree = selectedTreeIds();
+    const partsFor = (which: string[]) => which.flatMap((nid) => {
       const at = locateNode(editor.scene!.objects, nid);
       if (!at) return [];
       const parentInfo = at.parent ? nodes.get(at.parent.id) : undefined;
       return [{ id: nid, toParent: parentInfo ? invert(parentInfo.matrix) : null, t0: { x: at.node.transform?.x ?? 0, y: at.node.transform?.y ?? 0 } }];
     });
-    const selectedBoxes = ids.flatMap((nid) => { const b = nodes.get(nid)?.box; return b ? [b] : []; });
-    const startBox = selectedBoxes.length ? {
-      x: Math.min(...selectedBoxes.map(b => b.x)), y: Math.min(...selectedBoxes.map(b => b.y)),
-      w: Math.max(...selectedBoxes.map(b => b.x + b.width)) - Math.min(...selectedBoxes.map(b => b.x)),
-      h: Math.max(...selectedBoxes.map(b => b.y + b.height)) - Math.min(...selectedBoxes.map(b => b.y)),
-    } : null;
-    const targets = snapTargets(selectedTreeIds());
+    const boxFor = (which: string[]): Rect | null => {
+      const bs = which.flatMap((nid) => { const b = nodes.get(nid)?.box; return b ? [b] : []; });
+      if (!bs.length) return null;
+      const x = Math.min(...bs.map(b => b.x)), y = Math.min(...bs.map(b => b.y));
+      return { x, y, w: Math.max(...bs.map(b => b.x + b.width)) - x, h: Math.max(...bs.map(b => b.y + b.height)) - y };
+    };
+    let parts = partsFor(ids);
+    const originalBox = boxFor(ids);
+    let startBox = originalBox;
+    let targets = snapTargets(originalTree);
     const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
+    const cloneOnDrag = e.altKey;
+    let cloned = false;
+    let dragStarted = false;
     const start = clientToDoc(e.clientX, e.clientY);
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
       const now = clientToDoc(ev.clientX, ev.clientY);
       if (!start || !now || !editor.scene) return;
+      if (!dragStarted && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) >= 3) dragStarted = true;
+      if (cloneOnDrag && !dragStarted) return;
+      if (cloneOnDrag && dragStarted && !cloned) {
+        const copied = editor.copySelection();
+        if (copied && editor.paste(copied, 0, false)) {
+          cloned = true;
+          ids = editor.selectedNodes.map((n) => n.id);
+          parts = partsFor(ids);
+          startBox = originalBox;
+          const excluded = selectedTreeIds();
+          originalTree.forEach((oldId) => excluded.add(oldId));
+          targets = snapTargets(excluded);
+        }
+      }
       const r = (n: number) => Math.round(n * 100) / 100;
       // ⇧: solo en el eje en que más se ha movido (horizontal o vertical, en el documento).
       let mx = now[0] - start[0];
@@ -729,7 +834,7 @@
         if (Math.abs(mx) >= Math.abs(my)) my = 0;
         else mx = 0;
       }
-      if (startBox && !ev.altKey) ({ dx: mx, dy: my } = snapBox(startBox, mx, my, targets, threshold, {
+      if (startBox) ({ dx: mx, dy: my } = snapBox(startBox, mx, my, targets, threshold, {
         x: !ev.shiftKey || Math.abs(now[0] - start[0]) >= Math.abs(now[1] - start[1]),
         y: !ev.shiftKey || Math.abs(now[1] - start[1]) > Math.abs(now[0] - start[0]),
       }));
@@ -741,9 +846,14 @@
         const n = locateNode(editor.scene.objects, p.id)?.node;
         if (n) n.transform = { ...n.transform, x: r(p.t0.x + dx), y: r(p.t0.y + dy) };
       }
-      editor.record();
+      if (!cloned) editor.record();
     };
-    const up = () => { snapGuides = { x: [], y: [] }; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    const up = () => {
+      snapGuides = { x: [], y: [] };
+      if (cloned) editor.record(true);
+      else if (dragStarted) editor.flush();
+      el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
+    };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
   }
@@ -936,12 +1046,12 @@
   ondrop={drop}
 >
   {#if editor.compositionPath.length > 0}
-    <button class="composition-back" type="button" onclick={() => editor.leaveComposition()} aria-label="Back to parent composition" title="Back to parent composition">← Back</button>
+    <button class="composition-back" style:top="{editor.showRulers ? 28 : 12}px" type="button" onclick={() => editor.leaveComposition()} aria-label="Back to parent composition" title="Back to parent composition">← Back</button>
   {/if}
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
-      <div class="view" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
+      <div class="view" style:inset="{editor.showRulers ? '20px 48px 56px 20px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
         {#if editor.showBounds}
@@ -974,6 +1084,50 @@
             {#if p}<line x1="0" y1={p[1]} x2={stageSize[0]} y2={p[1]} />{/if}
           {/each}
         </svg>
+      {/if}
+      {#if editor.showRulers}
+      <svg class="rulers" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+        <rect class="ruler-corner" x="0" y="0" width="20" height="20" />
+        <rect class="ruler-bg" x="20" y="0" width={Math.max(0, stageSize[0] - 20)} height="20" />
+        <rect class="ruler-bg" x="0" y="20" width="20" height={Math.max(0, stageSize[1] - 20)} />
+        <line class="ruler-edge" x1="20" y1="20" x2={stageSize[0]} y2="20" />
+        <line class="ruler-edge" x1="20" y1="20" x2="20" y2={stageSize[1]} />
+        {#each rulerTicks.x as tick (tick.value)}
+          <line class="ruler-tick" x1={tick.screen} y1="14" x2={tick.screen} y2="20" />
+          <text class="ruler-label" x={tick.screen + 2} y="11">{tick.label}</text>
+        {/each}
+        {#each rulerTicks.y as tick (tick.value)}
+          <line class="ruler-tick" x1="14" y1={tick.screen} x2="20" y2={tick.screen} />
+          <text class="ruler-label vertical" transform="rotate(-90 12 {tick.screen - 2})" x="12" y={tick.screen - 2}>{tick.label}</text>
+        {/each}
+      </svg>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="ruler-zone horizontal" style:left="{editor.showRulers ? 20 : 48}px" title="Drag to create a horizontal guide" onpointerdown={(e) => dragGuide('y', e)}></div>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="ruler-zone vertical" style:left={editor.showRulers ? '0px' : '28px'} style:width={editor.showRulers ? '20px' : '20px'} title="Drag to create a vertical guide" onpointerdown={(e) => dragGuide('x', e)}></div>
+      {/if}
+      {#if editor.showGuides}<svg class="document-guides" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+        {#each editor.scene?.guides?.x ?? [] as value, i (`x-${i}`)}
+          {@const p = docToStage(value, 0)}
+          {#if p}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <line class="guide-hit" x1={p[0]} y1={editor.showRulers ? 20 : 0} x2={p[0]} y2={stageSize[1]} onpointerdown={(e) => dragGuide('x', e, i)} ondblclick={(e) => removeGuide('x', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-line" x1={p[0]} y1={editor.showRulers ? 20 : 0} x2={p[0]} y2={stageSize[1]} />
+          {/if}
+        {/each}
+        {#each editor.scene?.guides?.y ?? [] as value, i (`y-${i}`)}
+          {@const p = docToStage(0, value)}
+          {#if p}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <line class="guide-hit" x1={editor.showRulers ? 20 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} onpointerdown={(e) => dragGuide('y', e, i)} ondblclick={(e) => removeGuide('y', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-line" x1={editor.showRulers ? 20 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} />
+          {/if}
+        {/each}
+        {#if guideDrag}
+          {@const p = guideDrag.axis === 'x' ? docToStage(guideDrag.value, 0) : docToStage(0, guideDrag.value)}
+          {#if p}<line class="guide-preview" x1={guideDrag.axis === 'x' ? p[0] : (editor.showRulers ? 20 : 0)} y1={guideDrag.axis === 'x' ? (editor.showRulers ? 20 : 0) : p[1]} x2={guideDrag.axis === 'x' ? p[0] : stageSize[0]} y2={guideDrag.axis === 'x' ? stageSize[1] : p[1]} />{/if}
+        {/if}
+      </svg>
       {/if}
       {#if editor.tool === 'pen' && penPoints.length >= 2}
         <button class="finish-pen" type="button" onclick={finishPen}>Finish path <kbd>Enter</kbd></button>
@@ -1059,6 +1213,7 @@
             type="button"
             class="gizmo-handle"
             data-tone={h.tone}
+            data-handle={h.label}
             style:left="{h.x}px"
             style:top="{h.y}px"
             title={h.label}
@@ -1125,7 +1280,7 @@
     {#if editor.selectedNodes.length && !editor.tool}
       {@const n = editor.selectedNodes.length}
       {@const canBool = n > 1 || editor.selectedNodes[0]?.kind === 'group'}
-      <div class="arrange" role="toolbar" aria-label="Arrange">
+      <div class="arrange" style:top="{editor.showRulers ? 28 : 12}px" role="toolbar" aria-label="Arrange">
         {#each alignments as a (a.how)}
           <IconButton icon={a.icon as IconName} label={`${a.label}${n < 2 ? ' (select 2+ with ⇧)' : ''}`} disabled={n < 2} onclick={() => arrange(align(items(), a.how))} />
         {/each}
@@ -1187,6 +1342,19 @@
   .guides circle[data-root] { fill: var(--sv-accent-fill); }
   .snap-guides { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .snap-guides line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .rulers { position: absolute; z-index: 4; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .ruler-bg { fill: var(--sv-surface-panel); }
+  .ruler-corner { fill: var(--sv-surface-field); }
+  .ruler-edge { stroke: var(--sv-rule-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ruler-tick { stroke: var(--sv-text-muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ruler-label { fill: var(--sv-text-secondary); font: 8px var(--sv-font-mono); }
+  .ruler-zone { position: absolute; z-index: 5; touch-action: none; background: transparent; }
+  .ruler-zone.horizontal { top: 0; right: 0; left: 48px; height: 20px; cursor: ns-resize; }
+  .ruler-zone.vertical { top: 20px; bottom: 0; left: 28px; width: 20px; cursor: ew-resize; }
+  .document-guides { position: absolute; z-index: 6; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .document-guides .guide-hit { stroke: transparent; stroke-width: 12; pointer-events: stroke; touch-action: none; }
+  .document-guides .guide-line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .document-guides .guide-preview { stroke: var(--sv-accent-fill); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
   .bounds { pointer-events: none; }
   .bounds .outside { fill: rgb(0 0 0 / 0.5); }
   .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }
@@ -1337,6 +1505,7 @@
   .gizmo-handle[data-tone='x'] { background: #ff5c5c; }
   .gizmo-handle[data-tone='y'] { background: #6bdc6b; }
   .gizmo-handle[data-tone='z'] { background: #5c8cff; }
+  .gizmo-handle[data-handle='Emitter position'] { width: 11px; height: 11px; border: 2px solid var(--sv-surface-panel); border-radius: 50%; background: var(--sv-accent-fill); }
   .stage[data-space] .gizmo-handle,
   .stage[data-space] .gizmo .hit { pointer-events: none; }
   .ghost { opacity: 0.2; }
@@ -1347,5 +1516,5 @@
     vector-effect: non-scaling-stroke;
   }
   .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-10); }
-  .canvas > .error { position: absolute; top: var(--sv-space-12); left: var(--sv-space-12); }
+  .canvas > .error { position: absolute; top: 28px; left: var(--sv-space-12); }
 </style>

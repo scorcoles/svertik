@@ -106,6 +106,7 @@ const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
         { pts: [point(direction - spread / 2), c, point(direction + spread / 2)], dashed: true },
       ],
       handles: [
+        { at: c, label: 'Emitter position', drag: move },
         { at: point(direction), label: 'Direction', tone: 'y', drag: (_p0, _from, to, snap) => ({ direction: snapDeg(deg(Math.atan2(to[1] - c[1], to[0] - c[0])), snap) }) },
         ...(emitter === 'point' ? [] : [{ at: [c[0] + w / 2, c[1] + (emitter === 'line' ? 0 : h / 2)] as Vec2, label: 'Emitter area', drag: ((_p0, _from, to) => ({ area: [round(2 * Math.abs(to[0] - c[0]) / (b.width || 1)), emitter === 'line' ? area[1] : round(2 * Math.abs(to[1] - c[1]) / (b.height || 1))] })) as Drag }]),
       ],

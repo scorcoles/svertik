@@ -347,6 +347,78 @@ export class Editor {
     this.selected = node.id; this.record(true);
     return node.id;
   }
+  /** Release the isolated scene into a regular group, merging its objects and timeline into this scene. */
+  releaseComposition(id = this.activeNode?.id ?? null) {
+    if (!this.scene || !id || this.isLocked(id)) return;
+    const at = locateNode(this.scene.objects, id);
+    if (!at || at.node.kind !== 'group' || !at.node.composition) return;
+    const compositionNode = at.node;
+    const inner = structuredClone(compositionNode.composition.scene);
+    const used = new Set<string>();
+    const collectIds = (nodes: SceneNode[]) => nodes.forEach((node) => {
+      used.add(node.id);
+      node.stack.forEach((modifier) => { used.add(modifier.id); modifier.children?.forEach((child) => used.add(child.id)); });
+      if (node.children) collectIds(node.children);
+    });
+    collectIds(this.scene.objects);
+    const fresh = (base: string) => {
+      let next = `${base}-${uid()}`;
+      while (used.has(next)) next = `${base}-${uid()}`;
+      used.add(next);
+      return next;
+    };
+    const remap = new Map<string, string>();
+    const prepare = (nodes: SceneNode[]) => nodes.forEach((node) => {
+      remap.set(node.id, fresh(node.id));
+      const modifiers = (list: ModifierInstance[]) => list.forEach((modifier) => {
+        remap.set(modifier.id, fresh(modifier.id));
+        modifiers(modifier.children ?? []);
+      });
+      modifiers(node.stack);
+      if (node.children) prepare(node.children);
+    });
+    prepare(inner.objects);
+    const cloneRefs = (nodes: SceneNode[]) => nodes.forEach((node) => {
+      node.id = remap.get(node.id)!;
+      const updateStack = (list: ModifierInstance[]) => list.forEach((modifier) => {
+        modifier.id = remap.get(modifier.id)!;
+        const schema = registry.get(modifier.type)?.params ?? {};
+        for (const [key, value] of Object.entries(modifier.params ?? {})) {
+          if (schema[key]?.type === 'node' && typeof value === 'string') modifier.params![key] = remap.get(value) ?? value;
+          else if (schema[key]?.type === 'nodes' && Array.isArray(value)) modifier.params![key] = value.map((target) => typeof target === 'string' ? remap.get(target) ?? target : target);
+        }
+        updateStack(modifier.children ?? []);
+      });
+      updateStack(node.stack);
+      if (node.kind === 'instance') node.of = remap.get(node.of) ?? node.of;
+      if (node.kind === 'effector') node.targets = node.targets.map((target) => remap.get(target) ?? target);
+      if (node.children) cloneRefs(node.children);
+    });
+    cloneRefs(inner.objects);
+    const tracks = (inner.animation?.tracks ?? []).map((track) => ({
+      ...track,
+      id: fresh(track.id),
+      node: remap.get(track.node) ?? track.node,
+      ...(track.modifier ? { modifier: remap.get(track.modifier) ?? track.modifier } : {}),
+    }));
+    const interactions = (inner.interactions ?? []).map((interaction) => ({
+      ...interaction,
+      id: fresh(interaction.id),
+      node: remap.get(interaction.node) ?? interaction.node,
+      target: { ...interaction.target, node: remap.get(interaction.target.node) ?? interaction.target.node,
+        ...(interaction.target.modifier ? { modifier: remap.get(interaction.target.modifier) ?? interaction.target.modifier } : {}) },
+    }));
+    const { composition: _composition, children: _children, ...base } = compositionNode;
+    const released: GroupNode = { ...base, kind: 'group', children: inner.objects };
+    at.list.splice(at.index, 1, released);
+    const animation = this.#ensureAnimation();
+    animation.tracks = [...animation.tracks.filter((track) => !(track.node === id && track.on === 'composition')), ...tracks];
+    animation.duration = Math.max(animation.duration, inner.animation?.duration ?? 0);
+    if (interactions.length) this.scene.interactions = [...(this.scene.interactions ?? []), ...interactions];
+    this.selected = released.id;
+    this.also = [];
+    this.record(true);
+  }
   importComposition(text: string, filename = 'Composition'): boolean {
     try {
       const data = JSON.parse(text); const scene = data?.svertik === 'project' ? data.scene : data;
@@ -449,6 +521,20 @@ export class Editor {
   set showBounds(on: boolean) {
     this.#showBounds = on;
     writePref('svertik.bounds', on ? '' : 'off');
+  }
+  /** Show or hide the canvas rulers; ruler guides stay visible. */
+  #showRulers = $state(readPref('svertik.rulers') !== 'off');
+  get showRulers() { return this.#showRulers; }
+  set showRulers(on: boolean) {
+    this.#showRulers = on;
+    writePref('svertik.rulers', on ? '' : 'off');
+  }
+  /** Show or hide saved canvas guides. */
+  #showGuides = $state(readPref('svertik.guides') !== 'off');
+  get showGuides() { return this.#showGuides; }
+  set showGuides(on: boolean) {
+    this.#showGuides = on;
+    writePref('svertik.guides', on ? '' : 'off');
   }
   /** Caja de lo que hay dibujado (sin margen), en el documento: la escribe el lienzo al pintar. */
   contentBox = $state.raw<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -836,6 +922,25 @@ export class Editor {
     for (const node of roots) collect(node);
     return shapes;
   }
+  #svgColorTargets(): ObjectNode[] {
+    const roots: SceneNode[] = this.selectedNodes.length ? this.selectedNodes : this.activeNode ? [this.activeNode] : [];
+    const objects: ObjectNode[] = [];
+    const collect = (node: SceneNode) => {
+      if (node.kind === 'object' && !node.packed && /<svg[\s>]/i.test(node.source)) objects.push(node);
+      for (const child of node.children ?? []) collect(child);
+    };
+    for (const node of roots) collect(node);
+    return objects;
+  }
+  /** Recolor explicit SVG fills and set the inherited fill on the root, preserving `fill="none"`. */
+  #recolorSvg(source: string, color: string): string {
+    const paint = (value: string) => value.trim().toLowerCase() === 'none' ? value : color;
+    let next = source
+      .replace(/(\bfill\s*=\s*)(["'])(.*?)\2/gi, (_match, prefix: string, quote: string, value: string) => `${prefix}${quote}${paint(value)}${quote}`)
+      .replace(/(\bfill\s*:\s*)([^;"'}]+)/gi, (_match, prefix: string, value: string) => `${prefix}${paint(value)}`);
+    next = next.replace(/<svg\b([^>]*)>/i, (tag, attrs: string) => /\bfill\s*=/.test(attrs) || /\bfill\s*:/.test(attrs) ? tag : `<svg${attrs} fill="${color}">`);
+    return next;
+  }
   /** Relleno que muestran los selectores del rail: el de la selección o el de las primitivas nuevas. */
   get currentFill(): string {
     return String(this.#colorTargets()[0]?.params.fillColor ?? this.fillColor);
@@ -847,13 +952,19 @@ export class Editor {
   /** Relleno del rail: con selección, el suyo (y lo enciende); sin ella, el de las primitivas nuevas. */
   setFillColor(color: string) {
     const targets = this.#colorTargets();
-    if (!targets.length) {
+    const svgTargets = this.#svgColorTargets();
+    if (!targets.length && !svgTargets.length) {
       this.fillColor = color;
       return;
     }
     for (const n of targets) {
       this.setShapeParam(n.id, 'fillColor', color);
       if (n.params.fill === false) this.setShapeParam(n.id, 'fill', true);
+    }
+    for (const node of svgTargets) {
+      if (this.isLocked(node.id)) continue;
+      node.source = this.#recolorSvg(node.source, color);
+      this.record(true);
     }
   }
   /** Contorno del rail: con selección, el suyo (y lo enciende); sin ella, el de las primitivas nuevas. */
@@ -1759,7 +1870,7 @@ export class Editor {
   }
 
   /** Pega lo copiado (`offset`: cuánto se desplaza; 0, en el mismo sitio). Devuelve false si el texto no es del portapapeles de svertik. */
-  paste(text: string, offset = 16): boolean {
+  paste(text: string, offset = 16, commit = true): boolean {
     let data: { svertik?: number; kind?: string; items?: unknown[]; animation?: Animation };
     try {
       data = JSON.parse(text);
@@ -1776,7 +1887,7 @@ export class Editor {
       const list = at ? at.list : owner.stack;
       list.splice(at ? at.index + 1 : list.length, 0, ...items);
       this.selected = items[0]!.id;
-      this.record(true);
+      if (commit) this.record(true);
       return true;
     }
     if (data.kind !== 'nodes') return false;
@@ -1845,7 +1956,7 @@ export class Editor {
     }
     this.selected = items[0]!.id;
     this.also = items.slice(1).map((n) => n.id);
-    this.record(true);
+    if (commit) this.record(true);
     return true;
   }
 

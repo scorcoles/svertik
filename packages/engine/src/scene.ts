@@ -109,6 +109,8 @@ export interface SceneV1 {
   version: 1;
   /** User notes about the scene; editor metadata, ignored by rendering and SVG export. */
   notes?: string;
+  /** Editor ruler guides in document coordinates; ignored by rendering and SVG export. */
+  guides?: { x: number[]; y: number[] };
   /** As in the layers of design tools: the first one in the list is in front. */
   objects: SceneNode[];
   /** Maximum segment length when subdividing, as a fraction of each object's size. */
