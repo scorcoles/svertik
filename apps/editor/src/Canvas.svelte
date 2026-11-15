@@ -36,6 +36,7 @@
   let ghost = $state<SVGSVGElement>();
   let stage = $state<HTMLDivElement>();
   let renderError = $state<string | null>(null);
+  let dimmedNodes = $state<string[]>([]);
   /** Lo que tarda en recalcular y pintar (ms, suavizado). Pasado SLOW, aviso. */
   let cost = $state<number | null>(null);
   const SLOW = 50;
@@ -92,7 +93,11 @@
       result.setAttribute('viewBox', viewBox.join(' '));
       // Escribiendo en un texto: su resultado (con efectos), atenuado debajo del campo.
       const editing = editor.editingText;
-      for (const p of result.querySelectorAll<SVGElement>('path[data-node], image[data-node]')) p.style.opacity = editing && p.getAttribute('data-node') === editing ? '0.25' : '';
+      const dimmed = new Set(dimmedNodes);
+      for (const p of result.querySelectorAll<SVGElement>('path[data-node], image[data-node]')) {
+        const id = p.getAttribute('data-node');
+        p.style.opacity = editing && id === editing ? '0.25' : id && dimmed.has(id) ? '0.35' : '';
+      }
       if (ghost) {
         renderInto(ghost, doc.sources);
         ghost.setAttribute('viewBox', viewBox.join(' '));
@@ -371,20 +376,20 @@
     return ids;
   }
   function snapTargets(excluded: Set<string>): SnapFeatures {
-    const x: number[] = [], y: number[] = [];
-    for (const [id, info] of nodes) {
-      if (excluded.has(id) || info.kind === 'effector' || info.box.width + info.box.height === 0) continue;
-      const b = info.box;
-      x.push(b.x, b.x + b.width / 2, b.x + b.width);
-      y.push(b.y, b.y + b.height / 2, b.y + b.height);
+    const x = [...(editor.scene?.guides?.x ?? [])], y = [...(editor.scene?.guides?.y ?? [])];
+    if (editor.smartGuides) {
+      for (const [id, info] of nodes) {
+        if (excluded.has(id) || info.kind === 'effector' || info.box.width + info.box.height === 0) continue;
+        const b = info.box;
+        x.push(b.x, b.x + b.width / 2, b.x + b.width);
+        y.push(b.y, b.y + b.height / 2, b.y + b.height);
+      }
+      const d = editor.scene?.document;
+      const [x0, y0, width, height] = d ? [d.x ?? 0, d.y ?? 0, d.width, d.height] : docViewBox;
+      const x1 = x0 + width, y1 = y0 + height;
+      x.push(x0, (x0 + x1) / 2, x1);
+      y.push(y0, (y0 + y1) / 2, y1);
     }
-    const d = editor.scene?.document;
-    const [x0, y0, width, height] = d ? [d.x ?? 0, d.y ?? 0, d.width, d.height] : docViewBox;
-    const x1 = x0 + width, y1 = y0 + height;
-    x.push(x0, (x0 + x1) / 2, x1);
-    y.push(y0, (y0 + y1) / 2, y1);
-    x.push(...(editor.scene?.guides?.x ?? []));
-    y.push(...(editor.scene?.guides?.y ?? []));
     return { x, y };
   }
   function snapAxis(moving: number[], targets: number[], threshold: number): { delta: number; guide: number } | null {
@@ -804,24 +809,32 @@
     let startBox = originalBox;
     let targets = snapTargets(originalTree);
     const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
-    const cloneOnDrag = e.altKey;
+    const cloneOnStart = e.altKey;
     let cloned = false;
     let dragStarted = false;
     const start = clientToDoc(e.clientX, e.clientY);
+    let dragOrigin = start;
+    let appliedDelta = { dx: 0, dy: 0 };
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
       const now = clientToDoc(ev.clientX, ev.clientY);
-      if (!start || !now || !editor.scene) return;
+      if (!dragOrigin || !now || !editor.scene) return;
       if (!dragStarted && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) >= 3) dragStarted = true;
-      if (cloneOnDrag && !dragStarted) return;
-      if (cloneOnDrag && dragStarted && !cloned) {
+      const cloneRequested = cloneOnStart || ev.altKey;
+      if (cloneRequested && !dragStarted) return;
+      if (cloneRequested && dragStarted && !cloned) {
         const copied = editor.copySelection();
         if (copied && editor.paste(copied, 0, false)) {
           cloned = true;
           ids = editor.selectedNodes.map((n) => n.id);
           parts = partsFor(ids);
-          startBox = originalBox;
+          dimmedNodes = [...selectedTreeIds()];
+          if (!cloneOnStart) {
+            startBox = originalBox ? { ...originalBox, x: originalBox.x + appliedDelta.dx, y: originalBox.y + appliedDelta.dy } : null;
+            dragOrigin = now;
+            appliedDelta = { dx: 0, dy: 0 };
+          } else startBox = originalBox;
           const excluded = selectedTreeIds();
           originalTree.forEach((oldId) => excluded.add(oldId));
           targets = snapTargets(excluded);
@@ -829,15 +842,15 @@
       }
       const r = (n: number) => Math.round(n * 100) / 100;
       // ⇧: solo en el eje en que más se ha movido (horizontal o vertical, en el documento).
-      let mx = now[0] - start[0];
-      let my = now[1] - start[1];
+      let mx = now[0] - dragOrigin[0];
+      let my = now[1] - dragOrigin[1];
       if (ev.shiftKey) {
         if (Math.abs(mx) >= Math.abs(my)) my = 0;
         else mx = 0;
       }
       if (startBox) ({ dx: mx, dy: my } = snapBox(startBox, mx, my, targets, threshold, {
-        x: !ev.shiftKey || Math.abs(now[0] - start[0]) >= Math.abs(now[1] - start[1]),
-        y: !ev.shiftKey || Math.abs(now[1] - start[1]) > Math.abs(now[0] - start[0]),
+        x: !ev.shiftKey || Math.abs(now[0] - dragOrigin[0]) >= Math.abs(now[1] - dragOrigin[1]),
+        y: !ev.shiftKey || Math.abs(now[1] - dragOrigin[1]) > Math.abs(now[0] - dragOrigin[0]),
       }));
       else snapGuides = { x: [], y: [] };
       for (const p of parts) {
@@ -847,16 +860,18 @@
         const n = locateNode(editor.scene.objects, p.id)?.node;
         if (n) n.transform = { ...n.transform, x: r(p.t0.x + dx), y: r(p.t0.y + dy) };
       }
+      appliedDelta = { dx: mx, dy: my };
       if (!cloned) editor.record();
     };
     const up = () => {
       snapGuides = { x: [], y: [] };
-      if (cloned) editor.record(true);
+      if (cloned) { dimmedNodes = []; editor.record(true); }
       else if (dragStarted) editor.flush();
-      el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
   }
 
   // Se calculan después de pintar (con el zoom ya aplicado en el DOM), no antes.

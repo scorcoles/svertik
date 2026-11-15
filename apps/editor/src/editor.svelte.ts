@@ -522,19 +522,26 @@ export class Editor {
     this.#showBounds = on;
     writePref('svertik.bounds', on ? '' : 'off');
   }
-  /** Show or hide the canvas rulers; ruler guides stay visible. */
-  #showRulers = $state(readPref('svertik.rulers') !== 'off');
+  /** Rulers are hidden by default; the preference is remembered in this browser. */
+  #showRulers = $state(readPref('svertik.rulers') === 'on');
   get showRulers() { return this.#showRulers; }
   set showRulers(on: boolean) {
     this.#showRulers = on;
-    writePref('svertik.rulers', on ? '' : 'off');
+    writePref('svertik.rulers', on ? 'on' : 'off');
   }
-  /** Show or hide saved canvas guides. */
-  #showGuides = $state(readPref('svertik.guides') !== 'off');
+  /** Guides are hidden by default; the preference is remembered in this browser. */
+  #showGuides = $state(readPref('svertik.guides') === 'on');
   get showGuides() { return this.#showGuides; }
   set showGuides(on: boolean) {
     this.#showGuides = on;
-    writePref('svertik.guides', on ? '' : 'off');
+    writePref('svertik.guides', on ? 'on' : 'off');
+  }
+  /** Smart alignment guides are on by default; manual ruler guides remain available when disabled. */
+  #smartGuides = $state(readPref('svertik.smartGuides') !== 'off');
+  get smartGuides() { return this.#smartGuides; }
+  set smartGuides(on: boolean) {
+    this.#smartGuides = on;
+    writePref('svertik.smartGuides', on ? '' : 'off');
   }
   /** Caja de lo que hay dibujado (sin margen), en el documento: la escribe el lienzo al pintar. */
   contentBox = $state.raw<{ x: number; y: number; width: number; height: number } | null>(null);
