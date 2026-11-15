@@ -339,7 +339,7 @@
     {#if node.kind === 'effector'}
       <!-- Un Effector no se empaqueta ni se agrupa: no dibuja nada. -->
     {:else if node.kind === 'group' && node.composition}
-      <Button label="Release composition" title="Move the composition contents into a regular group and transfer its animation and interactions to this scene" onclick={() => editor.releaseComposition(node.id)} />
+      <Button label="Release composition" title="Move contents into a regular group; bake its clock into the parent timeline and transfer interactions" onclick={() => editor.releaseComposition(node.id)} />
     {:else if node.kind === 'object' && node.packed}
       <Button label="Unpack" onclick={() => editor.unpack(node.id)} />
     {:else}

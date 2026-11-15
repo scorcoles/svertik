@@ -12,6 +12,7 @@ import {
   isNumericExpression,
   evaluateSceneExpressions,
   sceneDuration,
+  compositionTime,
   hasTextExpressions,
   outlineNode,
   packNode,
@@ -354,6 +355,60 @@ export class Editor {
     if (!at || at.node.kind !== 'group' || !at.node.composition) return;
     const compositionNode = at.node;
     const inner = structuredClone(compositionNode.composition.scene);
+    const timelineSource = structuredClone(inner);
+    const parentClockScene = $state.snapshot(this.scene) as SceneV1;
+    const parentDuration = Math.max(0, parentClockScene.animation?.duration ?? sceneDuration(parentClockScene));
+    const sourceTracks = timelineSource.animation?.tracks ?? [];
+    const expressionTracks: Track[] = [];
+    const hasExpressionTarget = new Set<string>();
+    const targetKey = (node: string, on: Track['on'], param: string, modifier = '') => `${node}\n${on}\n${modifier}\n${param}`;
+    const registerExpressions = (node: SceneNode, on: Track['on'], params: Record<string, unknown>, modifier?: string) => {
+      for (const [param, value] of Object.entries(params)) {
+        if (!isNumericExpression(value)) continue;
+        const key = targetKey(node.id, on, param, modifier);
+        if (hasExpressionTarget.has(key)) continue;
+        hasExpressionTarget.add(key);
+        expressionTracks.push({ id: `expression-${uid()}`, node: node.id, on, param, ...(modifier ? { modifier } : {}), keys: [] });
+      }
+    };
+    const scanStack = (node: SceneNode, stack: ModifierInstance[]) => stack.forEach((modifier) => {
+      registerExpressions(node, 'modifier', modifier.params ?? {}, modifier.id);
+      scanStack(node, modifier.children ?? []);
+    });
+    for (const { node } of walkNodes(inner.objects)) {
+      if (node.kind === 'shape') registerExpressions(node, 'shape', node.params);
+      if (node.kind === 'group' && node.composition) registerExpressions(node, 'composition', node.composition.params ?? {});
+      scanStack(node, node.stack);
+    }
+    const timelineTracks = [
+      ...sourceTracks.filter((track) => !hasExpressionTarget.has(targetKey(track.node, track.on, track.param, track.modifier))),
+      ...expressionTracks,
+    ];
+    let bakeRate = parentClockScene.animation?.fps || 30;
+    const bakedKeys = new Map(timelineTracks.map((track) => [track.id, [] as Track['keys']]));
+    if (timelineTracks.length && parentDuration > 0) {
+      const parentFps = parentClockScene.animation?.fps || 30;
+      const fps = Math.max(1, Math.min(parentFps, 12000 / parentDuration));
+      bakeRate = fps;
+      const frames = Math.max(1, Math.ceil(parentDuration * fps));
+      const localDuration = sceneDuration(timelineSource);
+      for (let frame = 0; frame <= frames; frame++) {
+        const t = Math.min(parentDuration, frame / fps);
+        const parentAt = evaluateSceneExpressions(sampleScene(parentClockScene, t));
+        const clock = locateNode(parentAt.objects, id)?.node;
+        if (clock?.kind !== 'group' || !clock.composition) continue;
+        const localTime = compositionTime(t, localDuration, clock.composition.params, clock.composition.modulation);
+        const innerAt = evaluateSceneExpressions(sampleScene(timelineSource, localTime));
+        for (const track of timelineTracks) {
+          const value = readTarget(innerAt, track);
+          if (value === undefined) continue;
+          const keys = bakedKeys.get(track.id)!;
+          const previous = keys.at(-1);
+          if (previous && JSON.stringify(previous.value) === JSON.stringify(value)) continue;
+          keys.push({ t, value, ease: 'linear' });
+        }
+      }
+    }
     const used = new Set<string>();
     const collectIds = (nodes: SceneNode[]) => nodes.forEach((node) => {
       used.add(node.id);
@@ -395,12 +450,19 @@ export class Editor {
       if (node.children) cloneRefs(node.children);
     });
     cloneRefs(inner.objects);
-    const tracks = (inner.animation?.tracks ?? []).map((track) => ({
-      ...track,
-      id: fresh(track.id),
-      node: remap.get(track.node) ?? track.node,
-      ...(track.modifier ? { modifier: remap.get(track.modifier) ?? track.modifier } : {}),
-    }));
+    const tracks = timelineTracks.flatMap((track) => {
+      const keys = bakedKeys.get(track.id) ?? [];
+      if (!keys.length) return [];
+      const { repeat: _repeat, every: _every, ...baseTrack } = track;
+      return [{ ...baseTrack, id: fresh(track.id), node: remap.get(track.node) ?? track.node,
+        ...(track.modifier ? { modifier: remap.get(track.modifier) ?? track.modifier } : {}), keys }];
+    });
+    for (const track of expressionTracks) {
+      const key = bakedKeys.get(track.id)?.[0];
+      const node = remap.get(track.node);
+      const modifier = track.modifier ? remap.get(track.modifier) : undefined;
+      if (key && node) writeTrackTarget(inner, { node, on: track.on, param: track.param, ...(modifier ? { modifier } : {}) }, key.value);
+    }
     const interactions = (inner.interactions ?? []).map((interaction) => ({
       ...interaction,
       id: fresh(interaction.id),
@@ -413,10 +475,11 @@ export class Editor {
     at.list.splice(at.index, 1, released);
     const animation = this.#ensureAnimation();
     animation.tracks = [...animation.tracks.filter((track) => !(track.node === id && track.on === 'composition')), ...tracks];
-    animation.duration = Math.max(animation.duration, inner.animation?.duration ?? 0);
+    animation.duration = Math.max(animation.duration, parentDuration, inner.animation?.duration ?? 0);
     if (interactions.length) this.scene.interactions = [...(this.scene.interactions ?? []), ...interactions];
     this.selected = released.id;
     this.also = [];
+    if (timelineTracks.length) this.notice = `Composition clock baked into the parent timeline at ${Math.round(bakeRate)} fps.`;
     this.record(true);
   }
   importComposition(text: string, filename = 'Composition'): boolean {
