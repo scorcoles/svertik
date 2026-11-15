@@ -1743,12 +1743,17 @@ export class Editor {
     // En el orden de la lista (el primero, delante), para pegarlos igual.
     const order = [...walkNodes(this.scene.objects)].map((x) => x.node.id);
     const sorted = [...nodes].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-    return JSON.stringify({ svertik: 1, kind: 'nodes', items: sorted.map((n) => $state.snapshot(n)) });
+    const ids = new Set([...walkNodes(sorted)].map(({ node }) => node.id));
+    const animation = this.scene.animation;
+    return JSON.stringify({
+      svertik: 1, kind: 'nodes', items: sorted.map((n) => $state.snapshot(n)),
+      ...(animation ? { animation: { ...$state.snapshot(animation), markers: undefined, tracks: animation.tracks.filter(tr => ids.has(tr.node)) } } : {}),
+    });
   }
 
   /** Pega lo copiado (`offset`: cuánto se desplaza; 0, en el mismo sitio). Devuelve false si el texto no es del portapapeles de svertik. */
   paste(text: string, offset = 16): boolean {
-    let data: { svertik?: number; kind?: string; items?: unknown[] };
+    let data: { svertik?: number; kind?: string; items?: unknown[]; animation?: Animation };
     try {
       data = JSON.parse(text);
     } catch {
@@ -1794,6 +1799,42 @@ export class Editor {
       const first = this.selectedNodes[0];
       const at = first ? locateNode(this.scene.objects, first.id) : null;
       (at ? at.list : this.scene.objects).splice(at ? at.index : 0, 0, ...items);
+    }
+    // Match old and fresh IDs throughout the copied subtrees, including nested effects.
+    const nodeIds = new Map<string, string>();
+    const modifierIds = new Map<string, string>();
+    const mapModifiers = (before: ModifierInstance[], after: ModifierInstance[]) => {
+      before.forEach((m, i) => {
+        const copy = after[i]!;
+        modifierIds.set(m.id, copy.id);
+        mapModifiers(m.children ?? [], copy.children ?? []);
+      });
+    };
+    const before = [...walkNodes(data.items as SceneNode[])];
+    const after = [...walkNodes(items)];
+    before.forEach(({ node }, i) => {
+      nodeIds.set(node.id, after[i]!.node.id);
+      mapModifiers(node.stack, after[i]!.node.stack);
+    });
+    const roots = new Set((data.items as SceneNode[]).map(n => n.id));
+    const source = data.animation;
+    const tracks = Array.isArray(source?.tracks) ? source.tracks.flatMap(tr => {
+      const node = nodeIds.get(tr.node);
+      const modifier = tr.modifier ? modifierIds.get(tr.modifier) : undefined;
+      if (!node || (tr.on === 'modifier' && !modifier)) return [];
+      return [{
+        ...tr, id: `track-${uid()}`, node, ...(modifier ? { modifier } : {}),
+        keys: tr.keys.map(key => ({ ...key, value: tr.on === 'node' && roots.has(tr.node) &&
+          (tr.param === 'x' || tr.param === 'y') && typeof key.value === 'number' ? key.value + offset : key.value })),
+      }];
+    }) : [];
+    if (tracks.length && source) {
+      if (!this.scene.animation) this.scene.animation = { ...source, markers: undefined, tracks };
+      else {
+        this.scene.animation.tracks.push(...tracks);
+        this.scene.animation.duration = Math.max(this.scene.animation.duration, source.duration);
+      }
+      this.#applyTime();
     }
     this.selected = items[0]!.id;
     this.also = items.slice(1).map((n) => n.id);

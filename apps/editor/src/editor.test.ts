@@ -391,6 +391,64 @@ describe('copiar y pegar', () => {
     expect(e.scene!.objects[0]!.transform).toMatchObject({ x: 32, y: 32 });
   });
 
+  it('copies node, shape and nested effect tracks with fresh IDs and position offsets', () => {
+    const e = new Editor();
+    e.addShape('rectangle');
+    const original = e.scene!.objects[0]!;
+    original.stack = [{ id: 'step-original', type: 'step', params: {}, children: [{ id: 'move-original', type: 'transform', params: {} }] }];
+    e.scene!.animation = { duration: 5, fps: 60, loop: false, tracks: [
+      { id: 'position', node: original.id, on: 'node', param: 'x', keys: [{ t: 0, value: 10, ease: 'ease-in' }, { t: 5, value: 100 }], repeat: 2, every: 5 },
+      { id: 'shape', node: original.id, on: 'shape', param: 'width', keys: [{ t: 0, value: 80 }, { t: 5, value: 160 }] },
+      { id: 'effect', node: original.id, on: 'modifier', modifier: 'move-original', param: 'x', keys: [{ t: 0, value: 0 }, { t: 5, value: 50 }] },
+    ] };
+    e.selected = original.id;
+    e.record(true);
+    const text = e.copySelection()!;
+    e.paste(text);
+    const copy = e.scene!.objects[0]!;
+    const tracks = e.scene!.animation!.tracks.filter(tr => tr.node === copy.id);
+    expect(tracks).toHaveLength(3);
+    expect(tracks[0]).toMatchObject({ repeat: 2, every: 5, keys: [{ t: 0, value: 26, ease: 'ease-in' }, { t: 5, value: 116 }] });
+    expect(tracks[2]!.modifier).toBe(copy.stack[0]!.children![0]!.id);
+    expect(new Set(e.scene!.animation!.tracks.map(tr => tr.id)).size).toBe(6);
+    e.setTime(2.5);
+    expect(copy.transform!.x).toBeCloseTo(original.transform!.x! + 16);
+    e.undo();
+    expect(e.scene!.objects).toHaveLength(1);
+    expect(e.scene!.animation!.tracks).toHaveLength(3);
+    e.redo();
+    expect(e.scene!.animation!.tracks).toHaveLength(6);
+    const other = new Editor();
+    other.paste(text, 0);
+    expect(other.scene!.animation).toMatchObject({ duration: 5, fps: 60, loop: false });
+    expect(other.scene!.animation!.tracks[0]!.keys[0]!.value).toBe(10);
+    other.setTime(2.5);
+    expect(other.scene!.objects[0]!.transform!.x).toBeCloseTo(21.25);
+  });
+
+  it('includes child animation when copying a group and excludes unrelated tracks', () => {
+    const e = new Editor();
+    e.addShape('rectangle');
+    const child = e.scene!.objects[0]!;
+    e.group();
+    const group = e.currentNode!;
+    e.selected = null;
+    e.addShape('star');
+    const outside = e.currentNode!.id;
+    e.scene!.animation = { duration: 3, tracks: [
+      { id: 'child-x', node: child.id, on: 'node', param: 'x', keys: [{ t: 0, value: 0 }, { t: 3, value: 30 }] },
+      { id: 'unrelated', node: outside, on: 'node', param: 'x', keys: [{ t: 0, value: 99 }] },
+    ] };
+    e.selected = group.id;
+    e.duplicate();
+    const copy = e.currentNode!;
+    expect(copy.children).toHaveLength(1);
+    const tracks = e.scene!.animation!.tracks.filter(tr => tr.node === copy.children![0]!.id);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0]!.keys[1]!.value).toBe(30);
+    expect(e.scene!.animation!.tracks).toHaveLength(3);
+  });
+
   it('pegar en el mismo sitio (⌘⇧V): sin desplazamiento, aunque se pegue varias veces', () => {
     const e = fresh();
     const original = e.scene!.objects[0]!;
