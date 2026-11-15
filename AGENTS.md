@@ -7,7 +7,7 @@
 
 ## 📚 Documentation & Reference
 
-- **[Comprehensive Engine & 58 Effects Guide](docs/ENGINE_AND_EFFECTS.md)**: Deep dive into the architecture, execution rules, all 10 geometric primitives, and all 58 effects with parameter types, ranges, defaults, and notes.
+- **[Comprehensive Engine & 64 Effects Guide](docs/ENGINE_AND_EFFECTS.md)**: Deep dive into the architecture, execution rules, all 10 geometric primitives, and all 64 effects with parameter types, ranges, defaults, and notes.
 - **[Scene Recipes (Templates for AI Agents)](docs/SCENE_RECIPES.md)**: 6 fully-formed, validated JSON scene templates (kinetic typography, procedural mandalas, cyberpunk glitch, organic metaballs, mechanical orbital systems, and risograph halftone prints).
 - **Auto-generated Reference Pages**: [`packages/engine/docs/reference/index.md`](packages/engine/docs/reference/index.md) (individual markdown documentation for every effect and shape).
 
@@ -77,7 +77,7 @@ const svg = engine.toSVG(scene);
 3. **Unique IDs**: Every `id` across `objects` and modifier `stack` items must be globally unique.
 4. **Coordinate System**: Y increases downwards. Rotations are clockwise in degrees.
 5. **Fractions vs Pixels**: Anchors and centres (`center`, `pivot`, `anchor`) use normalized `[fx, fy]` fractions (`0` to `1`, where `[0.5, 0.5]` is the bounding box centre).
-6. **Effector Containers (`step`, `stagger`, `range`, `field`)**: Take nested modifiers inside their `children` array. **Never nest an effector inside another effector**.
+6. **Effector Containers (`step`, `stagger`, `range`, `field`, `oscillate`, `wiggle`, `pulse`, `shake`)**: Take nested modifiers inside their `children` array. **Never nest an effector inside another effector**.
 7. **Filters (`kind: "filter"`) & Masks (`mask`)**: Always execute after the entire geometry stack has evaluated, regardless of array position.
 8. **Text (`shape: "text"`)**: Each glyph is converted into an independent vector element, enabling `step`, `stagger`, `range`, or `explosion` to act character-by-character. Its `font` is a Fontsource family (`weight` and `italic` go apart, never inside the name).
 9. **Scene notes**: Before editing, animating, or generating a scene, check its optional `notes` field and treat it as user-provided direction. Preserve the notes unless asked to revise them. Notes are project metadata and are not rendered into SVG.

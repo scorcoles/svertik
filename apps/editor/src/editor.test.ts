@@ -26,6 +26,15 @@ describe('Editor', () => {
     expect(e.current?.type).toBe('twist');
   });
 
+  for (const type of ['gravity', 'oscillate', 'wiggle', 'pulse', 'shake']) {
+    it(`${type} follows scene.time when added`, () => {
+      const e = fresh(); e.add(type);
+      expect(e.current?.params?.time).toEqual({ $expr: 'scene.time', fallback: 1 });
+      expect(e.scene?.animation).toBeDefined();
+      if (type !== 'gravity') expect(e.current?.children?.[0]?.type).toBe('transform');
+    });
+  }
+
   it('quitar selecciona el siguiente', () => {
     const e = fresh();
     e.add('spherize');

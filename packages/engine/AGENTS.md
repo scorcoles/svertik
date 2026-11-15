@@ -106,7 +106,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 ```
 
 - `type` is one of the built-ins (see the reference). Missing `params` take their defaults.
-- `children`: only in Step, Stagger, Range, Field (effectors: they apply their children per element) and RGB Split.
+- `children`: only in Step, Stagger, Range, Field, Oscillate, Wiggle, Pulse, Shake (effectors: they apply their children per element) and RGB Split.
 - Params of type `node` hold another node's `id` (Clone on an object, Path Wrap, Morph, Mask, Connect, Look At…).
 - **Elements**: many effects work per element: the copies of Clone, the children of a group, the letters of a
   text, the pieces of Crack/Damage, Mosaic tiles. Without any, each shape of the drawing is one.

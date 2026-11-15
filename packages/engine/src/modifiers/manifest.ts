@@ -62,6 +62,10 @@ export const effectLoaders: Record<string, EffectLoader> = {
   field: one(() => import('./field'), 'field'),
   range: one(() => import('./range'), 'range'),
   stagger: one(() => import('./stagger'), 'stagger'),
+  pulse: one(() => import('./pulse'), 'pulse'),
+  shake: one(() => import('./shake'), 'shake'),
+  oscillate: one(() => import('./oscillate'), 'oscillate'),
+  wiggle: one(() => import('./wiggle'), 'wiggle'),
   step: one(() => import('./step'), 'step'),
   // Style
   color: one(() => import('./color'), 'color'),

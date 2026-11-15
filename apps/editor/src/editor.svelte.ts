@@ -61,7 +61,7 @@ const newScene = (objects: SceneNode[] = []): SceneV2 => ({ version: 2, document
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
-export const effectors = new Set(['step', 'range', 'field', 'stagger']);
+export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake']);
 export const containers = new Set([...effectors, 'rgbsplit']);
 /**
  * ¿Puede `child` ir dentro de `parent`? Un efector no lleva otro efector; RGB Split lleva cualquier cosa
@@ -1487,11 +1487,15 @@ export class Editor {
     if (!this.scene || !def || !owner) return;
     const inst: ModifierInstance = { id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(def.params) } };
     if (type === 'color') inst.params!.mode = 'solid';
-    if (type === 'particles') {
+    if (['particles', 'gravity', 'oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
       inst.params!.time = { $expr: 'scene.time', fallback: 1 };
       this.#ensureAnimation();
     }
     if (containers.has(type)) inst.children = [];
+    if (['oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
+      const params = type === 'pulse' ? { scale: 1.2 } : type === 'shake' ? { x: 12, y: 8, rotation: 3 } : { y: type === 'oscillate' ? 30 : 12, rotation: type === 'wiggle' ? 8 : 0 };
+      inst.children = [{ id: `transform-${uid()}`, type: 'transform', params }];
+    }
     const stack = owner.stack;
     const at = locate(stack, this.selected);
     if (at && canNest(at.inst.type, type)) {

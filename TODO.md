@@ -8,10 +8,10 @@ Aplicables a posición, rotación, escala, opacidad y parámetros animables de o
 
 Primera tanda: **Vibration, Oscillator, Shake y Pulse**, compartiendo la lógica de señales temporales.
 
-- [ ] **Vibration**: temblor con amplitud, frecuencia y semilla; suave o nervioso.
-- [ ] **Oscillator**: ondas seno, triangular, cuadrada y diente de sierra, con amplitud, frecuencia y fase.
-- [ ] **Pulse**: golpes repetidos con ataque y caída regulables.
-- [ ] **Shake**: sacudida puntual que pierde fuerza, como una cámara después de un impacto.
+- [x] **Wiggle / Vibration**: variación aleatoria suave con amplitud, frecuencia, fase y semilla, por elemento o para todo el objeto.
+- [x] **Oscillate / Oscillator**: ondas seno, triangular, cuadrada y diente de sierra, con amplitud, frecuencia y fase.
+- [x] **Pulse**: golpes repetidos con ataque y caída regulables.
+- [x] **Shake**: sacudida puntual que pierde fuerza, como una cámara después de un impacto.
 - [ ] **Spring**: seguimiento con muelle, rebote y amortiguación.
 - [ ] **Inertia / Follow**: seguimiento de un valor con retraso y suavidad.
 - [ ] **Flicker**: parpadeos irregulares, desde una vela hasta un fluorescente.

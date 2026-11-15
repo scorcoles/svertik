@@ -613,3 +613,47 @@ export function crossFillProject() {
     },
   };
 }
+
+/** Two procedural signals, without timeline keys, on the same grid of crosses. */
+export function motionProject() {
+  return {
+    svertik: 'project' as const, version: 1 as const, name: 'Motion', canvas: '#F2E8DA',
+    scene: {
+      version: 2 as const, document: { width: 1000, height: 700 },
+      notes: 'A grid of crosses animated without keyframes. Wiggle adds independent smooth rotation and horizontal drift; Oscillate sends a sine wave through vertical position, scale and hue. Open the children of each modulator to set the motion amplitudes. Time uses scene.time; change it to remap the local clock.',
+      animation: { duration: 12, loop: true, autoplay: true, fps: 30, tracks: [] },
+      objects: [{ kind: 'shape' as const, id: 'motion-cross', name: 'Cross', shape: 'cross', params: { size: 20, width: 5, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
+        { id: 'motion-grid', type: 'clone', params: { mode: 'grid', columns: 15, rows: 9, spacing: [2.7, 2.7] } },
+        { id: 'motion-wiggle', type: 'wiggle', params: { time: { $expr: 'scene.time', fallback: 0 }, frequency: 1.3, seed: 7 }, children: [
+          { id: 'motion-drift', type: 'transform', params: { x: 6, rotation: 25 } },
+        ] },
+        { id: 'motion-oscillate', type: 'oscillate', params: { time: { $expr: 'scene.time', fallback: 0 }, frequency: 0.5, elementPhase: 16 }, children: [
+          { id: 'motion-wave', type: 'transform', params: { y: 18, scale: 1.18 } },
+          { id: 'motion-color', type: 'color', params: { mode: 'shift', hue: 22 } },
+        ] },
+      ] }],
+    },
+  };
+}
+
+/** Repeated pulses followed by a staggered one-shot impact. */
+export function rhythmProject() {
+  return {
+    svertik: 'project' as const, version: 1 as const, name: 'Rhythm', canvas: '#F2E8DA',
+    scene: {
+      version: 2 as const, document: { width: 1000, height: 500 },
+      notes: 'Five crosses breathe in rhythm with Pulse (scale and hue). At 2 seconds, Shake sends an impact through them with 0.15 seconds between elements. Pulse uses cycle fractions for attack and decay; Shake uses seconds for start, duration and delay. Both follow scene.time and need no keyframes.',
+      animation: { duration: 6, loop: true, autoplay: true, fps: 30, tracks: [] },
+      objects: [{ kind: 'shape' as const, id: 'rhythm-cross', name: 'Cross', shape: 'cross', params: { size: 70, width: 16, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
+        { id: 'rhythm-grid', type: 'clone', params: { mode: 'grid', columns: 5, rows: 1, spacing: [2.3, 1] } },
+        { id: 'rhythm-pulse', type: 'pulse', params: { time: { $expr: 'scene.time', fallback: 0 }, frequency: 1, attack: 0.08, decay: 0.55, elementPhase: 36 }, children: [
+          { id: 'rhythm-scale', type: 'transform', params: { scale: 1.35 } },
+          { id: 'rhythm-color', type: 'color', params: { mode: 'shift', hue: 20 } },
+        ] },
+        { id: 'rhythm-shake', type: 'shake', params: { time: { $expr: 'scene.time', fallback: 0 }, start: 2, duration: 1.2, frequency: 10, perElement: true, elementDelay: 0.15, seed: 3 }, children: [
+          { id: 'rhythm-impact', type: 'transform', params: { x: 18, y: 10, rotation: 25 } },
+        ] },
+      ] }],
+    },
+  };
+}

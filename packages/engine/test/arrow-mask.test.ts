@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { bounds, buildShape, builtins, createEngine, validateScene, type SceneV2 } from '../src';
 
@@ -77,6 +78,19 @@ describe('Whole elements mask', () => {
       { kind: 'shape', id: 'two', name: 'Two', shape: 'cross', params: { size: 20, width: 4 }, transform: { y: 20 }, stack: [] },
     ] };
     expect(engine.evaluateDocument(s).geometry.shapes).toHaveLength(0);
+  });
+
+  it('handles projected crosses from the reported Step / Rotate 3D failure, including edge-on copies', () => {
+    const source = JSON.parse(readFileSync('test/fixtures/mask-projected-crosses.json', 'utf8')) as SceneV2;
+    expect(validateScene(source)).toEqual({ errors: [], warnings: [] });
+    for (const y of [25, 26, 27, 26 - 1e-12, 26 + 1e-12]) {
+      const s = structuredClone(source);
+      s.objects[0]!.stack[1]!.children![0]!.params!.rotateY = y;
+      const first = engine.evaluateDocument(s).geometry;
+      expect(first.shapes.length).toBeGreaterThan(0);
+      expect(first.shapes.length).toBeLessThan(288);
+      expect(engine.evaluateDocument(s).geometry).toEqual(first);
+    }
   });
 
 });

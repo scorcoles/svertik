@@ -692,3 +692,24 @@ In **Clone → Radial**, **Rings** chooses 1–64 concentric circles; **Count** 
 ### Arrow primitive
 
 `arrow` generates a continuous closed outline pointing right. `length` (240 px) and `width` (24 px) set its total length and body thickness. `startHead` (default `none`) and `endHead` (default `triangle`) independently select `none`, `triangle`, `v`, `square` or `circle`. Different head types can be combined; both `none` produces a plain body. `headLength` (0.28, 0.01–0.5) is the head length divided by total length; `headWidth` (3, 1–12) multiplies body width. The round head is elliptical when these proportions differ. `notch` (0.45, 0–0.9) controls V depth. All numeric dimensions/proportions support animation and expressions; rotate the node to change direction. Heads and body share one outline, including cubic curves for round heads, so stroke never draws internal seams.
+
+### Oscillate and Wiggle — time modulators
+
+Both are effector containers: nest Transform, Color, Opacity or another non-effector inside `children`. Numeric child parameters vary from their neutral values to the configured amplitudes: Transform `y: 30` means ±30 px, `rotation: 15` means ±15°, and `scale: 1.2` means 0.8–1.2 at full bipolar strength. Color in shift mode modulates hue, saturation and lightness. Non-numeric choices (including solid color) do not interpolate. Child parameters marked `ramp: false` remain fixed.
+
+- `time` (seconds, default 0 in the engine) is set to `{ "$expr": "scene.time", "fallback": 1 }` when added in the editor, as for Particles and Gravity. Replace it with a number to freeze, or an expression such as `scene.time * 0.5` to use a slower local clock.
+- `frequency` (Hz, default 1, slider 0–20), `amplitude` (default 1, slider 0–2), `offset` (default 0, slider −2–2), `phase` (degrees, default 0). The signal is `offset + amplitude × waveform`.
+- `perElement` (default true) gives each clone/glyph its own pivot and signal. `elementPhase` (degrees per element, default 20) adds phase progressively. Disable Per element to apply to the entire drawing with one pivot.
+- **Oscillate** (`oscillate`): `wave` is `sine` (default), `triangle`, `square` or `saw`; each has a bipolar range −1 to 1.
+- **Wiggle** (`wiggle`): smooth bounded seeded noise, with `seed` (default 1). In Per element mode each element has an independent signal. Seeking, reverse playback and export are deterministic, without simulation history. Frequency zero freezes the signal at its phase.
+
+In the editor both start with a Transform child so they work immediately. The shared demo **Motion: oscillating and wiggling crosses** combines independent rotation/drift with a phased wave of position, scale and hue, without keyframes. Its editable file is `apps/editor/public/demos/motion-crosses.svrtk`.
+
+### Pulse and Shake — rhythm and impacts
+
+Like Oscillate and Wiggle, these are effector containers with non-effector children. The editor adds a Transform child and a `time: { "$expr": "scene.time", "fallback": 1 }` clock. Numeric child values set motion amplitudes relative to their neutral values. Both support deterministic seeking and export, including reverse local clocks.
+
+- **Pulse** (`pulse`) uses the shared Time, Frequency, Amplitude, Offset, Phase, Per element and Element phase controls. Its signal is unipolar (0–1) before amplitude and offset. `attack` (default 0.1) and `decay` (default 0.4) are fractions of a cycle, with smooth transitions and rest for the remainder. If their sum exceeds 1, both are proportionally shortened to fit one period. Zero attack gives an immediate hit; zero decay returns immediately after the peak. Both zero produce rest. Frequency zero freezes at the specified phase. Default child: Transform scale 1.2.
+- **Shake** (`shake`) is a single decaying seeded disturbance. `start` (default 0 seconds), `duration` (default 1 second), `frequency` (default 8 Hz), `amplitude` (default 1), `decay` (default 2; higher settles faster), `seed` (default 1). It is exactly neutral before Start and at/after Start + Duration. `perElement` defaults false so the object moves as one body; enabling it gives independent signals, local pivots and an `elementDelay` (default 0.04 seconds per element). Default child: Transform x 12, y 8, rotation 3°. Shake does not repeat by itself; loop/remap its Time expression to repeat hits.
+
+The shared **Rhythm** demo (`apps/editor/public/demos/rhythm-crosses.svrtk`) pulses five crosses and sends one delayed impact through them at 2 seconds, without keyframes.

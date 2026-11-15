@@ -78,7 +78,7 @@
     <button type="button" onclick={share} aria-label="Share a link to this scene" title="Share a link to this scene">
       <Icon name="share" />
     </button>
-    <button type="button" onclick={close} aria-label="Back to the editor (Esc)" title="Back to the editor (Esc)">×</button>
+    <button type="button" onclick={close} aria-label="Back to the editor (Esc)" title="Back to the editor (Esc)"><Icon name="close" /></button>
   </div>
   <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for performance'}</p>
 </div>
@@ -86,21 +86,59 @@
 <style>
   .presenter { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; }
   .stage { width: min(92vw, 100%); height: 92vh; overflow: visible; }
-  .tools { position: absolute; top: var(--sv-space-12); right: var(--sv-space-12); display: flex; gap: var(--sv-space-4); }
+  .tools {
+    position: absolute;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+    color: rgb(255 255 255 / 0.76);
+    background: rgb(24 25 24 / 0.9);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+    backdrop-filter: blur(12px);
+    transition: background 180ms, border-color 180ms;
+  }
+  .tools[data-active], .tools:focus-within {
+    background: rgb(24 25 24 / 0.97);
+    border-color: rgb(255 255 255 / 0.24);
+  }
   .tools button {
+    position: relative;
     display: grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
-    font: inherit;
-    font-size: 16px;
-    color: #fff;
-    background: rgb(10 12 16 / 0.94);
-    border: 1px solid rgb(255 255 255 / 0.48);
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 2px;
     cursor: pointer;
+    transition: color 140ms, background 140ms;
   }
-  .tools { opacity: 0.46; transition: opacity 180ms; }
-  .tools[data-active], .tools:focus-within { opacity: 1; }
+  .tools button + button::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 9px;
+    bottom: 9px;
+    width: 1px;
+    background: rgb(255 255 255 / 0.16);
+  }
+  .tools button:hover { color: #fff; background: rgb(255 255 255 / 0.09); }
+  .tools button:active { background: rgb(255 255 255 / 0.16); }
+  .tools button:focus-visible { outline: 2px solid var(--sv-accent-fill, #09fdd1); outline-offset: 1px; }
+  .tools :global(.sv-icon) { width: 16px; height: 16px; }
+  @media (pointer: coarse) {
+    .tools button { width: 40px; height: 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tools, .tools button { transition: none; }
+  }
   .hint {
     position: absolute;
     bottom: var(--sv-space-16);

@@ -1,0 +1,105 @@
+{
+  "version": 2,
+  "document": {
+    "width": 800,
+    "height": 650
+  },
+  "notes": "A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Mask with Whole elements discards crosses crossing the edge, keeping every cross complete.",
+  "objects": [
+    {
+      "kind": "shape",
+      "id": "cross-pattern",
+      "name": "Cross",
+      "shape": "cross",
+      "params": {
+        "size": 18,
+        "width": 4,
+        "fill": true,
+        "fillColor": "#D2502F",
+        "stroke": false,
+        "strokeColor": "#ededed",
+        "strokeWidth": 2,
+        "strokeJoin": "round",
+        "strokeCap": "round",
+        "dash": 0,
+        "gap": 0,
+        "dashOffset": 0,
+        "behind": false
+      },
+      "stack": [
+        {
+          "id": "cross-grid",
+          "type": "clone",
+          "params": {
+            "mode": "grid",
+            "columns": 17.969743,
+            "rows": 16.003072,
+            "spacing": [
+              1.55,
+              1.55
+            ]
+          }
+        },
+        {
+          "id": "step-naz2cg",
+          "type": "step",
+          "enabled": true,
+          "params": {
+            "strength": 1,
+            "reverse": false
+          },
+          "children": [
+            {
+              "id": "rotate3d-txgaz6",
+              "type": "rotate3d",
+              "enabled": true,
+              "params": {
+                "rotateX": 32,
+                "rotateY": 26,
+                "rotateZ": 94,
+                "perspective": 8.6,
+                "pivot": [
+                  0.5,
+                  0.5
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "cross-mask",
+          "type": "mask",
+          "params": {
+            "source": "triangle-mask",
+            "mode": "shape",
+            "whole": true
+          }
+        }
+      ]
+    },
+    {
+      "kind": "shape",
+      "id": "triangle-mask",
+      "name": "Triangle",
+      "shape": "polygon",
+      "params": {
+        "radius": 270,
+        "sides": 3,
+        "rotation": 0,
+        "fill": true,
+        "fillColor": "#ffffff",
+        "stroke": false,
+        "strokeColor": "#ededed",
+        "strokeWidth": 2,
+        "strokeJoin": "round",
+        "strokeCap": "round",
+        "dash": 0,
+        "gap": 0,
+        "dashOffset": 0,
+        "behind": false
+      },
+      "stack": [],
+      "visible": false
+    }
+  ]
+}

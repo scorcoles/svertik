@@ -4,10 +4,10 @@ import { union, xor, type MultiPolygon, type Pair, type Ring } from './polygon';
 import { cubicAt, line, type Shape, type SubPath, type Vec2 } from './geometry';
 
 /** An element's surface: each shape, even-odd between its rings; shapes, united. */
-export function regionOf(shapes: Shape[], step: number): MultiPolygon {
+export function regionOf(shapes: Shape[], step: number, precision = 0): MultiPolygon {
   const parts: MultiPolygon[] = [];
   for (const s of shapes) {
-    const rings = s.subpaths.filter((sp) => sp.closed).map((sp) => ring(sp, step)).filter((r) => r.length >= 4);
+    const rings = s.subpaths.filter((sp) => sp.closed).map((sp) => { const r = ring(sp, step); return precision > 0 ? cleanRing(r, precision) : r; }).filter((r) => r.length >= 4);
     if (!rings.length) continue;
     // Apply even-odd fill in one polygon-clipping pass. Repeated XORs become quadratic for SVGs
     // that encode pixel artwork as many closed rectangular subpaths (such as the welcome logo).
@@ -17,6 +17,31 @@ export function regionOf(shapes: Shape[], step: number): MultiPolygon {
   if (!parts.length) return [];
   const [a, ...more] = parts as [MultiPolygon, ...MultiPolygon[]];
   return more.length ? union(a, ...more) : a;
+}
+
+/** Snap before polygon operations, removing repeated and collinear vertices (including edge-on paths). */
+export function cleanRing(input: Ring, precision: number): Ring {
+  const points: Pair[] = [];
+  const same = (a: Pair, b: Pair) => a[0] === b[0] && a[1] === b[1];
+  const redundant = (a: Pair, b: Pair, c: Pair) => {
+    const dx = c[0] - a[0], dy = c[1] - a[1];
+    const length = Math.hypot(dx, dy);
+    if (!length) return true;
+    return Math.abs((b[0] - a[0]) * dy - (b[1] - a[1]) * dx) <= precision * length * 2
+      && (b[0] - a[0]) * (b[0] - c[0]) + (b[1] - a[1]) * (b[1] - c[1]) <= precision * precision;
+  };
+  for (const [x, y] of input.slice(0, -1)) {
+    const p: Pair = [Math.round(x / precision) * precision, Math.round(y / precision) * precision];
+    if (points.length && same(points.at(-1)!, p)) continue;
+    while (points.length >= 2 && redundant(points.at(-2)!, points.at(-1)!, p)) points.pop();
+    points.push(p);
+  }
+  while (points.length >= 3) {
+    if (redundant(points.at(-1)!, points[0]!, points[1]!)) points.shift();
+    else if (redundant(points.at(-2)!, points.at(-1)!, points[0]!)) points.pop();
+    else break;
+  }
+  return points.length >= 3 ? [...points, points[0]!] : [];
 }
 
 /** Subpath → ring: straight segments, one point; curves, by their length and the resolution. */

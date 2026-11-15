@@ -26,6 +26,7 @@ export const icons = {
   // Documento: el lienzo, con sus marcas de corte (lo que se exporta).
   document: 'M4.5 4.5h7v7h-7z M4.5 1v2 M11.5 1v2 M4.5 13v2 M11.5 13v2 M1 4.5h2 M13 4.5h2 M1 11.5h2 M13 11.5h2',
   // Compartir: tres nodos unidos.
+  close: 'M4 4l8 8 M12 4l-8 8',
   share: 'M11.5 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M4.5 6a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M11.5 9.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M6.3 7.1l3.4-1.7 M6.3 8.9l3.4 1.7',
   // Pack: una caja cerrada; Unpack: la caja, con una flecha que sale.
   pack: 'M2.5 5L8 2l5.5 3v6L8 14l-5.5-3z M2.5 5L8 8l5.5-3 M8 8v6',
@@ -96,6 +97,10 @@ export const icons = {
   'flip-v': 'M1.5 8h2 M6 8h4 M12.5 8h2 M3.5 6l9-4.5v4.5z M3.5 10l9 4.5v-4.5z',
   clone: 'M1.5 1.5h5v5h-5z M9.5 1.5h5v5h-5z M1.5 9.5h5v5h-5z M9.5 9.5h5v5h-5z',
   step: 'M1.5 14.5h4v-4h4v-4h4v-4h1',
+  pulse: 'M1 12h2l2-9 3 9h2l2-9 3 9',
+  shake: 'M1 5l2-2 M1 11l2 2 M13 3l2 2 M13 13l2-2 M5 8l2-4 2 8 2-4',
+  oscillate: 'M1 8c2-8 5-8 7 0s5 8 7 0 M1 8h14',
+  wiggle: 'M1 9l2-3 2 5 2-9 2 12 2-8 2 4 2-3',
   stagger: 'M1.5 3.5h5 M3.5 7h5 M5.5 10.5h5 M7.5 14h5',
   range: 'M1.5 11.5h2v-3h2v-4h2v-2h2v2h2v4h2v3h1 M1.5 13.5h13',
   field: 'M8 8m-6.5 0a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0 M8 8m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M8 8m-.5 0a.5 .5 0 1 0 1 0a.5 .5 0 1 0-1 0',
