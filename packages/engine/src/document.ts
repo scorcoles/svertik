@@ -392,7 +392,7 @@ export function createDocumentEvaluator(
             }
             const source = src.geo;
             const ref = bounds(source);
-            const local = childShapes.length ? transformGeo({ viewBox: source.viewBox, shapes: childShapes }, invert(placementMatrix(p, ref, [0, 0], source.origin))).shapes : [];
+            const local = childShapes;
             const combinedSource: Geometry = local.length ? { ...source, shapes: [...source.shapes, ...local].map((shape) => ({ ...shape, signalGroup: 0 })) } : source;
             const before = asked;
             asked = false;
