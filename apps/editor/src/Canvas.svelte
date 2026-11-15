@@ -407,7 +407,7 @@
   /** Lo que se está haciendo con el recuadro, para el rótulo junto al puntero. */
   let gesture = $state<{ text: string; x: number; y: number; left?: boolean } | null>(null);
 
-  function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate' | 'stretch-x' | 'stretch-y') {
+  function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate' | 'stretch-x-left' | 'stretch-x-right' | 'stretch-y-top' | 'stretch-y-bottom') {
     const node = editor.currentNode && nodes.has(editor.currentNode.id) ? editor.currentNode : editor.selectedNodes.find(n => nodes.has(n.id));
     const info = node ? nodes.get(node.id) : undefined;
     if (!node || !info || !stage || space) return;
@@ -433,15 +433,34 @@
     const move = (ev: PointerEvent) => {
       const [x, y] = at(ev);
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
-      if (mode === 'scale' || mode === 'stretch-x' || mode === 'stretch-y') {
+      if (mode === 'scale' || mode.startsWith('stretch-')) {
         const doc = clientToDoc(ev.clientX, ev.clientY);
-        const freeform = mode === 'stretch-x' || mode === 'stretch-y' || (ev.shiftKey && !multiple);
+        const edgeStretch = mode.startsWith('stretch-');
+        const freeform = edgeStretch || (ev.shiftKey && !multiple);
         if (freeform && !multiple && localStart && doc) {
           const local = apply(toLocal, doc);
-          const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * Math.max(0.01, Math.abs((local[0] - localPivot[0]) / (localStart[0] - localPivot[0] || 1)));
-          const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * Math.max(0.01, Math.abs((local[1] - localPivot[1]) / (localStart[1] - localPivot[1] || 1)));
-          const next: [number, number] = [mode === 'stretch-y' ? (p0.stretch?.[0] ?? 1) : sx, mode === 'stretch-x' ? (p0.stretch?.[1] ?? 1) : sy];
+          const fixedX = mode === 'stretch-x-left' ? info.bounds.x + info.bounds.width : info.bounds.x;
+          const fixedY = mode === 'stretch-y-top' ? info.bounds.y + info.bounds.height : info.bounds.y;
+          const measureX = edgeStretch ? fixedX : localPivot[0];
+          const measureY = edgeStretch ? fixedY : localPivot[1];
+          const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * Math.max(0.01, Math.abs((local[0] - measureX) / (localStart[0] - measureX || 1)));
+          const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * Math.max(0.01, Math.abs((local[1] - measureY) / (localStart[1] - measureY || 1)));
+          const next: [number, number] = [mode.startsWith('stretch-y-') ? (p0.stretch?.[0] ?? 1) : sx, mode.startsWith('stretch-x-') ? (p0.stretch?.[1] ?? 1) : sy];
           editor.setNode(node.id, 'stretch', next);
+          if (edgeStretch) {
+            const axisX = mode.startsWith('stretch-x-');
+            const factor = axisX ? next[0] / (p0.stretch?.[0] ?? 1) - 1 : next[1] / (p0.stretch?.[1] ?? 1) - 1;
+            const distance = (axisX ? fixedX - localPivot[0] : fixedY - localPivot[1]) * factor;
+            const dx = axisX ? -info.matrix[0] * distance : -info.matrix[2] * distance;
+            const dy = axisX ? -info.matrix[1] * distance : -info.matrix[3] * distance;
+            const parent = editor.scene ? locateNode(editor.scene.objects, node.id)?.parent : null;
+            const parentMatrix = parent ? nodes.get(parent.id)?.matrix : null;
+            const parentInv = parentMatrix ? invert(parentMatrix) : [1, 0, 0, 1, 0, 0] as const;
+            const px = parentInv[0] * dx + parentInv[2] * dy;
+            const py = parentInv[1] * dx + parentInv[3] * dy;
+            editor.setNode(node.id, 'x', p0.x + px);
+            editor.setNode(node.id, 'y', p0.y + py);
+          }
           gesture = { text: `${next[0].toFixed(2)} × ${next[1].toFixed(2)}`, ...label };
           return;
         }
@@ -913,7 +932,8 @@
               style:width="{edge === 'n' || edge === 's' ? Math.max(12, selection.w - 24) : 16}px"
               style:height="{edge === 'e' || edge === 'w' ? Math.max(12, selection.h - 24) : 16}px"
               title={edge === 'n' || edge === 's' ? 'Stretch height' : 'Stretch width'}
-              onpointerdown={(e) => transformFrom(e, edge === 'n' || edge === 's' ? 'stretch-y' : 'stretch-x')}
+              onpointerdown={(e) => transformFrom(e,
+                edge === 'n' ? 'stretch-y-top' : edge === 's' ? 'stretch-y-bottom' : edge === 'w' ? 'stretch-x-left' : 'stretch-x-right')}
             ></span>
           {/each}
         {/if}
