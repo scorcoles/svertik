@@ -229,6 +229,7 @@
     const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('path[data-node]'));
     const id = hit?.getAttribute('data-node');
     const n = id && editor.scene ? locateNode(editor.scene.objects, id)?.node : null;
+    if (n?.kind === 'group' && n.composition) { editor.selected = n.id; editor.openComposition(n.id); return; }
     if (!isText(n)) return;
     editor.selected = n.id;
     editor.editingText = n.id;
@@ -803,6 +804,9 @@
   ondragleave={() => (dropping = false)}
   ondrop={drop}
 >
+  {#if editor.compositionPath.length > 0}
+    <button class="composition-back" type="button" onclick={() => editor.leaveComposition()} aria-label="Back to parent composition" title="Back to parent composition">← Back</button>
+  {/if}
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
@@ -1003,6 +1007,8 @@
   /* Wire view: a fixed dark background behind the grey wires, whatever canvas colour the user picked. */
   .canvas[data-wire] { background: var(--sv-surface-field); }
   .canvas[data-dragging] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -8px; }
+  .composition-back { position: absolute; z-index: 20; top: var(--sv-space-12); right: var(--sv-space-12); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 88%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
+  .composition-back:hover { border-color: var(--sv-accent-fill); }
   .stage { position: absolute; inset: 0; overflow: hidden; }
   .stage[data-space] { cursor: grab; }
   .stage[data-tool] { cursor: crosshair; }

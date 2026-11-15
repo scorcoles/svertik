@@ -173,10 +173,12 @@
     bottom: var(--sv-space-16);
     margin: 0;
     padding: var(--sv-space-4) var(--sv-space-8);
-    color: var(--sv-text-secondary);
-    background: rgb(0 0 0 / 0.4);
+    color: rgb(255 255 255 / 0.76);
+    background: rgb(24 25 24 / 0.6);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    backdrop-filter: blur(12px);
     font-size: var(--sv-font-size-10);
-    transition: opacity 400ms;
+    transition: opacity 400ms, background 180ms, border-color 180ms;
   }
   .hint[data-hidden] { opacity: 0; }
 </style>

@@ -9,6 +9,8 @@
     kind?: 'object' | 'deformer' | 'generator' | 'effector' | 'style' | 'filter';
     /** Icono del efecto; por defecto, uno según el tipo. */
     icon?: IconName;
+    /** Optional double-click action on the icon, separate from renaming the label. */
+    oniconactivate?: () => void;
     /** Nivel en el árbol: 0 para el objeto, 1 para sus modificadores… */
     depth?: number;
     /** Si tiene hijos: plegado o desplegado. Sin valor, no hay flecha. */
@@ -33,6 +35,7 @@
     label,
     kind = 'deformer',
     icon = kind === 'object' ? 'object' : kind === 'generator' ? 'crack' : 'transform',
+    oniconactivate,
     depth = kind === 'object' ? 0 : 1,
     expanded,
     selected = false,
@@ -92,7 +95,11 @@
   {:else}
     <span class="chevron" aria-hidden="true"></span>
   {/if}
-  <span class="icon"><Icon name={icon} /></span>
+  {#if oniconactivate}
+    <button class="icon icon-action" type="button" aria-label={`Open ${label}`} title={`Double-click to open ${label}`} onclick={(e) => { e.stopPropagation(); onselect?.(e); }} ondblclick={(e) => { e.stopPropagation(); oniconactivate?.(); }}><Icon name={icon} /></button>
+  {:else}
+    <span class="icon"><Icon name={icon} /></span>
+  {/if}
   {#if editing}
     <!-- svelte-ignore a11y_autofocus -->
     <input
@@ -184,6 +191,8 @@
     cursor: pointer;
   }
   .icon { display: flex; color: var(--sv-text-secondary); }
+  .icon-action { align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
+  .icon-action:hover { color: var(--sv-accent-fill); }
   [data-selected] .icon { color: var(--sv-accent-fill); }
   .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [data-disabled] .label { color: var(--sv-text-disabled); }

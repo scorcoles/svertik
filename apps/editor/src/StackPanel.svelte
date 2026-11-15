@@ -128,6 +128,7 @@
         label={n.name}
         kind="object"
         icon={(n.kind === 'group' ? n.composition ? 'composition' : 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : 'object') as IconName}
+        oniconactivate={n.kind === 'group' && n.composition ? () => editor.openComposition(n.id) : undefined}
         {depth}
         expanded={n.stack.length || n.kind === 'group' ? open : undefined}
         selected={editor.isSelected(n.id)}
