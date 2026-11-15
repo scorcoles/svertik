@@ -17,7 +17,7 @@
     { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to object edges, centers and document bounds' },
   ];
   const total = options.length + 1;
-  const on = $derived(options.filter((o) => editor[o.key]).length + Number(editor.showEffectMenus));
+  const on = $derived(options.filter((o) => editor[o.key]).length + Number(editor.showEffectMenus && !editor.commandInEffectsSlot));
 </script>
 
 <DropdownMenu.Root bind:open>
@@ -43,7 +43,7 @@
       <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Group>
         <DropdownMenu.GroupHeading class="sv-menu-heading">Interface</DropdownMenu.GroupHeading>
-        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} title="All effect menus in the top bar, including Utils. Hidden menus remain available in the command line (/)." checked={editor.showEffectMenus} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
+        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} disabled={editor.commandInEffectsSlot} title="All effect menus in the top bar, including Utils. Hidden menus remain available in the command line (/)." checked={editor.showEffectMenus && !editor.commandInEffectsSlot} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
           {#snippet children({ checked })}
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
               {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}

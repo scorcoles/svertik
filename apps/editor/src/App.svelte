@@ -621,7 +621,7 @@
     </aside>{/if}
   </main>
   <footer class="status" class:no-inspector={panelMaximized}>
-    <CommandLine {editor} />
+    {#if !editor.commandInEffectsSlot}<CommandLine {editor} />{/if}
     {#if canvasStatus}
       <div class="canvas-status">
         <span class="pct" title="Zoom (wheel or pinch)">{canvasStatus.percent}%</span>

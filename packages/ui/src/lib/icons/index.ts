@@ -166,6 +166,7 @@ export const icons = {
   save: 'M2.5 2.5h9l2 2v9h-11z M5 2.5v3.5h5v-3.5 M5 13.5v-4h6v4',
   import: 'M8 1.5v9 M5 7.5l3 3 3-3 M2.5 11.5v3h11v-3',
   export: 'M8 10.5v-9 M5 4.5l3-3 3 3 M2.5 11.5v3h11v-3',
+  settings: 'M6 1.5h4v2a5 5 0 0 1 1 .6l1.75-1 2 3.5-1.7 1a5 5 0 0 1 0 1.2l1.7 1-2 3.5-1.75-1a5 5 0 0 1-1 .6v2H6v-2a5 5 0 0 1-1-.6l-1.75 1-2-3.5 1.7-1a5 5 0 0 1 0-1.2l-1.7-1 2-3.5L5 4.1a5 5 0 0 1 1-.6z M8 6a2 2 0 1 0 0 4a2 2 0 1 0 0-4',
 } as const;
 
 export type IconName = keyof typeof icons;

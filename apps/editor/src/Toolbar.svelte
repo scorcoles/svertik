@@ -5,6 +5,7 @@
   import AppMenu from './AppMenu.svelte';
   import ExportMenu from './ExportMenu.svelte';
   import EffectsToolbar from './EffectsToolbar.svelte';
+  import CommandLine from './CommandLine.svelte';
 
   interface Props {
     editor: Editor;
@@ -26,7 +27,7 @@
 
 <svelte:window onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
-<header class="toolbar">
+<header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
     <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {onexportmp4} {onexportlottie} {onexportanimsvg} {oncopyjson} {ondemo} />
     <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
@@ -60,7 +61,11 @@
   <IconButton icon="save" label="Save project (⌘S)" disabled={!editor.scene} onclick={onsave} />
   <IconButton icon="undo" label="Undo (⌘Z)" disabled={!editor.canUndo} onclick={() => editor.undo()} />
   <IconButton icon="redo" label="Redo (⇧⌘Z)" disabled={!editor.canRedo} onclick={() => editor.redo()} />
-  {#if editor.scene}<EffectsToolbar {editor} />{/if}
+  {#if editor.commandInEffectsSlot}
+    <CommandLine {editor} compact />
+  {:else if editor.scene}
+    <EffectsToolbar {editor} />
+  {/if}
   <span class="spacer"></span>
   <IconButton icon={fullscreen ? 'restore' : 'maximize'} label={fullscreen ? 'Exit full screen' : 'Enter full screen'} onclick={toggleFullscreen} />
   <button class="play-button" type="button" disabled={!editor.scene} onclick={() => { editor.playing = false; editor.presenting = true; }} title="Play full screen (Esc to exit)">
@@ -128,6 +133,7 @@
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .spacer { flex: 1; }
+  .toolbar.command-in-slot .spacer { flex: 0 1 0; }
   .play-button {
     display: flex;
     align-items: center;

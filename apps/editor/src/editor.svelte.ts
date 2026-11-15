@@ -593,6 +593,13 @@ export class Editor {
     this.#showEffectMenus = on;
     writePref('svertik.effect-menus', on ? '' : 'off');
   }
+  /** Replace the top effect menus with the command bar. Off by default; remembered in this browser. */
+  #commandInEffectsSlot = $state(readPref('svertik.command-in-effects-slot') === 'on');
+  get commandInEffectsSlot() { return this.#commandInEffectsSlot; }
+  set commandInEffectsSlot(on: boolean) {
+    this.#commandInEffectsSlot = on;
+    writePref('svertik.command-in-effects-slot', on ? 'on' : '');
+  }
   /** Rulers are hidden by default; the preference is remembered in this browser. */
   #showRulers = $state(readPref('svertik.rulers') === 'on');
   get showRulers() { return this.#showRulers; }

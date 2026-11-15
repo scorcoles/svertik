@@ -1,13 +1,15 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { DropdownMenu } from 'bits-ui';
   import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions } from '@svertik/engine';
+  import { Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import { buildCatalog, compile, complete, describeParam, parse, resolve, search, typable, type CommandEntry } from './command';
 
   // Effects command line, fixed in the status bar (like a CAD prompt): type an effect and, optionally, its
   // parameters with their JSON names ("twist angle=45"). Focused by "/", ⌘K and the stack's +. Results
   // open upwards, with each effect's description.
-  let { editor }: { editor: Editor } = $props();
+  let { editor, compact = false }: { editor: Editor; compact?: boolean } = $props();
 
   const catalog = buildCatalog(builtins as never, autonomousGenerators as never, { ...effectDescriptions, ...shapeDescriptions });
   const listId = 'command-results';
@@ -156,7 +158,7 @@
   const optionId = (type: string) => `command-option-${type}`;
 </script>
 
-<div class="command" data-disabled={disabled || undefined} data-error={error ? true : undefined}>
+<div class="command" class:compact data-position={editor.commandInEffectsSlot ? 'effects' : 'footer'} data-disabled={disabled || undefined} data-error={error ? true : undefined}>
   {#if open && !disabled}
     <div class="results" role="presentation">
       {#if browsing}
@@ -249,6 +251,23 @@
     onkeydown={keydown}
   />
   {#if !disabled}<span class="hint" aria-hidden="true"><kbd>/</kbd> or <kbd>⌘K</kbd></span>{/if}
+  <DropdownMenu.Root>
+    <DropdownMenu.Trigger class="command-options" aria-label="Command bar options" title="Command bar options">
+      <Icon name="settings" />
+    </DropdownMenu.Trigger>
+    <DropdownMenu.Portal>
+      <DropdownMenu.Content class="sv-menu" side={compact ? 'bottom' : 'top'} align="end" sideOffset={4}>
+        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} checked={editor.commandInEffectsSlot} onCheckedChange={(checked) => (editor.commandInEffectsSlot = checked)}>
+          {#snippet children({ checked })}
+            <span class="box" data-checked={checked || undefined} aria-hidden="true">
+              {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
+            </span>
+            Replace Effects Menu
+          {/snippet}
+        </DropdownMenu.CheckboxItem>
+      </DropdownMenu.Content>
+    </DropdownMenu.Portal>
+  </DropdownMenu.Root>
   <span class="sr-only" aria-live="polite">{announce}</span>
 </div>
 
@@ -266,6 +285,7 @@
     border: var(--sv-border-1) solid var(--sv-rule-default);
     font-size: var(--sv-font-size-11);
   }
+  .command.compact { flex: 1 1 0; order: 0; min-width: 160px; height: var(--sv-size-row); }
   .command:hover:not([data-disabled]) { border-color: var(--sv-rule-strong); }
   .command:focus-within { border-color: var(--sv-accent-fill); }
   .command[data-error] { border-color: var(--sv-signal-error); }
@@ -289,6 +309,12 @@
   .hint { flex: none; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .command:focus-within .hint { visibility: hidden; }
   kbd { font: inherit; color: var(--sv-text-secondary); }
+  :global(.command-options) { display: grid; place-items: center; flex: none; width: 22px; height: 22px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; cursor: pointer; }
+  :global(.command-options:hover), :global(.command-options[data-state='open']) { color: var(--sv-accent-fill); }
+  :global(.command-options .sv-icon) { width: 14px; height: 14px; }
+  .box { display: inline-grid; place-items: center; flex: none; width: 12px; height: 12px; border: var(--sv-border-1) solid var(--sv-rule-strong); }
+  .box[data-checked] { border-color: var(--sv-accent-fill); }
+  .box svg { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; stroke-linecap: square; }
 
   .results {
     position: absolute;
@@ -300,6 +326,7 @@
     border: var(--sv-border-1) solid var(--sv-rule-strong);
     color: var(--sv-text-primary);
   }
+  .command[data-position='effects'] .results { top: calc(100% + 1px); bottom: auto; }
   .browse {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
