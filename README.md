@@ -8,7 +8,7 @@ An experiment by [VERTIK](https://www.vertik.net).
 ## Features
 
 - **Effects** (more than 50):
-  - **Deform:** Transform, Rotate 3D, Spherize, Twist, Bend, Taper, Shear, Wave, Ripple, Noise, Roughen, Round Corners, Melt, Cylinder, Perspective, Envelope, Path Wrap, Morph, Trim.
+  - **Deform:** Transform, Rotate 3D, Spherize, Twist, Bend, Taper, Shear, Wave, Ripple, Noise, Roughen, Round Corners, Spikes, Melt, Cylinder, Perspective, Envelope, Path Wrap, Morph, Trim.
   - **Generate:** Crack, Damage, Clone, Mirror, Mosaic, Fractal, Glitch, Boolean, Metaball, Pixelate.
   - **Effect** (per element): Step, Stagger, Range, Field, Explosion.
   - **Style:** Color, Tint, Paint, Gradient, Opacity, Mask.

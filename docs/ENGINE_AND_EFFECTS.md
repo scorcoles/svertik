@@ -752,3 +752,20 @@ Composition numeric clock fields support tracks with `on: "composition"`: `time`
 ### Scaling multiple selected objects
 
 With several objects selected, canvas corner handles scale the entire selection about its combined document-space bounding-box center. Geometry sizes and spacing change proportionally; no group is created. The inspector's Scale field/slider applies the same relative factor to the selection. Parent/child selections are deduplicated to avoid double transforms; nested group placements and existing x/y/scale tracks are updated, and each drag is one undo operation.
+
+### Spikes (`spikes`) — regular tips along an outline
+
+A deformer that walks each path by length and raises `count` evenly spaced tips, `height` px along the outline's normal (negative values point inwards). On a circle it gives a sunburst, a badge or a flower.
+
+- `count` (number, default 12, 1–200): tips per path.
+- `height` (number, default 30, px, −500–500): how far each tip stands out.
+- `curve` (number, default 0, −1–1): the sides. `0` is straight; towards `1` they hollow out like thorns; towards `−1` they bulge like petals.
+- `width` (number, default 1, 0.05–1): the share of its stretch each spike takes; the rest keeps the original outline.
+- `lean` (number, default 0, −1–1): tilts the tips along the outline.
+- `phase` (number, default 0, 0–1): slides the row along a closed outline (1 = one whole spike).
+
+```json
+{ "id": "spikes-1", "type": "spikes", "params": { "count": 12, "height": 35, "curve": 1 } }
+```
+
+Curved outlines are walked as fine polylines, so the stretches left between spikes (`width` below 1) become straight segments. A spike that straddles a sharp corner can cross itself.

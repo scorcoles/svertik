@@ -17,6 +17,7 @@ export const effectDescriptions: Record<string, string> = {
   noise: 'Moves each point with smooth noise: an organic, hand-drawn look.',
   roughen: 'Fractal edges on any drawing: `organic` tears the outline (midpoint displacement, like a coastline or torn paper); `koch` turns each segment into a Koch peak, `iterations` times. Curves become straight segments.',
   roundcorners: 'Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). Smooth curves are left alone; `limit` keeps corners wider than that angle.',
+  spikes: 'Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards). `curve` shapes the sides: 0 straight, towards 1 hollow like thorns, towards -1 bulging like petals. `width` leaves outline between spikes, `lean` tilts the tips and `phase` slides them along.',
   melt: 'The drawing drips downwards, more the lower it is; noise decides where the drops fall.',
   cylinder: 'Wraps the drawing around a vertical cylinder (like the label of a can). `wrap` is the part of the turn the drawing covers; the sides compress and move closer or away.',
   perspective: 'Free perspective: each corner of the drawing goes where you drag its handle.',

@@ -567,6 +567,41 @@ describe('damage', () => {
   });
 });
 
+describe('spikes', () => {
+  const run = (params: Record<string, number>) => createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 's', type: 'spikes', params }] });
+  const path = (geo: ReturnType<typeof run>) => geo.shapes[0]!.subpaths[0]!;
+
+  it('adds `count` tips, `height` px out of the outline, and stays closed', () => {
+    const geo = run({ count: 8, height: 10 });
+    // Two sides per spike; the square (20..80) grows 10 px on every side.
+    expect(path(geo).segs).toHaveLength(16);
+    expect(path(geo).closed).toBe(true);
+    const b = bounds(geo);
+    expect(b.x).toBeCloseTo(10);
+    expect(b.y).toBeCloseTo(10);
+    expect(b.width).toBeCloseTo(80);
+    expect(b.height).toBeCloseTo(80);
+    const last = path(geo).segs[15]!.p;
+    expect(last[0]).toBeCloseTo(path(geo).start[0]);
+    expect(last[1]).toBeCloseTo(path(geo).start[1]);
+  });
+
+  it('negative height points inwards', () => {
+    expect(bounds(run({ count: 8, height: -10 }))).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  });
+
+  it('curve bends the sides without moving the tips or the base', () => {
+    const straight = path(run({ count: 8, height: 10 }));
+    const hollow = path(run({ count: 8, height: 10, curve: 1 }));
+    expect(hollow.segs.map((s) => s.p)).toEqual(straight.segs.map((s) => s.p));
+    expect(hollow.segs[0]!.c1).not.toEqual(straight.segs[0]!.c1);
+  });
+
+  it('width below 1 keeps outline between the spikes', () => {
+    expect(path(run({ count: 4, height: 10, width: 0.5 })).segs.length).toBeGreaterThan(8);
+  });
+});
+
 describe('roughen and fractal', () => {
   const run = (stack: StackInput['stack']) => createEngine(builtins).evaluateStack({ source: square, stack });
   const points = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).reduce((n, sp) => n + sp.segs.length, 0);

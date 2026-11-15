@@ -29,6 +29,7 @@ import { range } from './range';
 import { ripple } from './ripple';
 import { roughenModifier as roughen } from './roughen';
 import { roundcorners } from './roundcorners';
+import { spikes } from './spikes';
 import { shear } from './shear';
 import { taper } from './taper';
 import { tint } from './tint';
@@ -53,7 +54,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, gravity, field, followpath, fractal, gradient, halftone, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, stagger, step, taper, tint, trace, transform, trim, twist, wave };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, gravity, field, followpath, fractal, gradient, halftone, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, wave };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -70,6 +71,7 @@ export const builtins = [
   noise,
   roughen,
   roundcorners,
+  spikes,
   melt,
   cylinder,
   perspective,

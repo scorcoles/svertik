@@ -21,6 +21,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Noise](effects/noise.md) | `noise` | Moves each point with smooth noise: an organic, hand-drawn look. |
 | [Roughen](effects/roughen.md) | `roughen` | Fractal edges on any drawing: `organic` tears the outline (midpoint displacement, like a coastline or torn paper); `koch` turns each segment into a Koch peak, `iterations` times. |
 | [Round Corners](effects/roundcorners.md) | `roundcorners` | Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). |
+| [Spikes](effects/spikes.md) | `spikes` | Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards). |
 | [Melt](effects/melt.md) | `melt` | The drawing drips downwards, more the lower it is; noise decides where the drops fall. |
 | [Cylinder](effects/cylinder.md) | `cylinder` | Wraps the drawing around a vertical cylinder (like the label of a can). |
 | [Perspective](effects/perspective.md) | `perspective` | Free perspective: each corner of the drawing goes where you drag its handle. |
