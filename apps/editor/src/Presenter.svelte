@@ -118,10 +118,9 @@
     gap: 8px;
     padding: 4px;
     color: rgb(255 255 255 / 0.76);
-    background: rgb(24 25 24 / 0.9);
+    background: rgb(24 25 24 / 0.6);
     border: 1px solid rgb(255 255 255 / 0.14);
-    border-radius: 5px;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+    border-radius: 0;
     backdrop-filter: blur(12px);
     opacity: 0;
     transform: translateY(-6px);
@@ -132,7 +131,7 @@
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
-    background: rgb(24 25 24 / 0.97);
+    background: rgb(24 25 24 / 0.68);
     border-color: rgb(255 255 255 / 0.24);
   }
   .tools button {
@@ -145,7 +144,7 @@
     color: inherit;
     background: transparent;
     border: 0;
-    border-radius: 2px;
+    border-radius: 0;
     cursor: pointer;
     transition: color 140ms, background 140ms;
   }
