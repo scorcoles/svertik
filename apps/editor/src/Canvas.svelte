@@ -259,8 +259,8 @@
 
   const handleParams = $derived.by(() => {
     const m = editor.current;
-    // Dentro de Step cada copia tiene su propio centro: no hay un único sitio que arrastrar.
-    if (!m || editor.currentParent) return [];
+    // Step gives each copy its own centre; Oscillate shares the nested modifier's pivot.
+    if (!m || (editor.currentParent && editor.currentParent.type !== 'oscillate')) return [];
     const def = registry.get(m.type);
     const params = def?.params ?? {};
     // Sin los que no se ven (showIf): el centro de la zona de un filtro, solo con zona.
