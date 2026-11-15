@@ -234,6 +234,10 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
       if (node.kind === 'shape') {
         params(node.params);
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
+          // Dynamic values such as clocks change the visible ink bounds every frame. The default
+          // `ink` anchor recentres those changing outlines and makes even monospaced text appear
+          // to micro-jitter. Keep the evaluated copy on the stable typographic centre instead.
+          if (node.params.anchor === undefined || node.params.anchor === 'ink') node.params.anchor = 'center';
           node.params.text = node.params.text.replace(/\{\{([\s\S]*?)\}\}/g, (whole, source: string) => {
             try {
               return evaluateTextExpression(source.trim(), context);
