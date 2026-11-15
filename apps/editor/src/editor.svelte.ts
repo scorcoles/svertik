@@ -585,6 +585,14 @@ export class Editor {
     this.#showBounds = on;
     writePref('svertik.bounds', on ? '' : 'off');
   }
+  /** The top bar's effect menus (Deform…Filters): shown by default; the command line covers them when
+   * hidden. Utils always stays. Remembered in this browser. */
+  #showEffectMenus = $state(readPref('svertik.effect-menus') !== 'off');
+  get showEffectMenus() { return this.#showEffectMenus; }
+  set showEffectMenus(on: boolean) {
+    this.#showEffectMenus = on;
+    writePref('svertik.effect-menus', on ? '' : 'off');
+  }
   /** Rulers are hidden by default; the preference is remembered in this browser. */
   #showRulers = $state(readPref('svertik.rulers') === 'on');
   get showRulers() { return this.#showRulers; }

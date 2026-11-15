@@ -18,9 +18,12 @@
 </script>
 
 <nav class="effects" aria-label="Effects">
-  {#each groups as group (group.label)}
-    <GroupMenu {editor} label={group.label} icon={group.icon} types={[...group.types]} />
-  {/each}
+  <!-- Effect menus can be hidden from View (the command line has every effect); Utils always stays. -->
+  {#if editor.showEffectMenus}
+    {#each groups as group (group.label)}
+      <GroupMenu {editor} label={group.label} icon={group.icon} types={[...group.types]} />
+    {/each}
+  {/if}
   <UtilsMenu {editor} />
 </nav>
 

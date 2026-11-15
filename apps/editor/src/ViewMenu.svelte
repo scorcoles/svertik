@@ -38,6 +38,19 @@
         </DropdownMenu.CheckboxItem>
       {/each}
       </DropdownMenu.Group>
+      <!-- Interface, not canvas: kept apart from the n/6 count above. -->
+      <DropdownMenu.Separator class="sv-menu-rule" />
+      <DropdownMenu.Group>
+        <DropdownMenu.GroupHeading class="sv-menu-heading">Interface</DropdownMenu.GroupHeading>
+        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} title="The effect menus in the top bar. Hidden, every effect is still in the command line (/)." checked={editor.showEffectMenus} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
+          {#snippet children({ checked })}
+            <span class="box" data-checked={checked || undefined} aria-hidden="true">
+              {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
+            </span>
+            Effect menus
+          {/snippet}
+        </DropdownMenu.CheckboxItem>
+      </DropdownMenu.Group>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
