@@ -7,6 +7,56 @@
   let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
   let active = $state<'stack' | 'document'>('stack');
 
+  // Divider between the stack and the attributes: the stack's max height, as % of the column. The browser
+  // remembers it (a per-person convenience; without storage it falls back to 50%).
+  const SHARE_KEY = 'svertik:stack-share';
+  const MIN = 15;
+  const MAX = 85;
+  const clamp = (v: number) => Math.round(Math.max(MIN, Math.min(MAX, v)));
+  function stored() {
+    try {
+      const v = Number(localStorage.getItem(SHARE_KEY));
+      return v ? clamp(v) : 50;
+    } catch {
+      return 50;
+    }
+  }
+  let share = $state(stored());
+  let dragging = $state(false);
+  let column = $state<HTMLElement>();
+  function setShare(v: number) {
+    share = clamp(v);
+    try {
+      localStorage.setItem(SHARE_KEY, String(share));
+    } catch {
+      // No storage: it lasts for this session.
+    }
+  }
+  function startSplit(e: PointerEvent) {
+    if (!column || e.button !== 0) return;
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    dragging = true;
+    const box = column.getBoundingClientRect();
+    const move = (ev: PointerEvent) => setShare(((ev.clientY - box.top) / box.height) * 100);
+    const up = () => {
+      dragging = false;
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  }
+  function splitKey(e: KeyboardEvent) {
+    const step = e.shiftKey ? 10 : 5;
+    const next = e.key === 'ArrowUp' ? share - step : e.key === 'ArrowDown' ? share + step : e.key === 'Home' ? MIN : e.key === 'End' ? MAX : null;
+    if (next === null) return;
+    e.preventDefault();
+    setShare(next);
+  }
+
   function moveTab(event: KeyboardEvent) {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
@@ -27,8 +77,25 @@
   </div>
 
   {#if active === 'stack'}
-    <div id="inspector-panel-stack" class="panel stack-panel" role="tabpanel" aria-labelledby="inspector-tab-stack">
+    <div id="inspector-panel-stack" class="panel stack-panel" role="tabpanel" aria-labelledby="inspector-tab-stack" bind:this={column} style:--stack-share="{share}%">
       <StackPanel {editor} />
+      <!-- Focusable divider (ARIA window splitter pattern): it is interactive. -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+      <div
+        class="split"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize stack and attributes"
+        aria-valuemin={MIN}
+        aria-valuemax={MAX}
+        aria-valuenow={share}
+        tabindex="0"
+        title="Drag to resize · double-click to reset"
+        data-dragging={dragging || undefined}
+        onpointerdown={startSplit}
+        ondblclick={() => setShare(50)}
+        onkeydown={splitKey}
+      ></div>
       <Attributes {editor} {onreplace} />
     </div>
   {:else}
@@ -61,7 +128,22 @@
   .tabs button[aria-selected='true']::after { content: ''; position: absolute; right: var(--sv-space-8); bottom: -1px; left: var(--sv-space-8); height: 1px; background: color-mix(in srgb, var(--sv-accent-fill) 50%, var(--sv-surface-panel)); }
   .tabs button:focus-visible { outline-offset: -2px; }
   .panel { flex: 1; min-height: 0; overflow-y: auto; }
-  .stack-panel { display: flex; flex-direction: column; }
+  .stack-panel { display: flex; flex-direction: column; overflow: hidden; }
+  /* The divider: the usual 1 px rule, with a 7 px grab area. */
+  .split {
+    position: relative;
+    flex: none;
+    height: 7px;
+    margin: -3px 0;
+    z-index: 1;
+    cursor: ns-resize;
+    touch-action: none;
+  }
+  .split::before { content: ''; position: absolute; inset: 3px 0; background: var(--sv-rule-default); }
+  .split:hover::before { inset: 2px 0; background: var(--sv-rule-strong); }
+  .split[data-dragging]::before,
+  .split:focus-visible::before { inset: 3px 0; background: var(--sv-accent-fill); }
+  .split:focus-visible { outline: none; }
   .document-panel { overflow-y: auto; }
   .empty { padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.5; }
   .empty p { margin: 0 0 var(--sv-space-4); }

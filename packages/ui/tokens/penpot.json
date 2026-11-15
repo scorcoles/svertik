@@ -1,11 +1,11 @@
 {
-  "$source": "Penpot · archivo «Svertik» · tema mode/dark. Regenerar tokens.css con `pnpm tokens`.",
+  "$source": "Source of truth for the design tokens (edited here by hand; originally exported from the Penpot file «Svertik», no longer synced). Regenerate tokens.css with `pnpm tokens`.",
   "primitives": {
     "color": {
       "gray.100": "#EDEDED",
       "gray.200": "#D0D0D0",
       "gray.300": "#A8A8A8",
-      "gray.400": "#808080",
+      "gray.400": "#8C8C8C",
       "gray.500": "#5A5A5A",
       "gray.600": "#3D3D3D",
       "gray.700": "#2E2E2E",
@@ -16,7 +16,8 @@
       "turquesa.500": "#09FDD1",
       "turquesa.900": "#00211B",
       "turquesa.950": "#0F2A26",
-      "red.400": "#FF6B5E"
+      "red.400": "#FF6B5E",
+      "amber.400": "#FFD166"
     },
     "spacing": {
       "space.2": 2,
@@ -69,13 +70,15 @@
       "accent.on": "{turquesa.900}",
       "accent.selection": "{turquesa.950}",
       "signal.error": "{red.400}",
+      "signal.warning": "{amber.400}",
+      "timeline.playhead": "{gray.100}",
       "code.keyword": "{turquesa.500}",
       "code.string": "{gray.300}",
       "code.number": "{gray.100}",
       "code.property": "{gray.200}",
       "code.punctuation": "{gray.400}",
-      "code.comment": "{gray.500}",
-      "code.gutter": "{gray.600}"
+      "code.comment": "{gray.400}",
+      "code.gutter": "{gray.400}"
     }
   }
 }

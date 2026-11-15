@@ -186,7 +186,7 @@
     background: none;
     border: 0;
     font: inherit;
-    font-size: 8px;
+    font-size: 9px;
     line-height: 1;
     cursor: pointer;
   }

@@ -111,7 +111,7 @@
   .crumb { padding: 0; font: inherit; color: var(--sv-accent-fill); background: none; border: 0; cursor: pointer; }
   .crumb:hover { text-decoration: underline; }
   .crumb[aria-current] { color: var(--sv-text-primary); cursor: default; }
-  .slash { color: var(--sv-text-disabled); }
+  .slash { color: var(--sv-text-muted); }
   .name {
     max-width: 240px;
     padding: 0;

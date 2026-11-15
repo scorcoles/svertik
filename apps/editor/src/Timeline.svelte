@@ -65,9 +65,9 @@
       editor.setTime(snap(Math.max(0, Math.min(duration, ((ev.clientX - r.left) / r.width) * duration))));
     };
     at(e);
-    const up = () => { el.removeEventListener('pointermove', at); el.removeEventListener('pointerup', up); };
+    const up = () => { el.removeEventListener('pointermove', at); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
     el.addEventListener('pointermove', at);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   // ── Claves
@@ -75,6 +75,8 @@
   function dragKey(e: PointerEvent, track: string, t0: number) {
     e.stopPropagation();
     e.preventDefault();
+    // preventDefault stops the browser from focusing the diamond: focus it ourselves so ←→ work next.
+    (e.currentTarget as HTMLElement).focus({ preventScroll: true });
     // En la ventana y no en el rombo: al cambiar de instante, el rombo se vuelve a crear (va por su instante).
     selected = { track, t: t0 };
     editor.setTime(t0);
@@ -87,9 +89,34 @@
       selected = { track, t: cur };
       editor.setTime(cur);
     };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      // A dragged diamond is recreated at its new time: give focus back to it.
+      if (cur !== t0) void tick().then(() => document.querySelector<HTMLElement>(`[data-key="${CSS.escape(`${track}@${cur}`)}"]`)?.focus({ preventScroll: true }));
+    };
     window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  }
+
+  // Keyframes from the keyboard: Enter/Space select it and move the playhead there; ←→ move it one frame
+  // (⇧: one second); Delete removes it (see keydown). The button is recreated at its new time, so focus
+  // follows it by its data-key attribute.
+  function selectKey(track: string, t: number) {
+    editor.playing = false;
+    selected = { track, t };
+    editor.setTime(t);
+  }
+  async function nudgeKey(e: KeyboardEvent, track: string, t0: number) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    e.stopPropagation();
+    const step = (e.shiftKey ? 1 : 1 / fps) * (e.key === 'ArrowLeft' ? -1 : 1);
+    const t = snap(Math.max(0, Math.min(duration, t0 + step)));
+    if (t === t0) return;
+    const moved = editor.moveKey(track, t0, t);
+    selectKey(track, moved);
+    await tick();
+    document.querySelector<HTMLElement>(`[data-key="${CSS.escape(`${track}@${moved}`)}"]`)?.focus();
   }
 
   function adjacentKey(tr: Track, direction: -1 | 1) {
@@ -296,6 +323,7 @@
               title={`${t.toFixed(2)} s`}
               aria-label={`${g.name}: keyframes at ${t.toFixed(2)} seconds`}
               onpointerdown={(e) => { e.stopPropagation(); editor.setTime(t); }}
+              onclick={(e) => { if (e.detail === 0) { editor.playing = false; editor.setTime(t); } }}
             ></button>
           {/each}
         </div>
@@ -345,9 +373,13 @@
               data-selected={selected?.track === tr.id && selected.t === k.t ? '' : undefined}
               data-hold={k.ease === 'hold' || undefined}
               style:left="{x(k.t)}px"
-              title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'}`}
+              title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'} · ←→ move, Del remove`}
               aria-label={`Keyframe at ${k.t.toFixed(2)} seconds`}
+              aria-keyshortcuts="ArrowLeft ArrowRight Delete"
+              data-key={`${tr.id}@${k.t}`}
               onpointerdown={(e) => dragKey(e, tr.id, k.t)}
+              onclick={(e) => { if (e.detail === 0) selectKey(tr.id, k.t); }}
+              onkeydown={(e) => nudgeKey(e, tr.id, k.t)}
             ></button>
           {/each}
         </div>
@@ -420,10 +452,12 @@
     padding: 0;
     translate: -50% -50%;
     rotate: 45deg;
-    background: var(--sv-accent-fill);
+    /* At rest in gray: phosphor only marks the selected keyframe (One Phosphor Rule). */
+    background: var(--sv-text-secondary);
     border: 1px solid rgb(0 0 0 / 0.5);
     cursor: grab;
   }
+  .key:hover { background: var(--sv-text-primary); }
   :global(.segment) { position: absolute; top: 0; height: 100%; padding: 0; background: none; border: 0; cursor: pointer; overflow: visible; }
   :global(.segment svg) { display: block; overflow: visible; }
   :global(.segment path) { fill: none; stroke: var(--sv-text-muted); stroke-width: 1; opacity: 0.55; }
@@ -436,9 +470,10 @@
   :global(.ease-item path) { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1.25; }
   :global(.ease-item[data-current]) { color: var(--sv-accent-fill); }
   :global(.ease-item[data-current] path) { stroke: var(--sv-accent-fill); }
-  .key[data-hold] { border-radius: 0; background: var(--sv-text-secondary); }
-  .key[data-selected] { outline: 1px solid var(--sv-text-primary); outline-offset: 2px; }
-  .head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sv-signal-error); pointer-events: none; }
-  .head::before { content: ''; position: absolute; top: 0; left: -4px; width: 9px; height: 8px; background: var(--sv-signal-error); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  .key[data-hold] { border-radius: 0; background: var(--sv-surface-panel); border-color: var(--sv-text-secondary); }
+  .key[data-hold]:hover { border-color: var(--sv-text-primary); }
+  .key[data-selected] { background: var(--sv-accent-fill); border-color: var(--sv-accent-fill); outline: 1px solid var(--sv-text-primary); outline-offset: 2px; }
+  .head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sv-timeline-playhead); pointer-events: none; }
+  .head::before { content: ''; position: absolute; top: 0; left: -4px; width: 9px; height: 8px; background: var(--sv-timeline-playhead); clip-path: polygon(0 0, 100% 0, 50% 100%); }
   .empty { margin: var(--sv-space-12) 0; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); max-width: 520px; }
 </style>

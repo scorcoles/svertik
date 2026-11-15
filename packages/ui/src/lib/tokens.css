@@ -3,7 +3,7 @@
   --sv-gray-100: #EDEDED;
   --sv-gray-200: #D0D0D0;
   --sv-gray-300: #A8A8A8;
-  --sv-gray-400: #808080;
+  --sv-gray-400: #8C8C8C;
   --sv-gray-500: #5A5A5A;
   --sv-gray-600: #3D3D3D;
   --sv-gray-700: #2E2E2E;
@@ -15,6 +15,7 @@
   --sv-turquesa-900: #00211B;
   --sv-turquesa-950: #0F2A26;
   --sv-red-400: #FF6B5E;
+  --sv-amber-400: #FFD166;
   --sv-space-2: 2px;
   --sv-space-4: 4px;
   --sv-space-6: 6px;
@@ -53,11 +54,13 @@
   --sv-accent-on: var(--sv-turquesa-900);
   --sv-accent-selection: var(--sv-turquesa-950);
   --sv-signal-error: var(--sv-red-400);
+  --sv-signal-warning: var(--sv-amber-400);
+  --sv-timeline-playhead: var(--sv-gray-100);
   --sv-code-keyword: var(--sv-turquesa-500);
   --sv-code-string: var(--sv-gray-300);
   --sv-code-number: var(--sv-gray-100);
   --sv-code-property: var(--sv-gray-200);
   --sv-code-punctuation: var(--sv-gray-400);
-  --sv-code-comment: var(--sv-gray-500);
-  --sv-code-gutter: var(--sv-gray-600);
+  --sv-code-comment: var(--sv-gray-400);
+  --sv-code-gutter: var(--sv-gray-400);
 }

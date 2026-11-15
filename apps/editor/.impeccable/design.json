@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T21:00:00Z",
+  "title": "Design System: svertik editor",
+  "extensions": {
+    "colorMeta": {
+      "accent-fill": {
+        "role": "primary",
+        "displayName": "Trazo de Fósforo",
+        "canonical": "#09FDD1",
+        "tonalRamp": [
+          "#00211B",
+          "#0F2A26",
+          "#03564A",
+          "#058A76",
+          "#07C3A6",
+          "#09FDD1",
+          "#7FFEE6",
+          "#D2FFF6"
+        ]
+      },
+      "accent-on": {
+        "role": "primary",
+        "displayName": "Tinta sobre Fósforo",
+        "canonical": "#00211B"
+      },
+      "accent-selection": {
+        "role": "primary",
+        "displayName": "Halo de Fósforo",
+        "canonical": "#0F2A26"
+      },
+      "signal-error": {
+        "role": "error",
+        "displayName": "Error",
+        "canonical": "#FF6B5E"
+      },
+      "surface-field": {
+        "role": "neutral",
+        "displayName": "Grafito Profundo",
+        "canonical": "#0B0B0B",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#141414",
+          "#1B1B1B",
+          "#232323",
+          "#2E2E2E",
+          "#3D3D3D",
+          "#5A5A5A",
+          "#808080",
+          "#A8A8A8",
+          "#D0D0D0",
+          "#EDEDED"
+        ]
+      },
+      "surface-app": {
+        "role": "neutral",
+        "displayName": "Grafito",
+        "canonical": "#141414"
+      },
+      "surface-panel": {
+        "role": "neutral",
+        "displayName": "Grafito de Panel",
+        "canonical": "#1B1B1B"
+      },
+      "surface-hover": {
+        "role": "neutral",
+        "displayName": "Grafito de Paso",
+        "canonical": "#232323"
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Grafito Elevado",
+        "canonical": "#2E2E2E"
+      },
+      "rule-default": {
+        "role": "neutral",
+        "displayName": "Regla",
+        "canonical": "#2E2E2E"
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Regla Marcada",
+        "canonical": "#3D3D3D"
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Niebla",
+        "canonical": "#EDEDED"
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Ceniza",
+        "canonical": "#A8A8A8"
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Humo",
+        "canonical": "#8C8C8C"
+      },
+      "text-disabled": {
+        "role": "neutral",
+        "displayName": "Carbón",
+        "canonical": "#5A5A5A"
+      },
+      "gizmo-x": {
+        "role": "signal",
+        "displayName": "Eje X",
+        "canonical": "#FF5C5C"
+      },
+      "gizmo-y": {
+        "role": "signal",
+        "displayName": "Eje Y",
+        "canonical": "#6BDC6B"
+      },
+      "gizmo-z": {
+        "role": "signal",
+        "displayName": "Eje Z",
+        "canonical": "#5C8CFF"
+      },
+      "signal-warning": {
+        "role": "warning",
+        "displayName": "Aviso",
+        "canonical": "#FFD166"
+      },
+      "timeline-playhead": {
+        "role": "signal",
+        "displayName": "Cabeza de reproducción",
+        "canonical": "#EDEDED"
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Títulos de diálogo, menú principal y avisos flotantes."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Todo el texto de la interfaz, valores y filas; cifras tabulares."
+      },
+      "body-strong": {
+        "displayName": "Body Strong",
+        "purpose": "Botones, títulos de panel y sección, filas de objeto."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Unidades, prefijos, metadatos y chevrons."
+      },
+      "badge": {
+        "displayName": "Badge",
+        "purpose": "Insignias discretas en mayúsculas, como «alpha»."
+      }
+    },
+    "shadows": [
+      {
+        "name": "handle-ring",
+        "value": "0 0 0 1px rgb(0 0 0 / 0.5)",
+        "purpose": "Separa los tiradores del lienzo de cualquier fondo de la obra."
+      },
+      {
+        "name": "canvas-selection",
+        "value": "0 0 0 2px var(--sv-accent-selection)",
+        "purpose": "Anillo de selección sobre el lienzo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "120ms",
+        "purpose": "Cambios de fondo y opacidad en controles."
+      },
+      {
+        "name": "state-default",
+        "value": "180ms",
+        "purpose": "Fondo y borde en avisos y paneles."
+      },
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Entrada de elementos flotantes."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack-inspector",
+        "value": "760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Interruptor de consola por defecto.",
+      "html": "<button class=\"ds-btn\">Export</button>",
+      "css": ".ds-btn { height: 24px; padding: 0 12px; font: 700 11px/1.3 'JetBrains Mono', ui-monospace, monospace; border-radius: 0; border: 1px solid var(--sv-rule-strong, #3D3D3D); background: var(--sv-surface-panel, #1B1B1B); color: var(--sv-text-primary, #EDEDED); cursor: pointer; } .ds-btn:hover { background: var(--sv-surface-hover, #232323); } .ds-btn:focus-visible { outline: 1px solid var(--sv-accent-fill, #09FDD1); outline-offset: 1px; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La acción principal, en Trazo de Fósforo.",
+      "html": "<button class=\"ds-btn-primary\">Save</button>",
+      "css": ".ds-btn-primary { height: 24px; padding: 0 12px; font: 700 11px/1.3 'JetBrains Mono', ui-monospace, monospace; border-radius: 0; border: 1px solid var(--sv-accent-fill, #09FDD1); background: var(--sv-accent-fill, #09FDD1); color: var(--sv-accent-on, #00211B); cursor: pointer; } .ds-btn-primary:hover { filter: brightness(1.1); } .ds-btn-primary:focus-visible { outline: 1px solid var(--sv-accent-fill, #09FDD1); outline-offset: 1px; }"
+    },
+    {
+      "name": "Number Field",
+      "kind": "input",
+      "refersTo": "number-field",
+      "description": "Ranura numérica que se arrastra en horizontal.",
+      "html": "<label class=\"ds-field\"><input value=\"120\" /><span class=\"ds-unit\">px</span></label>",
+      "css": ".ds-field { display: flex; align-items: center; gap: 4px; height: 20px; width: 96px; padding: 0 6px; background: var(--sv-surface-field, #0B0B0B); border: 1px solid var(--sv-rule-default, #2E2E2E); font: 400 11px/1.3 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; } .ds-field:hover { border-color: var(--sv-rule-strong, #3D3D3D); } .ds-field:focus-within { outline: 1px solid var(--sv-accent-fill, #09FDD1); outline-offset: 1px; } .ds-field input { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--sv-text-primary, #EDEDED); font: inherit; outline: none; cursor: ew-resize; } .ds-unit { color: var(--sv-text-muted, #808080); font-size: 10px; }"
+    },
+    {
+      "name": "Segmented",
+      "kind": "chip",
+      "refersTo": "segment",
+      "description": "Selector de opciones excluyentes.",
+      "html": "<div class=\"ds-seg\"><button class=\"ds-seg-item\" data-on>XY</button><button class=\"ds-seg-item\">X</button><button class=\"ds-seg-item\">Y</button></div>",
+      "css": ".ds-seg { display: inline-flex; border: 1px solid var(--sv-rule-default, #2E2E2E); } .ds-seg-item { min-width: 32px; height: 18px; padding: 0 8px; font: 400 11px/1 'JetBrains Mono', ui-monospace, monospace; color: var(--sv-text-muted, #808080); background: var(--sv-surface-field, #0B0B0B); border: 0; border-radius: 0; cursor: pointer; } .ds-seg-item:hover { color: var(--sv-text-secondary, #A8A8A8); } .ds-seg-item[data-on] { color: var(--sv-accent-fill, #09FDD1); background: var(--sv-surface-raised, #2E2E2E); } .ds-seg-item:focus-visible { outline: 1px solid var(--sv-accent-fill, #09FDD1); outline-offset: -1px; }"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Pestañas de fila completa.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab\" data-active>Stack</button><button class=\"ds-tab\">Code</button><button class=\"ds-tab\">Notes</button></div>",
+      "css": ".ds-tabs { display: flex; width: 280px; } .ds-tab { flex: 1; height: 24px; padding: 0 12px; font: 400 11px/1 'JetBrains Mono', ui-monospace, monospace; color: var(--sv-text-muted, #808080); background: var(--sv-surface-field, #0B0B0B); border: 0; border-radius: 0; cursor: pointer; } .ds-tab:hover { color: var(--sv-text-secondary, #A8A8A8); } .ds-tab[data-active] { color: var(--sv-text-primary, #EDEDED); background: var(--sv-surface-raised, #2E2E2E); } .ds-tab:focus-visible { outline: 1px solid var(--sv-accent-fill, #09FDD1); outline-offset: -1px; }"
+    },
+    {
+      "name": "Stack Item",
+      "kind": "custom",
+      "refersTo": "stack-item",
+      "description": "Fila de la pila de modificadores; seleccionada con halo y barra de fósforo.",
+      "html": "<div class=\"ds-stack\"><div class=\"ds-stack-row ds-obj\">Star</div><div class=\"ds-stack-row\" data-selected style=\"--depth:1\">Twist</div><div class=\"ds-stack-row\" style=\"--depth:1\">Wave</div></div>",
+      "css": ".ds-stack { width: 260px; background: var(--sv-surface-panel, #1B1B1B); } .ds-stack-row { position: relative; display: flex; align-items: center; height: 24px; padding: 0 8px 0 calc(4px + var(--depth, 0) * 12px); font: 400 11px/1 'JetBrains Mono', ui-monospace, monospace; color: var(--sv-text-primary, #EDEDED); background: var(--sv-surface-panel, #1B1B1B); cursor: default; } .ds-stack-row.ds-obj { font-weight: 700; } .ds-stack-row:hover { background: var(--sv-surface-hover, #232323); } .ds-stack-row[data-selected] { background: var(--sv-accent-selection, #0F2A26); } .ds-stack-row[data-selected]::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 2px; background: var(--sv-accent-fill, #09FDD1); }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Insignia discreta sin acento.",
+      "html": "<span class=\"ds-badge\">alpha</span>",
+      "css": ".ds-badge { padding: 0 4px; font: 400 9px/1.6 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sv-text-muted, #808080); border: 1px solid var(--sv-rule-default, #2E2E2E); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Consola Nocturna",
+    "overview": "El editor es una sala de control a oscuras: monoespaciado, numérico y tabular, como un programa de CAD de los que corrían en MS-DOS. Todo se lee como un instrumento: filas de altura fija, cifras alineadas, reglas de un píxel y ni una curva. La interfaz es aparato. Lo que brilla es la obra en el lienzo y un único trazo de fósforo turquesa que señala lo activo.\n\nLa densidad es alta a propósito. Es una herramienta de autor para sesiones largas, donde cada parámetro tiene que estar a la vista y a un arrastre. La jerarquía no viene de tamaños grandes ni de color, sino del peso (regular o negrita), del paso de gris (primario, secundario, apagado) y de la posición en la retícula. La profundidad se construye con capas de grafito, nunca con sombras.",
+    "keyCharacteristics": [
+      "Una sola familia monoespaciada (JetBrains Mono) para toda la interfaz, a 11 px, con cifras tabulares.",
+      "Radio cero en todo, salvo los tiradores circulares del lienzo.",
+      "Reglas de 1 px y filas de 24 px como unidad de ritmo.",
+      "Grafito en capas para la profundidad; turquesa solo para lo activo, lo seleccionado y el foco.",
+      "Controles numéricos que se arrastran (scrub) como en un programa de CAD."
+    ],
+    "rules": [
+      {
+        "name": "The One Phosphor Rule",
+        "body": "El turquesa marca solo lo activo, lo seleccionado, lo enfocado o lo pulsable. Nunca es decoración, fondo de zona ni color de marca. Si nada en pantalla está activo, casi no debería verse turquesa.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal-Only Rule",
+        "body": "Cualquier color que no sea grafito ni fósforo tiene que significar algo (error, aviso, eje). Un color sin función no entra.",
+        "section": "colors"
+      },
+      {
+        "name": "The Weight-Not-Size Rule",
+        "body": "La jerarquía se hace con peso y paso de gris, no subiendo de tamaño. El rango útil es de 9 a 12 px. El token de 14 px existe, pero el editor no lo usa.",
+        "section": "typography"
+      },
+      {
+        "name": "The Row Rule",
+        "body": "Todo control interactivo cabe en una fila de 24 px. Lo que no cabe se replantea; no se hace más alto.",
+        "section": "layout"
+      },
+      {
+        "name": "The Graphite Layers Rule",
+        "body": "Si algo tiene que destacar, se aclara un paso de grafito o se le pone una regla de 1 px. No se le añade sombra, desenfoque ni degradado.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do usar los tokens --sv-* de packages/ui. Un valor nuevo se da de alta en packages/ui/tokens/penpot.json y se regenera con pnpm tokens, no se escribe en el componente.",
+      "Do reservar el Trazo de Fósforo para lo activo, seleccionado, enfocado o pulsable (The One Phosphor Rule).",
+      "Do construir la jerarquía con peso (400/700) y paso de gris (niebla, ceniza, humo, carbón) dentro de 9–12 px.",
+      "Do encajar cada control en la fila de 24 px y separar con reglas de 1 px.",
+      "Do mostrar las acciones secundarias de una fila solo al pasar el puntero o con foco, y dejar visibles las que informan de un estado (oculto, bloqueado).",
+      "Do dar a cada elemento interactivo un foco visible: contorno de fósforo de 1 px separado 1 px."
+    ],
+    "donts": [
+      "Don't redondear esquinas ni usar botones en píldora, tarjetas suaves o la estética de dashboard SaaS.",
+      "Don't usar sombras decorativas, cristal (backdrop-filter), brillos de neón ni degradados en la interfaz.",
+      "Don't añadir iconografía decorativa: ilustraciones, emojis o iconos de colores. Los iconos son de línea: monocromos, de 16 px, con trazo de 1 px, remates cuadrados y esquinas en inglete. Heredan el color del texto (currentColor) y solo admiten un relleno interior al 40 %.",
+      "Don't introducir una segunda familia tipográfica ni tamaños de titular en la interfaz del editor.",
+      "Don't usar color sin función (The Signal-Only Rule): ni rojo, ni verde, ni azul fuera de error, aviso y ejes del gizmo."
+    ]
+  }
+}

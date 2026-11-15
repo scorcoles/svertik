@@ -33,9 +33,9 @@
       emit();
     };
     at(e);
-    const up = () => { el.removeEventListener('pointermove', at); el.removeEventListener('pointerup', up); };
+    const up = () => { el.removeEventListener('pointermove', at); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
     el.addEventListener('pointermove', at);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
   function keys(e: KeyboardEvent, kind: 'sv' | 'hue') {
     const k = e.shiftKey ? 0.1 : 0.01;

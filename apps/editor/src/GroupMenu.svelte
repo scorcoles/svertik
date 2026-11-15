@@ -13,6 +13,8 @@
     compact?: boolean;
   }
   let { editor, label, icon, types, compact = false }: Props = $props();
+  // When jumping to the command line, the menu must not return focus to its trigger: the line keeps it.
+  let toCommand = false;
 </script>
 
 <DropdownMenu.Root>
@@ -33,6 +35,7 @@
       sideOffset={compact ? 6 : 4}
       avoidCollisions={true}
       collisionPadding={8}
+      onCloseAutoFocus={(e) => { if (toCommand) { e.preventDefault(); toCommand = false; } }}
     >
       {#each types as type (type)}
         {@const source = autonomousGenerators.find((item) => item.type === type)}
@@ -41,35 +44,18 @@
           <span class="effect-name">{source?.label ?? registry.get(type)?.label}</span>
         </DropdownMenu.Item>
       {/each}
+      <!-- Footer: points to the command line right where people look for an effect. -->
+      <DropdownMenu.Separator class="sv-menu-rule" />
+      <DropdownMenu.Item class="sv-menu-item search-all" onSelect={() => { toCommand = true; editor.openCommand(); }}>
+        <span class="effect-name">Search all effects…</span>
+        <kbd>/</kbd>
+      </DropdownMenu.Item>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
 <style>
-  :global(.sv-group-trigger) {
-    display: flex;
-    align-items: center;
-    gap: var(--sv-space-6);
-    height: 24px;
-    padding: 0 var(--sv-space-6);
-    font: inherit;
-    color: var(--sv-text-primary);
-    background: none;
-    border: 0;
-    cursor: pointer;
-  }
-  :global(.sv-group-trigger .sv-icon) { color: var(--sv-text-secondary); }
-  :global(.sv-group-trigger:hover) { background: var(--sv-surface-hover); }
-  :global(.sv-group-trigger[data-state='open']) { background: var(--sv-accent-selection); color: var(--sv-accent-fill); }
-  :global(.sv-group-trigger[data-state='open'] .sv-icon) { color: var(--sv-accent-fill); }
-  :global(.sv-group-trigger:disabled) { opacity: 0.35; cursor: default; background: none; }
-  /* En el rail: cuadrado de 32 px, sólo el icono. */
-  :global(.sv-group-trigger.is-compact) {
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-  }
+  /* The trigger (.sv-group-trigger) and the menus are styled in menu.css. */
   :global(.sv-effect-menu) {
     box-sizing: border-box;
     width: 240px;
@@ -83,4 +69,8 @@
   :global(.sv-effect-menu .sv-menu-item[data-disabled]) { opacity: 0.38; cursor: default; }
   .effect-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  :global(.sv-menu-item.search-all) { color: var(--sv-text-secondary); }
+  :global(.sv-menu-item.search-all[data-highlighted]) { color: var(--sv-text-primary); }
+  :global(.sv-menu-item.search-all) .effect-name { flex: 1; }
+  kbd { font: inherit; color: var(--sv-text-muted); }
 </style>

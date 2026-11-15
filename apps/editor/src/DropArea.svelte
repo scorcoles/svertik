@@ -28,10 +28,11 @@
     <span class="muted">or paste it (⌘V), or draw with the tools on the left</span>
     <div class="start">
       <div class="open-document">
-        <Button kind="primary" label="Choose file…" onclick={onimport} />
+        <!-- One primary action: the demos are the quickest way to see what svertik does. -->
+        <Button label="Choose file…" onclick={onimport} />
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
-            {#snippet child({ props })}<Button {...props} label="Demos ▾" />{/snippet}
+            {#snippet child({ props })}<Button {...props} kind="primary" label="Demos ▾" />{/snippet}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
@@ -47,7 +48,7 @@
         <span class="times" aria-hidden="true">×</span>
         <label class="dimension">H <input type="number" min="1" max="10000" bind:value={height} aria-label="Document height" /></label>
         <span class="unit">px</span>
-        <Button kind="primary" label="Create" onclick={() => editor.newFile(width, height)} />
+        <Button label="Create" onclick={() => editor.newFile(width, height)} />
       </div>
     </div>
     {#if editor.error}<p class="error" role="alert">{editor.error}</p>{/if}
@@ -64,8 +65,7 @@
     color: var(--sv-text-muted);
     text-align: center;
     background: var(--sv-surface-panel);
-    border: 0;
-    box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .drop.without-welcome { padding-top: var(--sv-space-32); }
   .welcome-header {
@@ -106,11 +106,13 @@
   }
   .open-document { display: flex; justify-content: center; gap: var(--sv-space-8); }
   .new-document { display: flex; align-items: center; gap: var(--sv-space-8); padding: var(--sv-space-4) 0; }
-  .row-label { margin-right: var(--sv-space-4); color: var(--sv-text-primary); font-size: var(--sv-font-size-10); }
+  .row-label { margin-right: var(--sv-space-4); color: var(--sv-text-primary); }
   .dimension { display: flex; align-items: center; gap: 5px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .dimension input { width: 70px; height: 32px; padding: 0 8px; color: var(--sv-text-primary); background: var(--sv-surface-base); border: 1px solid color-mix(in srgb, var(--sv-text-muted) 55%, transparent); font: inherit; }
+  .dimension input { width: 64px; height: 20px; padding: 0 var(--sv-space-6); color: var(--sv-text-primary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); font: inherit; font-variant-numeric: tabular-nums; }
+  .dimension input:hover { border-color: var(--sv-rule-strong); }
+  .dimension input:focus { border-color: var(--sv-accent-fill); outline: none; }
   .times, .unit { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .separator { width: calc(100% + var(--sv-space-24) + var(--sv-space-24)); height: 1px; margin: var(--sv-space-24) 0 var(--sv-space-16); background: color-mix(in srgb, var(--sv-text-muted) 55%, transparent); }
+  .separator { width: calc(100% + var(--sv-space-24) + var(--sv-space-24)); height: 1px; margin: var(--sv-space-24) 0 var(--sv-space-16); background: var(--sv-rule-default); }
   @media (max-width: 520px) { .new-document { flex-wrap: wrap; justify-content: center; } .row-label { flex-basis: 100%; } }
   .error {
     margin: 0;

@@ -7,8 +7,10 @@
     id?: string;
     disabled?: boolean;
     onchange?: (checked: boolean) => void;
+    /** -1 keeps it out of the tab order (e.g. inside a tree row that has its own keyboard shortcut). */
+    tabindex?: number;
   }
-  let { checked = $bindable(), label, id, disabled = false, onchange }: Props = $props();
+  let { checked = $bindable(), label, id, disabled = false, onchange, tabindex }: Props = $props();
 </script>
 
 <Checkbox.Root
@@ -16,6 +18,7 @@
   {id}
   {disabled}
   aria-label={label}
+  {tabindex}
   onCheckedChange={(v) => onchange?.(v)}
   class="sv-checkbox"
 >

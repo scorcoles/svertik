@@ -41,7 +41,7 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
         `frame    ${avg.toFixed(1)} ms avg · ${worst.toFixed(1)} ms worst`,
         `engine   could do ~${budget} fps`,
       ].join('\n');
-      el.style.color = avg > 33 ? '#ff6b6b' : avg > 16 ? '#ffd166' : '#ededed';
+      el.style.color = avg > 33 ? 'var(--sv-signal-error)' : avg > 16 ? 'var(--sv-signal-warning)' : 'var(--sv-text-primary)';
       screen = computed = sum = worst = 0;
       last = now;
     }

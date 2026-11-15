@@ -65,7 +65,7 @@
     translate: 0 -50%;
     rotate: 45deg;
     background: none;
-    border: 1px solid var(--sv-text-disabled);
+    border: 1px solid var(--sv-text-muted);
     cursor: pointer;
     opacity: 0;
   }

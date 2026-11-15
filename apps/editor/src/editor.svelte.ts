@@ -660,6 +660,11 @@ export class Editor {
   fontsTick = $state(0);
   /** Aviso para el usuario (lo muestra la app un momento). */
   notice = $state<string | null>(null);
+  /** Request to open the command line with some text (the stack's +, "/", ⌘K). `n` tells identical requests apart. */
+  commandRequest = $state<{ text: string; n: number } | null>(null);
+  openCommand(text = '') {
+    this.commandRequest = { text, n: (this.commandRequest?.n ?? 0) + 1 };
+  }
   /** Información de cada nodo tras evaluar (caja de referencia, matriz…): la deja el lienzo. */
   infos = $state.raw<Map<string, NodeInfo>>(new Map());
   /** Herramienta de primitivas armada (se dibuja arrastrando en el lienzo). */
@@ -2048,7 +2053,8 @@ export class Editor {
     return type === 'transform' || type === 'opacity' || type === 'mask' || def?.kind === 'filter';
   }
 
-  add(type: string) {
+  /** `params`: values that override the defaults (from the command line: "twist angle=45"). */
+  add(type: string, params: Record<string, unknown> = {}) {
     if (this.activeNode && this.isLocked(this.activeNode.id)) return;
     if (!this.canAdd(type)) { this.notice = 'This effect does not support raster images.'; return; }
     // Boolean con varios objetos seleccionados: primero se agrupan (Boolean trabaja con los hijos de un grupo).
@@ -2067,6 +2073,7 @@ export class Editor {
       const params = type === 'pulse' ? { scale: 1.2 } : type === 'shake' ? { x: 12, y: 8, rotation: 3 } : { y: type === 'oscillate' ? 30 : 12, rotation: type === 'wiggle' ? 8 : 0 };
       inst.children = [{ id: `transform-${uid()}`, type: 'transform', params }];
     }
+    Object.assign(inst.params!, params);
     const stack = owner.stack;
     const at = locate(stack, this.selected);
     if (at && canNest(at.inst.type, type)) {

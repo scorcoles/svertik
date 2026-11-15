@@ -1,6 +1,7 @@
 # TODO
 
 - Revisar el parámetro `gradientTransform` del efecto Gradient: está oculto temporalmente en el editor; decidir su UX y cómo documentar su sintaxis y coordenadas.
+- Penpot (aparcado): los tokens se editan a mano en `packages/ui/tokens/penpot.json`, que ya no se sincroniza con el archivo «Svertik» de Penpot. Si se vuelve a usar Penpot, pasarle antes estos cambios para que una exportación no los pise: `gray.400` = #8C8C8C (antes #808080), `amber.400` = #FFD166 (nuevo), `signal.warning` = `{amber.400}` (nuevo), `timeline.playhead` = `{gray.100}` (nuevo), `code.comment` = `{gray.400}` (antes `{gray.500}`) y `code.gutter` = `{gray.400}` (antes `{gray.600}`).
 
 ## Moduladores de tiempo
 

@@ -177,7 +177,7 @@
   .profile svg { display: block; width: 100%; height: clamp(34px, 7vh, 64px); overflow: visible; }
   .profile line { stroke: var(--sv-rule-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
   .profile line.budget { stroke: var(--sv-accent-fill); stroke-dasharray: 3 5; opacity: 0.55; }
-  .profile line.warning { stroke: var(--sv-signal-warning, #ffd166); stroke-dasharray: 3 5; opacity: 0.65; }
+  .profile line.warning { stroke: var(--sv-signal-warning); stroke-dasharray: 3 5; opacity: 0.65; }
   .profile .trace { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .profile-axis { display: flex; gap: 10px; color: var(--sv-text-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
   .profile-axis span:last-child { margin-left: auto; }
@@ -194,7 +194,7 @@
   article { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); gap: var(--sv-space-8); align-items: baseline; line-height: 1.5; }
   article + article { margin-top: var(--sv-space-4); }
   article[data-level='error'] strong { color: var(--sv-signal-error); }
-  article[data-level='warning'] strong { color: var(--sv-signal-warning, #ffd166); }
+  article[data-level='warning'] strong { color: var(--sv-signal-warning); }
   article span { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   details { grid-column: 1 / -1; color: var(--sv-text-muted); }
   summary { cursor: pointer; }

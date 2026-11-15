@@ -32,6 +32,8 @@
     onrename?: (name: string) => void;
     locked?: boolean;
     onlock?: () => void;
+    /** In the tab order (roving tabindex: one row per tree). Defaults to the selected row. */
+    tabbable?: boolean;
   }
   let {
     label,
@@ -52,7 +54,24 @@
     onrename,
     locked = false,
     onlock,
+    tabbable,
   }: Props = $props();
+
+  // Accessible name: the row's label plus its state, without the names of the buttons inside it.
+  const name = $derived(
+    [label, kind === 'object' ? null : kind, enabled ? null : 'off', visible === false ? 'hidden' : null, locked ? 'locked' : null]
+      .filter(Boolean)
+      .join(', '),
+  );
+  // Only the shortcuts this row actually has (a locked one has no F2 or Delete).
+  const shortcuts = $derived([onrename && 'F2', onremove && 'Delete'].filter(Boolean).join(' ') || undefined);
+  // F2 renames from the keyboard; Delete is handled by the editor for the whole selection. Hide, lock and
+  // enable have no letter shortcut on purpose (a stray key made artwork vanish): they use the row's buttons.
+  function rowKey(e: KeyboardEvent) {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.key !== 'F2' || !onrename) return false;
+    startRename();
+    return true;
+  }
 
   let editing = $state(false);
   let input = $state<HTMLInputElement>();
@@ -74,6 +93,8 @@
 <div
   class="sv-stack-item"
   role="treeitem"
+  aria-label={name}
+  aria-keyshortcuts={shortcuts}
   aria-selected={selected}
   aria-level={depth + 1}
   aria-expanded={expanded}
@@ -81,10 +102,12 @@
   data-selected={selected || undefined}
   data-disabled={!enabled || undefined}
   style:--depth={depth}
-  tabindex="0"
+  tabindex={(tabbable ?? selected) ? 0 : -1}
   onclick={onselect}
   onkeydown={(e) => {
+    if (e.target !== e.currentTarget) return;
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onselect?.(e); }
+    else if (rowKey(e)) { e.preventDefault(); e.stopPropagation(); }
     else if (expanded !== undefined && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); onexpand?.(e.key === 'ArrowRight'); }
   }}
 >
@@ -100,7 +123,7 @@
     <span class="chevron" aria-hidden="true"></span>
   {/if}
   {#if oniconactivate}
-    <button class="icon icon-action" type="button" aria-label={`Open ${label}`} title={`Double-click to open ${label}`} onclick={(e) => { e.stopPropagation(); onselect?.(e); }} ondblclick={(e) => { e.stopPropagation(); oniconactivate?.(); }}><Icon name={icon} /></button>
+    <button class="icon icon-action" type="button" tabindex="-1" aria-label={`Open ${label}`} title={`Double-click to open ${label}`} onclick={(e) => { e.stopPropagation(); onselect?.(e); }} ondblclick={(e) => { e.stopPropagation(); oniconactivate?.(); }}><Icon name={icon} /></button>
   {:else}
     <span class="icon"><Icon name={icon} /></span>
   {/if}
@@ -127,19 +150,19 @@
   {#if onrename && !editing}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove pencil" onclick={(e) => e.stopPropagation()}>
-      <IconButton icon="pencil" label={`Rename ${label}`} onclick={startRename} />
+      <IconButton icon="pencil" label={`Rename ${label} (F2)`} tabindex={-1} onclick={startRename} />
     </span>
   {/if}
   {#if onungroup}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove ungroup" onclick={(e) => e.stopPropagation()}>
-      <IconButton icon="ungroup" label={`Ungroup ${label} (⇧⌘G)`} onclick={onungroup} />
+      <IconButton icon="ungroup" label={`Ungroup ${label} (⇧⌘G)`} tabindex={-1} onclick={onungroup} />
     </span>
   {/if}
   {#if onremove}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove" onclick={(e) => e.stopPropagation()}>
-      <IconButton icon="trash" label={`Remove ${label}`} onclick={onremove} />
+      <IconButton icon="trash" label={`Remove ${label} (Delete)`} tabindex={-1} onclick={onremove} />
     </span>
   {/if}
   {#if onvisible}
@@ -148,6 +171,7 @@
       <IconButton
         icon={visible === false ? 'eye-off' : 'eye'}
         label={visible === false ? `Show ${label}` : `Hide ${label}`}
+        tabindex={-1}
         onclick={() => onvisible?.(visible === false)}
       />
     </span>
@@ -155,13 +179,13 @@
   {#if onlock}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove lock" data-locked={locked || undefined} onclick={(e) => e.stopPropagation()}>
-      <IconButton icon={locked ? 'lock' : 'unlock'} label={locked ? `Unlock ${label}` : `Lock ${label}`} onclick={onlock} />
+      <IconButton icon={locked ? 'lock' : 'unlock'} label={locked ? `Unlock ${label}` : `Lock ${label}`} tabindex={-1} onclick={onlock} />
     </span>
   {/if}
   {#if kind !== 'object'}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="toggle" onclick={(e) => e.stopPropagation()}>
-      <Checkbox bind:checked={enabled} label={`Enable ${label}`} onchange={ontoggle} />
+      <Checkbox bind:checked={enabled} label={`Enable ${label}`} tabindex={-1} onchange={ontoggle} />
     </span>
   {/if}
 </div>
@@ -205,8 +229,8 @@
   .icon-action:hover { color: var(--sv-accent-fill); }
   [data-selected] .icon { color: var(--sv-accent-fill); }
   .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  [data-disabled] .label { color: var(--sv-text-disabled); }
-  [data-disabled] .icon { color: var(--sv-text-disabled); }
+  [data-disabled] .label { color: var(--sv-text-muted); }
+  [data-disabled] .icon { color: var(--sv-text-muted); }
   /* El interruptor solo se ve al pasar, en la fila seleccionada, con foco o si está apagado. */
   .toggle { display: flex; visibility: hidden; }
   /* La papelera, solo al pasar o con foco: el resto del tiempo no hace ruido. */
@@ -233,7 +257,7 @@
   /* El ojo: al pasar o con foco; si está oculto, siempre (tachado). */
   .eye { display: flex; margin-right: calc(var(--sv-space-2) * -1); visibility: hidden; }
   .eye :global(.sv-icon-button) { width: 20px; height: 20px; }
-  .eye[data-off] :global(.sv-icon-button) { color: var(--sv-text-disabled); }
+  .eye[data-off] :global(.sv-icon-button) { color: var(--sv-text-muted); }
   .sv-stack-item:hover .eye,
   .sv-stack-item:focus-within .eye,
   .eye[data-off] { visibility: visible; }

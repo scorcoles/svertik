@@ -5,7 +5,7 @@
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // La versión, de un solo sitio: el package.json del editor.
   import { version } from '../package.json';
-  import { Checkbox, IconButton } from '@svertik/ui';
+  import { IconButton } from '@svertik/ui';
   import Canvas from './Canvas.svelte';
   import { DEFAULT_CANVAS, Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
@@ -22,6 +22,9 @@
   import { formatBytes, inspectSvgComplexity, summarizeScene, svgComplexityWarnings, type SvgComplexity } from './debug-report';
   import Toolbar from './Toolbar.svelte';
   import ModifierRail from './ModifierRail.svelte';
+  import CommandLine from './CommandLine.svelte';
+  import ViewMenu from './ViewMenu.svelte';
+  import './menu.css';
   import type { CanvasStatus } from './canvas-status';
 
   const editor = new Editor();
@@ -173,9 +176,9 @@
     const y0 = e.clientY;
     const h0 = codeHeight;
     const move = (ev: PointerEvent) => (codeHeight = Math.max(140, Math.min(window.innerHeight - 200, h0 + (y0 - ev.clientY))));
-    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   const say = (text: string) => {
@@ -360,7 +363,9 @@
       editor.selected = null;
       editor.timelineOpen = demo.view === 'timeline';
       editor.setTime(0);
-      editor.playing = !!editor.animation && demo.view !== 'presenter';
+      // With "reduce motion" on, a demo opens paused: the timeline's play button starts it.
+      const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      editor.playing = !!editor.animation && demo.view !== 'presenter' && !reduceMotion;
       editor.presenting = demo.view === 'presenter';
     }
   }
@@ -406,7 +411,11 @@
     const mod = e.metaKey || e.ctrlKey;
     // ⌘⇧V: pegar en el mismo sitio. El evento de pegar no lleva las teclas: se anota aquí.
     if (mod && e.key.toLowerCase() === 'v') pasteInPlace = e.shiftKey;
-    if (mod && !e.altKey && e.key.toLowerCase() === 'a' && !typing(e)) {
+    // The command line: "/" outside text fields, ⌘K from anywhere.
+    if (editor.scene && ((e.key === '/' && !mod && !e.altKey && !typing(e)) || (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k'))) {
+      e.preventDefault();
+      editor.openCommand();
+    } else if (mod && !e.altKey && e.key.toLowerCase() === 'a' && !typing(e)) {
       e.preventDefault();
       window.getSelection()?.removeAllRanges();
       editor.selectAll();
@@ -609,20 +618,10 @@
     </div>
     {#if !panelMaximized}<aside class="inspector">
       <InspectorPanel {editor} onreplace={() => replaceInput.click()} />
-      <div class="view" class:off={!editor.scene}>
-        <strong>View</strong>
-        <div class="options">
-          <label><Checkbox bind:checked={editor.showOriginal} label="Show original" disabled={!editor.scene} /> Original</label>
-          <label><Checkbox bind:checked={editor.showWire} label="Wire view" disabled={!editor.scene} /> Wire</label>
-          <label title="The edge of the document: what is exported and shown in Play"><Checkbox bind:checked={editor.showBounds} label="Show document bounds" disabled={!editor.scene} /> Bounds</label>
-          <label><Checkbox bind:checked={editor.showRulers} label="Show canvas rulers" disabled={!editor.scene} /> Rulers</label>
-          <label><Checkbox bind:checked={editor.showGuides} label="Show canvas guides" disabled={!editor.scene} /> Guides</label>
-          <label title="Snap to object edges, centers and document bounds"><Checkbox bind:checked={editor.smartGuides} label="Smart guides" disabled={!editor.scene} /> Smart guides</label>
-        </div>
-      </div>
     </aside>{/if}
   </main>
   <footer class="status" class:no-inspector={panelMaximized}>
+    <CommandLine {editor} />
     {#if canvasStatus}
       <div class="canvas-status">
         <span class="pct" title="Zoom (wheel or pinch)">{canvasStatus.percent}%</span>
@@ -638,6 +637,7 @@
       </div>
       <TimeControls {editor} />
       <div class="status-actions">
+        <ViewMenu {editor} />
         <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
@@ -711,18 +711,6 @@
     background: var(--sv-surface-panel);
     border-left: var(--sv-border-1) solid var(--sv-rule-default);
   }
-  .view {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sv-space-8);
-    flex: none;
-    padding: var(--sv-space-6) var(--sv-space-16) var(--sv-space-8) var(--sv-space-8);
-    border-top: var(--sv-border-1) solid var(--sv-rule-default);
-  }
-  .view strong { color: var(--sv-text-secondary); font-weight: 500; }
-  .view .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; column-gap: var(--sv-space-4); row-gap: var(--sv-space-4); }
-  .view label { display: flex; align-items: center; gap: var(--sv-space-4); min-width: 0; white-space: nowrap; cursor: pointer; }
-  .view.off { opacity: 0.35; }
   /* Barra de estado: cruza toda la ventana, debajo del rail, el lienzo y el inspector. */
   .status {
     position: relative;
@@ -735,7 +723,7 @@
     padding: var(--sv-space-4) var(--sv-space-8);
     background: var(--sv-surface-panel);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
-    color: var(--sv-text-disabled);
+    color: var(--sv-text-muted);
     font-size: var(--sv-font-size-10);
   }
   .canvas-status { display: flex; align-items: center; gap: var(--sv-space-12); min-width: 0; }
@@ -755,7 +743,7 @@
   .diagnostics-toggle :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
   .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }
   .diagnostics-toggle :global(.sv-icon-button:hover) { color: var(--sv-text-primary); }
-  .diagnostics-toggle[data-warning] :global(.sv-icon-button) { color: var(--sv-signal-warning, #f5a544); }
+  .diagnostics-toggle[data-warning] :global(.sv-icon-button) { color: var(--sv-signal-warning); }
   .video-export {
     position: fixed;
     z-index: 110;

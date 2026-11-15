@@ -128,7 +128,7 @@
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
   .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .head { margin: var(--sv-space-8) 0 var(--sv-space-4); color: var(--sv-text-muted); }
-  .empty { margin: var(--sv-space-4) 0 0; color: var(--sv-text-disabled); }
+  .empty { margin: var(--sv-space-4) 0 0; color: var(--sv-text-muted); }
   .pal {
     width: 100%;
     height: 20px;

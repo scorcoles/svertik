@@ -33,5 +33,6 @@
   .sv-icon-button:hover { color: var(--sv-text-primary); background: var(--sv-surface-hover); }
   .sv-icon-button[data-active],
   .sv-icon-button[aria-expanded='true'] { color: var(--sv-accent-fill); background: var(--sv-accent-selection); }
-  .sv-icon-button:disabled { opacity: 0.35; cursor: default; background: none; color: var(--sv-text-secondary); }
+  .sv-icon-button:disabled,
+  .sv-icon-button[aria-disabled='true'] { opacity: 0.35; cursor: default; background: none; color: var(--sv-text-secondary); }
 </style>

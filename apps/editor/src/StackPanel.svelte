@@ -1,10 +1,31 @@
 <script lang="ts">
   import type { ModifierInstance, SceneNode } from '@svertik/engine';
   import { IconButton, StackItem, type IconName } from '@svertik/ui';
-  import AddMenu from './AddMenu.svelte';
   import { canNest, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
+
+  // Tree keyboard: ↑↓ move to the previous/next visible row and select it (as in a layers panel);
+  // Home/End jump to the first/last. ⌥↑↓ is left to the editor (it reorders).
+  function treeKey(e: KeyboardEvent) {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
+    if (!rows || !row || e.target !== row || e.altKey || e.metaKey || e.ctrlKey) return;
+    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+    const items = [...rows.querySelectorAll<HTMLElement>('[role="treeitem"]')];
+    const i = items.indexOf(row);
+    const next = e.key === 'Home' ? items[0] : e.key === 'End' ? items[items.length - 1] : items[i + (e.key === 'ArrowUp' ? -1 : 1)];
+    e.preventDefault();
+    if (!next || next === row) return;
+    next.click();
+    next.focus();
+  }
+
+  // Keep the selection (including what was just added) in view in the stack.
+  let rows = $state<HTMLElement>();
+  $effect(() => {
+    void editor.selected;
+    queueMicrotask(() => rows?.querySelector('[data-selected]')?.scrollIntoView({ block: 'nearest' }));
+  });
 
   // Arrastrar: antes o después de una fila, o dentro (tercio central de un Step o de un grupo).
   type Where = 'before' | 'after' | 'inside';
@@ -145,6 +166,7 @@
         onrename={n.locked ? undefined : (name) => editor.setNode(n.id, 'name', name, true)}
         locked={!!n.locked}
         onlock={() => editor.toggleLock(n.id)}
+        tabbable={editor.isSelected(n.id) || (!editor.selected && n.id === editor.scene?.objects[0]?.id)}
       />
     </div>
     {#if open}
@@ -167,22 +189,24 @@
       onclick={() => (editor.packed ? editor.unpack() : editor.pack())}
     />
     <IconButton icon="group" label="Group (⌘G)" disabled={!editor.activeNode} onclick={() => editor.group()} />
-    <AddMenu {editor} />
+    <!-- Add: opens the command line with "add " typed (every effect is there, searchable). -->
+    <IconButton icon="plus" label="Add modifier (/)" disabled={!editor.scene} onclick={() => editor.openCommand('add ')} />
   </header>
   {#if editor.scene}
-    <div class="rows" role="tree" aria-label="Objects and modifiers">
+    <div class="rows" role="tree" aria-label="Objects and modifiers" tabindex="-1" bind:this={rows} onkeydown={treeKey}>
       {@render nodes(editor.scene.objects, 0)}
     </div>
   {:else}
     <div class="hint">
       <p>No source yet.</p>
-      <p class="dim">Import an SVG to start stacking modifiers.</p>
+      <p class="dim">Draw, import or open a demo to start stacking modifiers.</p>
     </div>
   {/if}
 </section>
 
 <style>
-  .stack { display: flex; flex-direction: column; min-height: 0; max-height: 50%; padding-bottom: var(--sv-space-8); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
+  /* Max height comes from the inspector's divider (--stack-share); a short stack takes only what it needs. */
+  .stack { display: flex; flex-direction: column; min-height: 0; max-height: var(--stack-share, 50%); padding-bottom: var(--sv-space-4); }
   header { display: flex; align-items: center; gap: var(--sv-space-4); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); flex: none; }
   .spacer { flex: 1; }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); margin-right: var(--sv-space-4); }
@@ -200,10 +224,10 @@
     display: flex;
     align-items: center;
     padding-left: calc(var(--sv-space-4) + var(--depth) * var(--sv-space-12) + 16px);
-    color: var(--sv-text-disabled);
+    color: var(--sv-text-muted);
     font-size: var(--sv-font-size-10);
   }
   .hint { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-muted); }
   .hint p { margin: 0 0 var(--sv-space-4); }
-  .dim { color: var(--sv-text-disabled); font-size: var(--sv-font-size-10); }
+  .dim { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

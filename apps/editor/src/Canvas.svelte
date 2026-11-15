@@ -264,9 +264,9 @@
     panning = true;
     const x0 = e.clientX, y0 = e.clientY, p0 = view.pan;
     const move = (ev: PointerEvent) => (view = { zoom: view.zoom, pan: { x: p0.x + ev.clientX - x0, y: p0.y + ev.clientY - y0 } });
-    const up = () => { panning = false; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    const up = () => { panning = false; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   // ── Tiradores: los puntos del efecto seleccionado se arrastran sobre el dibujo
@@ -483,12 +483,10 @@
       }
       guideDrag = null;
       el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-      el.removeEventListener('pointercancel', up);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   // ── Organizar: alinear y distribuir la selección (en el documento), voltear
@@ -516,6 +514,11 @@
     { mode: 'intersect', icon: 'bool-intersect', label: 'intersect' },
     { mode: 'exclude', icon: 'bool-exclude', label: 'exclude' },
   ];
+  // Arrange toolbar readout: the label of the button under the pointer or with focus.
+  let arrangeHint = $state<string | null>(null);
+  function showArrangeHint(e: Event) {
+    arrangeHint = (e.target as Element).closest('button')?.getAttribute('aria-label') ?? null;
+  }
   const alignments: { how: Align; icon: string; label: string }[] = [
     { how: 'left', icon: 'align-left', label: 'Align left' },
     { how: 'hcenter', icon: 'align-hcenter', label: 'Align centers horizontally' },
@@ -628,12 +631,10 @@
       snapGuides = { x: [], y: [] };
       editor.flush();
       el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-      el.removeEventListener('pointercancel', up);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   // ── Centro de transformación: una cruz con círculo que se arrastra (⇧ = esquinas, bordes y centro)
@@ -674,10 +675,10 @@
     const up = () => {
       gesture = null;
       el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   // ── Dibujar primitivas: con una herramienta armada, arrastrar define tamaño y sitio.
@@ -730,8 +731,8 @@
     penPoints = [...penPoints, p];
     const el = e.currentTarget as HTMLElement; el.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => { const h = clientToDoc(ev.clientX, ev.clientY); if (h) penPoints[penPoints.length - 1] = { ...p, hx: 2 * q[0] - h[0], hy: 2 * q[1] - h[1] }; };
-    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
-    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
   function drawShape(e: PointerEvent) {
     const type = editor.tool;
@@ -751,7 +752,7 @@
     };
     const up = (ev: PointerEvent) => {
       el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
       draft = null;
       const end = clientToDoc(ev.clientX, ev.clientY);
       if (!start || !end) return;
@@ -761,7 +762,7 @@
       editor.addShape(type, params, center);
     };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   /** Doble clic en la herramienta: la primitiva, a su tamaño por defecto, en el centro de lo que se ve. */
@@ -870,8 +871,7 @@
       el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   // Se calculan después de pintar (con el zoom ya aplicado en el DOM), no antes.
@@ -1001,10 +1001,10 @@
       gizmoActive = false;
       gesture = null;
       el.removeEventListener('pointermove', move as EventListener);
-      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
     };
     el.addEventListener('pointermove', move as EventListener);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
   function grab(e: PointerEvent, h: Handle) {
@@ -1025,9 +1025,9 @@
       }
       editor.setParam(h.name, f);
     };
-    const up = () => { grabbing = null; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    const up = () => { grabbing = null; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
   function nudgeHandle(e: KeyboardEvent, h: Handle) {
     const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
@@ -1056,6 +1056,7 @@
   aria-label="Canvas"
   style:--canvas={editor.canvas || DEFAULT_CANVAS}
   data-wire={editor.showWire && editor.scene ? true : undefined}
+  data-empty={!editor.scene || undefined}
   data-dragging={dropping || undefined}
   ondragover={(e) => { e.preventDefault(); dropping = true; }}
   ondragleave={() => (dropping = false)}
@@ -1296,30 +1297,46 @@
     {#if editor.selectedNodes.length && !editor.tool}
       {@const n = editor.selectedNodes.length}
       {@const canBool = n > 1 || editor.selectedNodes[0]?.kind === 'group'}
-      <div class="arrange" style:top="{editor.showRulers ? 28 : 12}px" role="toolbar" aria-label="Arrange">
-        {#each alignments as a (a.how)}
-          <IconButton icon={a.icon as IconName} label={`${a.label}${n < 2 ? ' (select 2+ with ⇧)' : ''}`} disabled={n < 2} onclick={() => arrange(align(items(), a.how))} />
-        {/each}
+      <!-- Readout: says what the button under the pointer (or with focus) does, disabled ones included with
+           their reason. Native tooltips don't show on disabled buttons, so these use aria-disabled. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="arrange"
+        role="toolbar"
+        aria-label="Arrange"
+        tabindex="-1"
+        onpointerover={showArrangeHint}
+        onfocusin={showArrangeHint}
+        onpointerleave={() => (arrangeHint = null)}
+        onfocusout={() => (arrangeHint = null)}
+      >
+        <!-- With one object, align/distribute (and booleans, unless it is a group) don't apply: a short note
+             replaces those 12 disabled buttons. -->
+        {#if n >= 2}
+          {#each alignments as a (a.how)}
+            <IconButton icon={a.icon as IconName} label={a.label} title={undefined} onclick={() => arrange(align(items(), a.how))} />
+          {/each}
+          <span class="rule" aria-hidden="true"></span>
+          <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'x'))} />
+          <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'y'))} />
+        {:else}
+          <span class="arrange-note">⇧-click another object to align</span>
+        {/if}
         <span class="rule" aria-hidden="true"></span>
-        <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' (select 3+)' : ''}`} disabled={n < 3} onclick={() => arrange(distribute(items(), 'x'))} />
-        <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' (select 3+)' : ''}`} disabled={n < 3} onclick={() => arrange(distribute(items(), 'y'))} />
+        <IconButton icon="flip-h" label="Flip horizontally" title={undefined} onclick={() => editor.flip('x')} />
+        <IconButton icon="flip-v" label="Flip vertically" title={undefined} onclick={() => editor.flip('y')} />
         <span class="rule" aria-hidden="true"></span>
-        <IconButton icon="flip-h" label="Flip horizontally" onclick={() => editor.flip('x')} />
-        <IconButton icon="flip-v" label="Flip vertically" onclick={() => editor.flip('y')} />
-        <span class="rule" aria-hidden="true"></span>
-        {#each booleans as b (b.mode)}
-          <IconButton
-            icon={b.icon as IconName}
-            label={canBool ? `Boolean: ${b.label}` : `Boolean: ${b.label} (select 2+ objects or a group)`}
-            disabled={!canBool}
-            onclick={() => editor.booleanize(b.mode)}
-          />
-        {/each}
-        <span class="rule" aria-hidden="true"></span>
-        <IconButton icon="order-front" label="Bring to front (⇧⌘])" onclick={() => editor.reorder('front')} />
-        <IconButton icon="order-forward" label="Bring forward (⌘])" onclick={() => editor.reorder('forward')} />
-        <IconButton icon="order-backward" label="Send backward (⌘[)" onclick={() => editor.reorder('backward')} />
-        <IconButton icon="order-back" label="Send to back (⇧⌘[)" onclick={() => editor.reorder('back')} />
+        {#if canBool}
+          {#each booleans as b (b.mode)}
+            <IconButton icon={b.icon as IconName} label={`Boolean: ${b.label}`} title={undefined} onclick={() => editor.booleanize(b.mode)} />
+          {/each}
+          <span class="rule" aria-hidden="true"></span>
+        {/if}
+        <IconButton icon="order-front" label="Bring to front (⇧⌘])" title={undefined} onclick={() => editor.reorder('front')} />
+        <IconButton icon="order-forward" label="Bring forward (⌘])" title={undefined} onclick={() => editor.reorder('forward')} />
+        <IconButton icon="order-backward" label="Send backward (⌘[)" title={undefined} onclick={() => editor.reorder('backward')} />
+        <IconButton icon="order-back" label="Send to back (⇧⌘[)" title={undefined} onclick={() => editor.reorder('back')} />
+        {#if arrangeHint}<p class="arrange-hint" aria-hidden="true">{arrangeHint}</p>{/if}
       </div>
     {/if}
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
@@ -1340,6 +1357,8 @@
   }
   /* Wire view: a fixed dark background behind the grey wires, whatever canvas colour the user picked. */
   .canvas[data-wire] { background: var(--sv-surface-field); }
+  /* No scene yet: the night console, not the default document colour (which new documents still get). */
+  .canvas[data-empty] { background: var(--sv-surface-app); }
   .canvas[data-dragging] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -8px; }
   .composition-back { position: absolute; z-index: 20; top: var(--sv-space-12); right: var(--sv-space-12); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 88%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
   .composition-back:hover { border-color: var(--sv-accent-fill); }
@@ -1433,9 +1452,11 @@
   }
   .corner-gizmo .gizmo { position: static; display: block; width: auto; height: auto; opacity: 1; }
   /* Organizar: arriba, en el centro del lienzo, mientras haya algo seleccionado. */
+  /* Docked to the canvas bottom: that band (56 px) always fits it, with or without rulers, so it never
+     covers a fitted artboard. */
   .arrange {
     position: absolute;
-    top: var(--sv-space-12);
+    bottom: var(--sv-space-12);
     left: 50%;
     translate: -50% 0;
     z-index: 2;
@@ -1447,6 +1468,24 @@
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .arrange .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-4); background: var(--sv-rule-default); }
+  .arrange-note { padding: 0 var(--sv-space-6); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
+  .arrange-hint {
+    position: absolute;
+    bottom: 100%;
+    left: -1px;
+    right: -1px;
+    margin: 0;
+    padding: var(--sv-space-4) var(--sv-space-8);
+    color: var(--sv-text-secondary);
+    font-size: var(--sv-font-size-10);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    border-bottom: 0;
+    pointer-events: none;
+  }
   /* Esquinas: escalar; lados: estirar un eje; al exterior de las esquinas: rotar. */
   .corner,
   .rotate { position: absolute; translate: -50% -50%; }

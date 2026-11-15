@@ -227,7 +227,7 @@
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
   .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .head { margin: 0; color: var(--sv-text-muted); }
-  .empty { margin: 0; color: var(--sv-text-disabled); }
+  .empty { margin: 0; color: var(--sv-text-muted); }
   .pal { width: 100%; height: 20px; padding: 0 var(--sv-space-4); font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); outline: none; cursor: pointer; }
   .pal:hover { border-color: var(--sv-rule-strong); }
   .pal:focus-visible { border-color: var(--sv-accent-fill); }

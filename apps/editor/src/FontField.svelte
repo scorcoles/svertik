@@ -148,5 +148,5 @@
   .more, .foot { margin: 0; padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .foot { border-top: var(--sv-border-1) solid var(--sv-rule-default); }
   .dim { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .warn { margin: var(--sv-space-4) var(--sv-space-8); color: var(--sv-signal-warning, #ffd166); font-size: var(--sv-font-size-10); }
+  .warn { margin: var(--sv-space-4) var(--sv-space-8); color: var(--sv-signal-warning); font-size: var(--sv-font-size-10); }
 </style>
