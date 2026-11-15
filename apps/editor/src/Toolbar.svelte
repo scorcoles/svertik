@@ -19,7 +19,11 @@
     onnew: () => void;
   }
   let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
+  let fullscreen = $state(false);
+  const toggleFullscreen = () => fullscreen ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.();
 </script>
+
+<svelte:window onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
 <header class="toolbar">
   <div class="doc">
@@ -57,6 +61,7 @@
   <IconButton icon="redo" label="Redo (⇧⌘Z)" disabled={!editor.canRedo} onclick={() => editor.redo()} />
   {#if editor.scene}<EffectsToolbar {editor} />{/if}
   <span class="spacer"></span>
+  <IconButton icon={fullscreen ? 'restore' : 'maximize'} label={fullscreen ? 'Exit full screen' : 'Enter full screen'} onclick={toggleFullscreen} />
   <button class="play-button" type="button" disabled={!editor.scene} onclick={() => { editor.playing = false; editor.presenting = true; }} title="Play full screen (Esc to exit)">
     <Icon name="play" /> Play
   </button>
