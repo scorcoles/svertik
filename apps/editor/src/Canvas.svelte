@@ -129,7 +129,8 @@
     return () => ro.disconnect();
   });
   // Margen alrededor del dibujo (igual que en el CSS de .view): el encaje se mide dentro.
-  const INSET = $derived({ left: editor.showRulers ? 20 : 48, top: editor.showRulers ? 20 : 48, right: 48, bottom: 56 });
+  // La regla mide 20 px y su separador ocupa 1 px: Fit comienza al otro lado del borde.
+  const INSET = $derived({ left: editor.showRulers ? 21 : 48, top: editor.showRulers ? 21 : 48, right: 48, bottom: 56 });
   const box = $derived([stageSize[0] - INSET.left - INSET.right, stageSize[1] - INSET.top - INSET.bottom] as const);
   const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
   const percent = $derived(Math.round(fit * view.zoom * 100));
@@ -414,11 +415,11 @@
     const raw = 64 / scale;
     const power = 10 ** Math.floor(Math.log10(raw));
     const step = [1, 2, 5, 10].map((n) => n * power).find((n) => n >= raw) ?? 10 * power;
-    const rulerTop = editor.showRulers ? 20 : 48;
+    const rulerTop = INSET.top;
     const x0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[0] ?? 0;
     const x1 = clientToDoc(rect.right, rect.top + rulerTop)?.[0] ?? 0;
     const y0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[1] ?? 0;
-    const y1 = clientToDoc(rect.left + 48, rect.bottom)?.[1] ?? 0;
+    const y1 = clientToDoc(rect.left + INSET.left, rect.bottom)?.[1] ?? 0;
     const make = (a: number, b: number, axis: 'x' | 'y'): RulerTick[] => {
       const lo = Math.min(a, b), hi = Math.max(a, b);
       const first = Math.ceil(lo / step) * step;
@@ -1051,7 +1052,7 @@
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
-      <div class="view" style:inset="{editor.showRulers ? '20px 48px 56px 20px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
+      <div class="view" style:inset="{editor.showRulers ? '21px 48px 56px 21px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
         {#if editor.showBounds}
@@ -1111,21 +1112,21 @@
           {@const p = docToStage(value, 0)}
           {#if p}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <line class="guide-hit" x1={p[0]} y1={editor.showRulers ? 20 : 0} x2={p[0]} y2={stageSize[1]} onpointerdown={(e) => dragGuide('x', e, i)} ondblclick={(e) => removeGuide('x', i, e)}><title>Drag to move · Double-click to remove</title></line>
-            <line class="guide-line" x1={p[0]} y1={editor.showRulers ? 20 : 0} x2={p[0]} y2={stageSize[1]} />
+            <line class="guide-hit" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} onpointerdown={(e) => dragGuide('x', e, i)} ondblclick={(e) => removeGuide('x', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-line" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} />
           {/if}
         {/each}
         {#each editor.scene?.guides?.y ?? [] as value, i (`y-${i}`)}
           {@const p = docToStage(0, value)}
           {#if p}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <line class="guide-hit" x1={editor.showRulers ? 20 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} onpointerdown={(e) => dragGuide('y', e, i)} ondblclick={(e) => removeGuide('y', i, e)}><title>Drag to move · Double-click to remove</title></line>
-            <line class="guide-line" x1={editor.showRulers ? 20 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} />
+            <line class="guide-hit" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} onpointerdown={(e) => dragGuide('y', e, i)} ondblclick={(e) => removeGuide('y', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-line" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} />
           {/if}
         {/each}
         {#if guideDrag}
           {@const p = guideDrag.axis === 'x' ? docToStage(guideDrag.value, 0) : docToStage(0, guideDrag.value)}
-          {#if p}<line class="guide-preview" x1={guideDrag.axis === 'x' ? p[0] : (editor.showRulers ? 20 : 0)} y1={guideDrag.axis === 'x' ? (editor.showRulers ? 20 : 0) : p[1]} x2={guideDrag.axis === 'x' ? p[0] : stageSize[0]} y2={guideDrag.axis === 'x' ? stageSize[1] : p[1]} />{/if}
+          {#if p}<line class="guide-preview" x1={guideDrag.axis === 'x' ? p[0] : (editor.showRulers ? 21 : 0)} y1={guideDrag.axis === 'x' ? (editor.showRulers ? 21 : 0) : p[1]} x2={guideDrag.axis === 'x' ? p[0] : stageSize[0]} y2={guideDrag.axis === 'x' ? stageSize[1] : p[1]} />{/if}
         {/if}
       </svg>
       {/if}
