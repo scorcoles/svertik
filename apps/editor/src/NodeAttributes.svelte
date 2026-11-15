@@ -312,7 +312,7 @@
           onclick={() => editor.expand(node.id)}
         />
       {/if}
-      {#if node.kind === 'shape'}<Button label="Convert to outlines" title="Turn it into editable paths (each letter, a path). Its effects stay." onclick={() => editor.outline(node.id)} />{/if}
+      {#if node.kind === 'shape'}<Button label="Convert to path" title="Bake this primitive into SVG paths. Position and effects stay; shape parameters can no longer be edited." onclick={() => editor.outline(node.id)} />{/if}
       <Button label="Pack" onclick={() => editor.pack(node.id)} />
     {/if}
     {#if node.kind === 'group' && !node.composition}

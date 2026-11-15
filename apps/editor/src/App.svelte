@@ -525,7 +525,7 @@
     onexportlottie={exportLottie}
     onexportanimsvg={exportAnimatedSVG}
     ondemo={openDemo}
-    onnew={() => guard(() => editor.newFile())}
+    onnew={() => guard(() => editor.returnToStart())}
   />
   <main class:panel-maximized={panelMaximized}>
     {#if !panelMaximized}<ModifierRail {editor} {placeAtCenter} />{/if}

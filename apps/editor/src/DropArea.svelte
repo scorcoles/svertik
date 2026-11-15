@@ -2,7 +2,7 @@
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
   import { Button, Icon } from '@svertik/ui';
-  import type { Editor } from './editor.svelte';
+  import { DEFAULT_DOCUMENT, type Editor } from './editor.svelte';
   import type { DemoName } from './demo-catalog';
 
   interface Props {
@@ -12,6 +12,8 @@
     showWelcome?: boolean;
   }
   let { editor, onimport, ondemo, showWelcome = false }: Props = $props();
+  let width = $state(DEFAULT_DOCUMENT.width);
+  let height = $state(DEFAULT_DOCUMENT.height);
 </script>
 
 <div class="drop" class:without-welcome={!showWelcome}>
@@ -25,17 +27,28 @@
     <strong>Drop an SVG or a .svrtk project here</strong>
     <span class="muted">or paste it (⌘V), or draw with the tools on the left</span>
     <div class="start">
-      <Button kind="primary" label="Choose file…" onclick={onimport} />
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          {#snippet child({ props })}<Button {...props} label="Demos ▾" />{/snippet}
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
-            <DemoItems {ondemo} />
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+      <div class="open-document">
+        <Button kind="primary" label="Choose file…" onclick={onimport} />
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            {#snippet child({ props })}<Button {...props} label="Demos ▾" />{/snippet}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
+              <DemoItems {ondemo} />
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
+      <span class="separator" aria-hidden="true"></span>
+      <div class="new-document">
+        <span class="row-label">New scene</span>
+        <label class="dimension">W <input type="number" min="1" max="10000" bind:value={width} aria-label="Document width" /></label>
+        <span class="times" aria-hidden="true">×</span>
+        <label class="dimension">H <input type="number" min="1" max="10000" bind:value={height} aria-label="Document height" /></label>
+        <span class="unit">px</span>
+        <Button kind="primary" label="Create" onclick={() => editor.newFile(width, height)} />
+      </div>
     </div>
     {#if editor.error}<p class="error" role="alert">{editor.error}</p>{/if}
   </div>
@@ -47,7 +60,7 @@
     justify-items: center;
     gap: var(--sv-space-12);
     width: min(560px, calc(100% - 32px));
-    padding: 0 0 var(--sv-space-32);
+    padding: 0 0 var(--sv-space-24);
     color: var(--sv-text-muted);
     text-align: center;
     background: var(--sv-surface-panel);
@@ -68,6 +81,8 @@
     display: grid;
     justify-items: center;
     gap: var(--sv-space-12);
+    width: 100%;
+    box-sizing: border-box;
     padding: 0 var(--sv-space-24, 24px);
   }
   .icon {
@@ -83,10 +98,20 @@
     font-size: var(--sv-font-size-12);
   }
   .start {
-    display: flex;
-    gap: var(--sv-space-8);
+    display: grid;
+    width: 100%;
+    justify-items: center;
+    gap: 0;
     margin-top: var(--sv-space-4);
   }
+  .open-document { display: flex; justify-content: center; gap: var(--sv-space-8); }
+  .new-document { display: flex; align-items: center; gap: var(--sv-space-8); padding: var(--sv-space-4) 0; }
+  .row-label { margin-right: var(--sv-space-4); color: var(--sv-text-primary); font-size: var(--sv-font-size-10); }
+  .dimension { display: flex; align-items: center; gap: 5px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .dimension input { width: 70px; height: 32px; padding: 0 8px; color: var(--sv-text-primary); background: var(--sv-surface-base); border: 1px solid color-mix(in srgb, var(--sv-text-muted) 55%, transparent); font: inherit; }
+  .times, .unit { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .separator { width: calc(100% + var(--sv-space-24) + var(--sv-space-24)); height: 1px; margin: var(--sv-space-24) 0 var(--sv-space-16); background: color-mix(in srgb, var(--sv-text-muted) 55%, transparent); }
+  @media (max-width: 520px) { .new-document { flex-wrap: wrap; justify-content: center; } .row-label { flex-basis: 100%; } }
   .error {
     margin: 0;
     color: var(--sv-signal-error);

@@ -1982,11 +1982,21 @@ export class Editor {
     this.flush();
     return !!this.scene && this.#history[this.#index] !== this.#saved;
   }
-  /** Archivo nuevo: lienzo vacío, sin historial. */
-  newFile() {
+  /** Vuelve a la pantalla inicial para abrir un proyecto o crear una escena nueva. */
+  returnToStart() {
+    this.scene = null;
+    this.selected = null;
+    this.also = [];
+    this.playing = false;
+    this.time = 0;
     this.compositionPath = [];
     this.#compositionViews = [];
-    this.scene = newScene();
+  }
+  /** Archivo nuevo: lienzo vacío, sin historial. */
+  newFile(width = DEFAULT_DOCUMENT.width, height = DEFAULT_DOCUMENT.height) {
+    this.compositionPath = [];
+    this.#compositionViews = [];
+    this.scene = { ...newScene(), document: { width: Math.max(1, Math.min(10000, Number(width) || DEFAULT_DOCUMENT.width)), height: Math.max(1, Math.min(10000, Number(height) || DEFAULT_DOCUMENT.height)) } };
     this.name = 'untitled';
     this.script = DEFAULT_SCRIPT;
     this.selected = null;

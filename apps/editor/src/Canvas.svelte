@@ -212,7 +212,8 @@
   };
   function keydown(e: KeyboardEvent) {
     if (typing(e) || !editor.scene || editor.presenting) return;
-    if (e.key === 'Escape' && editor.tool) { editor.tool = null; e.preventDefault(); }
+    if (e.key === 'Escape' && editor.tool) { penPoints = []; editor.tool = null; e.preventDefault(); }
+    else if (e.key === 'Enter' && editor.tool === 'pen' && penPoints.length >= 2) { e.preventDefault(); finishPen(); }
     else if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) { editor.tool = null; }
     else if (e.code === 'Space' && !e.repeat) { space = true; e.preventDefault(); }
     else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
@@ -504,6 +505,25 @@
 
   /** La forma que se está dibujando: trazado y estilo, ya colocada en el documento. */
   let draft = $state<{ d: string; fill: string; stroke?: string; width?: string; x: number; y: number } | null>(null);
+  let penPoints = $state<{ x: number; y: number; hx: number; hy: number }[]>([]);
+  let penPreview = $derived(penPoints.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${penPoints[i - 1]!.hx} ${penPoints[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' '));
+  function finishPen() {
+    if (penPoints.length < 2 || !editor.scene) return;
+    const d = penPoints.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${penPoints[i - 1]!.hx} ${penPoints[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' ');
+    const b = docViewBox;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${b.join(' ')}"><path d="${d}" fill="none" stroke="${editor.strokeColor}" stroke-width="${editor.strokeOn ? 2 : 1}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    editor.load(svg, 'Path'); penPoints = []; editor.tool = null;
+  }
+  function drawPen(e: PointerEvent) {
+    const q = clientToDoc(e.clientX, e.clientY); if (!q) return;
+    e.preventDefault();
+    const p = { x: q[0], y: q[1], hx: q[0], hy: q[1] };
+    penPoints = [...penPoints, p];
+    const el = e.currentTarget as HTMLElement; el.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => { const h = clientToDoc(ev.clientX, ev.clientY); if (h) penPoints[penPoints.length - 1] = { ...p, hx: 2 * q[0] - h[0], hy: 2 * q[1] - h[1] }; };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+  }
   function drawShape(e: PointerEvent) {
     const type = editor.tool;
     if (!type || !stage) return;
@@ -548,6 +568,7 @@
 
   function pick(e: PointerEvent) {
     if (space || e.button !== 0 || !editor.scene) return;
+    if (editor.tool === 'pen') return drawPen(e);
     if (editor.tool) return drawShape(e);
     const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
     if (!id) {
@@ -802,6 +823,9 @@
             <path d={draft.d} transform="translate({draft.x} {draft.y})" fill={draft.fill} stroke={draft.stroke} stroke-width={draft.width} stroke-linejoin="round" stroke-linecap="round" />
             <path class="outline" d={draft.d} transform="translate({draft.x} {draft.y})" />
           </svg>
+        {/if}
+        {#if penPoints.length}
+          <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true"><path d={penPreview} fill="none" stroke="var(--sv-accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
         {/if}
       </div>
       {#if editor.editingText && editor.scene}

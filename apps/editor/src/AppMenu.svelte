@@ -21,7 +21,7 @@
   let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportlottie, onexportanimsvg, oncopyjson, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
-    { label: 'New', icon: 'plus', run: onnew, needs: true },
+    { label: 'New scene', icon: 'plus', run: onnew, needs: true },
     { label: 'Open project or import SVG…', icon: 'import', key: '⌘O', run: onopen },
     { label: 'Save project (.svrtk)', icon: 'save', key: '⌘S', run: onsave, needs: true },
     'sep',
