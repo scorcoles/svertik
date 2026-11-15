@@ -20,7 +20,6 @@
 <div class="tools" role="toolbar" aria-label="Primitives" aria-orientation="vertical">
   <!-- Seleccionar (y mover): sin herramienta de dibujo armada. Tras crear una primitiva se vuelve aquí. -->
   <IconButton icon="select" label="Select (V or Esc)" active={!editor.tool} onclick={() => (editor.tool = null)} />
-  <IconButton icon="pencil" label="Pen — click to add points, drag to set Bézier handles, Enter to finish" active={editor.tool === 'pen'} onclick={() => (editor.tool = editor.tool === 'pen' ? null : 'pen')} />
   <span class="sep" aria-hidden="true"></span>
   {#each shapes as s (s.type)}
     <!-- Doble clic: la primitiva aparece en el centro del lienzo, lista para editar. -->

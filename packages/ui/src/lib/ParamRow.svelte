@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { scrub as scrubValue } from './scrub';
 
   interface Props {
     label: string;
@@ -10,9 +11,30 @@
     /** Animación: rombo a la izquierda (sin animar, animado o con clave en este instante). */
     keyState?: 'none' | 'animated' | 'key';
     onkey?: () => void;
+    scrub?: { value: number; step: number; min?: number; max?: number; onchange: (value: number) => void };
     children?: Snippet;
   }
-  let { label, for: htmlFor, tall = false, keyState, onkey, children }: Props = $props();
+  let { label, for: htmlFor, tall = false, keyState, onkey, scrub, children }: Props = $props();
+  let scrubStart: { x: number; value: number; pointerId: number } | null = null;
+  let scrubMoved = false;
+  function scrubDown(e: PointerEvent) {
+    if (!scrub || e.button !== 0 || e.target instanceof HTMLElement && e.target.closest('button')) return;
+    scrubStart = { x: e.clientX, value: scrub.value, pointerId: e.pointerId };
+    scrubMoved = false;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function scrubMove(e: PointerEvent) {
+    if (!scrubStart || !scrub) return;
+    const dx = e.clientX - scrubStart.x;
+    if (!scrubMoved && Math.abs(dx) < 3) return;
+    scrubMoved = true;
+    scrub.onchange(scrubValue(scrubStart.value, dx, { step: scrub.step, min: scrub.min, max: scrub.max, coarse: e.shiftKey, fine: e.altKey }));
+  }
+  function scrubUp(e: PointerEvent) {
+    if (!scrubStart) return;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    scrubStart = null;
+  }
 </script>
 
 <div class="sv-param" data-tall={tall || undefined} data-keyed={onkey ? true : undefined}>
@@ -26,7 +48,7 @@
       onclick={onkey}
     ></button>
   {/if}
-  <label for={htmlFor}>{label}</label>
+  <label for={htmlFor} data-scrubbable={!!scrub || undefined} onpointerdown={scrubDown} onpointermove={scrubMove} onpointerup={scrubUp} onpointercancel={scrubUp}>{label}</label>
   <div class="control">{@render children?.()}</div>
 </div>
 
@@ -74,5 +96,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  label[data-scrubbable] { cursor: ew-resize; user-select: none; }
   .control { flex: 1; display: flex; align-items: center; gap: var(--sv-space-8); min-width: 0; }
 </style>

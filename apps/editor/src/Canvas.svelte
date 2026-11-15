@@ -224,6 +224,7 @@
   const isText = (n: SceneNode | null | undefined): n is SceneNode & { kind: 'shape' } => n?.kind === 'shape' && n.shape === 'text';
   /** Doble clic en un texto: escribir en él, sobre el lienzo. */
   function dblclick(e: MouseEvent) {
+    if (editor.tool === 'pen') { e.preventDefault(); finishPen(); return; }
     // Lo que hay bajo el puntero (no e.target: al pulsar, el escenario captura el puntero para arrastrar
     // y el doble clic le llega a él, no a la letra).
     const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('path[data-node]'));
@@ -510,9 +511,15 @@
   let penPreview = $derived(penPoints.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${penPoints[i - 1]!.hx} ${penPoints[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' '));
   function finishPen() {
     if (penPoints.length < 2 || !editor.scene) return;
-    const d = penPoints.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${penPoints[i - 1]!.hx} ${penPoints[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' ');
+    const points = [...penPoints];
+    const last = points.at(-1)!, before = points.at(-2)!;
+    // A double-click lands two anchors at nearly the same place; keep just one.
+    if (Math.hypot(last.x - before.x, last.y - before.y) < 1) points.pop();
+    if (points.length < 2) return;
+    const d = points.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${points[i - 1]!.hx} ${points[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' ');
     const b = docViewBox;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${b.join(' ')}"><path d="${d}" fill="none" stroke="${editor.strokeColor}" stroke-width="${editor.strokeOn ? 2 : 1}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const color = editor.strokeOn ? editor.strokeColor : editor.fillColor;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${b.join(' ')}"><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     editor.load(svg, 'Path'); penPoints = []; editor.tool = null;
   }
   function drawPen(e: PointerEvent) {
@@ -829,9 +836,12 @@
           </svg>
         {/if}
         {#if penPoints.length}
-          <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true"><path d={penPreview} fill="none" stroke="var(--sv-accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+          <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true"><path d={penPreview} fill="none" stroke={editor.strokeOn ? editor.strokeColor : editor.fillColor} stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
         {/if}
       </div>
+      {#if editor.tool === 'pen' && penPoints.length >= 2}
+        <button class="finish-pen" type="button" onclick={finishPen}>Finish path <kbd>Enter</kbd></button>
+      {/if}
       {#if editor.editingText && editor.scene}
         {@const tn = locateNode(editor.scene.objects, editor.editingText)?.node}
         {@const ti = nodes.get(editor.editingText)}
@@ -1014,6 +1024,9 @@
   .stage[data-tool] { cursor: crosshair; }
   .stage[data-tool] :global(path[data-node]) { cursor: crosshair; }
   .draft { pointer-events: none; }
+  .finish-pen { position: absolute; right: var(--sv-space-12); bottom: var(--sv-space-12); z-index: 12; display: flex; align-items: center; gap: var(--sv-space-8); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 90%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
+  .finish-pen:hover { border-color: var(--sv-accent-fill); }
+  .finish-pen kbd { color: var(--sv-text-muted); font: inherit; font-size: var(--sv-font-size-10); }
   .guides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .guides polyline { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .guides polyline.under { stroke: rgb(0 0 0 / 0.75); stroke-width: 5; }
