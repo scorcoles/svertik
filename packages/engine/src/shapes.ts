@@ -458,7 +458,10 @@ function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: V
   // Centred on the origin (by the ink), like the other primitives.
   const all = parts.flat();
   if (!all.length) return { parts, origin: anchor };
-  const pts = all.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]);
+  // Match `bounds()`'s geometry box, which includes Bézier control points. If we centre only on
+  // segment endpoints here, then bounds() computes a slightly different centre for each changing
+  // glyph (e.g. a live timer), and placement around the object centre produces visible micro-jitter.
+  const pts = all.flatMap((sp) => [sp.start, ...sp.segs.flatMap((g) => [g.c1, g.c2, g.p])]);
   const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
   const f = (q: Vec2): Vec2 => [q[0] - cx, q[1] - cy];
