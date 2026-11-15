@@ -73,8 +73,8 @@ function placementMatrix(p: Placement, ref: Bounds, anchor: [number, number], or
   return multiply(translate(a[0] + p.x, a[1] + p.y), multiply(linearOf(p), translate(-pv[0], -pv[1])));
 }
 
-/** The linear part of the placement: rotation, scale and flip. */
-export const linearOf = (p: Placement): Mat => multiply(rotateScale(p.rotation, p.scale), [p.flipX ? -1 : 1, 0, 0, p.flipY ? -1 : 1, 0, 0]);
+/** The linear part of the placement: rotation, scale, stretch and flip. */
+export const linearOf = (p: Placement): Mat => multiply(rotateScale(p.rotation, p.scale), [(p.flipX ? -1 : 1) * (p.stretch?.[0] ?? 1), 0, 0, (p.flipY ? -1 : 1) * (p.stretch?.[1] ?? 1), 0, 0]);
 
 /** The pivot in the node's local coordinates. */
 export const pivotPoint = (ref: Bounds, pivot: [number, number] | undefined): [number, number] => {

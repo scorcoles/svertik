@@ -1128,7 +1128,7 @@ export class Editor {
   }
 
   /** Posición, escala, giro, opacidad, visibilidad o nombre de un nodo. */
-  setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'flipX' | 'flipY' | 'opacity' | 'visible' | 'name' | 'blend', value: unknown, now = false) {
+  setNode(id: string, key: 'x' | 'y' | 'scale' | 'stretch' | 'rotation' | 'flipX' | 'flipY' | 'opacity' | 'visible' | 'name' | 'blend', value: unknown, now = false) {
     if (this.isLocked(id)) return;
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at) return;
@@ -1139,6 +1139,13 @@ export class Editor {
     else if (key === 'blend') {
       if (value === 'normal') delete n.blend;
       else n.blend = value as BlendMode;
+    }
+    else if (key === 'stretch') {
+      const [sx, sy] = value as [number, number];
+      const t = { ...n.transform };
+      if (sx === 1 && sy === 1) delete t.stretch;
+      else t.stretch = [Math.max(0.01, sx), Math.max(0.01, sy)];
+      n.transform = t;
     }
     else n.transform = { ...n.transform, [key]: value as number };
     if (key === 'x' || key === 'y' || key === 'scale' || key === 'rotation' || key === 'opacity') this.#autoKey({ node: id, on: 'node', param: key }, value);

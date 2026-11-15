@@ -394,14 +394,20 @@
 
   type Corner = 'nw' | 'ne' | 'se' | 'sw';
   const corners: Corner[] = ['nw', 'ne', 'se', 'sw'];
+  type Edge = 'n' | 'e' | 's' | 'w';
+  const edges: Edge[] = ['n', 'e', 's', 'w'];
   const cornerAt = (c: Corner, b: { x: number; y: number; w: number; h: number }) => ({
     x: c === 'nw' || c === 'sw' ? b.x : b.x + b.w,
     y: c === 'nw' || c === 'ne' ? b.y : b.y + b.h,
   });
+  const edgeAt = (edge: Edge, b: { x: number; y: number; w: number; h: number }) => ({
+    x: edge === 'w' ? b.x : edge === 'e' ? b.x + b.w : b.x + b.w / 2,
+    y: edge === 'n' ? b.y : edge === 's' ? b.y + b.h : b.y + b.h / 2,
+  });
   /** Lo que se está haciendo con el recuadro, para el rótulo junto al puntero. */
   let gesture = $state<{ text: string; x: number; y: number; left?: boolean } | null>(null);
 
-  function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate') {
+  function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate' | 'stretch-x' | 'stretch-y') {
     const node = editor.currentNode && nodes.has(editor.currentNode.id) ? editor.currentNode : editor.selectedNodes.find(n => nodes.has(n.id));
     const info = node ? nodes.get(node.id) : undefined;
     if (!node || !info || !stage || space) return;
@@ -427,14 +433,16 @@
     const move = (ev: PointerEvent) => {
       const [x, y] = at(ev);
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
-      if (mode === 'scale') {
+      if (mode === 'scale' || mode === 'stretch-x' || mode === 'stretch-y') {
         const doc = clientToDoc(ev.clientX, ev.clientY);
-        if (ev.shiftKey && !multiple && localStart && doc) {
+        const freeform = mode === 'stretch-x' || mode === 'stretch-y' || (ev.shiftKey && !multiple);
+        if (freeform && !multiple && localStart && doc) {
           const local = apply(toLocal, doc);
           const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * Math.max(0.01, Math.abs((local[0] - localPivot[0]) / (localStart[0] - localPivot[0] || 1)));
           const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * Math.max(0.01, Math.abs((local[1] - localPivot[1]) / (localStart[1] - localPivot[1] || 1)));
-          editor.setNode(node.id, 'stretch', [sx, sy]);
-          gesture = { text: `${sx.toFixed(2)} × ${sy.toFixed(2)}`, ...label };
+          const next: [number, number] = [mode === 'stretch-y' ? (p0.stretch?.[0] ?? 1) : sx, mode === 'stretch-x' ? (p0.stretch?.[1] ?? 1) : sy];
+          editor.setNode(node.id, 'stretch', next);
+          gesture = { text: `${next[0].toFixed(2)} × ${next[1].toFixed(2)}`, ...label };
           return;
         }
         const factor = Math.max(0.01, Math.hypot(x, y) / d0);
@@ -893,6 +901,22 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale (hold ⇧ to stretch freely)" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
         {/each}
+        {#if editor.selectedNodes.length < 2}
+          {#each edges as edge (edge)}
+            {@const p = edgeAt(edge, selection)}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <span
+              class="edge-zone"
+              data-edge={edge}
+              style:left="{p.x}px"
+              style:top="{p.y}px"
+              style:width="{edge === 'n' || edge === 's' ? Math.max(12, selection.w - 24) : 16}px"
+              style:height="{edge === 'e' || edge === 'w' ? Math.max(12, selection.h - 24) : 16}px"
+              title={edge === 'n' || edge === 's' ? 'Stretch height' : 'Stretch width'}
+              onpointerdown={(e) => transformFrom(e, edge === 'n' || edge === 's' ? 'stretch-y' : 'stretch-x')}
+            ></span>
+          {/each}
+        {/if}
       {/if}
       {#if pivotAt && selection && !editor.tool && !editor.current && editor.selectedNodes.length < 2}
         <button
@@ -1135,7 +1159,7 @@
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .arrange .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-4); background: var(--sv-rule-default); }
-  /* Esquinas: escalar. Un poco más allá de cada una (la zona grande, debajo): rotar. */
+  /* Esquinas: escalar; lados: estirar un eje; al exterior de las esquinas: rotar. */
   .corner,
   .rotate { position: absolute; translate: -50% -50%; }
   .corner { width: 7px; height: 7px; background: var(--sv-accent-fill); }
@@ -1144,6 +1168,11 @@
   .corner[data-corner='se'] { cursor: nwse-resize; }
   .corner[data-corner='ne'],
   .corner[data-corner='sw'] { cursor: nesw-resize; }
+  .edge-zone { position: absolute; z-index: 1; translate: -50% -50%; }
+  .edge-zone[data-edge='n'],
+  .edge-zone[data-edge='s'] { cursor: ns-resize; }
+  .edge-zone[data-edge='e'],
+  .edge-zone[data-edge='w'] { cursor: ew-resize; }
   .rotate {
     width: 28px;
     height: 28px;
@@ -1155,6 +1184,7 @@
   .rotate[data-corner='se'] { translate: -20% -20%; }
   .rotate[data-corner='sw'] { translate: -80% -20%; }
   .stage[data-space] .corner,
+  .stage[data-space] .edge-zone,
   .stage[data-space] .rotate { pointer-events: none; }
   .gesture[data-left] { translate: -100% 0; }
   .gesture {

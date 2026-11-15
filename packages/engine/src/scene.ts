@@ -22,6 +22,8 @@ export interface Placement {
   /** Horizontal flip (mirror left ↔ right), around the node's centre. */
   flipX?: boolean;
   flipY?: boolean;
+  /** Non-uniform scale on top of `scale`: [x, y] factors along the node's own axes. [1, 1] by default. */
+  stretch?: [number, number];
   /** Transform origin (rotation, scale, flip), in fractions of the node's box. The centre by default. */
   pivot?: [number, number];
 }
