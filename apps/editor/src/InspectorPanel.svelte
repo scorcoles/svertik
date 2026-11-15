@@ -4,8 +4,7 @@
   import DocumentAttributes from './DocumentAttributes.svelte';
   import StackPanel from './StackPanel.svelte';
 
-  let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
-  let active = $state<'stack' | 'document'>('stack');
+  let { editor, onreplace, active = $bindable<'stack' | 'document'>('stack') }: { editor: Editor; onreplace: () => void; active?: 'stack' | 'document' } = $props();
 
   // Divider between the stack and the attributes: the stack's max height, as % of the column. The browser
   // remembers it (a per-person convenience; without storage it falls back to 50%).

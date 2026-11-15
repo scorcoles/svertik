@@ -31,6 +31,11 @@
   // Lo publica el lienzo: poner una primitiva en el centro de lo que se ve (doble clic en el rail).
   let placeAtCenter = $state<((type: string) => void) | undefined>(undefined);
   let canvasStatus = $state<CanvasStatus | null>(null);
+  let inspectorTab = $state<'stack' | 'document'>('stack');
+  function showDocumentTab() {
+    canvasStatus?.clearSelection();
+    inspectorTab = 'document';
+  }
   // El panel de código se carga en su propio chunk (sólo cuando se abre): CodeMirror y el resto del
   // panel no van en el arranque, sino en la fase de la UI.
   let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>; maximized: boolean; onmaximize: () => void; ondiagnostic: (source: string, level: 'error' | 'warning', message: string, stack?: string) => void; onactivity: (action: string, detail?: string) => void }> | undefined>(undefined);
@@ -617,7 +622,7 @@
       {#if !panelMaximized && editor.timelineOpen && editor.scene}<Timeline {editor} />{/if}
     </div>
     {#if !panelMaximized}<aside class="inspector">
-      <InspectorPanel {editor} onreplace={() => replaceInput.click()} />
+      <InspectorPanel {editor} bind:active={inspectorTab} onreplace={() => replaceInput.click()} />
     </aside>{/if}
   </main>
   <footer class="status" class:no-inspector={panelMaximized}>
@@ -628,7 +633,7 @@
         <button type="button" onclick={canvasStatus.fit} title="Fit (⇧1)">Fit</button>
         <button type="button" onclick={canvasStatus.actualSize} title="100% (⇧0)">100%</button>
         <button type="button" class="redraw" onclick={canvasStatus.redraw} title="Redraw everything" aria-label="Redraw">↻</button>
-        <button type="button" class="size" title="Document: size and canvas" onclick={canvasStatus.clearSelection}>{canvasStatus.width} × {canvasStatus.height}</button>
+        <button type="button" class="size" title="Document: size and canvas" onclick={showDocumentTab}>{canvasStatus.width} × {canvasStatus.height}</button>
         {#if canvasStatus.cost !== null}
           <span class="cost" data-slow={canvasStatus.slow || undefined} title={canvasStatus.slow ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects' : 'Time to evaluate and draw'}>
             {canvasStatus.slow ? '⚠ ' : ''}{Math.round(canvasStatus.cost)} ms
