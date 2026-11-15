@@ -234,13 +234,23 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
       if (node.kind === 'shape') {
         params(node.params);
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
-          // Dynamic values such as clocks change the visible ink bounds every frame. The default
-          // `ink` anchor recentres those changing outlines and makes even monospaced text appear
-          // to micro-jitter. Keep the evaluated copy on the stable typographic centre instead.
-          if (node.params.anchor === undefined || node.params.anchor === 'ink') node.params.anchor = 'center';
+          // Dynamic values such as clocks can change the string width as digits are added. Pin the
+          // evaluated copy to its typographic left edge so the readout grows to the right without
+          // shifting its existing characters. Explicit left/center/right anchors remain respected.
+          if (node.params.anchor === undefined || node.params.anchor === 'ink') node.params.anchor = 'left';
+          const rate = Math.max(1, Math.min(60, Math.round(Number(node.params.updateRate) || 12)));
+          // Runtime marker: the document evaluator pins the default transform pivot to this text anchor.
+          node.params.updateRate = rate;
+          const time = Math.floor(context.time * rate + 1e-9) / rate;
+          const textContext: ExpressionContext = {
+            ...context,
+            time,
+            frame: Math.floor(time * fps + 1e-9),
+            progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
+          };
           node.params.text = node.params.text.replace(/\{\{([\s\S]*?)\}\}/g, (whole, source: string) => {
             try {
-              return evaluateTextExpression(source.trim(), context);
+              return evaluateTextExpression(source.trim(), textContext);
             } catch { return whole; }
           });
         }

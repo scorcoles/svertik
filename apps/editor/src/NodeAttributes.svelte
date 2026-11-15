@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BLEND_MODES, EASES, apply, compositionParams, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
+import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
@@ -33,7 +33,7 @@
   const original = $derived(node.kind === 'instance' ? others.find((n) => n.id === node.of) : undefined);
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
-  const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
+  const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => !s.group && (n !== 'updateRate' || (node.kind === 'shape' && node.shape === 'text' && hasTextExpressions(node.params.text)))));
   const shapeGenerator = $derived([
     ...Object.entries(shapeDef?.params ?? {}).filter(([n]) => shapeDef?.timeDriven && (n === 'fill' || n === 'direction')),
     ...Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => s.group === 'Generator' && n !== 'direction'),

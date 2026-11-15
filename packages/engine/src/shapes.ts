@@ -359,6 +359,7 @@ export const text = defineShape({
   label: 'Text',
   params: {
     text: { type: 'text', default: 'svertik', label: 'Text', expression: true },
+    updateRate: { type: 'number', default: 12, min: 1, max: 60, step: 1, unit: 'Hz', label: 'Update rate', expression: false, animatable: false, ramp: false, random: false },
     font: { type: 'font', default: 'JetBrains Mono', label: 'Font' },
     weight: { type: 'number', default: 400, min: 100, max: 900, step: 100, label: 'Weight', ramp: false, animatable: false, random: false },
     italic: { type: 'boolean', default: false, label: 'Italic', animatable: false },
@@ -550,6 +551,8 @@ export const randomWave = defineShape({
 /** An autonomous seeded signal source drawn as changing vertical bars around a horizontal centreline. */
 export const randomBars = defineShape({
   type: 'randombars', label: 'Random bars', timeDriven: true,
+  // Keep the centreline fixed while the changing bar heights alter the geometry bounds.
+  origin: () => [0, 0],
   params: {
     width: { type: 'number', default: 900, min: 1, step: 1, unit: 'px', group: 'Generator' },
     height: { type: 'number', default: 360, min: 1, step: 1, unit: 'px', group: 'Generator' },

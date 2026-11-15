@@ -3,7 +3,7 @@
 import { bounds, centroid, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
 import { importSVG } from './importer';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
-import { buildShape } from './shapes';
+import { buildShape, shapeRegistry } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import { findModifier, sampleScene, trackValue } from './animation';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
@@ -407,7 +407,17 @@ export function createDocumentEvaluator(
           }
           const ref = bounds(entry.source);
           // An imported object is centred on the origin (or on its own origin point if it has one: Text with an anchor).
-          const m = placementMatrix(p, ref, [0, 0], entry.source.origin);
+          // Dynamic shapes with an explicit origin can change bounds over time. Scaling around that
+          // moving box's centre makes the origin drift, so use it as the default pivot.
+          const origin = entry.source.origin;
+          const anchoredDynamicShape = node.kind === 'shape' && shapeRegistry.get(node.shape)?.timeDriven && origin;
+          const originPivot: [number, number] | undefined = anchoredDynamicShape && node.transform?.pivot === undefined
+            ? [
+                ref.width ? (origin[0] - ref.x) / ref.width : 0.5,
+                ref.height ? (origin[1] - ref.y) / ref.height : 0.5,
+              ]
+            : undefined;
+          const m = placementMatrix(originPivot ? { ...p, pivot: originPivot } : p, ref, [0, 0], origin);
           const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
           for (const child of node.children ?? []) if (nodes.has(child.id)) reparent(child, world);
