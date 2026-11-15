@@ -1,5 +1,5 @@
 {
-  "$source": "Penpot · archivo «Design System» · tema mode/dark. Regenerar tokens.css con `pnpm tokens`.",
+  "$source": "Penpot · archivo «Svertik» · tema mode/dark. Regenerar tokens.css con `pnpm tokens`.",
   "primitives": {
     "color": {
       "gray.100": "#EDEDED",
