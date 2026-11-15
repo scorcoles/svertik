@@ -35,7 +35,8 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | --- | --- | --- |
 | [Crack](effects/crack.md) | `crack` | Branching cracks from an impact point. |
 | [Damage](effects/damage.md) | `damage` | Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. |
-| [Clone](effects/clone.md) | `clone` | Duplicates the drawing in a grid, a circle or a line, around the original. |
+| [Clone](effects/clone.md) | `clone` | Duplicates the drawing in a grid, concentric rings or a line, around the original. |
+| [Particles](effects/particles.md) | `particles` | Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved. |
 | [Mirror](effects/mirror.md) | `mirror` | Reflects the drawing on an axis at a fraction of its box. |
 | [Mosaic](effects/mosaic.md) | `mosaic` | Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). |
 | [Fractal](effects/fractal.md) | `fractal` | Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. |
@@ -59,16 +60,21 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | Effect | Type | What it does |
 | --- | --- | --- |
 | [Step](effects/step.md) | `step` | Incremental effector: applies the modifiers nested in it to each element separately, with their numbers multiplied by the element's position. |
+| [Oscillate](effects/oscillate.md) | `oscillate` | Periodic modulation of nested effects: sine, triangle, square or saw. |
+| [Wiggle](effects/wiggle.md) | `wiggle` | Smooth seeded random modulation of nested effects. |
+| [Pulse](effects/pulse.md) | `pulse` | Repeated pulses of nested effects, from neutral to full strength and back. |
+| [Shake](effects/shake.md) | `shake` | A seeded one-shot impact that loses strength and returns exactly to neutral at Duration. |
 | [Stagger](effects/stagger.md) | `stagger` | Each element makes its own transition, with its curve, a little after the previous one. |
 | [Range](effects/range.md) | `range` | Range selector: picks which elements (letters, words, lines, copies, tiles…) get the nested effects, and how much, by their order. |
 | [Field](effects/field.md) | `field` | Field selector: the nested effects act more or less on each element depending on where its centre is relative to a shape (circle, plane or box). |
 | [Explosion](effects/explosion.md) | `explosion` | Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. |
+| [Gravity](effects/gravity.md) | `gravity` | Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion. |
 
 ### Style
 
 | Effect | Type | What it does |
 | --- | --- | --- |
-| [Color](effects/color.md) | `color` | Colour variation per element: `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random. |
+| [Color](effects/color.md) | `color` | Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random. |
 | [Tint](effects/tint.md) | `tint` | Pushes the colour towards a target colour. |
 | [Paint](effects/paint.md) | `paint` | Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order. |
 | [Gradient](effects/gradient.md) | `gradient` | A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). |
@@ -105,6 +111,8 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Ellipse](shapes/ellipse.md) | `ellipse` | An ellipse (a circle when width and height match). |
 | [Polygon](shapes/polygon.md) | `polygon` | A regular polygon with any number of sides. |
 | [Star](shapes/star.md) | `star` | A star with any number of points and an inner radius (2 points make a needle or a diamond). |
+| [Cross](shapes/cross.md) | `cross` | A filled plus sign: Size controls the overall extent and Width the thickness of its arms, clamped to Size. |
+| [Arrow](shapes/arrow.md) | `arrow` | A continuous arrow outline with independent Start head and End head selectors: none, triangular, V, square or round. |
 | [Line](shapes/line.md) | `line` | A straight line, by length and angle. |
 | [Spiral](shapes/spiral.md) | `spiral` | An Archimedean spiral, by radius and number of turns. |
 | [Text](shapes/text.md) | `text` | Text turned into outlines, one piece per letter (so Step, Stagger and Range can treat letters, words and lines separately). |

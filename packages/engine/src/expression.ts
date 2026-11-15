@@ -198,7 +198,7 @@ export function hasTextExpressions(value: unknown): value is string {
 /** True when a scene contains a formula (used to treat it as time-driven animation). */
 export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>) => Object.values(params ?? {}).some(isNumericExpression);
-  const stackHas = (stack: SceneNode['stack']): boolean => stack.some((m) => has(m.params) || stackHas(m.children ?? []));
+  const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
     (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || (node.kind === 'group' && node.children.some(nodeHas));
   return scene.objects.some(nodeHas);

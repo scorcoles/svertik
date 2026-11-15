@@ -44,7 +44,7 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
   if (depth > 32 || ancestors.has(scene)) throw new Error('Composition nesting is cyclic or exceeds 32 levels');
   const chain = new Set(ancestors); chain.add(scene);
   const occupied = new Set<string>();
-  const collect = (stack: SceneNode['stack']) => { for (const m of stack) { occupied.add(m.id); collect(m.children ?? []); } };
+  const collect = (stack?: SceneNode['stack']) => { for (const m of stack ?? []) { occupied.add(m.id); collect(m.children); } };
   for (const { node } of walkNodes(scene.objects)) { occupied.add(node.id); collect(node.stack); }
   const expand = (nodes: SceneNode[]): SceneNode[] => nodes.map(node => {
     if (node.kind !== 'group') return node;
@@ -55,13 +55,13 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
     const byId = new Map([...walkNodes(local.objects)].map(({ node }) => [node.id, node]));
     const extra = effectorStacks(local, byId);
     const bake = (items: SceneNode[]): SceneNode[] => items.map(n => n.kind === 'group'
-      ? { ...n, stack: [...n.stack, ...(extra.get(n.id) ?? [])], children: bake(n.children) }
-      : { ...n, stack: [...n.stack, ...(extra.get(n.id) ?? [])], ...(n.kind === 'effector' ? { visible: false } : {}) });
+      ? { ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], children: bake(n.children) }
+      : { ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], ...(n.kind === 'effector' ? { visible: false } : {}) });
     const resolved = expandCompositions({ ...local, objects: bake(local.objects) }, registry, depth + 1, chain);
     // Length-delimited prefixes are distinct even for IDs containing our separators.
     let prefix = `${node.id.length}:${node.id}::`;
     while ([...occupied].some(id => id.startsWith(prefix))) prefix = '@' + prefix;
-    const stack = (items: SceneNode['stack']): SceneNode['stack'] => items.map(m => {
+    const stack = (items?: SceneNode['stack']): SceneNode['stack'] => (items ?? []).map(m => {
       const schema = registry.get(m.type)?.params ?? {};
       const params = Object.fromEntries(Object.entries(m.params ?? {}).map(([k, v]) => [k,
         schema[k]?.type === 'node' && typeof v === 'string' && v ? prefix + v

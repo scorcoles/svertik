@@ -2,12 +2,13 @@
 
 `type: "explosion"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. `amount` from 0 to 1 plays the explosion.
+Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. `amount` from 0 to 1 plays the explosion. Motion: impulse launches the pieces through a following rigid-body Gravity, preserving velocity and spin; offset keeps the direct displacement mode.
 
 ## Parameters
 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
+| `motion` | enum | `"offset"` | `offset`, `impulse` | not animatable |
 | `amount` | number | `0.5` | min 0, max 1, step 0.01 |  |
 | `force` | number | `0.5` | min 0, max 3, step 0.01 | fraction of the drawing size |
 | `spin` | angle | `90` | degrees |  |
@@ -27,6 +28,7 @@ Inside a node's `stack` (effects run top to bottom):
   "id": "explosion-1",
   "type": "explosion",
   "params": {
+    "motion": "offset",
     "amount": 0.5,
     "force": 0.5,
     "spin": 90,

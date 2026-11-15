@@ -2,16 +2,17 @@
 
 `type: "color"` · Style: changes colours or paint, not the geometry. · Editor menu: **Style**.
 
-Colour variation per element: `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random.
+Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random.
 
 ## Parameters
 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
-| `mode` | enum | `"shift"` | `shift`, `gradient`, `random` | not animatable |
-| `hue` | angle | `30` | degrees |  |
-| `saturation` | number | `0` | min -1, max 1, step 0.01 |  |
-| `lightness` | number | `0` | min -1, max 1, step 0.01 |  |
+| `mode` | enum | `"shift"` | `solid`, `shift`, `gradient`, `random` | not animatable |
+| `color` | color | `"#D2502F"` | #rrggbb | only when `mode` is `solid` |
+| `hue` | angle | `30` | degrees | only when `mode` is `shift` |
+| `saturation` | number | `0` | min -1, max 1, step 0.01 | only when `mode` is `shift` |
+| `lightness` | number | `0` | min -1, max 1, step 0.01 | only when `mode` is `shift` |
 | `from` | color | `"#09fdd1"` | #rrggbb | group: Gradient |
 | `to` | color | `"#ff6b5e"` | #rrggbb | group: Gradient |
 | `variation` | number | `0.3` | min 0, max 1, step 0.01 | group: Random |
@@ -30,6 +31,7 @@ Inside a node's `stack` (effects run top to bottom):
   "type": "color",
   "params": {
     "mode": "shift",
+    "color": "#D2502F",
     "hue": 30,
     "saturation": 0,
     "lightness": 0,

@@ -1,8 +1,8 @@
 {
   "name": "@svertik/cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
-  "description": "svertik en la terminal: dibuja proyectos a SVG o PNG, fotogramas de la animación, y lista los efectos.",
+  "description": "svertik en la terminal: dibuja proyectos a SVG o PNG, fotogramas de la animaci\u00f3n, y lista los efectos.",
   "bin": {
     "svertik": "./bin/svertik.mjs"
   },

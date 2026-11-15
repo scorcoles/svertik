@@ -2,7 +2,7 @@
 
 `type: "mask"` · Style: changes colours or paint, not the geometry. · Editor menu: **Style**.
 
-Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). The mask can be hidden and still works.
+Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). Whole elements discards copies crossing the boundary instead of clipping them (shape mode). The mask can be hidden and still works.
 
 Applied by the document after the whole stack (and its filters), as a native `<mask>`.
 
@@ -12,6 +12,7 @@ Applied by the document after the whole stack (and its filters), as a native `<m
 | --- | --- | --- | --- | --- |
 | `source` | node | `""` | id of another node | label: Mask |
 | `mode` | enum | `"shape"` | `shape`, `luminance` | not animatable |
+| `whole` | boolean | `false` |  | not animatable; only when `mode` is `shape`; label: Whole elements |
 | `invert` | boolean | `false` |  | not animatable; only when `mode` is `shape` |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
@@ -27,6 +28,7 @@ Inside a node's `stack` (effects run top to bottom):
   "params": {
     "source": "",
     "mode": "shape",
+    "whole": false,
     "invert": false
   }
 }
