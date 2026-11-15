@@ -589,7 +589,7 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
   const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
   const gradients: Gradient[] = [];
   const fill = paintStyle(p.fill, p.fillColor, 'fill', gradients, 'sf');
-  const stroke = def.fixedStroke || p.stroke ? paintStyle(true, p.strokeColor ?? p.fillColor, 'stroke', gradients, 'ss') : null;
+  const stroke = (def.fixedStroke && !(type === 'randomwave' && p.fill) || p.stroke) ? paintStyle(true, p.strokeColor ?? p.fillColor, 'stroke', gradients, 'ss') : null;
   const st: Style = {
     fill: fill.value,
     ...(stroke ? { stroke: stroke.value, 'stroke-width': String(p.strokeWidth ?? 3), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round'), ...strokeExtraStyle(p) } : {}),

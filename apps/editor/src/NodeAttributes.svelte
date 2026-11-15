@@ -73,6 +73,10 @@
     onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
   />
   <span class="meta">{kindLabel}</span>
+  {#if node.kind === 'shape' && shapeDef?.timeDriven}
+    <IconButton icon="zero" label="Set generator values to zero" onclick={() => editor.zeroShape(node.id)} />
+    <IconButton icon="dice" label="Randomize generator values" onclick={() => editor.randomizeShape(node.id)} />
+  {/if}
 </header>
 <div class="params">
   {#if editor.selectedNodes.length > 1}<p class="note">Scale applies to all {editor.selectedNodes.length} selected objects around their shared center.</p>{/if}

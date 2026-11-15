@@ -2040,6 +2040,23 @@ export class Editor {
     this.record(true);
   }
 
+  /** The dice and zero controls for autonomous shape generators. */
+  randomizeShape(id: string, seed = Math.floor(Math.random() * 2 ** 31)) {
+    const node = this.scene ? locateNode(this.scene.objects, id)?.node : undefined;
+    const def = node?.kind === 'shape' && shapeRegistry.get(node.shape);
+    if (!node || node.kind !== 'shape' || !def?.timeDriven || this.isLocked(id)) return;
+    node.params = randomizeParams(def.params, resolveParams(def.params, node.params), rng(seed));
+    this.record(true);
+  }
+
+  zeroShape(id: string) {
+    const node = this.scene ? locateNode(this.scene.objects, id)?.node : undefined;
+    const def = node?.kind === 'shape' && shapeRegistry.get(node.shape);
+    if (!node || node.kind !== 'shape' || !def?.timeDriven || this.isLocked(id)) return;
+    node.params = zeroParams(def.params, resolveParams(def.params, node.params));
+    this.record(true);
+  }
+
   reset(id = this.selected) {
     const m = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
     const def = m && registry.get(m.type);

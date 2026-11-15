@@ -329,6 +329,8 @@
   // ── Selección: recuadro del nodo seleccionado; clic para seleccionar y arrastrar para mover
 
   type Rect = { x: number; y: number; w: number; h: number };
+  type SnapFeatures = { x: number[]; y: number[] };
+  let snapGuides = $state<SnapFeatures>({ x: [], y: [] });
   let selection = $state<Rect | null>(null);
   /** Los demás nodos seleccionados (⇧ + clic): solo su recuadro. */
   let others = $state<Rect[]>([]);
@@ -354,6 +356,49 @@
     });
     return () => cancelAnimationFrame(frame);
   });
+
+  function selectedTreeIds(): Set<string> {
+    const ids = new Set<string>();
+    const add = (node: SceneNode) => { ids.add(node.id); node.children?.forEach(add); };
+    editor.selectedNodes.forEach(add);
+    return ids;
+  }
+  function snapTargets(excluded: Set<string>): SnapFeatures {
+    const x: number[] = [], y: number[] = [];
+    for (const [id, info] of nodes) {
+      if (excluded.has(id) || info.kind === 'effector' || info.box.width + info.box.height === 0) continue;
+      const b = info.box;
+      x.push(b.x, b.x + b.width / 2, b.x + b.width);
+      y.push(b.y, b.y + b.height / 2, b.y + b.height);
+    }
+    const d = editor.scene?.document;
+    if (d) {
+      const x0 = d.x ?? 0, y0 = d.y ?? 0, x1 = x0 + d.width, y1 = y0 + d.height;
+      x.push(x0, (x0 + x1) / 2, x1);
+      y.push(y0, (y0 + y1) / 2, y1);
+    }
+    return { x, y };
+  }
+  function snapAxis(moving: number[], targets: number[], threshold: number): { delta: number; guide: number } | null {
+    let best: { delta: number; guide: number } | null = null;
+    for (const a of moving) for (const b of targets) {
+      const delta = b - a;
+      if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta))) best = { delta, guide: b };
+    }
+    return best;
+  }
+  function snapBox(b: Rect, dx: number, dy: number, targets: SnapFeatures, threshold: number, axes: { x: boolean; y: boolean }) {
+    const sx = axes.x ? snapAxis([b.x + dx, b.x + b.w / 2 + dx, b.x + b.w + dx], targets.x, threshold) : null;
+    const sy = axes.y ? snapAxis([b.y + dy, b.y + b.h / 2 + dy, b.y + b.h + dy], targets.y, threshold) : null;
+    snapGuides = { x: sx ? [sx.guide] : [], y: sy ? [sy.guide] : [] };
+    return { dx: dx + (sx?.delta ?? 0), dy: dy + (sy?.delta ?? 0) };
+  }
+  function snapPoint(point: [number, number], targets: SnapFeatures, threshold: number, axes: { x: boolean; y: boolean }): [number, number] {
+    const sx = axes.x ? snapAxis([point[0]], targets.x, threshold) : null;
+    const sy = axes.y ? snapAxis([point[1]], targets.y, threshold) : null;
+    snapGuides = { x: sx ? [sx.guide] : [], y: sy ? [sy.guide] : [] };
+    return [point[0] + (sx?.delta ?? 0), point[1] + (sy?.delta ?? 0)];
+  }
 
   // ── Organizar: alinear y distribuir la selección (en el documento), voltear
 
@@ -430,11 +475,21 @@
     const toLocal = invert(info.matrix);
     const localStart = startDoc ? apply(toLocal, startDoc) : null;
     const localPivot = apply(toLocal, pivotDoc);
+    const targets = snapTargets(selectedTreeIds());
+    const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
     const move = (ev: PointerEvent) => {
-      const [x, y] = at(ev);
+      let [x, y] = at(ev);
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
       if (mode === 'scale' || mode.startsWith('stretch-')) {
-        const doc = clientToDoc(ev.clientX, ev.clientY);
+        let doc = clientToDoc(ev.clientX, ev.clientY);
+        if (doc && !ev.altKey) {
+          const axes = mode === 'stretch-x-left' || mode === 'stretch-x-right' ? { x: true, y: false }
+            : mode === 'stretch-y-top' || mode === 'stretch-y-bottom' ? { x: false, y: true }
+              : { x: true, y: true };
+          doc = snapPoint(doc, targets, threshold, axes);
+          const snapped = docToStage(doc[0], doc[1]);
+          if (snapped) [x, y] = [snapped[0] - pivot[0], snapped[1] - pivot[1]];
+        } else snapGuides = { x: [], y: [] };
         const edgeStretch = mode.startsWith('stretch-');
         const freeform = edgeStretch || (ev.shiftKey && !multiple);
         if (freeform && !multiple && localStart && doc) {
@@ -469,6 +524,7 @@
         if (scaleAll) scaleAll(k); else editor.setNode(node.id, 'scale', k);
         gesture = { text: `× ${k.toFixed(2)}`, ...label };
       } else {
+        snapGuides = { x: [], y: [] };
         let deg = p0.rotation + ((Math.atan2(y, x) - a0) * 180) / Math.PI;
         deg = ev.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
         deg = ((((deg + 180) % 360) + 360) % 360) - 180;
@@ -478,6 +534,7 @@
     };
     const up = () => {
       gesture = null;
+      snapGuides = { x: [], y: [] };
       editor.flush();
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
@@ -650,6 +707,14 @@
       const parentInfo = at.parent ? nodes.get(at.parent.id) : undefined;
       return [{ id: nid, toParent: parentInfo ? invert(parentInfo.matrix) : null, t0: { x: at.node.transform?.x ?? 0, y: at.node.transform?.y ?? 0 } }];
     });
+    const selectedBoxes = ids.flatMap((nid) => { const b = nodes.get(nid)?.box; return b ? [b] : []; });
+    const startBox = selectedBoxes.length ? {
+      x: Math.min(...selectedBoxes.map(b => b.x)), y: Math.min(...selectedBoxes.map(b => b.y)),
+      w: Math.max(...selectedBoxes.map(b => b.x + b.width)) - Math.min(...selectedBoxes.map(b => b.x)),
+      h: Math.max(...selectedBoxes.map(b => b.y + b.height)) - Math.min(...selectedBoxes.map(b => b.y)),
+    } : null;
+    const targets = snapTargets(selectedTreeIds());
+    const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
     const start = clientToDoc(e.clientX, e.clientY);
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
@@ -664,6 +729,11 @@
         if (Math.abs(mx) >= Math.abs(my)) my = 0;
         else mx = 0;
       }
+      if (startBox && !ev.altKey) ({ dx: mx, dy: my } = snapBox(startBox, mx, my, targets, threshold, {
+        x: !ev.shiftKey || Math.abs(now[0] - start[0]) >= Math.abs(now[1] - start[1]),
+        y: !ev.shiftKey || Math.abs(now[1] - start[1]) > Math.abs(now[0] - start[0]),
+      }));
+      else snapGuides = { x: [], y: [] };
       for (const p of parts) {
         let dx = mx;
         let dy = my;
@@ -673,7 +743,7 @@
       }
       editor.record();
     };
-    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    const up = () => { snapGuides = { x: [], y: [] }; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
   }
@@ -893,6 +963,18 @@
           <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true"><path d={penPreview} fill="none" stroke={editor.strokeOn ? editor.strokeColor : editor.fillColor} stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
         {/if}
       </div>
+      {#if snapGuides.x.length || snapGuides.y.length}
+        <svg class="snap-guides" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+          {#each snapGuides.x as x (x)}
+            {@const p = docToStage(x, 0)}
+            {#if p}<line x1={p[0]} y1="0" x2={p[0]} y2={stageSize[1]} />{/if}
+          {/each}
+          {#each snapGuides.y as y (y)}
+            {@const p = docToStage(0, y)}
+            {#if p}<line x1="0" y1={p[1]} x2={stageSize[0]} y2={p[1]} />{/if}
+          {/each}
+        </svg>
+      {/if}
       {#if editor.tool === 'pen' && penPoints.length >= 2}
         <button class="finish-pen" type="button" onclick={finishPen}>Finish path <kbd>Enter</kbd></button>
       {/if}
@@ -1103,6 +1185,8 @@
   .guides polyline.under { stroke: rgb(0 0 0 / 0.75); stroke-width: 5; }
   .guides circle { fill: #fff; stroke: rgb(0 0 0 / 0.75); stroke-width: 2; }
   .guides circle[data-root] { fill: var(--sv-accent-fill); }
+  .snap-guides { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .snap-guides line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
   .bounds { pointer-events: none; }
   .bounds .outside { fill: rgb(0 0 0 / 0.5); }
   .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }
