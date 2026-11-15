@@ -1,12 +1,14 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
+  import DemoItems from './DemoItems.svelte';
   import { Button, Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
+  import type { DemoName } from './demo-catalog';
 
   interface Props {
     editor: Editor;
     onimport: () => void;
-    ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') => void;
+    ondemo: (which: DemoName) => void;
     showWelcome?: boolean;
   }
   let { editor, onimport, ondemo, showWelcome = false }: Props = $props();
@@ -30,11 +32,7 @@
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('intro')}><Icon name="play" /><span class="label">Intro: the logo</span></DropdownMenu.Item>
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('shatter')}><Icon name="play" /><span class="label">Shatter: a triangle that explodes</span></DropdownMenu.Item>
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('reel')}><Icon name="play" /><span class="label">Reel: motion graphics in three acts</span></DropdownMenu.Item>
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('orbit')}><Icon name="play" /><span class="label">Orbit: the Utils working together</span></DropdownMenu.Item>
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo('pointer')}><Icon name="play" /><span class="label">Pointer: it follows your mouse</span></DropdownMenu.Item>
+            <DemoItems {ondemo} />
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>

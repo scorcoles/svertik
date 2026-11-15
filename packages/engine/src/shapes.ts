@@ -225,6 +225,25 @@ const PAWN: SubPath[] = [
   },
 ];
 
+/** A filled plus sign. Width controls the arm thickness independently of its overall size. */
+export const cross = defineShape({
+  type: 'cross',
+  label: 'Cross',
+  params: {
+    size: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', label: 'Size' },
+    width: { type: 'number', default: 28, min: 1, step: 1, unit: 'px', label: 'Width' },
+    ...style,
+  },
+  build: ({ size, width }) => {
+    const r = Math.max(1, size) / 2;
+    const w = Math.min(Math.max(1, width) / 2, r);
+    return [closed([
+      [-w, -r], [w, -r], [w, -w], [r, -w], [r, w], [w, w],
+      [w, r], [-w, r], [-w, w], [-r, w], [-r, -w], [-w, -w],
+    ])];
+  },
+});
+
 export const pawn = defineShape({
   type: 'pawn',
   label: 'Pawn',
@@ -395,7 +414,7 @@ function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: V
 }
 
 // The pawn, always last (it is the test shape).
-export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, text, pawn];
+export const shapes = [rectangle, ellipseShape, polygon, star, lineShape, spiral, text, cross, pawn];
 export const shapeRegistry = new Map<string, ShapeDef>(shapes.map((s) => [s.type, s as ShapeDef]));
 
 /** A primitive's geometry, with its style. */

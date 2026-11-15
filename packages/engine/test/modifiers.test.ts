@@ -187,6 +187,16 @@ describe('clone', () => {
     expect(geo.shapes).toHaveLength(4);
     expect(bounds(geo).width).toBeCloseTo(60 + 2 * 60);
   });
+  it('radial rings keep Count copies per circle, independent spacing and globally unique element tags', () => {
+    const geo = run({ mode: 'radial', count: 4, radius: 1, rings: 3, ringSpacing: 0.5, align: false });
+    expect(geo.shapes).toHaveLength(12);
+    expect(geo.shapes.map((s) => s.clone)).toEqual(Array.from({ length: 12 }, (_, i) => i));
+    geo.shapes.forEach((shape, i) => {
+      const b = bounds({ ...geo, shapes: [shape] });
+      expect(Math.hypot(b.x + b.width / 2 - 50, b.y + b.height / 2 - 50)).toBeCloseTo(60 + Math.floor(i / 4) * 30);
+    });
+    expect(run({ mode: 'radial', count: 4, radius: 1, rings: 1, ringSpacing: 4 })).toEqual(run({ mode: 'radial', count: 4, radius: 1 }));
+  });
   it('the viewBox grows to fit the copies', () => {
     const geo = run({ mode: 'linear', count: 5 });
     expect(geo.viewBox[2]).toBeGreaterThan(100);

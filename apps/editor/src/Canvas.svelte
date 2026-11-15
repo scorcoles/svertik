@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
   import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV2, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
@@ -15,7 +16,7 @@
     onimport: () => void;
     onfile: (file: File) => void;
     /** Abre una demo (la escena actual se cambia por ella, preguntando si hay cambios). */
-    ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer') => void;
+    ondemo: (which: DemoName) => void;
     /** El lienzo publica aquí cómo poner una primitiva en el centro de lo que se ve (lo usa el rail). */
     placeAtCenter?: (type: string) => void;
     status?: CanvasStatus | null;
@@ -473,6 +474,8 @@
         ? { width: r2(Math.abs(dx)), height: r2(Math.abs(dy)) }
         : type === 'line'
           ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
+          : type === 'cross'
+            ? { size: r2(Math.max(Math.abs(dx), Math.abs(dy))), width: r2(Math.max(Math.abs(dx), Math.abs(dy)) * 0.2) }
           : type === 'pawn'
             ? { height: r2(Math.max(Math.abs(dy), Math.abs(dx) * (200 / 120))) }
             : type === 'text'

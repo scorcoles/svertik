@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Icon, IconButton } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
+  import type { DemoName } from './demo-catalog';
   import AppMenu from './AppMenu.svelte';
   import ExportMenu from './ExportMenu.svelte';
   import EffectsToolbar from './EffectsToolbar.svelte';
@@ -14,7 +15,7 @@
     onexportpng: () => void;
     onexportlottie: () => void;
     onexportanimsvg: () => void;
-    ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity') => void;
+    ondemo: (which: DemoName) => void;
     onnew: () => void;
   }
   let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();

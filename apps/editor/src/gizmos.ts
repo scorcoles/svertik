@@ -475,10 +475,12 @@ Object.assign(builders, {
     const c = center(b);
     const W = b.width, H = b.height, size = sizeOf(b);
     if (p.mode === 'radial') {
-      const R = Number(p.radius) * size;
+      const R = Number(p.radius ?? 1) * size;
+      const rings = Math.max(1, Math.min(64, Math.round(Number(p.rings ?? 1))));
+      const gap = Math.max(0, Number(p.ringSpacing ?? 1.1)) * size;
       const a = rad(Number(p.startAngle) || 0);
       return {
-        lines: [{ pts: ellipse(c, R, R), closed: true, dashed: true }],
+        lines: Array.from({ length: rings }, (_, i) => ({ pts: ellipse(c, R + i * gap, R + i * gap), closed: true, dashed: true })),
         handles: [
           {
             at: [c[0] + Math.cos(a) * R, c[1] + Math.sin(a) * R],
@@ -488,6 +490,11 @@ Object.assign(builders, {
               startAngle: snapDeg(Number(p0.startAngle ?? 0) + turn(c, from, to), snap),
             }),
           },
+          ...(rings > 1 ? [{
+            at: [c[0] + Math.cos(a + Math.PI / 2) * (R + gap), c[1] + Math.sin(a + Math.PI / 2) * (R + gap)] as Vec2,
+            label: 'Ring spacing',
+            drag: ((_p0, _from, to) => ({ ringSpacing: round(clamp((Math.hypot(to[0] - c[0], to[1] - c[1]) - R) / size, 0, 5), 100) })) as Drag,
+          }] : []),
         ],
       };
     }

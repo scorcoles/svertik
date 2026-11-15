@@ -166,7 +166,7 @@ Every node in `objects` includes:
 
 | `kind` | Additional Properties | Description |
 |---|---|---|
-| `shape` | `shape: string`, `params: Record<string, unknown>` | Parametric vector primitive (`rectangle`, `ellipse`, `polygon`, `star`, `line`, `spiral`, `text`, `pawn`). |
+| `shape` | `shape: string`, `params: Record<string, unknown>` | Parametric vector primitive (`rectangle`, `ellipse`, `polygon`, `star`, `line`, `spiral`, `text`, `cross`, `pawn`). |
 | `object` | `source: string` | Raw SVG string imported directly (`<svg viewBox="...">...</svg>`). |
 | `group` | `children: SceneNode[]` | Container for child nodes. The group's `stack` acts upon all children as individual elements. |
 | `instance` | `of: string` | Dynamic live copy of another node (`of` specifies the target node `id`). Inherits source effects while adding its own independent transform and stacked modifiers. |
@@ -248,7 +248,12 @@ All shapes share a standard styling block:
    - `anchor` (`"ink" | "left" | "center" | "right"`, default `"ink"`): Transform anchor point.
    - `font` (font, default `"JetBrains Mono"`): Registered font family name.
 
-8. **`pawn`**
+8. **`cross`**
+   - A filled plus sign, placed immediately before Pawn in the primitive rail.
+   - `size` (number, default 140, px): Overall width and height.
+   - `width` (number, default 28, px): Thickness of the arms, clamped to Size. Both fields are animatable. Rotate the object by 45° for an X.
+
+9. **`pawn`**
    - svertik test model (a chess pawn with smooth curves and straight steps, analogous to the 3D Utah Teapot).
    - `height` (number, default 200, px): Total height.
 
@@ -668,3 +673,17 @@ New editor documents start with a fixed 1400×900 frame centred at the origin. T
 ### Color: assigning a colour
 
 In **Color**, select `solid` to assign a colour with the colour picker; Target chooses `fill`, `stroke`, or `both`. Shapes with `fill: none` stay unfilled and missing strokes are not enabled. Newly added Color effects in the editor start in Solid mode. Existing scenes keep their stored mode; the headless schema default remains Shift for compatibility. Shift, Gradient and Random remain available for variations, including inside Step.
+
+
+### Filling a shape with other objects
+
+For a regular pattern, create a small Cross, apply **Clone → Grid**, then **Mask** with a triangle as its source. Make the grid cover the whole triangle and hide the triangle itself: hidden objects still work as masks. The mask trims the crosses at the boundary. For a random distribution, use **Clone → Object → Inside** and select the triangle; this places particle centres inside it, and an additional Mask trims any arms crossing its border.
+
+`apps/editor/public/demos/cross-fill.svrtk` is an editable regular-grid example on an 800×650 document. Size and Width belong to the source Cross; Columns, Rows and Spacing belong to Clone; the triangle controls the mask.
+
+Clone Grid sliders support up to **64 columns × 64 rows**, with a quadratic slider curve for finer control at small counts.
+
+
+### Clone: concentric radial rings
+
+In **Clone → Radial**, **Rings** chooses 1–64 concentric circles; **Count** is the number of copies on each ring. **Radius** sets the innermost radius and **Ring spacing** adds the distance between successive radii, in source-size fractions. Both ring controls support animation; fractional ring counts are rounded. Copies keep unique element tags, ordered from the innermost ring outwards, so Step and Color work across the whole result. Selecting Clone shows all rings on the canvas, with a handle for spacing. One ring preserves the previous radial result.

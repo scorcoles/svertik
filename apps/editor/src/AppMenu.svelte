@@ -1,8 +1,10 @@
 <script lang="ts">
   // El menú de «svertik»: abrir, guardar, exportar… y la demo.
   import { DropdownMenu } from 'bits-ui';
+  import DemoItems from './DemoItems.svelte';
   import { Icon, type IconName } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
+  import type { DemoName } from './demo-catalog';
 
   interface Props {
     editor: Editor;
@@ -14,7 +16,7 @@
     onexportlottie: () => void;
     onexportanimsvg: () => void;
     oncopyjson: () => void;
-    ondemo: (which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity') => void;
+    ondemo: (which: DemoName) => void;
   }
   let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportlottie, onexportanimsvg, oncopyjson, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
@@ -29,15 +31,6 @@
     { label: 'Export Lottie (.json)', icon: 'export', run: onexportlottie, needs: true },
     { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
   ]);
-  // Las demos, en su submenú.
-  const demos: { label: string; which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity' }[] = [
-    { label: 'Intro: the logo', which: 'intro' },
-    { label: 'Gravity: a circle falls apart', which: 'gravity' },
-    { label: 'Shatter: a triangle that explodes', which: 'shatter' },
-    { label: 'Reel: motion graphics in three acts', which: 'reel' },
-    { label: 'Orbit: the Utils working together', which: 'orbit' },
-    { label: 'Pointer: it follows your mouse', which: 'pointer' },
-  ];
 </script>
 
 <DropdownMenu.Root>
@@ -65,12 +58,7 @@
           <span class="key" aria-hidden="true">▸</span>
         </DropdownMenu.SubTrigger>
         <DropdownMenu.SubContent class="sv-menu sv-demos" sideOffset={4}>
-          {#each demos as d (d.which)}
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo(d.which)}>
-              <Icon name="play" />
-              <span class="label">{d.label}</span>
-            </DropdownMenu.Item>
-          {/each}
+          <DemoItems {ondemo} />
         </DropdownMenu.SubContent>
       </DropdownMenu.Sub>
     </DropdownMenu.Content>
@@ -98,10 +86,6 @@
   .label { flex: 1; }
   .key { margin-left: var(--sv-space-16); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   :global(.sv-app-trigger + * .sv-menu), :global(.sv-menu:has(.key)) { min-width: 300px; }
-  /* Demos (aquí y en el lienzo vacío): nombres largos, con aire entre una y otra. */
-  :global(.sv-menu.sv-demos) { width: 280px; }
-  /* Si un nombre pasa a dos líneas, la fila crece y el icono se queda arriba, a la altura de la primera. */
-  :global(.sv-demos .sv-menu-item) { height: auto; min-height: 28px; align-items: flex-start; padding-block: 6px; line-height: 16px; }
   :global(.sv-menu-sep) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
   :global(.sv-menu-item[data-disabled]) { opacity: 0.35; }
 </style>

@@ -16,10 +16,12 @@ export const clone = defineModifier({
   params: {
     mode: { type: 'enum', default: 'grid', options: ['grid', 'radial', 'linear', 'object'] as const, animatable: false },
     count: { type: 'number', default: 6, min: 1, max: 64, step: 1, label: 'Count', ramp: false },
-    columns: { type: 'number', default: 3, min: 1, max: 16, step: 1, group: 'Grid', ramp: false },
-    rows: { type: 'number', default: 3, min: 1, max: 16, step: 1, group: 'Grid', ramp: false },
+    columns: { type: 'number', default: 3, min: 1, max: 64, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic' },
+    rows: { type: 'number', default: 3, min: 1, max: 64, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic' },
     spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false, linkable: true },
     radius: { type: 'number', default: 1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', ramp: false },
+    rings: { type: 'number', default: 1, min: 1, max: 64, step: 1, group: 'Radial', label: 'Rings', ramp: false, sliderCurve: 'quadratic' },
+    ringSpacing: { type: 'number', default: 1.1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', label: 'Ring spacing', ramp: false },
     align: { type: 'boolean', default: true, label: 'Align' },
     startAngle: { type: 'angle', default: 0, group: 'Radial', label: 'Start' },
     offset: { type: 'point', default: [1.1, 0], unit: 'fraction', group: 'Linear', label: 'Offset', handle: false },
@@ -50,10 +52,14 @@ export const clone = defineModifier({
       }
     } else if (p.mode === 'radial') {
       const n = Math.max(1, Math.round(p.count));
-      const R = p.radius * size;
-      for (let i = 0; i < n; i++) {
-        const a = deg(p.startAngle) + (i / n) * Math.PI * 2;
-        copies.push({ dx: Math.cos(a) * R, dy: Math.sin(a) * R, rot: p.align ? a + Math.PI / 2 : 0, scale: 1 });
+      const rings = Math.max(1, Math.min(64, Math.round(p.rings)));
+      const gap = Math.max(0, p.ringSpacing) * size;
+      for (let ring = 0; ring < rings; ring++) {
+        const R = Math.max(0, p.radius) * size + ring * gap;
+        for (let i = 0; i < n; i++) {
+          const a = deg(p.startAngle) + (i / n) * Math.PI * 2;
+          copies.push({ dx: Math.cos(a) * R, dy: Math.sin(a) * R, rot: p.align ? a + Math.PI / 2 : 0, scale: 1 });
+        }
       }
     } else if (p.mode === 'object') {
       const target = p.target ? ctx.target?.(p.target) : null;

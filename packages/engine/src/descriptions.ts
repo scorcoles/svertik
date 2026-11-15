@@ -31,7 +31,7 @@ export const effectDescriptions: Record<string, string> = {
   trace: "A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.",
   crack: 'Branching cracks from an impact point. `lines` draws them on top; `cut` cuts them as gaps of `width` px; `shatter` cuts them and pushes each loose piece away from the impact (each piece, an element).',
   damage: 'Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.',
-  clone: 'Duplicates the drawing in a grid, a circle or a line, around the original. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element.',
+  clone: 'Duplicates the drawing in a grid, concentric rings or a line, around the original. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element.',
   mirror: 'Reflects the drawing on an axis at a fraction of its box. `keep` keeps the original and adds the reflection (symmetry); `transform` replaces it with its reflection.',
   mosaic: 'Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). `cut` clips the drawing with each tile; `whole` places whole tiles where the drawing covers at least half.',
   fractal: 'Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. Capped at 4,096 copies.',
@@ -78,5 +78,6 @@ export const shapeDescriptions: Record<string, string> = {
   line: 'A straight line, by length and angle. Stroke only by default.',
   spiral: 'An Archimedean spiral, by radius and number of turns. Stroke only by default.',
   text: 'Text turned into outlines, one piece per letter (so Step, Stagger and Range can treat letters, words and lines separately). Uses the registered fonts.',
+  cross: 'A filled plus sign: Size controls the overall extent and Width the thickness of its arms, clamped to Size. Rotate the object 45 degrees for an X.',
   pawn: "A chess pawn: svertik's test shape, with curves and straight parts.",
 };

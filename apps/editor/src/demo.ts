@@ -490,7 +490,7 @@ export function gravityProject() {
     scene: {
       version: 2,
       document: { width: 1280, height: 900 },
-      notes: 'Círculo centrado en un canvas de 1280×900, de color #D2502F. Damage con cinco cortes Through, seguido de Explosion y Gravity con cuerpos rígidos. Al inicio el círculo está centrado; los cortes crecen entre 0.4 y 1.1 s, recibe el impulso de Explosion entre 1.2 y 1.24 s y Gravity integra la velocidad de salida y el giro desde 1.2 s. Explosión muy enérgica (fuerza 3, giro 900°/s), con dispersión amplia: muchas piezas salen deliberadamente del encuadre y conservan su inercia. El suelo virtual queda en Y=378. Selecciona Gravity para mover o girar el suelo. Usa los controles inferiores para reproducir sin abrir el timeline. Las piezas colisionan con el suelo, no entre sí. BOOM aparece detrás de los fragmentos, en mayúsculas y del mismo color #D2502F, con una entrada casi simultánea muy rápida, de 1.26 a 1.44 s, y un pequeño rebote. Queda grande y centrado (tamaño de texto 400 px). Confetti emite una ráfaga de 200 partículas de #D2502F al estallar, con giro rápido, caída y desvanecimiento; se oculta antes de 1.2 s.',
+      notes: 'Círculo centrado en un canvas de 1280×900, de color #D2502F. Damage con cinco cortes Through, seguido de Explosion y Gravity con cuerpos rígidos. Al inicio el círculo está centrado; los cortes crecen entre 0.4 y 1.1 s, recibe el impulso de Explosion entre 1.2 y 1.24 s y Gravity integra la velocidad de salida y el giro desde 1.2 s. Explosión muy enérgica (fuerza 3, giro 900°/s), con dispersión amplia: muchas piezas salen deliberadamente del encuadre y conservan su inercia. El suelo virtual queda en Y=378. Selecciona Gravity para mover o girar el suelo. Usa los controles inferiores para reproducir sin abrir el timeline. Las piezas colisionan con el suelo, no entre sí. BOOM aparece detrás de los fragmentos, en mayúsculas y del mismo color #D2502F, con una entrada casi simultánea muy rápida, de 1.26 a 1.44 s, y un pequeño rebote. Queda grande y centrado (tamaño de texto 400 px). Circle hace una pequeña anticipación de escala antes de estallar (0.94 → 1.06 → 1), con retorno suave a escala normal hasta 1.42 s. Confetti emite una ráfaga de 200 partículas de #D2502F al estallar, con giro rápido, caída y desvanecimiento; se oculta antes de 1.2 s.',
       objects: [
         {
           kind: 'shape',
@@ -580,7 +580,36 @@ export function gravityProject() {
           ],
         },
       ],
-      animation: { duration: 8, fps: 30, loop: true, autoplay: true, tracks: [] },
+      animation: {
+        duration: 8, fps: 30, loop: true, autoplay: true,
+        tracks: [{
+          id: 'gravity-circle-anticipation', node: 'gravity-circle', on: 'node', param: 'scale',
+          keys: [
+            { t: 0, value: 1, ease: 'linear' },
+            { t: 0.78, value: 1, ease: 'ease-in' },
+            { t: 1.04, value: 0.94, ease: 'ease-out' },
+            { t: 1.17, value: 1.06, ease: 'ease-in-out' },
+            { t: 1.42, value: 1 },
+          ],
+        }],
+      },
+    },
+  };
+}
+
+export function crossFillProject() {
+  return {
+    svertik: 'project', version: 1, name: 'Cross Fill', canvas: '#F2E8DA',
+    scene: {
+      version: 2, document: { width: 800, height: 650 },
+      notes: 'A triangle filled with a regular grid of small crosses. Edit Size and Width on Cross, grid dimensions/spacing in Clone, and the hidden Triangle for the boundary. The triangle is only the mask and is not drawn. Native SVG Mask trims crosses at the edge.',
+      objects: [
+        { kind: 'shape', id: 'cross-pattern', name: 'Cross', shape: 'cross', params: { size: 18, width: 4, fill: true, fillColor: '#D2502F', stroke: false }, stack: [
+          { id: 'cross-grid', type: 'clone', params: { mode: 'grid', columns: 18, rows: 16, spacing: [1.55, 1.55] } },
+          { id: 'cross-mask', type: 'mask', params: { source: 'triangle-mask', mode: 'shape' } },
+        ] },
+        { kind: 'shape', id: 'triangle-mask', name: 'Triangle', shape: 'polygon', params: { radius: 270, sides: 3, fill: true, fillColor: '#ffffff', stroke: false }, stack: [], visible: false },
+      ],
     },
   };
 }

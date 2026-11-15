@@ -49,3 +49,11 @@ it('particles: dirección y tamaño del emisor se pueden arrastrar', () => {
   expect(g.handles.find((h) => h.label === 'Direction')!.drag({}, [100, 0], [150, 50], false)).toEqual({ direction: 0 });
   expect(g.handles.find((h) => h.label === 'Emitter area')!.drag({}, [120, 70], [150, 80], false)).toEqual({ area: [0.5, 0.6] });
 });
+
+
+it('Clone radial muestra cada anillo y permite arrastrar su separación', () => {
+  const g = gizmoFor('clone', { mode: 'radial', radius: 1, rings: 3, ringSpacing: 0.5 }, box)!;
+  expect(g.lines).toHaveLength(3);
+  expect(g.handles.find((h) => h.label === 'Ring spacing')!.drag({}, [100, 350], [100, 450], false)).toEqual({ ringSpacing: 1 });
+  expect(gizmoFor('clone', { mode: 'radial', radius: 1 }, box)!.handles).toHaveLength(1);
+});

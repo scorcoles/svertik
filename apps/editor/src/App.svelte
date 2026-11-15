@@ -9,7 +9,7 @@
   import Canvas from './Canvas.svelte';
   import { Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
-  import { gravityProject, demoProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
+  import { DEMOS, type DemoName } from './demo-catalog';
   import { download, sceneJSON } from './exporters';
   import InspectorPanel from './InspectorPanel.svelte';
   import Presenter from './Presenter.svelte';
@@ -226,21 +226,19 @@
     }
   }
   // La demo: un proyecto que se abre y se reproduce solo.
-  function openDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity' = 'intro') {
+  function openDemo(which: DemoName = 'intro') {
     guard(() => startDemo(which));
   }
-  function startDemo(which: 'intro' | 'shatter' | 'reel' | 'orbit' | 'pointer' | 'gravity') {
-    if (editor.openProject(JSON.stringify(which === 'gravity' ? gravityProject() : which === 'shatter' ? shatterProject() : which === 'reel' ? reelProject() : which === 'orbit' ? orbitProject() : which === 'pointer' ? pointerProject() : demoProject()))) {
+  function startDemo(which: DemoName) {
+    const demo = DEMOS.find((item) => item.which === which);
+    if (!demo) return;
+    if (editor.openProject(JSON.stringify(demo.create()))) {
       recordActivity('Opened demo', which);
       editor.selected = null;
-      editor.timelineOpen = which !== 'gravity';
+      editor.timelineOpen = demo.view === 'timeline';
       editor.setTime(0);
-      editor.playing = true;
-      // Pointer no tiene línea de tiempo: se ve en Play (donde el puntero hace cosas).
-      if (which === 'pointer') {
-        editor.timelineOpen = false;
-        editor.presenting = true;
-      }
+      editor.playing = !!editor.animation && demo.view !== 'presenter';
+      editor.presenting = demo.view === 'presenter';
     }
   }
   // Lottie: la animación para apps y webs; lo que no se puede llevar, en un informe al terminar.
