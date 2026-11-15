@@ -27,10 +27,10 @@
     { label: 'Save project (.svrtk)', icon: 'save', key: '⌘S', run: onsave, needs: true },
     'sep',
     { label: 'Export SVG', icon: 'export', run: onexportsvg, needs: true },
-    { label: 'Export PNG', icon: 'export', run: onexportpng, needs: true },
-    { label: 'Export MP4 (one cycle)', icon: 'export', run: onexportmp4, needs: true },
-    { label: 'Export animated SVG', icon: 'export', run: onexportanimsvg, needs: true },
-    { label: 'Export Lottie (.json)', icon: 'export', run: onexportlottie, needs: true },
+    { label: 'Export PNG', icon: 'image', run: onexportpng, needs: true },
+    { label: 'Export MP4 (one cycle)', icon: 'play', run: onexportmp4, needs: true },
+    { label: 'Export animated SVG', icon: 'wave', run: onexportanimsvg, needs: true },
+    { label: 'Export Lottie (.json)', icon: 'timeline', run: onexportlottie, needs: true },
     { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
   ]);
 </script>

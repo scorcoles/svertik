@@ -17,10 +17,10 @@
   type Item = { label: string; icon: IconName; run: () => void } | 'sep';
   const items: Item[] = $derived([
     { label: 'Export SVG', icon: 'export', run: onexportsvg },
-    { label: 'Export PNG (2×)', icon: 'export', run: onexportpng },
-    { label: 'Export MP4 (one cycle)', icon: 'export', run: onexportmp4 },
-    { label: 'Export animated SVG', icon: 'export', run: onexportanimsvg },
-    { label: 'Export Lottie (.json)', icon: 'export', run: onexportlottie },
+    { label: 'Export PNG (2×)', icon: 'image', run: onexportpng },
+    { label: 'Export MP4 (one cycle)', icon: 'play', run: onexportmp4 },
+    { label: 'Export animated SVG', icon: 'wave', run: onexportanimsvg },
+    { label: 'Export Lottie (.json)', icon: 'timeline', run: onexportlottie },
     'sep',
     { label: 'Copy JSON', icon: 'object', run: oncopyjson },
   ]);
