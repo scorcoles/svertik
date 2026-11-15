@@ -712,7 +712,7 @@
   .canvas-status .size { padding: 0 var(--sv-space-4); background: none; border: 0; cursor: pointer; }
   .canvas-status .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
   .canvas-status .cost[data-slow] { color: var(--sv-signal-error); }
-  .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; padding-left: var(--sv-space-12); border-left: var(--sv-border-1) solid var(--sv-rule-default); }
+  .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; padding-left: var(--sv-space-12); }
   .status-actions button { height: 18px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: 1px solid var(--sv-rule-strong); cursor: pointer; }
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
