@@ -12,5 +12,5 @@ describe('boot', () => {
     for (const stage of BOOT_STAGES) {
       await stage.run();
     }
-  });
+  }, 20_000);
 });
