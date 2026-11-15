@@ -7,16 +7,18 @@
     disabled: boolean;
     onexportsvg: () => void;
     onexportpng: () => void;
+    onexportmp4: () => void;
     onexportanimsvg: () => void;
     onexportlottie: () => void;
     oncopyjson: () => void;
   }
-  let { disabled, onexportsvg, onexportpng, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
+  let { disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
 
   type Item = { label: string; icon: IconName; run: () => void } | 'sep';
   const items: Item[] = $derived([
     { label: 'Export SVG', icon: 'export', run: onexportsvg },
     { label: 'Export PNG (2×)', icon: 'export', run: onexportpng },
+    { label: 'Export MP4 (one cycle)', icon: 'export', run: onexportmp4 },
     { label: 'Export animated SVG', icon: 'export', run: onexportanimsvg },
     { label: 'Export Lottie (.json)', icon: 'export', run: onexportlottie },
     'sep',

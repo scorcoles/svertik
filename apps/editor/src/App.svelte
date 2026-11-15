@@ -7,7 +7,7 @@
   import { version } from '../package.json';
   import { Checkbox, IconButton } from '@svertik/ui';
   import Canvas from './Canvas.svelte';
-  import { Editor, locateModifier, locateNode } from './editor.svelte';
+  import { DEFAULT_CANVAS, Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
   import { DEMOS, type DemoName } from './demo-catalog';
   import { download, sceneJSON } from './exporters';
@@ -300,6 +300,28 @@
       return false;
     }
   }
+  let videoExport = $state<{ progress: number; controller: AbortController } | null>(null);
+  async function exportMP4() {
+    if (!editor.scene || videoExport) return;
+    const scene = snapshot();
+    const name = editor.name;
+    const background = editor.canvas || DEFAULT_CANVAS;
+    const controller = new AbortController();
+    videoExport = { progress: 0, controller };
+    try {
+      const { downloadMP4 } = await import('./video');
+      await downloadMP4(createEngine(builtins), scene, {
+        background, name, signal: controller.signal,
+        onProgress: progress => { if (videoExport) videoExport.progress = progress; },
+      });
+      recordActivity('Exported MP4');
+      say('MP4 downloaded');
+    } catch (error) {
+      say(controller.signal.aborted ? 'MP4 export cancelled' : error instanceof Error ? error.message : 'Could not export MP4.');
+    } finally {
+      videoExport = null;
+    }
+  }
   /** PNG del fotograma actual, a doble resolución y con fondo transparente (lo dibuja el navegador). */
   async function exportPNG(scale = 2) {
     recordActivity('Exported PNG');
@@ -540,6 +562,7 @@
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
+    onexportmp4={exportMP4}
     onexportlottie={exportLottie}
     onexportanimsvg={exportAnimatedSVG}
     ondemo={openDemo}
@@ -649,6 +672,12 @@
   {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
   {#if report}<ExportReport {...report} onclose={() => (report = null)} />{/if}
   {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}
+  {#if videoExport}
+    <div class="video-export">
+      <span role="status">Exporting MP4… {Math.round(videoExport.progress * 100)}%</span>
+      <button type="button" onclick={() => videoExport?.controller.abort()}>Cancel</button>
+    </div>
+  {/if}
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
 </div>
 
@@ -722,6 +751,29 @@
   .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }
   .diagnostics-toggle :global(.sv-icon-button:hover) { color: var(--sv-text-primary); }
   .diagnostics-toggle[data-warning] :global(.sv-icon-button) { color: var(--sv-signal-warning, #f5a544); }
+  .video-export {
+    position: fixed;
+    z-index: 110;
+    left: 50%;
+    bottom: 48px;
+    translate: -50% 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-12);
+    padding: var(--sv-space-8) var(--sv-space-12);
+    color: var(--sv-text-primary);
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    font-size: var(--sv-font-size-12);
+  }
+  .video-export button {
+    font: inherit;
+    color: var(--sv-text-primary);
+    background: none;
+    border: var(--sv-border-1) solid var(--sv-rule-strong);
+    padding: var(--sv-space-4) var(--sv-space-8);
+    cursor: pointer;
+  }
   .toast {
     max-width: min(560px, 90vw);
     position: fixed;

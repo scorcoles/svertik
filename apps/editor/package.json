@@ -25,7 +25,8 @@
     "@svertik/engine": "workspace:^",
     "@svertik/ui": "workspace:^",
     "bits-ui": "^2.20.6",
-    "codemirror": "^6.0.2"
+    "codemirror": "^6.0.2",
+    "mediabunny": "^1.66.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

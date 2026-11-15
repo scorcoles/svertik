@@ -13,12 +13,13 @@
     oncopyjson: () => void;
     onexport: () => void;
     onexportpng: () => void;
+    onexportmp4: () => void;
     onexportlottie: () => void;
     onexportanimsvg: () => void;
     ondemo: (which: DemoName) => void;
     onnew: () => void;
   }
-  let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
   let fullscreen = $state(false);
   const toggleFullscreen = () => fullscreen ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.();
 </script>
@@ -27,7 +28,7 @@
 
 <header class="toolbar">
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {onexportlottie} {onexportanimsvg} {oncopyjson} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {onexportmp4} {onexportlottie} {onexportanimsvg} {oncopyjson} {ondemo} />
     <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
@@ -69,6 +70,7 @@
     disabled={!editor.scene}
     onexportsvg={onexport}
     {onexportpng}
+    {onexportmp4}
     {onexportanimsvg}
     {onexportlottie}
     {oncopyjson}
