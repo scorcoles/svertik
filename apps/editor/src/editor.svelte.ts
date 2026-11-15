@@ -1145,6 +1145,48 @@ export class Editor {
     this.record(now);
   }
 
+  /** Set the placement origin in local or canvas coordinates, including moving group pivots. */
+  setNodePosition(id: string, target: [number, number], space: 'local' | 'world' = 'local') {
+    if (!this.scene || this.isLocked(id) || !target.every(Number.isFinite)) return;
+    const at = locateNode(this.scene.objects, id);
+    if (!at || at.node.kind === 'effector') return;
+    let [x, y] = target;
+    if (space === 'world' && at.parent) {
+      const scene = $state.snapshot(this.scene) as SceneV1;
+      scene.at = this.time;
+      const probe = locateNode(scene.objects, id)!.node;
+      const engine = createEngine(builtins);
+      const measure = (px: number, py: number) => {
+        probe.transform = { ...probe.transform, x: px, y: py };
+        const parent = engine.evaluateDocument(scene).nodes.get(at.parent!.id);
+        return parent ? apply(parent.matrix, [px, py]) : null;
+      };
+      const p = placementOf(at.node);
+      x = p.x;
+      y = p.y;
+      let converged = false;
+      for (let i = 0; i < 20; i++) {
+        const c = measure(x, y);
+        if (!c) return;
+        const dx = target[0] - c[0], dy = target[1] - c[1];
+        if (Math.abs(dx) + Math.abs(dy) < 1e-7) { converged = true; break; }
+        const a = measure(x + 0.01, y), b = measure(x, y + 0.01);
+        if (!a || !b) return;
+        const ax = (a[0] - c[0]) / 0.01, ay = (a[1] - c[1]) / 0.01;
+        const bx = (b[0] - c[0]) / 0.01, by = (b[1] - c[1]) / 0.01;
+        const det = ax * by - ay * bx;
+        if (Math.abs(det) < 1e-12) return;
+        x += (dx * by - dy * bx) / det;
+        y += (dy * ax - dx * ay) / det;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      }
+      // Do not write an approximation when the requested position cannot be reached.
+      if (!converged) return;
+    }
+    this.setNode(id, 'x', x);
+    this.setNode(id, 'y', y);
+  }
+
   /** Centra la caja visible en el documento, convirtiendo el desplazamiento al espacio del padre. */
   centerNode(id: string) {
     if (!this.scene) return;

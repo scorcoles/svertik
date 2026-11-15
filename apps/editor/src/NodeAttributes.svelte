@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { BLEND_MODES, EASES, compositionParams, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
+  import { BLEND_MODES, EASES, apply, compositionParams, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
-  import { PRESETS, registry, type Editor } from './editor.svelte';
+  import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
 
   interface Props {
     editor: Editor;
@@ -11,6 +11,18 @@
   }
   let { editor, node, onreplace }: Props = $props();
   const p = $derived(placementOf(node));
+  let positionSpace = $state<'local' | 'world'>('local');
+  const parentInfo = $derived.by(() => {
+    const parent = editor.scene ? locateNode(editor.scene.objects, node.id)?.parent : null;
+    return parent ? editor.infos.get(parent.id) : undefined;
+  });
+  const shownPosition = $derived.by((): [number, number] => {
+    const point = positionSpace === 'world' && parentInfo ? apply(parentInfo.matrix, [p.x, p.y]) : [p.x, p.y];
+    return [point[0]!, point[1]!];
+  });
+  function setPosition(position: [number, number]) {
+    editor.setNodePosition(node.id, position, positionSpace);
+  }
   // El slider se amplía por octavas para que siga siendo útil en escalas grandes.
   const scaleSliderMax = $derived(p.scale <= 16 ? 16 : 2 ** (Math.floor(Math.log2(p.scale)) + 1));
   const kindLabel = $derived(node.kind === 'group' ? node.composition ? 'composition' : `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
@@ -131,8 +143,13 @@
   {/if}
   {#if node.kind !== 'effector'}
   <Section title="Transform">
+    {#if parentInfo}
+      <ParamRow label="Position space">
+        <Segmented value={positionSpace} label="Position space" options={[{ value: 'local', label: 'Local' }, { value: 'world', label: 'Canvas' }]} onchange={(value) => (positionSpace = value as 'local' | 'world')} />
+      </ParamRow>
+    {/if}
     <ParamRow label="Position" for="node-x" keyState={nodeKey('x')} onkey={() => toggleNode('x', 'y')}>
-      <PointField id="node-x" label="Position" step={1} value={[p.x, p.y]} onchange={([x, y]) => { editor.setNode(node.id, 'x', x); editor.setNode(node.id, 'y', y); }} />
+      <PointField id="node-x" label="Position" step={1} value={shownPosition} onchange={setPosition} />
       <span class="mini">
         <IconButton icon="center" label="Center in document" disabled={!editor.infos.has(node.id)} onclick={() => editor.centerNode(node.id)} />
       </span>

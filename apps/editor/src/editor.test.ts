@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, type SceneV1 } from '@svertik/engine';
+import { apply, placementOf, bounds, builtins, createEngine, type SceneV1 } from '@svertik/engine';
 import { Editor, locateNode } from './editor.svelte';
 import { samples } from './samples';
 
@@ -16,6 +16,32 @@ const fresh = () => {
 };
 
 describe('Editor', () => {
+  it.each([false, true])('edits canvas position with moving parent pivots (nested: %s)', (nested) => {
+    const e = new Editor();
+    e.scene = {
+      version: 1,
+      objects: [{ kind: 'group', id: 'parent', name: 'Parent', stack: [], transform: { rotation: 65, scale: 1.8 }, children: [
+        { kind: 'shape', id: 'child', name: 'Child', stack: [], shape: 'rectangle', params: { width: 80, height: 40 }, transform: { x: 30, y: 20 } },
+        { kind: 'shape', id: 'sibling', name: 'Sibling', stack: [], shape: 'rectangle', params: { width: 20, height: 20 }, transform: { x: -90, y: 50 } },
+      ] }],
+    };
+    if (nested) e.scene!.objects = [{ kind: 'group', id: 'outer', name: 'Outer', stack: [], transform: { rotation: -30, scale: 0.7 }, children: e.scene!.objects }];
+    const engine = createEngine(builtins);
+    for (const target of [[250, -130], [-300, 220], [0, 0]] as [number, number][]) {
+      e.setNodePosition('child', target, 'world');
+      const doc = engine.evaluateDocument(e.scene as SceneV1);
+      const p = placementOf(locateNode(e.scene!.objects, 'child')!.node);
+      const actual = apply(doc.nodes.get('parent')!.matrix, [p.x, p.y]);
+      expect(actual[0]).toBeCloseTo(target[0], 5);
+      expect(actual[1]).toBeCloseTo(target[1], 5);
+    }
+    e.setNodePosition('child', [12, 34]);
+    expect(locateNode(e.scene!.objects, 'child')!.node.transform).toMatchObject({ x: 12, y: 34 });
+    e.toggleLock('parent');
+    e.setNodePosition('child', [99, 99], 'world');
+    expect(locateNode(e.scene!.objects, 'child')!.node.transform).toMatchObject({ x: 12, y: 34 });
+  });
+
   it('parents a node without moving it and follows the parent rotation', () => {
     const e = new Editor();
     e.addShape('rectangle', { width: 80, height: 60 }, { x: 30, y: 20 });
