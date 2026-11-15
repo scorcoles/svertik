@@ -30,6 +30,8 @@
     onungroup?: () => void;
     /** Renombrar: un lápiz al pasar (o doble clic en el nombre) edita el nombre en la propia fila. */
     onrename?: (name: string) => void;
+    locked?: boolean;
+    onlock?: () => void;
   }
   let {
     label,
@@ -48,6 +50,8 @@
     onvisible,
     onungroup,
     onrename,
+    locked = false,
+    onlock,
   }: Props = $props();
 
   let editing = $state(false);
@@ -148,6 +152,12 @@
       />
     </span>
   {/if}
+  {#if onlock}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <span class="remove lock" data-locked={locked || undefined} onclick={(e) => e.stopPropagation()}>
+      <IconButton icon={locked ? 'lock' : 'unlock'} label={locked ? `Unlock ${label}` : `Lock ${label}`} onclick={onlock} />
+    </span>
+  {/if}
   {#if kind !== 'object'}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="toggle" onclick={(e) => e.stopPropagation()}>
@@ -204,7 +214,9 @@
   .remove :global(.sv-icon-button) { width: 20px; height: 20px; }
   .remove :global(.sv-icon-button:hover) { color: var(--sv-signal-error); background: none; }
   .ungroup :global(.sv-icon-button:hover),
-  .pencil :global(.sv-icon-button:hover) { color: var(--sv-accent-fill); }
+  .pencil :global(.sv-icon-button:hover),
+  .lock :global(.sv-icon-button:hover) { color: var(--sv-accent-fill); }
+  .lock[data-locked] { visibility: visible; }
   .rename {
     flex: 1;
     min-width: 0;

@@ -13,6 +13,25 @@ const engine = createEngine(builtins);
 const at = (s: SceneV1, t: number) => engine.evaluateDocument(sampleScene(s, t)).geometry;
 
 describe('Time modulators', () => {
+  it('moves nested children with the parent oscillator', () => {
+    const s: SceneV1 = { version: 1, animation: { duration: 2, tracks: [] }, objects: [{
+      kind: 'shape', id: 'parent', name: 'Parent', shape: 'rectangle', params: { width: 40, height: 40 },
+      stack: [{ id: 'signal', type: 'oscillate', params: { time: { $expr: 'scene.time', fallback: 0 } }, children: [{ id: 'move', type: 'transform', params: { y: 20 } }] }],
+      children: [{ kind: 'shape', id: 'child', name: 'Child', shape: 'cross', params: { size: 10, width: 2 }, transform: { x: 60 }, stack: [] }],
+    }] };
+    const childBox = (time: number) => {
+      const geo = at(s, time);
+      return bounds({ ...geo, shapes: geo.shapes.filter((shape) => shape.node === 'child') });
+    };
+    expect(childBox(0.25).y - childBox(0).y).toBeCloseTo(20);
+    expect(childBox(0.75).y - childBox(0).y).toBeCloseTo(-20);
+    const parentBox = (time: number) => {
+      const geo = at(s, time);
+      return bounds({ ...geo, shapes: geo.shapes.filter((shape) => shape.node === 'parent') });
+    };
+    expect(childBox(0.25).y - childBox(0).y).toBeCloseTo(parentBox(0.25).y - parentBox(0).y);
+    expect(engine.evaluateDocument(sampleScene(s, 0.25)).nodes.get('child')!.box.y).toBeCloseTo(childBox(0.25).y);
+  });
   it('oscillates around neutral values, with per-element and whole-object pivots', () => {
     const s = scene('oscillate');
     expect(bounds(at(s, 0)).y).toBeCloseTo(-10);

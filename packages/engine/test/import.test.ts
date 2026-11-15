@@ -13,6 +13,14 @@ describe('importSVG', () => {
     expect(bounds(geo)).toEqual({ x: 10, y: 20, width: 30, height: 40 });
   });
 
+  it('preserves raster images as images when importing and exporting SVG', () => {
+    const href = 'data:image/png;base64,AA==';
+    const geo = importSVG(svg(`<image href="${href}" x="10" y="20" width="30" height="40"/>`));
+    expect(geo.shapes[0]?.image).toEqual({ href, width: 30, height: 40, preserveAspectRatio: 'xMidYMid meet' });
+    expect(bounds(geo)).toEqual({ x: 10, y: 20, width: 30, height: 40 });
+    expect(toSVG(geo)).toContain(`<image href="${href}"`);
+  });
+
   it('converts circles, ellipses, lines and polygons', () => {
     const geo = importSVG(
       svg('<circle cx="50" cy="50" r="10"/><ellipse cx="0" cy="0" rx="5" ry="2"/><line x1="0" y1="0" x2="1" y2="1"/><polygon points="0,0 10,0 5,5"/>'),

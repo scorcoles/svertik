@@ -30,6 +30,10 @@
   }
 
   function overNode(e: DragEvent, n: SceneNode) {
+    if (editor.isLocked(n.id)) {
+      drop = null;
+      return;
+    }
     // Un efecto soltado sobre un objeto va al final de su pila.
     if (drag?.kind === 'modifier') {
       e.preventDefault();
@@ -41,7 +45,7 @@
     if (!drag || drag.kind !== 'node' || drag.id === n.id) return;
     e.preventDefault();
     e.stopPropagation();
-    drop = { id: n.id, where: zone(e, n.kind === 'group' && !n.composition) };
+    drop = { id: n.id, where: zone(e, n.kind !== 'effector' && !(n.kind === 'group' && n.composition)) };
   }
 
   function dropHere(e?: DragEvent) {
@@ -60,7 +64,7 @@
     } else {
       const target = locateNode(editor.scene.objects, drop.id);
       if (target) {
-        if (drop.where === 'inside' && target.node.kind === 'group') editor.moveNode(drag.id, target.node.id, target.node.children.length);
+        if (drop.where === 'inside' && target.node.kind !== 'effector') editor.moveNode(drag.id, target.node.id, target.node.children?.length ?? 0);
         else editor.moveNode(drag.id, target.parent?.id ?? null, target.index + (drop.where === 'after' ? 1 : 0));
       }
     }
@@ -112,11 +116,11 @@
 
 {#snippet nodes(list: SceneNode[], depth: number)}
   {#each list as n (n.id)}
-    {@const open = !editor.isCollapsed(n.id)}
+    {@const open = !n.locked && !editor.isCollapsed(n.id)}
     <div
       class="drag"
       class:hidden-node={n.visible === false}
-      draggable="true"
+      draggable={!editor.isLocked(n.id)}
       data-drop={drop?.id === n.id ? drop.where : undefined}
       ondragstart={(e) => { e.stopPropagation(); drag = { id: n.id, kind: 'node' }; e.dataTransfer?.setData('text/plain', n.id); }}
       ondragover={(e) => overNode(e, n)}
@@ -127,23 +131,25 @@
       <StackItem
         label={n.name}
         kind="object"
-        icon={(n.kind === 'group' ? n.composition ? 'composition' : 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : 'object') as IconName}
-        oniconactivate={n.kind === 'group' && n.composition ? () => editor.openComposition(n.id) : undefined}
+        icon={(n.kind === 'group' ? n.composition ? 'composition' : 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : /<image\b/i.test(n.source) ? 'image' : 'object') as IconName}
+        oniconactivate={!n.locked && n.kind === 'group' && n.composition ? () => editor.openComposition(n.id) : undefined}
         {depth}
-        expanded={n.stack.length || n.kind === 'group' ? open : undefined}
+        expanded={!n.locked && (n.stack.length || n.kind === 'group' || n.children?.length) ? open : undefined}
         selected={editor.isSelected(n.id)}
-        onselect={(e) => (e.shiftKey || e.metaKey || e.ctrlKey ? editor.toggleSelect(n.id) : (editor.selected = n.id))}
+        onselect={(e) => { if (!editor.isLocked(n.id)) e.shiftKey || e.metaKey || e.ctrlKey ? editor.toggleSelect(n.id) : (editor.selected = n.id); }}
         onexpand={(v) => editor.toggleCollapsed(n.id, v)}
-        onremove={() => editor.remove(n.id)}
+        onremove={n.locked ? undefined : () => editor.remove(n.id)}
         visible={n.visible !== false}
-        onvisible={(v) => editor.setNode(n.id, 'visible', v, true)}
-        onungroup={n.kind === 'group' && !n.composition ? () => editor.ungroup(n.id) : undefined}
-        onrename={(name) => editor.setNode(n.id, 'name', name, true)}
+        onvisible={n.locked ? undefined : (v) => editor.setNode(n.id, 'visible', v, true)}
+        onungroup={!n.locked && n.kind === 'group' && !n.composition ? () => editor.ungroup(n.id) : undefined}
+        onrename={n.locked ? undefined : (name) => editor.setNode(n.id, 'name', name, true)}
+        locked={!!n.locked}
+        onlock={() => editor.toggleLock(n.id)}
       />
     </div>
     {#if open}
       {@render modifiers(n.stack, depth + 1)}
-      {#if n.kind === 'group' && !n.composition}{@render nodes(n.children, depth + 1)}{/if}
+      {#if n.children?.length && !(n.kind === 'group' && n.composition)}{@render nodes(n.children, depth + 1)}{/if}
     {/if}
   {/each}
 {/snippet}

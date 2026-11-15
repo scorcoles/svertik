@@ -200,7 +200,7 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>) => Object.values(params ?? {}).some(isNumericExpression);
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
-    (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || (node.kind === 'group' && node.children.some(nodeHas));
+    (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
   return scene.objects.some(nodeHas);
 }
 
@@ -243,7 +243,7 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
       }
       if (node.kind === 'group' && node.composition) { params(node.composition.params); params(node.composition.modulation?.params); }
       stack(node.stack);
-      if (node.kind === 'group') nodes(node.children);
+      if (node.children?.length) nodes(node.children);
     }
   };
   nodes(out.objects);

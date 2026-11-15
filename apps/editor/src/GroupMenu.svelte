@@ -34,7 +34,7 @@
       collisionPadding={8}
     >
       {#each types as type (type)}
-        <DropdownMenu.Item class="sv-menu-item" onSelect={() => editor.add(type)}>
+        <DropdownMenu.Item class="sv-menu-item" disabled={!editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
           <Icon name={type as IconName} />
           <span class="effect-name">{registry.get(type)?.label}</span>
         </DropdownMenu.Item>
@@ -78,6 +78,7 @@
     overscroll-behavior: contain;
   }
   :global(.sv-effect-menu .sv-menu-item) { height: auto; min-height: 24px; padding-block: var(--sv-space-4); }
+  :global(.sv-effect-menu .sv-menu-item[data-disabled]) { opacity: 0.38; cursor: default; }
   .effect-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
 </style>

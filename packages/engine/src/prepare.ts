@@ -28,7 +28,8 @@ export function sceneEffectTypes(scene: SceneV1): string[] {
   const walk = (nodes: SceneNode[]) => {
     for (const node of nodes) {
       stackTypes(node.stack ?? [], out);
-      if (node.kind === 'group') { walk(node.children); if (node.composition) { walk(node.composition.scene.objects); if (node.composition.modulation) out.add(node.composition.modulation.type); } }
+      if (node.children?.length) walk(node.children);
+      if (node.kind === 'group' && node.composition) { walk(node.composition.scene.objects); if (node.composition.modulation) out.add(node.composition.modulation.type); }
       // A pack can keep the original node (to be able to unpack it): its effects count too.
       const packed = node.kind === 'object' ? node.packed : undefined;
       if (packed?.original) walk([packed.original]);
@@ -41,14 +42,14 @@ export function sceneEffectTypes(scene: SceneV1): string[] {
 /** Does the scene have text? (then it needs a font, and opentype.js with it) */
 export function sceneHasText(scene: SceneV1): boolean {
   const walk = (nodes: SceneNode[]): boolean =>
-    nodes.some((node) => (node.kind === 'shape' && node.shape === 'text') || (node.kind === 'group' && (walk(node.children) || !!node.composition && walk(node.composition.scene.objects))));
+    nodes.some((node) => (node.kind === 'shape' && node.shape === 'text') || (!!node.children?.length && walk(node.children)) || (node.kind === 'group' && !!node.composition && walk(node.composition.scene.objects)));
   return walk(scene.objects);
 }
 
 /** Does the scene bring the markup of an SVG? (then it needs the importer) */
 export function sceneNeedsImporter(scene: SceneV1): boolean {
   const walk = (nodes: SceneNode[]): boolean =>
-    nodes.some((node) => (node.kind === 'object' && !node.packed) || (node.kind === 'group' && (walk(node.children) || !!node.composition && walk(node.composition.scene.objects))));
+    nodes.some((node) => (node.kind === 'object' && !node.packed) || (!!node.children?.length && walk(node.children)) || (node.kind === 'group' && !!node.composition && walk(node.composition.scene.objects)));
   return walk(scene.objects);
 }
 

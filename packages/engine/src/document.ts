@@ -27,10 +27,10 @@ export const DEFAULT_PLACEMENT: Placement = { x: 0, y: 0, scale: 1, rotation: 0 
 
 
 /** Walks the tree: each node with its parent. */
-export function* walkNodes(nodes: SceneNode[], parent: GroupNode | null = null): Generator<{ node: SceneNode; parent: GroupNode | null }> {
+export function* walkNodes(nodes: SceneNode[], parent: SceneNode | null = null): Generator<{ node: SceneNode; parent: SceneNode | null }> {
   for (const node of nodes) {
     yield { node, parent };
-    if (node.kind === 'group') yield* walkNodes(node.children, node);
+    if (node.children?.length) yield* walkNodes(node.children, node);
   }
 }
 
@@ -367,11 +367,14 @@ export function createDocumentEvaluator(
             const clean: Geometry = { viewBox: geo?.viewBox ?? [0, 0, 0, 0], shapes: (geo?.shapes ?? []).map(({ node: _n, wrap: _w, ...s }) => s) };
             instSrc = { geo: clean, key: `inst:${node.of}:${hashGeo(clean)}` };
           }
+          const childShapes: Shape[] = [];
+          for (let i = (node.children?.length ?? 0) - 1; i >= 0; i--) childShapes.push(...evalNode(node.children![i]!, IDENTITY));
+          const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.node, s.wrap, s.gradients, s.image])) : '';
           // Text depends on the registered fonts: when a new one arrives, it is drawn again.
           const key =
             node.kind === 'instance'
-              ? JSON.stringify([resolution, stack]) + '\n' + instSrc!.key
-              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+              ? JSON.stringify([resolution, stack]) + '\n' + instSrc!.key + childKey
+              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) + childKey : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]) + childKey;
           let entry = cache.get(node.id);
           // One that uses another object is valid if what it sees of it hasn't changed.
           // A trail depends on the time: it is not cached.
@@ -389,12 +392,15 @@ export function createDocumentEvaluator(
             }
             const source = src.geo;
             const ref = bounds(source);
+            const local = childShapes.length ? transformGeo({ viewBox: source.viewBox, shapes: childShapes }, invert(placementMatrix(p, ref, [0, 0], source.origin))).shapes : [];
+            const combinedSource: Geometry = local.length ? { ...source, shapes: [...source.shapes, ...local].map((shape) => ({ ...shape, signalGroup: 0 })) } : source;
             const before = asked;
             asked = false;
             const deps: [string, number][] = [];
             const refs: StackRefs = {};
             usedTrail = false;
-            const result = runStack(source, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id));
+            const computed = runStack(combinedSource, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id));
+            const result = local.length ? { ...computed, shapes: computed.shapes.map(({ signalGroup: _signalGroup, ...shape }) => shape) } : computed;
             entry = { key, source, result, dynamic: asked, deps, refs, volatile: usedTrail };
             asked = asked || before;
             cache.set(node.id, entry);
@@ -404,6 +410,12 @@ export function createDocumentEvaluator(
           const m = placementMatrix(p, ref, [0, 0], entry.source.origin);
           const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
+          for (const child of node.children ?? []) if (nodes.has(child.id)) reparent(child, world);
+          for (const { node: child } of walkNodes(node.children ?? [])) {
+            const info = nodes.get(child.id);
+            const own = entry.result.shapes.filter((shape) => shape.node === child.id);
+            if (info && own.length) info.box = boundsOf({ viewBox: entry.result.viewBox, shapes: own }, world);
+          }
           results.set(node.id, entry.result);
           nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: boundsOf(entry.result, world) });
           if (node.visible === false) return [];
@@ -460,7 +472,7 @@ export function createDocumentEvaluator(
         const info = nodes.get(node.id)!;
         info.matrix = multiply(groupWorld, info.matrix);
         info.box = transformBox(info.box, groupWorld);
-        if (node.kind === 'group') for (const c of node.children) reparent(c, groupWorld);
+        for (const c of node.children ?? []) reparent(c, groupWorld);
       };
 
       // The first in the list is painted last: it ends up in front.
@@ -696,7 +708,7 @@ export function brokenInstances(byId: Map<string, SceneNode>): Set<string> {
       visited.add(id);
       const t = byId.get(id);
       if (t?.kind === 'instance') todo.push(t.of);
-      else if (t?.kind === 'group') for (const c of t.children) todo.push(c.id);
+      else if (t?.children?.length) for (const c of t.children) todo.push(c.id);
     }
   }
   return bad;
@@ -768,7 +780,8 @@ export function sceneTrailWindow(scene: SceneV1): number {
         for (const c of m.children ?? []) stacks(c as { type: string; params?: Record<string, unknown>; children?: unknown[] });
       };
       for (const m of node.stack ?? []) stacks(m);
-      if (node.kind === 'group') { walk(node.children); if (node.composition) walk(node.composition.scene.objects); }
+      if (node.children?.length) walk(node.children);
+      if (node.kind === 'group' && node.composition) walk(node.composition.scene.objects);
     }
   };
   walk(scene.objects);

@@ -233,6 +233,20 @@
   };
 
   async function openFile(file: File) {
+    if (/^image\/(png|webp|jpeg)$/i.test(file.type) || /\.(png|webp|jpe?g)$/i.test(file.name)) {
+      const bitmap = await createImageBitmap(file);
+      const { width, height } = bitmap;
+      bitmap.close();
+      const href = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read image.'));
+        reader.onerror = () => reject(reader.error ?? new Error('Could not read image.'));
+        reader.readAsDataURL(file);
+      });
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><image href="${href}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none"/></svg>`;
+      editor.load(svg, file.name);
+      return;
+    }
     const text = await file.text();
     // Un proyecto (.svrtk, o el JSON de una escena): se abre entero. Si no, es un SVG que se añade.
     if (/\.(svrtk|json)$/i.test(file.name) || /^\s*\{/.test(text)) {
@@ -423,6 +437,10 @@
     const inPlace = pasteInPlace;
     pasteInPlace = false;
     if (typing(e) || editor.presenting) return;
+    const image = Array.from(e.clipboardData?.files ?? []).find((file) => /^image\/(png|webp|jpeg)$/i.test(file.type))
+      ?? Array.from(e.clipboardData?.items ?? []).find((item) => /^image\/(png|webp|jpeg)$/i.test(item.type))?.getAsFile()
+      ?? null;
+    if (image) { e.preventDefault(); void openFile(image); return; }
     const text = e.clipboardData?.getData('text/plain') ?? '';
     if (editor.paste(text, inPlace ? 0 : 16)) {
       e.preventDefault();
@@ -608,7 +626,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    accept=".svg,image/svg+xml,.svrtk,.json,application/json"
+    accept=".svg,image/svg+xml,.png,image/png,.webp,image/webp,.jpg,.jpeg,image/jpeg,.svrtk,.json,application/json"
     multiple
     hidden
     onchange={async (e) => {

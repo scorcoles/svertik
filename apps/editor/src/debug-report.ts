@@ -137,7 +137,7 @@ export function summarizeScene(scene: SceneV1 | null, includeSvgDetails = true):
         textShapes++;
         textCharacters += String(node.params.text ?? '').length;
       }
-      if (node.kind === 'group') visit(node.children, depth + 1);
+      if (node.children?.length) visit(node.children, depth + 1);
     }
   };
   visit(scene.objects, 1);

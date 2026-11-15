@@ -26,10 +26,14 @@ export interface Impulse {
 
 export interface Shape {
   impulse?: Impulse;
+  /** Embedded or linked raster image carried by a rectangular path footprint. */
+  image?: { href: string; width: number; height: number; preserveAspectRatio: string };
   subpaths: SubPath[];
   style: Style;
   /** Copy number given by Clone (for effectors like Step). */
   clone?: number;
+  /** Internal tag for keeping a parent's nested shapes in one time signal. */
+  signalGroup?: number;
   /** In a text: which word and which line the letter belongs to (for Range by words or lines). */
   word?: number;
   line?: number;

@@ -7,6 +7,9 @@ export const icons = {
   select: 'M3.5 1.5v11l3-2.75 2 4.25 1.75-.75-2-4.25h4.25z',
   marker: 'M3.5 14.5v-13h9v7h-9 M7 3.5v3 M5.5 5h3',
   composition: 'M1.5 3.5h13v10h-13z M4.5 3.5v10 M1.5 6.5h3 M1.5 10.5h3 M8 6.5l3 2-3 2z',
+  image: 'M1.5 2.5h13v11h-13z M4 6a1.25 1.25 0 1 0 2.5 0A1.25 1.25 0 1 0 4 6 M2 12l4-4 2.5 2 2.5-3 3 4',
+  lock: 'M3.5 7h9v7h-9z M5.5 7V5a2.5 2.5 0 0 1 5 0v2 M8 10v1.5',
+  unlock: 'M3.5 7h9v7h-9z M5.5 7V5a2.5 2.5 0 0 1 5 0 M8 10v1.5',
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
   ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
   // Filtros: sombra (una forma con otra detrás), desenfoque, resplandor, grano y desplazamiento.

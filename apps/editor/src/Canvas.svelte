@@ -50,7 +50,7 @@
         const effects = [...new Set(types)].map((type) => builtins.find((m) => m.type === type)?.label ?? type);
         found.push(`${node.name || node.id}: ${effects.join(', ')}`);
       }
-      if (node.kind === 'group') node.children.forEach(visit);
+      node.children?.forEach(visit);
     };
     items.forEach(visit);
     return found.slice(0, 4);
@@ -92,7 +92,7 @@
       result.setAttribute('viewBox', viewBox.join(' '));
       // Escribiendo en un texto: su resultado (con efectos), atenuado debajo del campo.
       const editing = editor.editingText;
-      for (const p of result.querySelectorAll<SVGPathElement>('path[data-node]')) p.style.opacity = editing && p.getAttribute('data-node') === editing ? '0.25' : '';
+      for (const p of result.querySelectorAll<SVGElement>('path[data-node], image[data-node]')) p.style.opacity = editing && p.getAttribute('data-node') === editing ? '0.25' : '';
       if (ghost) {
         renderInto(ghost, doc.sources);
         ghost.setAttribute('viewBox', viewBox.join(' '));
@@ -203,19 +203,27 @@
     return () => stage?.removeEventListener('wheel', wheel);
   });
 
-  // Espacio + arrastrar, o botón central: mover el lienzo.
+  // Hold Space and drag, or use the middle button, to pan the canvas.
   let space = $state(false);
+  let spacePanned = false;
   let panning = $state(false);
   const typing = (e: Event) => {
     const t = e.target as HTMLElement | null;
     return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+  };
+  const shortcutBlocked = (e: Event) => {
+    const target = e.target;
+    return typing(e) || target instanceof Element && !!target.closest('button, select, a[href], [role="button"], [role="slider"]');
   };
   function keydown(e: KeyboardEvent) {
     if (typing(e) || !editor.scene || editor.presenting) return;
     if (e.key === 'Escape' && editor.tool) { penPoints = []; editor.tool = null; e.preventDefault(); }
     else if (e.key === 'Enter' && editor.tool === 'pen' && penPoints.length >= 2) { e.preventDefault(); finishPen(); }
     else if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) { editor.tool = null; }
-    else if (e.code === 'Space' && !e.repeat) { space = true; e.preventDefault(); }
+    else if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey && !shortcutBlocked(e)) {
+      e.preventDefault();
+      if (!e.repeat) { space = true; spacePanned = false; }
+    }
     else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
     else if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); view = actualSize(view, fit, box[0], box[1]); }
     // Intro, con un texto seleccionado: escribir en él.
@@ -227,7 +235,7 @@
     if (editor.tool === 'pen') { e.preventDefault(); finishPen(); return; }
     // Lo que hay bajo el puntero (no e.target: al pulsar, el escenario captura el puntero para arrastrar
     // y el doble clic le llega a él, no a la letra).
-    const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('path[data-node]'));
+    const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('path[data-node], image[data-node]'));
     const id = hit?.getAttribute('data-node');
     const n = id && editor.scene ? locateNode(editor.scene.objects, id)?.node : null;
     if (n?.kind === 'group' && n.composition) { editor.selected = n.id; editor.openComposition(n.id); return; }
@@ -236,11 +244,15 @@
     editor.editingText = n.id;
   }
   function keyup(e: KeyboardEvent) {
-    if (e.code === 'Space') space = false;
+    if (e.code !== 'Space' || !space) return;
+    e.preventDefault();
+    space = false;
+    if (!spacePanned && !shortcutBlocked(e) && editor.scene && !editor.presenting) editor.togglePlayback();
   }
   function pointerdown(e: PointerEvent) {
     if (!(space || e.button === 1)) return pick(e);
     e.preventDefault();
+    if (space) spacePanned = true;
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     panning = true;
@@ -578,7 +590,8 @@
     if (space || e.button !== 0 || !editor.scene) return;
     if (editor.tool === 'pen') return drawPen(e);
     if (editor.tool) return drawShape(e);
-    const id = (e.target as Element).closest?.('path[data-node]')?.getAttribute('data-node');
+    const id = (e.target as Element).closest?.('path[data-node], image[data-node]')?.getAttribute('data-node');
+    if (id && editor.isLocked(id)) return;
     if (!id) {
       if (!e.shiftKey) editor.selected = null;
       return;
@@ -794,11 +807,11 @@
     e.preventDefault();
     dropping = false;
     // Varios archivos a la vez: un objeto por cada uno.
-    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg|json/i.test(file.type) || /\.(svg|svrtk|json)$/i.test(file.name)) onfile(file);
+    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg|json|image\/(png|webp|jpeg)/i.test(file.type) || /\.(svg|png|webp|jpe?g|svrtk|json)$/i.test(file.name)) onfile(file);
   }
 </script>
 
-<svelte:window onkeydown={keydown} onkeyup={keyup} onblur={() => (space = false)} />
+<svelte:window onkeydown={keydown} onkeyup={keyup} onblur={() => { space = false; spacePanned = false; }} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <section
@@ -1022,7 +1035,7 @@
   .stage { position: absolute; inset: 0; overflow: hidden; }
   .stage[data-space] { cursor: grab; }
   .stage[data-tool] { cursor: crosshair; }
-  .stage[data-tool] :global(path[data-node]) { cursor: crosshair; }
+  .stage[data-tool] :global(path[data-node]), .stage[data-tool] :global(image[data-node]) { cursor: crosshair; }
   .draft { pointer-events: none; }
   .finish-pen { position: absolute; right: var(--sv-space-12); bottom: var(--sv-space-12); z-index: 12; display: flex; align-items: center; gap: var(--sv-space-8); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 90%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
   .finish-pen:hover { border-color: var(--sv-accent-fill); }
@@ -1063,7 +1076,7 @@
   .handle[data-active]::after { display: block; }
   .handle:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
   .stage[data-space] .handle { pointer-events: none; }
-  .result :global(path[data-node]) { cursor: default; }
+  .result :global(path[data-node]), .result :global(image[data-node]) { cursor: default; }
   /* Recuadro del objeto o grupo seleccionado. */
   .selection { position: absolute; pointer-events: none; outline: 1px solid var(--sv-accent-fill); }
   .selection.other { outline-style: dashed; }

@@ -83,7 +83,7 @@ export function createInteractions(getScene: () => SceneV1) {
     const walk = (nodes: SceneNode[], parent: string | null) => {
       for (const n of nodes) {
         map.set(n.id, parent);
-        if (n.kind === 'group') walk(n.children, n.id);
+        if (n.children?.length) walk(n.children, n.id);
       }
     };
     walk(getScene().objects, null);
@@ -261,7 +261,7 @@ function toggleEnabled(scene: SceneV1, nodeId: string, modifier: string | undefi
   const find = (nodes: SceneNode[]): SceneNode | null => {
     for (const n of nodes) {
       if (n.id === nodeId) return n;
-      if (n.kind === 'group') {
+      if (n.children?.length) {
         const r = find(n.children);
         if (r) return r;
       }

@@ -16,6 +16,38 @@ const fresh = () => {
 };
 
 describe('Editor', () => {
+  it('parents a node without moving it and follows the parent rotation', () => {
+    const e = new Editor();
+    e.addShape('rectangle', { width: 80, height: 60 }, { x: 30, y: 20 });
+    const parent = e.selected!;
+    e.addShape('cross', {}, { x: 150, y: 20 });
+    const child = e.selected!;
+    const engine = createEngine(builtins);
+    const before = engine.evaluateDocument(e.scene as SceneV1).nodes.get(child)!.box;
+    e.infos = engine.evaluateDocument(e.scene as SceneV1).nodes;
+    e.moveNode(child, parent, 0);
+    const after = engine.evaluateDocument(e.scene as SceneV1).nodes.get(child)!.box;
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+    e.setNode(parent, 'rotation', 90);
+    const rotated = engine.evaluateDocument(e.scene as SceneV1).nodes.get(child)!.box;
+    expect(rotated.x).not.toBeCloseTo(after.x);
+    expect(rotated.y).not.toBeCloseTo(after.y);
+    e.infos = engine.evaluateDocument(e.scene as SceneV1).nodes;
+    e.moveNode(child, null, 0);
+    const unparented = engine.evaluateDocument(e.scene as SceneV1).nodes.get(child)!.box;
+    expect(unparented.x).toBeCloseTo(rotated.x);
+    expect(unparented.y).toBeCloseTo(rotated.y);
+    e.infos = engine.evaluateDocument(e.scene as SceneV1).nodes;
+    e.moveNode(child, parent, 0);
+    e.toggleLock(parent);
+    expect(e.isLocked(child)).toBe(true);
+    expect(e.isCollapsed(parent)).toBe(true);
+    const x = locateNode(e.scene!.objects, child)!.node.transform?.x;
+    e.setNode(child, 'x', 999);
+    expect(locateNode(e.scene!.objects, child)!.node.transform?.x).toBe(x);
+  });
+
   it('añadir coloca el efecto debajo del seleccionado y lo selecciona', () => {
     const e = fresh();
     e.add('spherize');

@@ -119,6 +119,8 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
           errors.push(...nested.errors.map(e => `${name(n)} composition: ${e}`));
           warnings.push(...nested.warnings.map(e => `${name(n)} composition: ${e}`));
         }
+      }
+      if (n.children !== undefined || n.kind === 'group') {
         if (!Array.isArray(n.children)) errors.push(`${name(n)}: children must be an array`);
         else checkNodes(n.children);
       }

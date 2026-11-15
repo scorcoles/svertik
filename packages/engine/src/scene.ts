@@ -31,6 +31,10 @@ export interface NodeBase {
   name: string;
   /** The node's effects. In a group, they apply to all its children together. */
   stack: ModifierInstance[];
+  /** Child objects inherit this node's placement. */
+  children?: SceneNode[];
+  /** Prevent editing this node and its descendants in the editor. */
+  locked?: boolean;
   transform?: Partial<Placement>;
   opacity?: number;
   /** Blend with what is behind (`mix-blend-mode`); normal without it. In a group, it applies to each child. */
@@ -134,12 +138,12 @@ export function sceneDuration(scene: SceneV1, depth = 0): number {
   if (scene.animation) return scene.animation.duration;
   if (depth > 32) return 3;
   let duration = 0;
-  const visit = (nodes: SceneNode[]) => { for (const n of nodes) if (n.kind === 'group') {
-    if (n.composition) {
+  const visit = (nodes: SceneNode[]) => { for (const n of nodes) {
+    if (n.kind === 'group' && n.composition) {
       const p = n.composition.params ?? {};
       const speed = typeof p.speed === 'number' ? Math.abs(p.speed) : 1;
       duration = Math.max(duration, (Number(p.start) || 0) + sceneDuration(n.composition.scene, depth + 1) / (speed || 1));
-    } else visit(n.children);
+    } else if (n.children?.length) visit(n.children);
   } };
   visit(scene.objects);
   return duration || 3;

@@ -122,6 +122,30 @@ export function filterDefs(geo: Geometry, prefix = ''): string {
 export const wrapAttr = (geo: Geometry, id: string, prefix = ''): [string, string] =>
   geo.filters?.[id]?.kind === 'mask' ? ['mask', `url(#${prefix}sv-m-${id})`] : ['filter', `url(#${prefix}sv-f-${id})`];
 
+/** Blend a filtered result with the scene behind its filter group. */
+function filterBlends(geo: Geometry): Map<string, string | null> {
+  const blends = new Map<string, string | null>();
+  for (const shape of geo.shapes) {
+    const id = shape.wrap?.find((key) => geo.filters?.[key]);
+    if (!id) continue;
+    const blend = shape.style['mix-blend-mode'] ?? null;
+    if (!blends.has(id)) blends.set(id, blend);
+    else if (blends.get(id) !== blend) blends.set(id, null);
+  }
+  return blends;
+}
+
+function drawnStyle(geo: Geometry, shape: Shape, blends: Map<string, string | null>): Style {
+  const id = shape.wrap?.find((key) => geo.filters?.[key]);
+  const blend = shape.style['mix-blend-mode'];
+  const groupedBlend = !!blend && !!id && blends.get(id) === blend;
+  if (!shape.image && !groupedBlend) return shape.style;
+  const style = { ...shape.style };
+  if (shape.image) for (const key of ['fill', 'fill-rule', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin']) delete style[key];
+  if (groupedBlend) delete style['mix-blend-mode'];
+  return style;
+}
+
 export interface ToSVGOptions {
   precision?: number;
 }
@@ -129,6 +153,7 @@ export interface ToSVGOptions {
 /** SVG plano, autocontenido. */
 export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): string {
   const [x, y, w, h] = geo.viewBox;
+  const blends = filterBlends(geo);
   // The shapes of an object with filters go inside its <g filter> (nested if needed).
   const lines: string[] = [];
   let open: string[] = [];
@@ -139,15 +164,29 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
     for (let i = open.length - 1; i >= same; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
     for (let i = same; i < wrap.length; i++) {
       const [k, v] = wrapAttr(geo, wrap[i]!);
-      lines.push(`${'  '.repeat(i + 1)}<g ${k}="${v}">`);
+      const blend = i === 0 ? blends.get(wrap[i]!) : null;
+      lines.push(`${'  '.repeat(i + 1)}<g ${k}="${v}"${blend ? ` style="mix-blend-mode:${escapeAttr(blend)}"` : ''}>`);
     }
     open = wrap;
-    lines.push(`${'  '.repeat(wrap.length + 1)}<path d="${toPathData(shape, precision)}"${styleAttrs(shape.style)}/>`);
+    if (shape.image) {
+      const image = imagePlacement(shape);
+      lines.push(`${'  '.repeat(wrap.length + 1)}<image href="${escapeAttr(shape.image.href)}" x="0" y="0" width="${shape.image.width}" height="${shape.image.height}" transform="${image}" preserveAspectRatio="${escapeAttr(shape.image.preserveAspectRatio)}"${styleAttrs(drawnStyle(geo, shape, blends))}/>`);
+    } else lines.push(`${'  '.repeat(wrap.length + 1)}<path d="${toPathData(shape, precision)}"${styleAttrs(drawnStyle(geo, shape, blends))}/>`);
   }
   for (let i = open.length - 1; i >= 0; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
   const paths = lines.join('\n');
   const defs = gradientDefs(geo) + filterDefs(geo);
   return `<svg xmlns="${SVG_NS}" viewBox="${x} ${y} ${w} ${h}">\n${defs ? `  <defs>${defs}</defs>\n` : ''}${paths}\n</svg>\n`;
+}
+
+/** Affine map from the source image rectangle onto its transformed path footprint. */
+function imagePlacement(shape: Shape): string {
+  const sp = shape.subpaths[0];
+  if (!sp || sp.segs.length < 3 || !shape.image) return 'matrix(1 0 0 1 0 0)';
+  const [x, y] = sp.start;
+  const [rx, ry] = sp.segs[0]!.p;
+  const [bx, by] = sp.segs[2]!.p;
+  return `matrix(${(rx - x) / shape.image.width} ${(ry - y) / shape.image.width} ${(bx - x) / shape.image.height} ${(by - y) / shape.image.height} ${x} ${y})`;
 }
 
 /**
@@ -156,6 +195,7 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
  */
 export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }: ToSVGOptions = {}): void {
   svg.setAttribute('viewBox', geo.viewBox.join(' '));
+  const blends = filterBlends(geo);
   // Filter ids of this <svg>: the same page may have others with the same objects.
   const prefix = prefixOf(svg);
   // Gradients and filters: a <defs> of its own, only rewritten when it changes.
@@ -167,7 +207,7 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     svg.insertBefore(defsEl, svg.firstChild);
   }
   if (defsEl && defsEl.innerHTML !== defs) defsEl.innerHTML = defs;
-  const paths = Array.from(svg.querySelectorAll('path[data-svertik]'));
+  const shapes = Array.from(svg.querySelectorAll('[data-svertik-shape]'));
   const groups = new Map(Array.from(svg.querySelectorAll('g[data-svertik-fx]'), (g) => [g.getAttribute('data-svertik-fx')!, g]));
   const used = new Set<Element>();
   // The last thing placed in each container: so only what is out of place moves.
@@ -181,14 +221,17 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     lastIn.set(parent, el);
   };
   geo.shapes.forEach((shape, i) => {
-    let path = paths[i];
-    if (!path) {
-      path = svg.ownerDocument.createElementNS(SVG_NS, 'path');
-      path.setAttribute('data-svertik', '');
+    const tag = shape.image ? 'image' : 'path';
+    let path = shapes[i];
+    if (path?.localName !== tag) {
+      path?.remove();
+      path = undefined;
     }
+    if (!path) path = svg.ownerDocument.createElementNS(SVG_NS, tag);
+    path.setAttribute('data-svertik-shape', '');
     // Inside the filter groups that apply to it (from outside in).
     let parent: Element = svg;
-    for (const id of wrapOf(geo, shape)) {
+    for (const [depth, id] of wrapOf(geo, shape).entries()) {
       let g = groups.get(id);
       if (!g) {
         g = svg.ownerDocument.createElementNS(SVG_NS, 'g');
@@ -201,18 +244,26 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
         const [k, url] = wrapAttr(geo, id, prefix);
         if (g.getAttribute(k) !== url) g.setAttribute(k, url);
         g.removeAttribute(k === 'mask' ? 'filter' : 'mask');
+        const blend = depth === 0 ? blends.get(id) : null;
+        if (blend) g.setAttribute('style', `mix-blend-mode:${blend}`);
+        else g.removeAttribute('style');
       }
       parent = g;
     }
     place(parent, path);
-    path.setAttribute('d', toPathData(shape, precision));
+    if (shape.image) {
+      const placement = imagePlacement(shape);
+      const attrs: Record<string, string> = { href: shape.image.href, x: '0', y: '0', width: String(shape.image.width), height: String(shape.image.height), transform: placement, preserveAspectRatio: shape.image.preserveAspectRatio };
+      for (const [k, v] of Object.entries(attrs)) if (path.getAttribute(k) !== v) path.setAttribute(k, v);
+    } else path.setAttribute('d', toPathData(shape, precision));
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
     // Style attributes it no longer has (an opacity, a stroke…) are removed: otherwise it would keep
     // the previous frame's. The renderer remembers which ones it set in data-svertik.
     const before = (path.getAttribute('data-svertik') ?? '').split(' ').filter(Boolean);
     const now: string[] = [];
-    for (const [k, v] of Object.entries(shape.style)) {
+    const imageStyle = drawnStyle(geo, shape, blends);
+    for (const [k, v] of Object.entries(imageStyle)) {
       if (CSS_ONLY.has(k)) continue;
       now.push(k);
       if (path.getAttribute(k) !== v) path.setAttribute(k, v);
@@ -226,13 +277,13 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     }
     const list = now.join(' ');
     if ((path.getAttribute('data-svertik') ?? '') !== list) path.setAttribute('data-svertik', list);
-    const css = cssOf(shape.style);
+    const css = cssOf(imageStyle);
     if ((path.getAttribute('style') ?? '') !== css) {
       if (css) path.setAttribute('style', css);
       else path.removeAttribute('style');
     }
   });
-  for (const extra of paths.slice(geo.shapes.length)) extra.remove();
+  for (const extra of shapes.slice(geo.shapes.length)) extra.remove();
   for (const g of groups.values()) if (!used.has(g)) g.remove();
 }
 

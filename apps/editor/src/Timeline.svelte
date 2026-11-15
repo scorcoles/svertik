@@ -195,7 +195,7 @@
   <header>
     <IconButton icon="to-start" label="Go to start" onclick={() => editor.setTime(0)} />
     <IconButton icon="step-back" label="Previous frame" disabled={editor.time <= 0} onclick={() => editor.stepFrame(-1)} />
-    <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause' : 'Play'} active={editor.playing} onclick={() => editor.togglePlayback()} />
+    <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause (Space)' : 'Play (Space)'} active={editor.playing} onclick={() => editor.togglePlayback()} />
     <IconButton icon="step-forward" label="Next frame" disabled={editor.time >= lastFrame / fps - 1e-6} onclick={() => editor.stepFrame(1)} />
     <span class="time">{editor.time.toFixed(2)}<span class="dim"> / {duration.toFixed(2)} s</span></span>
     <span class="rule" aria-hidden="true"></span>

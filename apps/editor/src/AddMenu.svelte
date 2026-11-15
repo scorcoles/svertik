@@ -30,7 +30,7 @@
         <DropdownMenu.Group>
           <DropdownMenu.GroupHeading class="sv-menu-heading">{title}</DropdownMenu.GroupHeading>
           {#each types as type (type)}
-            <DropdownMenu.Item class="sv-menu-item" onSelect={() => editor.add(type)}>
+            <DropdownMenu.Item class="sv-menu-item" disabled={!editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
               <Icon name={type as IconName} />
               {registry.get(type)?.label}
             </DropdownMenu.Item>
@@ -76,5 +76,6 @@
   :global(.sv-menu-item .sv-icon) { flex: none; color: var(--sv-text-secondary); }
   :global(.sv-menu-item[data-highlighted]) { background: var(--sv-surface-hover); }
   :global(.sv-menu-item[data-highlighted] .sv-icon) { color: var(--sv-accent-fill); }
+  :global(.sv-menu-item[data-disabled]) { opacity: 0.38; cursor: default; }
   :global(.sv-menu-rule) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
 </style>

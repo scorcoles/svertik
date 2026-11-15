@@ -3,6 +3,7 @@ import {
   bounds,
   apply,
   invert,
+  multiply,
   pivotPoint,
   builtins,
   createEngine,
@@ -103,14 +104,14 @@ export interface NodeLocation {
   list: SceneNode[];
   index: number;
   node: SceneNode;
-  parent: GroupNode | null;
+  parent: SceneNode | null;
 }
 
-export function locateNode(nodes: SceneNode[], id: string | null, parent: GroupNode | null = null): NodeLocation | null {
+export function locateNode(nodes: SceneNode[], id: string | null, parent: SceneNode | null = null): NodeLocation | null {
   if (!id) return null;
   for (const [index, node] of nodes.entries()) {
     if (node.id === id) return { list: nodes, index, node, parent };
-    if (node.kind === 'group') {
+    if (node.children?.length) {
       const found = locateNode(node.children, id, node);
       if (found) return found;
     }
@@ -191,7 +192,7 @@ function freshModifier(m: ModifierInstance): ModifierInstance {
 }
 function freshNode(n: SceneNode): SceneNode {
   const base = { ...n, id: `${n.kind === 'shape' ? n.shape : n.kind}-${uid()}`, stack: n.stack.map(freshModifier) };
-  return base.kind === 'group' ? { ...base, children: base.children.map(freshNode) } : base;
+  return { ...base, ...(n.children ? { children: n.children.map(freshNode) } : {}) };
 }
 
 export class Editor {
@@ -427,6 +428,10 @@ export class Editor {
     return this.#selected;
   }
   set selected(id: string | null) {
+    if (id && this.scene) {
+      const owner = locateNode(this.scene.objects, id)?.node ?? locateModifier(this.scene, id)?.owner;
+      if (owner && this.isLocked(owner.id)) return;
+    }
     this.#selected = id;
     this.also = [];
   }
@@ -542,9 +547,30 @@ export class Editor {
   });
   isSelected = (id: string) => this.#selected === id || this.also.includes(id);
 
+  isLocked(id: string): boolean {
+    let at = this.scene ? locateNode(this.scene.objects, id) : null;
+    while (at) {
+      if (at.node.locked) return true;
+      at = at.parent ? locateNode(this.scene!.objects, at.parent.id) : null;
+    }
+    return false;
+  }
+
+  toggleLock(id: string) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || (at.parent && this.isLocked(at.parent.id))) return;
+    at.node.locked = !at.node.locked;
+    if (at.node.locked) {
+      this.collapsed = [...new Set([...this.collapsed, id])];
+      if (this.activeNode && this.isLocked(this.activeNode.id)) this.selected = null;
+      this.also = this.also.filter((selectedId) => !this.isLocked(selectedId));
+    }
+    this.record(true);
+  }
+
   /** Selecciona todas las capas raíz; los grupos incluyen sus hijos sin seleccionarlos por duplicado. */
   selectAll() {
-    const ids = this.scene?.objects.map((node) => node.id) ?? [];
+    const ids = this.scene?.objects.filter((node) => !node.locked).map((node) => node.id) ?? [];
     this.#selected = ids[0] ?? null;
     this.also = ids.slice(1);
     this.tool = null;
@@ -552,6 +578,7 @@ export class Editor {
 
   /** ⇧ + clic: añade o quita un nodo de la selección; el último añadido pasa a ser el principal. */
   toggleSelect(id: string) {
+    if (this.isLocked(id)) return;
     const nodes = this.selectedNodes.map((n) => n.id);
     if (nodes.includes(id)) {
       const rest = nodes.filter((x) => x !== id);
@@ -753,6 +780,7 @@ export class Editor {
 
   /** Retraso entre un target y el siguiente (segundos). */
   setEffectorDelay(id: string, delay: number, now = false) {
+    if (this.isLocked(id)) return;
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at || at.node.kind !== 'effector') return;
     const d = Math.max(0, Math.round(delay * 1000) / 1000);
@@ -763,6 +791,7 @@ export class Editor {
 
   /** Cambia el original de una instancia. */
   setInstanceOf(id: string, of: string) {
+    if (this.isLocked(id)) return;
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at || at.node.kind !== 'instance' || at.node.of === of || id === of) return;
     at.node.of = of;
@@ -772,6 +801,7 @@ export class Editor {
   /** Un parámetro de una primitiva. */
   /** Cambia un parámetro de una primitiva sin pasar por el historial (al escribir en el lienzo: luego, uno solo). */
   previewShapeParam(id: string, name: string, value: unknown) {
+    if (this.isLocked(id)) return;
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (at?.node.kind === 'shape') at.node.params[name] = value;
   }
@@ -779,6 +809,7 @@ export class Editor {
   editingText = $state<string | null>(null);
 
   setShapeParam(id: string, name: string, value: unknown) {
+    if (this.isLocked(id)) return;
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at || at.node.kind !== 'shape') return;
     at.node.params[name] = value;
@@ -800,7 +831,7 @@ export class Editor {
     const shapes: ShapeNode[] = [];
     const collect = (node: SceneNode) => {
       if (node.kind === 'shape') shapes.push(node);
-      else if (node.kind === 'group') for (const { node: child } of walkNodes(node.children)) collect(child);
+      for (const child of node.children ?? []) collect(child);
     };
     for (const node of roots) collect(node);
     return shapes;
@@ -884,7 +915,7 @@ export class Editor {
     const ids: string[] = [];
     const mods = (list: ModifierInstance[]) => list.forEach((m) => m.children && (ids.push(m.id), mods(m.children)));
     for (const { node } of walkNodes(this.scene.objects)) {
-      if (node.stack.length || node.kind === 'group') ids.push(node.id);
+      if (node.stack.length || node.kind === 'group' || node.children?.length) ids.push(node.id);
       mods(node.stack);
     }
     this.collapsed = ids;
@@ -1064,21 +1095,41 @@ export class Editor {
   /** Mueve un nodo: dentro de `groupId` (o arriba del todo) en la posición `index`. */
   moveNode(id: string, groupId: string | null, index: number) {
     if (!this.scene || id === groupId) return;
+    if (this.isLocked(id) || (groupId && this.isLocked(groupId))) return;
     const at = locateNode(this.scene.objects, id);
     if (!at) return;
-    // Un grupo no entra en sí mismo ni en sus descendientes.
-    if (groupId && at.node.kind === 'group' && locateNode(at.node.children, groupId)) return;
+    // A node cannot become a child of one of its descendants.
+    if (groupId && at.node.children?.length && locateNode(at.node.children, groupId)) return;
     const target = groupId ? locateNode(this.scene.objects, groupId)?.node : null;
-    if (groupId && (!target || target.kind !== 'group' || target.composition)) return;
-    const list = target && target.kind === 'group' ? target.children : this.scene.objects;
+    if (groupId && (!target || target.kind === 'effector' || (target.kind === 'group' && target.composition))) return;
+    if (target && !target.children) target.children = [];
+    const list = target ? target.children! : this.scene.objects;
+    const info = this.infos.get(id);
+    const parentInfo = target ? this.infos.get(target.id) : null;
+    let placement: Partial<ReturnType<typeof placementOf>> | null = null;
+    if (at.list !== list && info && (!target || parentInfo)) {
+      const rel = target ? multiply(invert(parentInfo!.matrix), info.matrix) : info.matrix;
+      const p = placementOf(at.node), b = info.bounds, c = [b.x + b.width / 2, b.y + b.height / 2];
+      const pv = pivotPoint(b, p.pivot);
+      const flip = p.flipX ? -1 : 1;
+      placement = {
+        ...p,
+        x: rel[4] - pv[0] + c[0]! + rel[0] * pv[0] + rel[2] * pv[1],
+        y: rel[5] - pv[1] + c[1]! + rel[1] * pv[0] + rel[3] * pv[1],
+        rotation: Math.atan2(rel[1] * flip, rel[0] * flip) * 180 / Math.PI,
+        scale: Math.hypot(rel[0], rel[1]),
+      };
+    }
     const [n] = at.list.splice(at.index, 1);
     const i = list === at.list && index > at.index ? index - 1 : index;
     list.splice(Math.max(0, Math.min(list.length, i)), 0, n!);
+    if (placement) n!.transform = placement;
     this.record(true);
   }
 
   /** Posición, escala, giro, opacidad, visibilidad o nombre de un nodo. */
   setNode(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'flipX' | 'flipY' | 'opacity' | 'visible' | 'name' | 'blend', value: unknown, now = false) {
+    if (this.isLocked(id)) return;
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
     if (!at) return;
     const n = at.node;
@@ -1097,6 +1148,7 @@ export class Editor {
   /** Centra la caja visible en el documento, convirtiendo el desplazamiento al espacio del padre. */
   centerNode(id: string) {
     if (!this.scene) return;
+    if (this.isLocked(id)) return;
     const at = locateNode(this.scene.objects, id);
     const info = this.infos.get(id);
     if (!at || !info || at.node.kind === 'effector') return;
@@ -1166,7 +1218,7 @@ export class Editor {
       const parent = locateNode(this.scene!.objects, n.id)?.parent;
       const matrix = parent && doc.nodes.get(parent.id)?.matrix;
       const toParent = matrix ? invert(matrix) : [1, 0, 0, 1, 0, 0];
-      return [{ id: n.id, p, q, toParent, nested: !!parent && !parent.composition }];
+      return [{ id: n.id, p, q, toParent, nested: !!parent && !(parent.kind === 'group' && parent.composition) }];
     });
     return (factor: number) => {
       if (!this.scene || !Number.isFinite(factor)) return;
@@ -1233,6 +1285,7 @@ export class Editor {
    * (giro·escala·reflejo − identidad) por lo que se movió el pivote.
    */
   setPivot(id: string, pivot: [number, number], now = false) {
+    if (this.isLocked(id)) return;
     const n = this.scene ? locateNode(this.scene.objects, id)?.node : undefined;
     const ref = this.infos.get(id)?.bounds;
     if (!n || !ref) return;
@@ -1719,7 +1772,17 @@ export class Editor {
 
   // ── Pila del nodo activo
 
+  /** Raster objects support affine transforms, opacity, masks and SVG pixel filters. */
+  canAdd(type: string) {
+    const node = this.activeNode;
+    if (node?.kind !== 'object' || node.packed || !/<image\b/i.test(node.source)) return true;
+    const def = registry.get(type);
+    return type === 'transform' || type === 'opacity' || type === 'mask' || def?.kind === 'filter';
+  }
+
   add(type: string) {
+    if (this.activeNode && this.isLocked(this.activeNode.id)) return;
+    if (!this.canAdd(type)) { this.notice = 'This effect does not support raster images.'; return; }
     // Boolean con varios objetos seleccionados: primero se agrupan (Boolean trabaja con los hijos de un grupo).
     if (type === 'boolean' && this.selectedNodes.length > 1 && !this.current) this.group();
     const def = registry.get(type);
@@ -1762,6 +1825,8 @@ export class Editor {
   /** Quita un modificador o un nodo. */
   remove(id = this.selected) {
     if (!this.scene || !id) return;
+    const lockedOwner = locateNode(this.scene.objects, id)?.node ?? locateModifier(this.scene, id)?.owner;
+    if (lockedOwner && this.isLocked(lockedOwner.id)) return;
     const at = locateModifier(this.scene, id);
     if (at) {
       at.list.splice(at.index, 1);
@@ -1785,6 +1850,8 @@ export class Editor {
   /** Mueve dentro de su misma lista (teclado: ⌥↑/↓). Vale para modificadores y nodos. */
   move(id: string, to: number) {
     if (!this.scene) return;
+    const owner = locateNode(this.scene.objects, id)?.node ?? locateModifier(this.scene, id)?.owner;
+    if (owner && this.isLocked(owner.id)) return;
     const at = locateModifier(this.scene, id) ?? locateNode(this.scene.objects, id);
     if (!at) return;
     const list = at.list as unknown[];
@@ -1805,6 +1872,7 @@ export class Editor {
     if (!this.scene) return;
     const at = locateModifier(this.scene, id);
     if (!at || id === parentId) return;
+    if (this.isLocked(at.owner.id) || (ownerId && this.isLocked(ownerId))) return;
     // Ni dentro de algo que no lo admite, ni dentro de sí mismo (o de lo que lleva dentro).
     if (parentId && at.inst.children && locate(at.inst.children, parentId)) return;
     const owner = ownerId ? locateNode(this.scene.objects, ownerId)?.node : at.owner;
@@ -1828,6 +1896,7 @@ export class Editor {
   }
 
   setParam(name: string, value: unknown) {
+    if (this.activeNode && this.isLocked(this.activeNode.id)) return;
     if (!this.current?.params) return;
     this.current.params[name] = value;
     const owner = this.activeNode;

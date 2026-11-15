@@ -151,7 +151,7 @@ export function findModifier(stack: ModifierInstance[] | undefined, id: string):
 function findNode(nodes: SceneNode[], id: string): SceneNode | null {
   for (const n of nodes) {
     if (n.id === id) return n;
-    if (n.kind === 'group') {
+    if (n.children?.length) {
       const inner = findNode(n.children, id);
       if (inner) return inner;
     }

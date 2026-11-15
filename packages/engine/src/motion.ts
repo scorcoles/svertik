@@ -189,7 +189,7 @@ export function analyzeMotion(engine: Engine, scene: SceneV1): MotionAnalysis {
 function* walk(nodes: SceneV1['objects']): Generator<{ node: SceneV1['objects'][number] }> {
   for (const node of nodes) {
     yield { node };
-    if (node.kind === 'group') yield* walk(node.children);
+    if (node.children?.length) yield* walk(node.children);
   }
 }
 

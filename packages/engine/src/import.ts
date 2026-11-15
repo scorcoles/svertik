@@ -356,6 +356,18 @@ export function parseSVG(source: string): Geometry {
       const style = readStyle(el, inherited);
       const a = alpha * opacityOf(style);
       const t = el === root ? transform : `${transform} ${el.getAttribute('transform') ?? ''}`.trim();
+      if (el.localName === 'image') {
+        const href = hrefOf(el);
+        const x = num(el, 'x'), y = num(el, 'y'), w = num(el, 'width'), h = num(el, 'height');
+        if (!href || w <= 0 || h <= 0) return;
+        const subpaths = parsePathData(`M${x} ${y}H${x + w}V${y + h}H${x}Z`, t);
+        if (subpaths.length) shapes.push({
+          subpaths,
+          style: alpha === 1 ? style : { ...style, opacity: String(a) },
+          image: { href, width: w, height: h, preserveAspectRatio: el.getAttribute('preserveAspectRatio') ?? 'xMidYMid meet' },
+        });
+        return;
+      }
       if (el.localName === 'use') {
         const href = hrefOf(el) ?? '';
         const target = href.startsWith('#') ? byId.get(href.slice(1)) : undefined;

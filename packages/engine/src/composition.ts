@@ -47,16 +47,14 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
   const collect = (stack?: SceneNode['stack']) => { for (const m of stack ?? []) { occupied.add(m.id); collect(m.children); } };
   for (const { node } of walkNodes(scene.objects)) { occupied.add(node.id); collect(node.stack); }
   const expand = (nodes: SceneNode[]): SceneNode[] => nodes.map(node => {
-    if (node.kind !== 'group') return node;
+    if (node.kind !== 'group') return node.children?.length ? { ...node, children: expand(node.children) } : node;
     if (!node.composition) return { ...node, children: expand(node.children) };
     const source = node.composition.scene;
     const localTime = compositionTime(scene.at ?? 0, sceneDuration(source), node.composition.params, node.composition.modulation);
     const local = evaluateSceneExpressions({ ...sampleScene(source, localTime), at: localTime });
     const byId = new Map([...walkNodes(local.objects)].map(({ node }) => [node.id, node]));
     const extra = effectorStacks(local, byId);
-    const bake = (items: SceneNode[]): SceneNode[] => items.map(n => n.kind === 'group'
-      ? { ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], children: bake(n.children) }
-      : { ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], ...(n.kind === 'effector' ? { visible: false } : {}) });
+    const bake = (items: SceneNode[]): SceneNode[] => items.map(n => ({ ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], ...(n.children ? { children: bake(n.children) } : {}), ...(n.kind === 'effector' ? { visible: false } : {}) } as SceneNode));
     const resolved = expandCompositions({ ...local, objects: bake(local.objects) }, registry, depth + 1, chain);
     // Length-delimited prefixes are distinct even for IDs containing our separators.
     let prefix = `${node.id.length}:${node.id}::`;
@@ -72,7 +70,7 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
       ...n, id: prefix + n.id, stack: stack(n.stack),
       ...(n.kind === 'instance' ? { of: prefix + n.of } : {}),
       ...(n.kind === 'effector' ? { targets: n.targets.map(id => prefix + id) } : {}),
-      ...(n.kind === 'group' ? { children: namespace(n.children) } : {}),
+      ...(n.children ? { children: namespace(n.children) } : {}),
     } as SceneNode));
     return { ...node, children: namespace(resolved.objects) };
   });

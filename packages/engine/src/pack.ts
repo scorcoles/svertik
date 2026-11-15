@@ -9,11 +9,11 @@ import { walkNodes, type DocumentResult, type GroupNode, type ObjectNode, type S
 import type { ModifierInstance } from './engine';
 
 /** Where a node is: its list and position, and the group containing it. */
-function locate(list: SceneNode[], id: string, parent: GroupNode | null = null): { list: SceneNode[]; index: number; parent: GroupNode | null } | null {
+function locate(list: SceneNode[], id: string, parent: SceneNode | null = null): { list: SceneNode[]; index: number; parent: SceneNode | null } | null {
   for (let i = 0; i < list.length; i++) {
     const n = list[i]!;
     if (n.id === id) return { list, index: i, parent };
-    if (n.kind === 'group') {
+    if (n.children?.length) {
       const found = locate(n.children, id, n);
       if (found) return found;
     }

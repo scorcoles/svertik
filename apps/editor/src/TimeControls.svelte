@@ -23,7 +23,7 @@
     </select>
   {/if}
   <IconButton icon="to-start" label="Go to start" onclick={() => seek(0)} />
-  <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause animation' : 'Play animation'} active={editor.playing} onclick={() => editor.togglePlayback()} />
+  <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause animation (Space)' : 'Play animation (Space)'} active={editor.playing} onclick={() => editor.togglePlayback()} />
   <input
     class="scrubber"
     type="range"

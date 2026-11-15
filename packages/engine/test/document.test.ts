@@ -238,6 +238,20 @@ describe('pivot', () => {
 });
 
 describe('blend modes', () => {
+  it('blends the filtered image with the scene behind the filter group', () => {
+    const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><image href="data:image/png;base64,AA==" width="10" height="10"/></svg>';
+    const scene: SceneV1 = { version: 1, objects: [
+      { kind: 'object', id: 'image', name: 'image', source, blend: 'multiply', stack: [{ id: 'blur', type: 'blur', params: { amount: 2 } }] },
+      { kind: 'object', id: 'back', name: 'back', source: rect(10, 10), stack: [] },
+    ] };
+    const e = engine();
+    expect(e.toSVG(scene)).toContain('<g filter="url(#sv-f-image)" style="mix-blend-mode:multiply">');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
+    renderInto(svg, e.evaluateDocument(scene).geometry);
+    expect(svg.querySelector('g[data-svertik-fx="image"]')?.getAttribute('style')).toBe('mix-blend-mode:multiply');
+    expect(svg.querySelector('image')?.getAttribute('style')).toBeNull();
+  });
+
   it('the mode goes in style (it is CSS, not an SVG attribute); the child mode wins over the group', () => {
     const e = engine();
     const scene: SceneV1 = {

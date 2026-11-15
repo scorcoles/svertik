@@ -77,7 +77,7 @@ function writeNode(node: SceneNode, vars: Map<string, string>, indent: string): 
   const inner = indent + '  ';
   const list = (items: string[]) => (items.length ? `[\n${items.map((x) => `${inner}  ${x},`).join('\n')}\n${inner}]` : '[]');
   const parts = [...head, `stack: ${list(stack.map((m) => inlineLiteral(m)))}`];
-  if (node.kind === 'group') parts.push(`children: [\n${node.children.map((c) => `${inner}  ${writeNode(c, vars, inner + '  ')},`).join('\n')}\n${inner}]`);
+  if (node.children) parts.push(`children: [\n${node.children.map((c) => `${inner}  ${writeNode(c, vars, inner + '  ')},`).join('\n')}\n${inner}]`);
   return `{\n${parts.map((p) => `${inner}${p},`).join('\n')}\n${indent}}`;
 }
 

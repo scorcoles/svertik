@@ -73,7 +73,7 @@
         Tracer
       </DropdownMenu.Item>
       {#each effects as type (type)}
-        <DropdownMenu.Item class="sv-menu-item" disabled={!editor.activeNode} onSelect={() => editor.add(type)}>
+        <DropdownMenu.Item class="sv-menu-item" disabled={!editor.activeNode || !editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
           <Icon name={type as IconName} />
           {registry.get(type)?.label}
         </DropdownMenu.Item>
