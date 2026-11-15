@@ -11,7 +11,8 @@
   let { editor }: { editor: Editor } = $props();
   let svg = $state<SVGSVGElement>();
   let hint = $state(true);
-  let controlsVisible = $state(false);
+  let controlsVisible = $state(true);
+  let pointerInControlsZone = false;
   let controlsTimer: ReturnType<typeof setTimeout> | undefined;
   let meter: FpsMeter | null = null;
 
@@ -20,18 +21,39 @@
     meter = createFpsMeter(document.body);
     const player = svg ? createPlayer(createEngine(builtins), svg, scene, { onFrame: ({ ms }) => meter?.frame(ms) }) : null;
     const t = setTimeout(() => (hint = false), 2200);
+    const initialControls = setTimeout(() => { if (!pointerInControlsZone) hideControls(); }, 500);
     return () => {
       clearTimeout(t);
+      clearTimeout(initialControls);
+      clearTimeout(sayTimer);
       clearTimeout(controlsTimer);
       player?.stop();
       meter?.stop();
     };
   });
   const close = () => (editor.presenting = false);
-  function revealControls() {
+  function hideControls() {
+    controlsVisible = false;
+    clearTimeout(controlsTimer);
+  }
+  function showControls() {
     controlsVisible = true;
     clearTimeout(controlsTimer);
-    controlsTimer = setTimeout(() => (controlsVisible = false), 1500);
+    controlsTimer = setTimeout(hideControls, 1500);
+  }
+  function trackMovement(e: PointerEvent) {
+    if (e.pointerType === 'touch') return;
+    const size = window.innerHeight * 0.2;
+    const near = e.clientX >= window.innerWidth - size && e.clientY <= size;
+    if (near) {
+      pointerInControlsZone = true;
+      controlsVisible = true;
+      clearTimeout(controlsTimer);
+    } else if (pointerInControlsZone) {
+      pointerInControlsZone = false;
+      clearTimeout(controlsTimer);
+      controlsTimer = setTimeout(hideControls, 500);
+    }
   }
 
   // Compartir: el enlace que abre esta escena en Play. En el móvil, el menú de compartir del sistema.
@@ -64,7 +86,8 @@
 </script>
 
 <svelte:window
-  onpointermove={revealControls}
+  onpointermove={trackMovement}
+  onpointerdown={(e) => { if (e.pointerType === 'touch') showControls(); }}
   onkeydown={(e) => {
     if (e.key === 'Escape') close();
     // D: el medidor de rendimiento.
@@ -100,9 +123,15 @@
     border-radius: 5px;
     box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
     backdrop-filter: blur(12px);
-    transition: background 180ms, border-color 180ms;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms, border-color 180ms;
   }
-  .tools[data-active], .tools:focus-within {
+  .tools[data-active], .tools:hover, .tools:focus-within {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
     background: rgb(24 25 24 / 0.97);
     border-color: rgb(255 255 255 / 0.24);
   }
@@ -138,6 +167,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .tools, .tools button { transition: none; }
+    .tools { transform: none; }
   }
   .hint {
     position: absolute;
