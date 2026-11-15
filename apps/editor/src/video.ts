@@ -1,5 +1,5 @@
 import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, QUALITY_HIGH, canEncodeVideo } from 'mediabunny';
-import { sampleScene, type Engine, type SceneV1 } from '@svertik/engine';
+import { sampleScene, type Engine, type SceneV1 } from '@svertik/engine/player';
 import { sceneDuration } from '@svertik/engine/scene';
 
 interface VideoOptions {

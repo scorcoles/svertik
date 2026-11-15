@@ -18,6 +18,7 @@ const stage = document.getElementById('stage') as unknown as SVGSVGElement;
 const msg = document.getElementById('msg')!;
 const tools = document.getElementById('tools')!;
 const capture = document.getElementById('capture') as HTMLButtonElement;
+const video = document.getElementById('video') as HTMLButtonElement;
 let sceneName = 'svertik';
 capture.addEventListener('click', async () => {
   if (capture.disabled) return;
@@ -65,6 +66,35 @@ async function start(m: typeof import('@svertik/engine/player')) {
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
   createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms }) => meter.frame(ms) });
   capture.disabled = false;
+  video.disabled = false;
+  let exportController: AbortController | null = null;
+  const videoIcon = [...video.childNodes];
+  video.addEventListener('click', async () => {
+    if (exportController) { exportController.abort(); return; }
+    const controller = exportController = new AbortController();
+    video.textContent = 'Cancel';
+    video.setAttribute('aria-label', 'Cancel MP4 export');
+    video.title = 'Cancel MP4 export';
+    say('Preparing MP4…', 0);
+    try {
+      // Keep the encoder out of the normal playback download.
+      const { downloadMP4 } = await import('./video');
+      await downloadMP4(createEngine(effects), scene, {
+        background: getComputedStyle(document.body).backgroundColor,
+        name: sceneName,
+        signal: controller.signal,
+        onProgress: progress => say(`Exporting MP4… ${Math.round(progress * 100)}%`, 0),
+      });
+      say('MP4 downloaded');
+    } catch (error) {
+      say(controller.signal.aborted ? 'MP4 export cancelled' : error instanceof Error ? error.message : 'Could not export MP4.');
+    } finally {
+      exportController = null;
+      video.replaceChildren(...videoIcon);
+      video.setAttribute('aria-label', 'Export one cycle as MP4');
+      video.title = 'Export one cycle as MP4';
+    }
+  });
 }
 
 void runStages(PLAY_STAGES, async () => {

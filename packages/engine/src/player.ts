@@ -16,3 +16,6 @@ export { effectTypes } from './modifiers/manifest';
 // The heavy kernels (WebAssembly). `prepareScene` loads them when the scene needs them; this is for
 // whoever builds the engine by hand.
 export { initKernels, kernels, type Kernels } from './kernels';
+
+// Frame sampling for deterministic video exports without loading the editor.
+export { sampleScene } from './animation';
