@@ -516,8 +516,16 @@
   ];
   // Arrange toolbar readout: the label of the button under the pointer or with focus.
   let arrangeHint = $state<string | null>(null);
+  let arrangeHintHideTimer: ReturnType<typeof setTimeout> | undefined;
   function showArrangeHint(e: Event) {
-    arrangeHint = (e.target as Element).closest('button')?.getAttribute('aria-label') ?? null;
+    clearTimeout(arrangeHintHideTimer);
+    const label = (e.target as Element).closest('button')?.getAttribute('aria-label');
+    // Separators have no label: keep the previous hint while the pointer crosses them.
+    if (label) arrangeHint = label;
+  }
+  function hideArrangeHintSoon() {
+    clearTimeout(arrangeHintHideTimer);
+    arrangeHintHideTimer = setTimeout(() => (arrangeHint = null), 140);
   }
   const alignments: { how: Align; icon: string; label: string }[] = [
     { how: 'left', icon: 'align-left', label: 'Align left' },
@@ -1307,8 +1315,8 @@
         tabindex="-1"
         onpointerover={showArrangeHint}
         onfocusin={showArrangeHint}
-        onpointerleave={() => (arrangeHint = null)}
-        onfocusout={() => (arrangeHint = null)}
+        onpointerleave={hideArrangeHintSoon}
+        onfocusout={hideArrangeHintSoon}
       >
         <!-- With one object, align/distribute (and booleans, unless it is a group) don't apply: a short note
              replaces those 12 disabled buttons. -->
