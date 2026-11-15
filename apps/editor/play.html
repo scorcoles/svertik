@@ -27,6 +27,7 @@
         display: grid; place-items: center; height: 28px; padding: 0 10px; font: inherit; color: #fff; text-decoration: none;
         background: rgb(10 12 16 / 0.94); border: 1px solid rgb(255 255 255 / 0.48); cursor: pointer;
       }
+      #tools button:disabled { opacity: 0.45; cursor: wait; }
       #tools svg { width: 16px; height: 16px; fill: none; stroke: currentColor; }
       #msg { position: fixed; bottom: 16px; margin: 0; padding: 4px 8px; background: rgb(0 0 0 / 0.4); transition: opacity 400ms; }
       #msg[hidden] { display: block; opacity: 0; }
@@ -36,6 +37,9 @@
     <div id="boot" role="status" aria-label="Loading svertik"><ul></ul></div>
     <svg id="stage" aria-label="svertik scene"></svg>
     <nav id="tools">
+      <button type="button" id="capture" disabled aria-label="Copy current frame as PNG" title="Copy current frame as PNG">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13v11h-13z M4 6a1.25 1.25 0 1 0 2.5 0A1.25 1.25 0 1 0 4 6 M2 12l4-4 2.5 2 2.5-3 3 4" /></svg>
+      </button>
       <button type="button" id="share" aria-label="Share a link to this scene" title="Share a link to this scene">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.5 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M4.5 6a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M11.5 9.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M6.3 7.1l3.4-1.7 M6.3 8.9l3.4 1.7" /></svg>
       </button>

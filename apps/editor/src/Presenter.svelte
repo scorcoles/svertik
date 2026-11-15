@@ -3,6 +3,7 @@
   // reproductor que el código exportado (línea de tiempo, hover, clic, enter, «reducir movimiento»):
   // lo que se ve aquí es lo que verá la web. Esc (o la ×) vuelve al editor.
   import { builtins, createEngine, createPlayer, type SceneV1 } from '@svertik/engine';
+  import { copyFrame } from './capture';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
@@ -64,6 +65,19 @@
     clearTimeout(sayTimer);
     sayTimer = setTimeout(() => (said = null), 2400);
   };
+  let capturing = $state(false);
+  async function capture() {
+    if (!svg || capturing) return;
+    capturing = true;
+    try {
+      await copyFrame(svg, editor.canvas || DEFAULT_CANVAS);
+      say('Frame copied to clipboard');
+    } catch {
+      say('Could not copy the frame. Check clipboard permissions.');
+    } finally {
+      capturing = false;
+    }
+  }
   async function share() {
     const url = await editor.shareURL();
     if (!url) return say('Too big for a link: save the project (.svrtk) and send the file');
@@ -98,6 +112,9 @@
 <div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || DEFAULT_CANVAS}>
   <svg bind:this={svg} class="stage" aria-label="svertik scene"></svg>
   <div class="tools" data-active={controlsVisible || undefined}>
+    <button type="button" onclick={capture} disabled={capturing} aria-label="Copy current frame as PNG" title="Copy current frame as PNG">
+      <Icon name="image" />
+    </button>
     <button type="button" onclick={share} aria-label="Share a link to this scene" title="Share a link to this scene">
       <Icon name="share" />
     </button>
@@ -158,6 +175,7 @@
     background: rgb(255 255 255 / 0.16);
   }
   .tools button:hover { color: #fff; background: rgb(255 255 255 / 0.09); }
+  .tools button:disabled { opacity: 0.45; cursor: wait; }
   .tools button:active { background: rgb(255 255 255 / 0.16); }
   .tools button:focus-visible { outline: 2px solid var(--sv-accent-fill, #09fdd1); outline-offset: 1px; }
   .tools :global(.sv-icon) { width: 16px; height: 16px; }

@@ -3,6 +3,7 @@
 // Y solo lo que la escena usa: sus efectos se cargan al vuelo (ver «prepareScene»).
 import { runStages, type BootStage } from './stages';
 import { createFpsMeter } from './fpsmeter';
+import { copyFrame } from './capture';
 import { decodeState } from './share';
 
 /**
@@ -17,6 +18,19 @@ const stage = document.getElementById('stage') as unknown as SVGSVGElement;
 const msg = document.getElementById('msg')!;
 const edit = document.getElementById('edit') as HTMLAnchorElement;
 const tools = document.getElementById('tools')!;
+const capture = document.getElementById('capture') as HTMLButtonElement;
+capture.addEventListener('click', async () => {
+  if (capture.disabled) return;
+  capture.disabled = true;
+  try {
+    await copyFrame(stage, getComputedStyle(document.body).backgroundColor);
+    say('Frame copied to clipboard');
+  } catch {
+    say('Could not copy the frame. Check clipboard permissions.');
+  } finally {
+    capture.disabled = false;
+  }
+});
 let timer: ReturnType<typeof setTimeout> | undefined;
 let toolsTimer: ReturnType<typeof setTimeout> | undefined;
 addEventListener('pointermove', () => {
@@ -51,6 +65,7 @@ async function start(m: typeof import('@svertik/engine/player')) {
   const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
   createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms }) => meter.frame(ms) });
+  capture.disabled = false;
 }
 
 void runStages(PLAY_STAGES, async () => {
