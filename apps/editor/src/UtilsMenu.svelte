@@ -6,6 +6,7 @@
   // Utilidades que crean objetos que trabajan con otros (instancias…). Lo que necesita un objeto de
   // partida se apaga sin selección.
   let { editor, compact = false }: { editor: Editor; compact?: boolean } = $props();
+  let compositionFile: HTMLInputElement;
   // Efectos de la familia Utils (Follow Path…): van a la pila del objeto seleccionado.
   const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils' && t !== 'connect' && t !== 'trace'); // Connect y Trace: con Connector y Tracer
 </script>
@@ -27,6 +28,16 @@
       side={compact ? 'right' : 'bottom'}
       sideOffset={compact ? 6 : 4}
     >
+      <DropdownMenu.Item class="sv-menu-item" onSelect={() => editor.createComposition()}>
+        <Icon name="composition" /> Empty composition
+      </DropdownMenu.Item>
+      <DropdownMenu.Item class="sv-menu-item" disabled={!editor.selectedNodes.length} onSelect={() => editor.createComposition(true)}>
+        <Icon name="composition" /> Composition from selection
+      </DropdownMenu.Item>
+      <DropdownMenu.Item class="sv-menu-item" onSelect={() => compositionFile.click()}>
+        <Icon name="import" /> Import composition…
+      </DropdownMenu.Item>
+      <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Item
         class="sv-menu-item"
         disabled={!editor.activeNode}
@@ -70,6 +81,12 @@
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
+
+<input bind:this={compositionFile} type="file" accept=".svrtk,.json,application/json" hidden onchange={async (e) => {
+  const file = e.currentTarget.files?.[0];
+  if (file) editor.importComposition(await file.text(), file.name);
+  e.currentTarget.value = '';
+}} />
 
 <style>
   :global(.sv-group-trigger.is-compact) {

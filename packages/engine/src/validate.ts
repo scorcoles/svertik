@@ -1,3 +1,4 @@
+import { compositionParams } from './composition';
 // Scene validation: what comes from a file, the code panel or a link.
 // - errors: the scene can't be used (something essential is missing or a type is unknown);
 // - warnings: it can be used, but something will be silently ignored (a misspelt parameter, a track
@@ -20,7 +21,9 @@ const NODE_PARAMS = new Set(['x', 'y', 'scale', 'rotation', 'opacity', 'pivot'])
  * Checks a scene. Doesn't change it (except filling in empty `stack` and `params`, as the engine would).
  * With errors, don't use it; with warnings, you can.
  */
-export function validateScene(value: unknown, modifiers: readonly ModifierDef<any>[] = builtins): SceneReport {
+export function validateScene(value: unknown, modifiers: readonly ModifierDef<any>[] = builtins, ancestors = new Set<unknown>()): SceneReport {
+  if (ancestors.has(value) || ancestors.size > 32) return { errors: ['Composition nesting is cyclic or exceeds 32 levels'], warnings: [] };
+  const chain = new Set(ancestors); chain.add(value);
   const errors: string[] = [];
   const warnings: string[] = [];
   const raw = value as Partial<SceneV2> | null;
@@ -102,6 +105,13 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       n.stack ??= [];
       checkStack(n.stack, n, name(n));
       if (n.kind === 'group') {
+        if (n.composition) {
+          if (n.children?.length) errors.push(`${name(n)}: a composition stores its objects in composition.scene, not children`);
+          checkParams(compositionParams, n.composition.params, `${name(n)} composition`);
+          const nested = validateScene(n.composition.scene, modifiers, chain);
+          errors.push(...nested.errors.map(e => `${name(n)} composition: ${e}`));
+          warnings.push(...nested.warnings.map(e => `${name(n)} composition: ${e}`));
+        }
         if (!Array.isArray(n.children)) errors.push(`${name(n)}: children must be an array`);
         else checkNodes(n.children);
       }

@@ -26,9 +26,12 @@ Primera tanda: **Vibration, Oscillator, Shake y Pulse**, compartiendo la lógica
 
 ## Composiciones
 
-- [ ] Escenas anidadas, como composiciones de After Effects: desde la escena contenedora se tratan como una caja negra y se pueden abrir para editar sus objetos.
-- [ ] Reloj local por composición, con duración propia. La contenedora controla inicio, offset, velocidad, reproducción inversa, bucle y remapeo temporal.
+- [x] Escenas anidadas, como composiciones de After Effects: desde la escena contenedora se tratan como una caja negra y se pueden abrir para editar sus objetos.
+- [x] Reloj local por composición, con duración propia. La contenedora controla inicio, offset, velocidad, reproducción inversa, bucle y remapeo temporal.
 - [ ] Aplicar los moduladores de tiempo al reloj de una composición, además de a parámetros individuales.
-- [ ] Resolver keyframes, expresiones, partículas y física con el mismo tiempo local, también al recorrer la animación hacia atrás o exportar.
-- [ ] Aplicar posición, escala, rotación, opacidad y efectos al resultado completo de una composición.
-- [ ] Definir el alcance de IDs y referencias entre escenas, impedir ciclos de anidación y reutilizar resultados cuando se evalúe el mismo tiempo local.
+- [x] Resolver keyframes, expresiones, partículas y física con el mismo tiempo local, también al recorrer la animación hacia atrás o exportar.
+- [x] Crear composiciones vacías, desde una selección o importando proyectos/JSON; edición por niveles con navegación, guardado íntegro y deshacer.
+- [ ] Ejecutar interacciones de los objetos internos desde la escena contenedora (se conservan y funcionan al abrir la composición).
+- [ ] Recorte opcional del resultado al documento de la composición.
+- [x] Aplicar posición, escala, rotación, opacidad y efectos al resultado completo de una composición.
+- [x] IDs y referencias aislados por composición; validación de ciclos y límite de 32 niveles. Cachés de geometría y efectos conservadas durante la evaluación.

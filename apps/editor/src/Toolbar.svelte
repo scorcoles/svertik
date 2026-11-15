@@ -40,6 +40,13 @@
           else if (e.key === 'Escape') { e.currentTarget.value = editor.name; e.currentTarget.blur(); }
         }}
       />
+      {#if editor.compositionPath.length}
+        <button class="crumb" type="button" onclick={() => editor.leaveComposition(0)} title="Return to the main scene">Main scene</button>
+        {#each editor.compositionBreadcrumbs as crumb, i}
+          <span class="slash">/</span>
+          <button class="crumb" type="button" onclick={() => editor.leaveComposition(i + 1)} aria-current={i === editor.compositionPath.length - 1 ? 'location' : undefined}>{crumb.name}</button>
+        {/each}
+      {/if}
       {#if editor.objectCount > 1}<span class="slash">·</span><span class="count">{editor.objectCount} objects</span>{/if}
     {/if}
   </div>
@@ -88,6 +95,9 @@
     background: none;
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
+  .crumb { padding: 0; font: inherit; color: var(--sv-accent-fill); background: none; border: 0; cursor: pointer; }
+  .crumb:hover { text-decoration: underline; }
+  .crumb[aria-current] { color: var(--sv-text-primary); cursor: default; }
   .slash { color: var(--sv-text-disabled); }
   .name {
     max-width: 240px;

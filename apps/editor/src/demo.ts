@@ -657,3 +657,20 @@ export function rhythmProject() {
     },
   };
 }
+
+/** The same BOOM scene twice, each with its own local clock and ID scope. */
+export function compositionsProject() {
+  const source = gravityProject();
+  return {
+    svertik: 'project' as const, version: 1 as const, name: 'Compositions', canvas: source.canvas,
+    scene: {
+      version: 2 as const, document: { width: 1400, height: 900 },
+      notes: 'Two independent copies of the BOOM scene. Boom runs at normal speed; Boom slow at 60%. Open either composition to edit its own Circle, Boom and confetti. Return with the breadcrumb above. Both scenes have identical local IDs safely isolated from one another. Their effects, physics, expressions and keyframes follow their local clocks.',
+      animation: { duration: 5, loop: true, autoplay: true, fps: 30, tracks: [] },
+      objects: [
+        { kind: 'group' as const, id: 'boom-normal', name: 'Boom', children: [], stack: [], transform: { x: -350, scale: 0.45 }, composition: { scene: source.scene, params: { time: { $expr: 'scene.time', fallback: 0 }, speed: 1, loop: 'hold' } } },
+        { kind: 'group' as const, id: 'boom-slow', name: 'Boom slow', children: [], stack: [], transform: { x: 350, scale: 0.45 }, composition: { scene: structuredClone(source.scene), params: { time: { $expr: 'scene.time', fallback: 0 }, speed: 0.6, loop: 'hold' } } },
+      ],
+    },
+  };
+}

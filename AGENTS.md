@@ -74,7 +74,7 @@ const svg = engine.toSVG(scene);
 
 1. **`version: 2`**: Mandatory field.
 2. **Layer Order (`objects`)**: The **first object in the array (`index 0`) is drawn in FRONT** (closest to the viewer), identical to layer stacks in Figma or Illustrator.
-3. **Unique IDs**: Every `id` across `objects` and modifier `stack` items must be globally unique.
+3. **Unique IDs**: Every `id` across `objects` and modifier `stack` items must be unique within its scene. Compositions have isolated nested scenes, so their internal IDs may repeat in other compositions.
 4. **Coordinate System**: Y increases downwards. Rotations are clockwise in degrees.
 5. **Fractions vs Pixels**: Anchors and centres (`center`, `pivot`, `anchor`) use normalized `[fx, fy]` fractions (`0` to `1`, where `[0.5, 0.5]` is the bounding box centre).
 6. **Effector Containers (`step`, `stagger`, `range`, `field`, `oscillate`, `wiggle`, `pulse`, `shake`)**: Take nested modifiers inside their `children` array. **Never nest an effector inside another effector**.
@@ -82,3 +82,7 @@ const svg = engine.toSVG(scene);
 8. **Text (`shape: "text"`)**: Each glyph is converted into an independent vector element, enabling `step`, `stagger`, `range`, or `explosion` to act character-by-character. Its `font` is a Fontsource family (`weight` and `italic` go apart, never inside the name).
 9. **Scene notes**: Before editing, animating, or generating a scene, check its optional `notes` field and treat it as user-provided direction. Preserve the notes unless asked to revise them. Notes are project metadata and are not rendered into SVG.
 10. **Expressions**: A numeric parameter may store `{ "$expr": "...", "fallback": 12 }` instead of a number. Evaluate it per frame with `scene.time` (seconds), `scene.frame`, `scene.fps` (default 30), `scene.duration`, and `scene.progress`. Use only the expression language's math functions (`min`, `max`, `clamp`, `lerp`, `sin`, `cos`, `tan`, `abs`, `round`, `floor`, `ceil`, `sqrt`, `pow`), plus `scene.countDown(seconds)`; this is not JavaScript. In Text shape content, `{{scene.time}}` and other numeric expressions interpolate live values, e.g. `{{scene.countDown(10)}}`; use `{{fixed(scene.time, 2)}}` for fixed decimal places or `{{fixed(scene.time, 2, 2)}}` to zero-pad the integer part too. Numeric expressions replace keyframes on the same parameter. Render-time measurements are diagnostic, machine-dependent data and are not expression variables.
+
+## Compositions
+
+Store a composition as a `kind: "group"` with `children: []` and `composition: { scene: SceneV2, params?: { time, start, speed, offset, reverse, loop } }`. The nested scene owns its IDs, notes, document, animation and interactions. References stay inside that scope. `time` normally stores `{ "$expr": "scene.time", "fallback": 0 }` and is evaluated in the parent; descendants use the remapped local clock. `loop` is `hold`, `loop` or `pingpong`. Do not put stored objects in both `children` and `composition.scene.objects`. See the Compositions section of `docs/ENGINE_AND_EFFECTS.md` for the current interaction/cropping limitations.

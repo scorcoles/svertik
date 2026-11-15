@@ -188,7 +188,117 @@ function freshNode(n: SceneNode): SceneNode {
 }
 
 export class Editor {
-  scene = $state<SceneV2 | null>(null);
+  #rootScene = $state<SceneV2 | null>(null);
+  compositionPath = $state<string[]>([]);
+  #compositionViews: { time: number }[] = [];
+  get projectScene() { return this.#rootScene; }
+  get scene(): SceneV2 | null {
+    let scene = this.#rootScene;
+    for (const id of this.compositionPath) {
+      const n = scene && locateNode(scene.objects, id)?.node;
+      if (!n || n.kind !== 'group' || !n.composition) break;
+      scene = n.composition.scene;
+    }
+    return scene;
+  }
+  set scene(value: SceneV2 | null) {
+    let scene = this.#rootScene;
+    for (let i = 0; i < this.compositionPath.length; i++) {
+      const n = scene && locateNode(scene.objects, this.compositionPath[i]!)?.node;
+      if (!n || n.kind !== 'group' || !n.composition) break;
+      if (i === this.compositionPath.length - 1) { n.composition.scene = value ?? newScene(); return; }
+      scene = n.composition.scene;
+    }
+    this.#rootScene = value;
+  }
+  get compositionBreadcrumbs(): { id: string; name: string }[] {
+    const out: { id: string; name: string }[] = []; let scene = this.#rootScene;
+    for (const id of this.compositionPath) {
+      const n = scene && locateNode(scene.objects, id)?.node;
+      if (!n || n.kind !== 'group' || !n.composition) break;
+      out.push({ id, name: n.name }); scene = n.composition.scene;
+    }
+    return out;
+  }
+  openComposition(id: string) {
+    const n = this.scene && locateNode(this.scene.objects, id)?.node;
+    if (!n || n.kind !== 'group' || !n.composition) return;
+    this.flush(); this.#compositionViews.push({ time: this.time });
+    this.playing = false; this.compositionPath = [...this.compositionPath, id];
+    this.selected = this.scene?.objects[0]?.id ?? null; this.time = 0; this.infos = new Map(); this.#applyTime();
+  }
+  leaveComposition(level = this.compositionPath.length - 1) {
+    if (level >= this.compositionPath.length) return;
+    this.flush(); this.playing = false;
+    const returnTime = this.#compositionViews[Math.max(0, level)]?.time ?? 0;
+    this.#compositionViews = this.#compositionViews.slice(0, Math.max(0, level));
+    const selected = this.compositionPath[level]; this.compositionPath = this.compositionPath.slice(0, Math.max(0, level));
+    this.selected = selected ?? null; this.time = returnTime; this.infos = new Map(); this.#applyTime();
+  }
+  setCompositionParam(id: string, name: string, value: unknown) {
+    const n = this.scene && locateNode(this.scene.objects, id)?.node;
+    if (!n || n.kind !== 'group' || !n.composition) return;
+    n.composition.params = { ...n.composition.params, [name]: value }; this.record();
+  }
+  createComposition(fromSelection = false, imported?: SceneV2, name = 'Composition') {
+    if (!this.scene) return;
+    const parent = this.scene;
+    let objects: SceneNode[] = [];
+    let target = parent.objects; let index = 0;
+    const tracks: Track[] = [];
+    let interactions: SceneV2['interactions'];
+    if (fromSelection) {
+      const locations = this.selectedNodes.map(n => locateNode(parent.objects, n.id)!).filter(Boolean);
+      if (!locations.length) return;
+      target = locations[0]!.list;
+      if (locations.some(l => l.list !== target)) { this.notice = 'Select objects in the same group to create a composition.'; return; }
+      locations.sort((a, b) => a.index - b.index); index = locations[0]!.index;
+      objects = locations.map(l => l.node);
+      const ids = new Set([...walkNodes(objects)].map(({ node }) => node.id));
+      // A composition is an isolated scope: never silently break references at its boundary.
+      for (const { node: n } of walkNodes(parent.objects)) {
+        const refs: string[] = n.kind === 'instance' ? [n.of] : n.kind === 'effector' ? n.targets : [];
+        const scan = (stack: ModifierInstance[]) => { for (const m of stack) {
+          const schema = registry.get(m.type)?.params ?? {};
+          for (const [key, value] of Object.entries(m.params ?? {})) {
+            if (schema[key]?.type === 'node' && typeof value === 'string' && value) refs.push(value);
+            if (schema[key]?.type === 'nodes' && Array.isArray(value)) refs.push(...value);
+          }
+          scan(m.children ?? []);
+        } }; scan(n.stack);
+        if (refs.some(id => !!locateNode(parent.objects, id) && ids.has(n.id) !== ids.has(id))) {
+          this.notice = 'Include all linked objects and targets in the selection before creating a composition.'; return;
+        }
+      }
+      if (parent.interactions?.some(it => ids.has(it.node) !== ids.has(it.target.node))) {
+        this.notice = 'Include the linked interaction targets in the composition.'; return;
+      }
+      interactions = parent.interactions?.filter(it => ids.has(it.node));
+      if (parent.interactions) parent.interactions = parent.interactions.filter(it => !ids.has(it.node));
+      if (parent.animation) {
+        tracks.push(...parent.animation.tracks.filter(t => ids.has(t.node)));
+        parent.animation.tracks = parent.animation.tracks.filter(t => !ids.has(t.node));
+      }
+      for (const l of [...locations].reverse()) target.splice(l.index, 1);
+    }
+    const scene: SceneV2 = imported ?? { version: 2, document: { ...(parent.document ?? DEFAULT_DOCUMENT) }, objects,
+      animation: { duration: parent.animation?.duration ?? 3, fps: parent.animation?.fps ?? 30, loop: true, tracks }, ...(interactions?.length ? { interactions } : {}) };
+    const node: GroupNode = { kind: 'group', id: `composition-${uid()}`, name, stack: [], children: [], composition: { scene,
+      params: { time: { $expr: 'scene.time', fallback: 0 }, speed: 1, loop: 'hold' } } };
+    target.splice(index, 0, node);
+    this.#ensureAnimation().duration = Math.max(this.animation?.duration ?? 3, scene.animation?.duration ?? 3);
+    this.selected = node.id; this.record(true);
+    return node.id;
+  }
+  importComposition(text: string, filename = 'Composition'): boolean {
+    try {
+      const data = JSON.parse(text); const scene = data?.svertik === 'project' ? data.scene : data;
+      if (!isScene(scene)) { this.notice = 'Choose a .svrtk project or scene JSON.'; return false; }
+      const report = validateScene(scene, builtins);
+      if (report.errors.length) { this.notice = report.errors.join('\n'); return false; }
+      return !!this.createComposition(false, scene, data.name ?? filename.replace(/\.[^.]+$/, ''));
+    } catch { this.notice = 'Could not read the composition file.'; return false; }
+  }
   /** Nombre del documento (el del primer SVG, mientras no haya otro). */
   name = $state('untitled');
   /** Color del lienzo (solo para ver; no entra en el SVG exportado). Vacío: el del tema. */
@@ -471,7 +581,7 @@ export class Editor {
       this.#index = -1;
     } else {
       // Dentro del grupo seleccionado, si lo hay; arriba de la lista (delante).
-      const g = this.currentNode?.kind === 'group' ? this.currentNode : null;
+      const g = this.currentNode?.kind === 'group' && !this.currentNode.composition ? this.currentNode : null;
       (g ? g.children : this.scene.objects).unshift(node);
     }
     this.selected = node.id;
@@ -889,7 +999,7 @@ export class Editor {
   /** Deshace un grupo: sus hijos quedan en su lugar (su posición y sus efectos se pierden). */
   ungroup(id = this.currentNode?.id ?? null) {
     const at = this.scene ? locateNode(this.scene.objects, id) : null;
-    if (!at || at.node.kind !== 'group') return;
+    if (!at || at.node.kind !== 'group' || at.node.composition) return;
     at.list.splice(at.index, 1, ...at.node.children);
     this.selected = at.node.children[0]?.id ?? null;
     this.record(true);
@@ -903,7 +1013,7 @@ export class Editor {
     // Un grupo no entra en sí mismo ni en sus descendientes.
     if (groupId && at.node.kind === 'group' && locateNode(at.node.children, groupId)) return;
     const target = groupId ? locateNode(this.scene.objects, groupId)?.node : null;
-    if (groupId && (!target || target.kind !== 'group')) return;
+    if (groupId && (!target || target.kind !== 'group' || target.composition)) return;
     const list = target && target.kind === 'group' ? target.children : this.scene.objects;
     const [n] = at.list.splice(at.index, 1);
     const i = list === at.list && index > at.index ? index - 1 : index;
@@ -1679,7 +1789,7 @@ export class Editor {
     const push = () => {
       this.#pending = false;
       this.#prune();
-      const snap = JSON.stringify({ scene: this.scene, name: this.name, script: this.script, canvas: this.canvas });
+      const snap = JSON.stringify({ scene: this.#rootScene, name: this.name, script: this.script, canvas: this.canvas });
       if (snap === this.#history[this.#index]) return;
       this.#history = this.#history.slice(0, this.#index + 1);
       this.#history.push(snap);
@@ -1704,13 +1814,15 @@ export class Editor {
     const snap = this.#history[i];
     if (!snap) return;
     const { scene, name, script, canvas } = JSON.parse(snap) as { scene: SceneV2 | null; name: string; script?: string; canvas?: string };
-    this.scene = scene;
+    this.#rootScene = scene;
+    this.compositionPath = this.compositionPath.slice(0, this.compositionBreadcrumbs.length);
+    this.#compositionViews = this.#compositionViews.slice(0, this.compositionPath.length);
     this.name = name;
     this.canvas = canvas ?? '';
     this.script = script ?? DEFAULT_SCRIPT;
     this.#index = i;
-    if (this.selected && scene && !locateNode(scene.objects, this.selected) && !locateModifier(scene, this.selected)) {
-      this.selected = scene.objects[0]?.id ?? null;
+    if (this.selected && this.scene && !locateNode(this.scene.objects, this.selected) && !locateModifier(this.scene, this.selected)) {
+      this.selected = this.scene?.objects[0]?.id ?? null;
     }
     void this.saveToURL();
   }
@@ -1742,6 +1854,8 @@ export class Editor {
   }
   /** Archivo nuevo: lienzo vacío, sin historial. */
   newFile() {
+    this.compositionPath = [];
+    this.#compositionViews = [];
     this.scene = newScene();
     this.name = 'untitled';
     this.script = DEFAULT_SCRIPT;
@@ -1764,7 +1878,7 @@ export class Editor {
   projectFile(): string | null {
     if (!this.scene) return null;
     return JSON.stringify(
-      { svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script, scene: $state.snapshot(this.scene) },
+      { svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script, scene: $state.snapshot(this.#rootScene) },
       null,
       2,
     );
@@ -1787,6 +1901,8 @@ export class Editor {
       return false;
     }
     if (report.warnings.length) console.warn(`svertik: ${report.warnings.length} problem(s) in the project:\n${report.warnings.join('\n')}`);
+    this.compositionPath = [];
+    this.#compositionViews = [];
     this.scene = scene;
     // Las primitivas, con todos sus parámetros (los que falten, por defecto): el panel los necesita.
     for (const { node } of walkNodes(this.scene.objects)) {
@@ -1818,7 +1934,7 @@ export class Editor {
     }
     this.flush();
     const state = this.#history[this.#index];
-    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    const encoded = await encodeState({ scene: $state.snapshot(this.#rootScene) as SceneV2, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     const fits = encoded.length < MAX_HASH;
     history.replaceState(null, '', `${location.pathname}${location.search}${fits ? `#s=${encoded}` : ''}`);
     this.#inURL = fits ? state : undefined;
@@ -1851,6 +1967,8 @@ export class Editor {
     const state = await decodeState(m[2]!);
     if (!state) return false;
     const scene = state.scene;
+    this.compositionPath = [];
+    this.#compositionViews = [];
     this.scene = scene;
     this.name = state.name.replace(/\.svg$/i, '');
     if (state.script) this.script = state.script;

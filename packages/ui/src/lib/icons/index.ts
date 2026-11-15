@@ -5,6 +5,7 @@
 export const icons = {
   // Objetos
   select: 'M3.5 1.5v11l3-2.75 2 4.25 1.75-.75-2-4.25h4.25z',
+  composition: 'M1.5 3.5h13v10h-13z M4.5 3.5v10 M1.5 6.5h3 M1.5 10.5h3 M8 6.5l3 2-3 2z',
   group: 'M1.5 3.5h5l1.5 2h6.5v8h-13z',
   ungroup: 'M1.5 3.5h5l1.5 2h6.5v8h-13z M5 9.5h5.5 M8.5 7.5l2 2-2 2',
   // Filtros: sombra (una forma con otra detrás), desenfoque, resplandor, grano y desplazamiento.

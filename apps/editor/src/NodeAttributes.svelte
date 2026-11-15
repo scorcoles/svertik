@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BLEND_MODES, EASES, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
+  import { BLEND_MODES, EASES, compositionParams, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, type Editor } from './editor.svelte';
@@ -13,7 +13,7 @@
   const p = $derived(placementOf(node));
   // El slider se amplía por octavas para que siga siendo útil en escalas grandes.
   const scaleSliderMax = $derived(p.scale <= 16 ? 16 : 2 ** (Math.floor(Math.log2(p.scale)) + 1));
-  const kindLabel = $derived(node.kind === 'group' ? `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
+  const kindLabel = $derived(node.kind === 'group' ? node.composition ? 'composition' : `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
   // Objetos importados: cuántas formas trae su SVG (para poder expandirlo en un objeto por forma).
   const shapes = $derived(node.kind === 'object' && !node.packed ? editor.shapeCount(node.source) : 0);
   // Instancia: de qué objeto (cualquiera menos ella misma).
@@ -55,6 +55,12 @@
   <span class="meta">{kindLabel}</span>
 </header>
 <div class="params">
+  {#if node.kind === 'group' && node.composition}
+    <Section title="Composition">
+      <div class="actions"><Button label="Open composition" onclick={() => editor.openComposition(node.id)} /></div>
+      <ParamList params={Object.entries(compositionParams)} values={{ time: { $expr: 'scene.time', fallback: 0 }, ...node.composition.params }} onchange={(name, value) => editor.setCompositionParam(node.id, name, value)} />
+    </Section>
+  {/if}
   {#if node.kind === 'instance'}
     <Section title="Instance">
       <ParamRow label="Of">
@@ -283,7 +289,7 @@
       {#if node.kind === 'shape'}<Button label="Convert to outlines" title="Turn it into editable paths (each letter, a path). Its effects stay." onclick={() => editor.outline(node.id)} />{/if}
       <Button label="Pack" onclick={() => editor.pack(node.id)} />
     {/if}
-    {#if node.kind === 'group'}
+    {#if node.kind === 'group' && !node.composition}
       <Button label="Ungroup" onclick={() => editor.ungroup(node.id)} />
     {:else if node.kind !== 'effector'}
       <Button label="Group" onclick={() => editor.group(node.id)} />
@@ -291,7 +297,9 @@
     <Button label="Remove" onclick={() => editor.remove(node.id)} />
   </div>
   <p class="note">
-    {node.kind === 'object' && node.packed
+    {node.kind === 'group' && node.composition
+      ? 'A nested scene with its own timeline. Open composition to edit its objects; the breadcrumb returns to the parent. Time and speed control its local clock.'
+      : node.kind === 'object' && node.packed
       ? 'Packed: the result is frozen and nothing inside is computed. Effects you add go on top. Unpack to get the original back, with its effects and animation.'
       : node.kind === 'effector'
       ? 'Draws nothing. Its effects (add them from the menus above) go at the end of each target’s own stack, on each one separately. Delay: each target plays the effector’s animation that much later than the one before.'

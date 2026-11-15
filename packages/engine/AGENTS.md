@@ -95,7 +95,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 | --- | --- | --- |
 | `shape` | `shape`, `params` | A primitive (rectangle, ellipse, polygon, star, line, spiral, text, cross, arrow, pawn). See `docs/reference/shapes/`. |
 | `object` | `source` | An imported SVG (its markup as a string). |
-| `group` | `children` | Children drawn together; the group's stack applies to all of them at once (each child is an element). |
+| `group` | `children`, optional `composition: { scene, params }` | Children drawn together; the group's stack applies to all of them at once (each child is an element). |
 | `instance` | `of` | A live copy of another node's result (with its effects), with its own transform and effects on top. |
 | `effector` | `targets`, `delay?` | Draws nothing: its stack is appended to each target's stack, separately. `delay` (s) staggers its animation per target. |
 
@@ -153,3 +153,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
   and `italic` are apart. A name with the style inside (`JetBrains Mono Bold`) is a name from before the
   weights existed: the editor still has it, but only the editor.
 - The editor is at the project's site; a scene can be opened there to check it visually.
+
+### Compositions
+
+A group with `composition` stores a nested SceneV2; keep its `children` empty. Nested IDs/references are scoped to that scene. The engine samples its local clock (`time`, `start`, `speed`, `offset`, `reverse`, `loop`) and namespaces its rendered nodes. Repeated IDs in different compositions are valid. `validateScene` recursively checks nested scopes and rejects cycles/depth >32. `prepareScene` and font discovery include nested scenes. Numeric clock expressions run in the parent; child expressions/effects run locally. See `docs/ENGINE_AND_EFFECTS.md` for editor usage and current interaction/cropping limitations.

@@ -713,3 +713,26 @@ Like Oscillate and Wiggle, these are effector containers with non-effector child
 - **Shake** (`shake`) is a single decaying seeded disturbance. `start` (default 0 seconds), `duration` (default 1 second), `frequency` (default 8 Hz), `amplitude` (default 1), `decay` (default 2; higher settles faster), `seed` (default 1). It is exactly neutral before Start and at/after Start + Duration. `perElement` defaults false so the object moves as one body; enabling it gives independent signals, local pivots and an `elementDelay` (default 0.04 seconds per element). Default child: Transform x 12, y 8, rotation 3°. Shake does not repeat by itself; loop/remap its Time expression to repeat hits.
 
 The shared **Rhythm** demo (`apps/editor/public/demos/rhythm-crosses.svrtk`) pulses five crosses and sends one delayed impact through them at 2 seconds, without keyframes.
+
+### Compositions — nested scenes and local clocks
+
+A composition is stored as a group with empty `children` and a `composition` containing its isolated SceneV2 and clock parameters. It stays a single selectable object in the parent; its child scene is expanded only for rendering. Local node/effect IDs can repeat in other compositions; references resolve within their own scene. Files remain SceneV2 JSON and `.svrtk` projects embed all nested scenes.
+
+```json
+{
+  "kind": "group", "id": "comp-1", "name": "Composition", "children": [], "stack": [],
+  "composition": {
+    "scene": { "version": 2, "document": { "width": 1400, "height": 900 }, "objects": [] },
+    "params": { "time": { "$expr": "scene.time", "fallback": 0 }, "speed": 1, "loop": "hold" }
+  }
+}
+```
+
+- **Utils → Empty composition / Composition from selection / Import composition…**. Import accepts `.svrtk` and SceneV2 JSON without replacing the current project. A selection must share a parent; include linked objects/targets so references are not broken. Its tracks and interactions move into the child scene, retaining paint order and placement.
+- Select the composition and use **Open composition** in the inspector. Its objects, document, notes and timeline are edited locally. The toolbar breadcrumbs return to ancestors and restore the parent playhead. Saving and undo/redo always retain the whole project, even while editing inside it.
+- `time` is evaluated in the parent scene; by default it follows parent time. `start` holds the first local frame until that parent time. `speed` multiplies elapsed time (0 freezes; negative plays backwards with a suitable offset). `offset` is added in seconds. `reverse` reverses the resulting local clock. `loop` is `hold` (clamp to the child duration), `loop`, or `pingpong`.
+- Local keyframes, numeric/text expressions, temporal effectors, Particles and Gravity receive this local clock. Numeric clock fields accept expressions for remapping. Each nested scene uses its own duration and FPS. Missing parent timelines derive a duration from their compositions.
+- Position, scale, rotation, opacity, blend and effect stacks act on the composition in the parent. The child document provides a stable transform frame, including empty scenes. Its frame does not crop content in this first version. Interactions of internal objects are retained and can be tested while the child is open; dispatching them from the parent is pending. Native masks/filters retain the existing group rendering semantics.
+- Cyclic or deeper-than-32 nesting is rejected. Existing document caches still reuse unchanged geometry/effect results; exporting SVG/PNG and sampled animation evaluates the same nested scene clocks.
+
+**Compositions: BOOM at two speeds** (`apps/editor/public/demos/compositions-boom.svrtk`) places two copies of the BOOM demo side by side at normal and 60% speed.

@@ -1,3 +1,4 @@
+import { sceneDuration } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
 // - tween: a value goes to another with its duration and curve, and comes back (on leave, or the next click);
@@ -299,7 +300,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV2,
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const inter = createInteractions(() => scene);
   const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
-    ? scene.animation ?? { duration: 3, loop: true, fps: 30, tracks: [] }
+    ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
   const autoplay = !!anim && anim.autoplay !== false;
   const live = engine.mount(svg, anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene);

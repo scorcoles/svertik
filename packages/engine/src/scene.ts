@@ -70,6 +70,8 @@ export interface ShapeNode extends NodeBase {
 export interface GroupNode extends NodeBase {
   kind: 'group';
   children: SceneNode[];
+  /** An isolated nested scene. Stored children are empty; the engine evaluates the local scene. */
+  composition?: { scene: SceneV2; params?: Record<string, unknown> };
 }
 
 /**
@@ -123,4 +125,20 @@ export type Scene = SceneV2;
 export function isScene(value: unknown): value is SceneV2 {
   const s = value as Partial<SceneV2> | null;
   return !!s && s.version === 2 && Array.isArray(s.objects);
+}
+
+/** Duration for scenes driven only by nested compositions (no parent timeline required). */
+export function sceneDuration(scene: SceneV2, depth = 0): number {
+  if (scene.animation) return scene.animation.duration;
+  if (depth > 32) return 3;
+  let duration = 0;
+  const visit = (nodes: SceneNode[]) => { for (const n of nodes) if (n.kind === 'group') {
+    if (n.composition) {
+      const p = n.composition.params ?? {};
+      const speed = typeof p.speed === 'number' ? Math.abs(p.speed) : 1;
+      duration = Math.max(duration, (Number(p.start) || 0) + sceneDuration(n.composition.scene, depth + 1) / (speed || 1));
+    } else visit(n.children);
+  } };
+  visit(scene.objects);
+  return duration || 3;
 }

@@ -22,3 +22,5 @@ export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor, rgbToOklab, oklchToRgb
 export * from './palettes';
 export { effectDescriptions, shapeDescriptions } from './descriptions';
 export { initKernels, kernels, type Kernels, type MetaballInput, type MetaballShape } from './kernels';
+
+export { compositionParams, compositionTime } from './composition';

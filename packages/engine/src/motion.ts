@@ -1,3 +1,4 @@
+import { sceneDuration } from './scene';
 // Motion analysis of a scene, to export it as an animation (Lottie, animated SVG).
 // It is evaluated frame by frame and, object by object, the lightest way to describe it is chosen:
 // - object: its shape doesn't change (seen from the object itself): the shape once, plus its matrix and opacity;
@@ -51,7 +52,7 @@ export interface MotionAnalysis {
 
 export function analyzeMotion(engine: Engine, scene: SceneV2): MotionAnalysis {
   const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
-    ? scene.animation ?? { duration: 3, loop: true, fps: 30, tracks: [] }
+    ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
   const fps = anim?.fps ?? 30;
   const frames = anim ? Math.max(1, Math.round(anim.duration * fps)) : 1;

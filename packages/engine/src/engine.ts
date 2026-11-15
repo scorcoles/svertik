@@ -1,3 +1,4 @@
+import { expandCompositions } from './composition';
 // The scene (what is saved and exported as JSON) and the engine that evaluates it.
 
 import { createDocumentEvaluator, type DocumentResult, type SceneV2 } from './document';
@@ -197,7 +198,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   }
 
   const documents = createDocumentEvaluator(runStack, filtersOf, { maskOf });
-  const evaluateDocument = (scene: SceneV2) => documents.evaluate(evaluateSceneExpressions(scene));
+  const evaluateDocument = (scene: SceneV2) => documents.evaluate(expandCompositions(evaluateSceneExpressions(scene), registry));
   const flat = (scene: SceneV2) => evaluateDocument(scene).geometry;
 
   return {

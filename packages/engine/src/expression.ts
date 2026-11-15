@@ -1,3 +1,4 @@
+import { sceneDuration } from './scene';
 import type { SceneNode, SceneV2 } from './document';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
@@ -199,7 +200,7 @@ export function sceneHasExpressions(scene: SceneV2): boolean {
   const has = (params?: Record<string, unknown>) => Object.values(params ?? {}).some(isNumericExpression);
   const stackHas = (stack: SceneNode['stack']): boolean => stack.some((m) => has(m.params) || stackHas(m.children ?? []));
   const nodeHas = (node: SceneNode): boolean =>
-    (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || (node.kind === 'group' && node.children.some(nodeHas));
+    (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || (node.kind === 'group' && node.children.some(nodeHas));
   return scene.objects.some(nodeHas);
 }
 
@@ -209,7 +210,7 @@ export function evaluateSceneExpressions(scene: SceneV2): SceneV2 {
   const out = structuredClone(scene) as SceneV2;
   const time = out.at ?? 0;
   const fps = out.animation?.fps ?? 30;
-  const duration = out.animation?.duration ?? 3;
+  const duration = sceneDuration(out);
   const context: ExpressionContext = {
     time,
     frame: Math.floor(time * fps + 1e-9),
@@ -240,6 +241,7 @@ export function evaluateSceneExpressions(scene: SceneV2): SceneV2 {
           });
         }
       }
+      if (node.kind === 'group' && node.composition) params(node.composition.params);
       stack(node.stack);
       if (node.kind === 'group') nodes(node.children);
     }

@@ -418,7 +418,8 @@ export function createDocumentEvaluator(
           childShapes.push(...out.map((s) => ({ ...s, clone: i * 10000 + (s.clone ?? 0) })));
         }
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
-        const ref = bounds(inner);
+        const frame = node.composition?.scene.document;
+        const ref = frame ? { x: (frame.x ?? 0) - frame.width / 2, y: (frame.y ?? 0) - frame.height / 2, width: frame.width, height: frame.height } : bounds(inner);
         let refs: StackRefs = {};
         let result = inner;
         if (stack.length) {
@@ -445,9 +446,13 @@ export function createDocumentEvaluator(
         // The children are already in group coordinates: their real matrix is the group's times theirs.
         for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
         results.set(node.id, result);
-        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: boundsOf(result, world) });
+        nodes.set(node.id, { id: node.id, kind: 'group', bounds: ref, refs, matrix: world, box: node.composition && !result.shapes.length ? (() => {
+          const pts = [[ref.x, ref.y], [ref.x + ref.width, ref.y], [ref.x, ref.y + ref.height], [ref.x + ref.width, ref.y + ref.height]].map(([x, y]) => apply(world, [x!, y!]));
+          const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+          return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+        })() : boundsOf(result, world) });
         if (node.visible === false) return [];
-        return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes.map((s) => s.node ? s : { ...s, node: node.id })), node.opacity), node.blend)));
+        return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, result, transformGeo(result, m).shapes.map((s) => node.composition ? { ...s, node: node.id } : s.node ? s : { ...s, node: node.id })), node.opacity), node.blend)));
       };
 
       // A child inside a group was evaluated with the identity: here the group's matrix is composed in.
@@ -763,7 +768,7 @@ export function sceneTrailWindow(scene: SceneV2): number {
         for (const c of m.children ?? []) stacks(c as { type: string; params?: Record<string, unknown>; children?: unknown[] });
       };
       for (const m of node.stack ?? []) stacks(m);
-      if (node.kind === 'group') walk(node.children);
+      if (node.kind === 'group') { walk(node.children); if (node.composition) walk(node.composition.scene.objects); }
     }
   };
   walk(scene.objects);
@@ -777,6 +782,7 @@ export function sceneFonts(scene: SceneV2) {
     for (const { node } of walkNodes(nodes)) {
       if (node.kind === 'shape' && node.shape === 'text') params.push(node.params);
       if (node.kind === 'object' && node.packed?.original) visit([node.packed.original]);
+      if (node.kind === 'group' && node.composition) visit(node.composition.scene.objects);
     }
   };
   visit(scene.objects);

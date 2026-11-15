@@ -41,7 +41,7 @@
     if (!drag || drag.kind !== 'node' || drag.id === n.id) return;
     e.preventDefault();
     e.stopPropagation();
-    drop = { id: n.id, where: zone(e, n.kind === 'group') };
+    drop = { id: n.id, where: zone(e, n.kind === 'group' && !n.composition) };
   }
 
   function dropHere(e?: DragEvent) {
@@ -127,7 +127,7 @@
       <StackItem
         label={n.name}
         kind="object"
-        icon={(n.kind === 'group' ? 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : 'object') as IconName}
+        icon={(n.kind === 'group' ? n.composition ? 'composition' : 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : 'object') as IconName}
         {depth}
         expanded={n.stack.length || n.kind === 'group' ? open : undefined}
         selected={editor.isSelected(n.id)}
@@ -136,13 +136,13 @@
         onremove={() => editor.remove(n.id)}
         visible={n.visible !== false}
         onvisible={(v) => editor.setNode(n.id, 'visible', v, true)}
-        onungroup={n.kind === 'group' ? () => editor.ungroup(n.id) : undefined}
+        onungroup={n.kind === 'group' && !n.composition ? () => editor.ungroup(n.id) : undefined}
         onrename={(name) => editor.setNode(n.id, 'name', name, true)}
       />
     </div>
     {#if open}
       {@render modifiers(n.stack, depth + 1)}
-      {#if n.kind === 'group'}{@render nodes(n.children, depth + 1)}{/if}
+      {#if n.kind === 'group' && !n.composition}{@render nodes(n.children, depth + 1)}{/if}
     {/if}
   {/each}
 {/snippet}

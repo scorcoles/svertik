@@ -993,3 +993,62 @@ it('añadir Color muestra un selector de color directo por defecto', () => {
   expect(e.current!.params!.mode).toBe('solid');
   expect(e.current!.params!.color).toBe('#D2502F');
 });
+
+
+describe('Composition editing', () => {
+  it('creates an empty composition, edits it, saves the entire project and navigates back', () => {
+    const e = fresh(); const parentCount = e.scene!.objects.length;
+    const id = e.createComposition()!;
+    expect(e.scene!.objects.length).toBe(parentCount + 1);
+    e.time = 1.25; e.openComposition(id);
+    expect(e.compositionPath).toEqual([id]);
+    expect(e.scene!.objects).toEqual([]);
+    e.addShape('cross');
+    expect(e.scene!.objects).toHaveLength(1);
+    const saved = JSON.parse(e.projectFile()!);
+    expect(saved.scene.objects.find((n: any) => n.id === id).composition.scene.objects).toHaveLength(1);
+    e.leaveComposition(0);
+    expect(e.compositionPath).toEqual([]);
+    expect(e.selected).toBe(id);
+    expect(e.time).toBe(1.25);
+    expect(e.scene!.objects).toHaveLength(parentCount + 1);
+  });
+  it('moves a selection and its tracks without changing its geometry, then supports undo inside it', () => {
+    const e = fresh();
+    const originalId = e.scene!.objects[0]!.id;
+    e.scene!.animation = { duration: 2, tracks: [{ id: 'move-comp', node: originalId, on: 'node', param: 'x', keys: [{ t: 0, value: 0, ease: 'linear' }, { t: 2, value: 50 }] }] };
+    const before = box(e);
+    const id = e.createComposition(true)!;
+    expect(e.scene!.animation!.tracks).toEqual([]);
+    expect(e.currentNode?.kind === 'group' && e.currentNode.composition?.scene.animation?.tracks).toHaveLength(1);
+    expect(e.currentNode?.id).toBe(id);
+    expect(bounds(createEngine(builtins).evaluateDocument(JSON.parse(JSON.stringify(e.scene))).geometry)).toEqual(before);
+    e.openComposition(id); const child = e.scene!.objects[0]!;
+    e.setNode(child.id, 'name', 'Inside', true);
+    e.undo(); expect(e.scene!.objects[0]!.name).not.toBe('Inside');
+    e.redo(); expect(e.scene!.objects[0]!.name).toBe('Inside');
+    e.leaveComposition(0); e.undo();
+    expect(JSON.parse(e.projectFile()!).scene.objects.find((n: any) => n.id === id).composition.scene.objects[0].name).not.toBe('Inside');
+  });
+  it('imports a project as an isolated scene and opens another project from inside it', () => {
+    const e = fresh();
+    expect(e.importComposition(JSON.stringify({ svertik: 'project', name: 'Imported', scene: { version: 2, notes: 'Keep these notes', objects: [], document: { width: 800, height: 600 } } }))).toBe(true);
+    const id = e.selected!; e.openComposition(id);
+    expect(e.scene!.notes).toBe('Keep these notes');
+    e.createComposition(); const nested = e.selected!; e.openComposition(nested);
+    expect(e.compositionPath).toHaveLength(2);
+    const saved = e.projectFile()!;
+    e.openProject(saved); expect(e.compositionPath).toEqual([]);
+    expect(e.scene!.objects[0]!.name).toBe('Imported');
+  });  it('does not insert shapes or drag nodes into the hidden children of a composition', () => {
+    const e = fresh(); const original = e.scene!.objects[0]!.id;
+    const id = e.createComposition()!;
+    e.moveNode(original, id, 0);
+    expect(e.scene!.objects).toHaveLength(2);
+    e.selected = id; e.addShape('cross');
+    expect(e.scene!.objects).toHaveLength(3);
+    const n = e.scene!.objects.find(n => n.id === id)!;
+    expect(n.kind === 'group' && n.children).toEqual([]);
+  });
+
+});
