@@ -410,7 +410,8 @@ export function createDocumentEvaluator(
           // Dynamic shapes with an explicit origin can change bounds over time. Scaling around that
           // moving box's centre makes the origin drift, so use it as the default pivot.
           const origin = entry.source.origin;
-          const anchoredDynamicShape = node.kind === 'shape' && shapeRegistry.get(node.shape)?.timeDriven && origin;
+          const dynamicText = node.kind === 'shape' && node.shape === 'text' && typeof node.params.updateRate === 'number';
+          const anchoredDynamicShape = node.kind === 'shape' && (dynamicText || shapeRegistry.get(node.shape)?.timeDriven) && origin;
           const originPivot: [number, number] | undefined = anchoredDynamicShape && node.transform?.pivot === undefined
             ? [
                 ref.width ? (origin[0] - ref.x) / ref.width : 0.5,

@@ -385,7 +385,9 @@
         y.push(b.y, b.y + b.height / 2, b.y + b.height);
       }
       const d = editor.scene?.document;
-      const [x0, y0, width, height] = d ? [d.x ?? 0, d.y ?? 0, d.width, d.height] : docViewBox;
+      const [x0, y0, width, height] = d
+        ? [(d.x ?? 0) - d.width / 2, (d.y ?? 0) - d.height / 2, d.width, d.height]
+        : docViewBox;
       const x1 = x0 + width, y1 = y0 + height;
       x.push(x0, (x0 + x1) / 2, x1);
       y.push(y0, (y0 + y1) / 2, y1);
