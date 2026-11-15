@@ -18,13 +18,13 @@
 </script>
 
 <nav class="effects" aria-label="Effects">
-  <!-- Effect menus can be hidden from View (the command line has every effect); Utils always stays. -->
+  <!-- All effect menus, including Utils, can be hidden from View; the command line has every effect. -->
   {#if editor.showEffectMenus}
     {#each groups as group (group.label)}
       <GroupMenu {editor} label={group.label} icon={group.icon} types={[...group.types]} />
     {/each}
+    <UtilsMenu {editor} />
   {/if}
-  <UtilsMenu {editor} />
 </nav>
 
 <style>
