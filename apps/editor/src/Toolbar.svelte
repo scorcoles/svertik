@@ -48,7 +48,7 @@
         <button class="crumb" type="button" onclick={() => editor.leaveComposition(0)} title="Return to the main scene">Main scene</button>
         {#each editor.compositionBreadcrumbs as crumb, i}
           <span class="slash">/</span>
-          <button class="crumb" type="button" onclick={() => editor.leaveComposition(i + 1)} aria-current={i === editor.compositionPath.length - 1 ? 'location' : undefined}>{crumb.name}</button>
+          <button class="crumb" type="button" onclick={() => editor.leaveComposition(i + 1)} aria-current={i === editor.compositionPath.length - 1 ? 'location' : undefined} title={crumb.name}>{crumb.name}</button>
         {/each}
       {/if}
       {#if editor.objectCount > 1}<span class="slash">·</span><span class="count">{editor.objectCount} objects</span>{/if}
@@ -88,7 +88,13 @@
     border-bottom: var(--sv-border-1) solid var(--sv-rule-default);
     min-width: 0;
   }
-  .doc { display: flex; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: 0; }
+  /* La base corta es la que cuenta para el salto de línea: el título crece hasta su
+     ancho natural si hay sitio y, si no, recorta nombres antes de empujar Export abajo. */
+  .doc { display: flex; flex: 1000 1 12rem; max-width: max-content; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: 0; }
+  .doc > :global(*) { flex: none; }
+  .doc > .name { flex: 0 1 auto; min-width: 4ch; }
+  .doc > .crumb { flex: 0 3 auto; min-width: 2ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc > .crumb[aria-current] { flex-shrink: 1; min-width: 4ch; }
   /* Insignia discreta: el acento se reserva para lo que se puede pulsar. */
   .alpha {
     align-self: center;
