@@ -15,6 +15,10 @@ export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   buildParts?(p: ParamValues<P>): SubPath[][];
   /** Tags for each piece (Text: its word and line), for Range by words or lines. */
   partTags?(p: ParamValues<P>): { word?: number; line?: number }[];
+  /** New instances follow scene.time automatically. */
+  timeDriven?: boolean;
+  /** Draw a stroke without exposing a Stroke toggle to the user. */
+  fixedStroke?: boolean;
   /** The point that goes at the node's position, if not the centre of its box (Text with an anchor). */
   origin?(p: ParamValues<P>): Vec2 | null;
 }
@@ -464,9 +468,118 @@ function textLayout(p: Record<string, unknown>): { parts: SubPath[][]; origin: V
   };
 }
 
+const frameRandom = (seed: number, frame: number) => {
+  let state = (Math.trunc(seed) ^ Math.imul(frame + 1, 0x9e3779b1)) >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const dynamicSourceParams = {
+  seed: { type: 'seed', default: 1, group: 'Generator' },
+  time: { type: 'number', default: 0, min: 0, max: 3600, step: 0.01, group: 'Generator', label: 'Time' },
+  fps: { type: 'number', default: 12, min: 1, max: 60, step: 1, group: 'Generator', label: 'Update rate' },
+} as const satisfies ParamSchema;
+
+const sourceStyle = {
+  fill: { type: 'boolean', default: true, group: 'Style', label: 'Fill', animatable: false },
+  fillColor: { type: 'color', default: '#d9d9d9', group: 'Style', label: 'Fill color' },
+} as const satisfies ParamSchema;
+
+/** Autonomous synthesizer-style wave source. Random retains the original seeded signal mode. */
+export const randomWave = defineShape({
+  type: 'randomwave', label: 'Wave', timeDriven: true, fixedStroke: true,
+  params: {
+    width: { type: 'number', default: 900, min: 1, step: 1, unit: 'px', group: 'Generator' },
+    height: { type: 'number', default: 360, min: 1, step: 1, unit: 'px', group: 'Generator' },
+    points: { type: 'number', default: 90, min: 8, max: 600, step: 1, group: 'Generator', label: 'Samples' },
+    amplitude: { type: 'number', default: 0.46, min: 0, max: 1, step: 0.01, group: 'Generator' },
+    waveform: { type: 'enum', default: 'random', options: ['random', 'sine', 'square', 'triangle', 'sawtooth'] as const, group: 'Generator', label: 'Waveform' },
+    cycles: { type: 'number', default: 3, min: 0.1, max: 30, step: 0.1, group: 'Generator', label: 'Cycles' },
+    speed: { type: 'number', default: 0.5, min: -10, max: 10, step: 0.01, group: 'Generator', label: 'Speed' },
+    phase: { type: 'angle', default: 0, group: 'Generator', label: 'Phase' },
+    direction: { type: 'enum', default: 'middle', options: ['middle', 'bottom'] as const, group: 'Generator', label: 'Direction' },
+    ...dynamicSourceParams,
+    ...sourceStyle,
+    fill: { type: 'boolean', default: false, group: 'Style', label: 'Fill', animatable: false },
+  },
+  build(p) {
+    const frame = Math.floor(Math.max(0, p.time) * p.fps);
+    const random = frameRandom(p.seed, frame);
+    const count = Math.round(p.points), knots = Math.max(3, Math.round(p.cycles * 5));
+    const signal = Array.from({ length: knots + 1 }, () => random() * 2 - 1);
+    const points = Array.from({ length: count }, (_, i) => {
+      const progress = i / (count - 1);
+      let value: number;
+      if (p.waveform === 'random') {
+        const u = progress * knots, k = Math.min(knots - 1, Math.floor(u)), f = u - k;
+        const smooth = f * f * (3 - 2 * f);
+        value = signal[k]! + (signal[k + 1]! - signal[k]!) * smooth;
+      } else {
+        const cycle = progress * p.cycles + p.time * p.speed + p.phase / 360;
+        const angle = cycle * Math.PI * 2;
+        const sine = Math.sin(angle);
+        value = p.waveform === 'square' ? (sine >= 0 ? 1 : -1)
+          : p.waveform === 'triangle' ? 2 / Math.PI * Math.asin(sine)
+            : p.waveform === 'sawtooth' ? 2 * (cycle - Math.floor(cycle + 0.5))
+              : sine;
+      }
+      const y = p.direction === 'bottom'
+        ? p.height / 2 - (value + 1) * p.height * p.amplitude / 2
+        : value * p.height * p.amplitude / 2;
+      return [-p.width / 2 + i / (count - 1) * p.width, y] as Vec2;
+    });
+    const segs = points.slice(1).map((point, i) => line(points[i]!, point));
+    if (p.fill) {
+      const baseline = p.direction === 'bottom' ? p.height / 2 : 0;
+      const rightBase: Vec2 = [p.width / 2, baseline];
+      const leftBase: Vec2 = [-p.width / 2, baseline];
+      segs.push(line(points.at(-1)!, rightBase), line(rightBase, leftBase), line(leftBase, points[0]!));
+    }
+    return [{ start: points[0]!, segs, closed: p.fill }];
+  },
+});
+
+/** An autonomous seeded signal source drawn as changing vertical bars around a horizontal centreline. */
+export const randomBars = defineShape({
+  type: 'randombars', label: 'Random bars', timeDriven: true,
+  params: {
+    width: { type: 'number', default: 900, min: 1, step: 1, unit: 'px', group: 'Generator' },
+    height: { type: 'number', default: 360, min: 1, step: 1, unit: 'px', group: 'Generator' },
+    bars: { type: 'number', default: 72, min: 4, max: 500, step: 1, group: 'Generator' },
+    amplitude: { type: 'number', default: 0.9, min: 0, max: 1, step: 0.01, group: 'Generator' },
+    gap: { type: 'number', default: 0.24, min: 0, max: 0.9, step: 0.01, group: 'Generator', label: 'Gap' },
+    direction: { type: 'enum', default: 'both', options: ['both', 'top', 'bottom'] as const, group: 'Generator', label: 'Direction' },
+    ...dynamicSourceParams,
+    ...sourceStyle,
+    fill: { type: 'boolean', default: true, group: 'Style', label: 'Fill', animatable: false },
+  },
+  build(p) { return randomBarParts(p.width, p.height, p.bars, p.amplitude, p.gap, p.seed, p.time, p.fps, p.direction).flat(); },
+  buildParts(p) { return randomBarParts(p.width, p.height, p.bars, p.amplitude, p.gap, p.seed, p.time, p.fps, p.direction); },
+});
+
+const randomBarParts = (width: number, height: number, count: number, amplitude: number, gap: number, seed: number, time: number, fps: number, direction: string) => {
+  const bars = Math.round(count), cell = width / bars, barWidth = cell * (1 - gap);
+  const random = frameRandom(seed, Math.floor(Math.max(0, time) * fps));
+  return Array.from({ length: bars }, (_, i) => {
+    const barHeight = height * amplitude * (0.08 + random() * 0.92);
+    const sign = direction === 'top' ? -1 : direction === 'bottom' ? 1 : random() < 0.5 ? -1 : 1;
+    const x = -width / 2 + i * cell + (cell - barWidth) / 2;
+    const y = sign < 0 ? -barHeight : 0;
+    return [closed([[x, y], [x + barWidth, y], [x + barWidth, y + barHeight], [x, y + barHeight]])];
+  });
+};
+
+// Autonomous sources are objects in a scene, not drawing tools or stack modifiers.
+export const autonomousGenerators = [randomWave, randomBars];
+
 // The pawn, always last (it is the test shape).
 export const shapes = [rectangle, ellipseShape, polygon, star, cross, arrow, lineShape, spiral, text, pawn];
-export const shapeRegistry = new Map<string, ShapeDef>(shapes.map((s) => [s.type, s as ShapeDef]));
+export const shapeRegistry = new Map<string, ShapeDef>([...shapes, ...autonomousGenerators].map((s) => [s.type, s as ShapeDef]));
 
 /** A primitive's geometry, with its style. */
 export function buildShape(type: string, given: Record<string, unknown> = {}): Geometry {
@@ -476,10 +589,10 @@ export function buildShape(type: string, given: Record<string, unknown> = {}): G
   const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
   const gradients: Gradient[] = [];
   const fill = paintStyle(p.fill, p.fillColor, 'fill', gradients, 'sf');
-  const stroke = p.stroke ? paintStyle(true, p.strokeColor, 'stroke', gradients, 'ss') : null;
+  const stroke = def.fixedStroke || p.stroke ? paintStyle(true, p.strokeColor ?? p.fillColor, 'stroke', gradients, 'ss') : null;
   const st: Style = {
     fill: fill.value,
-    ...(stroke ? { stroke: stroke.value, 'stroke-width': String(p.strokeWidth), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round'), ...strokeExtraStyle(p) } : {}),
+    ...(stroke ? { stroke: stroke.value, 'stroke-width': String(p.strokeWidth ?? 3), 'stroke-linejoin': String(p.strokeJoin ?? 'round'), 'stroke-linecap': String(p.strokeCap ?? 'round'), ...strokeExtraStyle(p) } : {}),
   };
   const tags = def.partTags?.(p as never) ?? [];
   const origin = def.origin?.(p as never);

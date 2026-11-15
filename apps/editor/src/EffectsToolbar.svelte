@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { autonomousGenerators } from '@svertik/engine';
   import { modifierTypes, registry, type Editor } from './editor.svelte';
   import GroupMenu from './GroupMenu.svelte';
   import UtilsMenu from './UtilsMenu.svelte';
@@ -8,7 +9,7 @@
   const glitch = modifierTypes.filter((type) => registry.get(type)?.family === 'glitch');
   const groups = [
     { label: 'Deform', icon: 'spherize', types: of('deformer') },
-    { label: 'Generate', icon: 'clone', types: of('generator') },
+    { label: 'Generate', icon: 'clone', types: [...of('generator'), ...autonomousGenerators.map((source) => source.type)] },
     { label: 'Effect', icon: 'step', types: of('effector') },
     { label: 'Style', icon: 'color', types: of('style') },
     { label: 'Glitch', icon: 'glitch', types: glitch },

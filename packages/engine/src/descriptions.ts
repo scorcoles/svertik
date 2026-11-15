@@ -82,6 +82,8 @@ export const shapeDescriptions: Record<string, string> = {
   star: 'A star with any number of points and an inner radius (2 points make a needle or a diamond).',
   line: 'A straight line, by length and angle. Stroke only by default.',
   spiral: 'An Archimedean spiral, by radius and number of turns. Stroke only by default.',
+  randomwave: 'An autonomous synthesizer-style wave source with random, sine, square, triangle and sawtooth modes. Cycles, speed, phase and amplitude shape the signal; it needs no input shape.',
+  randombars: 'An autonomous seeded signal drawn as vertical bars extending from a horizontal centreline. Bar heights and directions refresh at the selected update rate.',
   text: 'Text turned into outlines, one piece per letter (so Step, Stagger and Range can treat letters, words and lines separately). Uses the registered fonts.',
   arrow: 'A continuous arrow outline with independent Start head and End head selectors: none, triangular, V, square or round. Head / length sets the head length relative to the total; Head / body width controls its width. V depth controls the chevron notch. Numeric proportions can be animated.',
   cross: 'A filled plus sign: Size controls the overall extent and Width the thickness of its arms, clamped to Size. Rotate the object 45 degrees for an X.',

@@ -34,6 +34,10 @@
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
   const shapeMain = $derived(Object.entries(shapeDef?.params ?? {}).filter(([, s]) => !s.group));
+  const shapeGenerator = $derived([
+    ...Object.entries(shapeDef?.params ?? {}).filter(([n]) => shapeDef?.timeDriven && (n === 'fill' || n === 'direction')),
+    ...Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => s.group === 'Generator' && n !== 'direction'),
+  ]);
   const ACTIONS = [
     { value: 'tween', label: 'Change a value' },
     { value: 'play', label: 'Play the timeline' },
@@ -51,7 +55,7 @@
     for (const param of params) editor.toggleKey({ node: node.id, on: 'node', param });
   };
   // El relleno y el contorno se editan en el rail (abajo a la izquierda); aquí, el resto del estilo.
-  const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => s.group === 'Style' && n !== 'fillColor' && n !== 'strokeColor'));
+  const shapeStyle = $derived(Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => s.group === 'Style' && n !== 'fillColor' && n !== 'strokeColor' && !(shapeDef?.timeDriven && n === 'fill')));
   // Texto: la fuente (familia, peso y cursiva) va en su propio bloque, después del texto.
   const FONT = new Set(['font', 'weight', 'italic']);
   const isText = $derived(node.kind === 'shape' && node.shape === 'text');
@@ -130,16 +134,25 @@
     </Section>
   {/if}
   {#if node.kind === 'shape' && shapeDef}
-    <Section title={shapeDef.label}>
-      <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
-      {#if node.kind === 'shape' && isText}
-        <FontField {editor} {node} />
-        <ParamList swatches={editor.docColors} params={afterFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
-      {/if}
-    </Section>
-    <Section title="Style">
-      <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
-    </Section>
+    {#if shapeMain.length || isText}
+      <Section title={shapeDef.label}>
+        <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+        {#if isText}
+          <FontField {editor} {node} />
+          <ParamList swatches={editor.docColors} params={afterFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+        {/if}
+      </Section>
+    {/if}
+    {#if shapeStyle.length}
+      <Section title="Style">
+        <ParamList swatches={editor.docColors} params={shapeStyle} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      </Section>
+    {/if}
+    {#if shapeGenerator.length}
+      <Section title="Generator">
+        <ParamList swatches={editor.docColors} params={shapeGenerator} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+      </Section>
+    {/if}
   {/if}
   {#if node.kind !== 'effector'}
   <Section title="Transform">

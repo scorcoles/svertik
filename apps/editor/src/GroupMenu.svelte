@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { autonomousGenerators } from '@svertik/engine';
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
   import { registry, type Editor } from './editor.svelte';
@@ -34,9 +35,10 @@
       collisionPadding={8}
     >
       {#each types as type (type)}
-        <DropdownMenu.Item class="sv-menu-item" disabled={!editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
+        {@const source = autonomousGenerators.find((item) => item.type === type)}
+        <DropdownMenu.Item class="sv-menu-item" disabled={!source && !editor.canAdd(type)} title={!source && !editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => source ? editor.addShape(type) : editor.add(type)}>
           <Icon name={type as IconName} />
-          <span class="effect-name">{registry.get(type)?.label}</span>
+          <span class="effect-name">{source?.label ?? registry.get(type)?.label}</span>
         </DropdownMenu.Item>
       {/each}
     </DropdownMenu.Content>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { autonomousGenerators } from '@svertik/engine';
   import { DropdownMenu } from 'bits-ui';
   import { Icon, IconButton, type IconName } from '@svertik/ui';
   import { modifierTypes, registry, type Editor } from './editor.svelte';
@@ -8,7 +9,7 @@
   const of = (kind: string) => modifierTypes.filter((t) => registry.get(t)?.kind === kind && !registry.get(t)?.family);
   const groups = $derived([
     ['Deformers', of('deformer')],
-    ['Generators', of('generator')],
+    ['Generators', [...of('generator'), ...autonomousGenerators.map((source) => source.type)]],
     ['Glitch', modifierTypes.filter((t) => registry.get(t)?.family === 'glitch')],
     ['Utils', modifierTypes.filter((t) => registry.get(t)?.family === 'utils')],
     ['Effectors', of('effector')],
@@ -30,9 +31,10 @@
         <DropdownMenu.Group>
           <DropdownMenu.GroupHeading class="sv-menu-heading">{title}</DropdownMenu.GroupHeading>
           {#each types as type (type)}
-            <DropdownMenu.Item class="sv-menu-item" disabled={!editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
+            {@const source = autonomousGenerators.find((item) => item.type === type)}
+            <DropdownMenu.Item class="sv-menu-item" disabled={!source && !editor.canAdd(type)} title={!source && !editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => source ? editor.addShape(type) : editor.add(type)}>
               <Icon name={type as IconName} />
-              {registry.get(type)?.label}
+              {source?.label ?? registry.get(type)?.label}
             </DropdownMenu.Item>
           {/each}
         </DropdownMenu.Group>

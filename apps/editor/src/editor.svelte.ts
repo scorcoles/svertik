@@ -649,9 +649,9 @@ export class Editor {
       shape: type,
       params: {
         ...resolveParams(def.params),
-        fillColor: this.fillColor,
-        strokeColor: this.strokeColor,
-        stroke: this.strokeOn,
+        ...(def.timeDriven
+          ? { time: { $expr: 'scene.time', fallback: 0 } }
+          : { fillColor: this.fillColor, strokeColor: this.strokeColor, stroke: this.strokeOn }),
         ...params,
       },
       stack: [],
