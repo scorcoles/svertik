@@ -2,7 +2,7 @@
   // Modo Play: la escena a pantalla completa, sin herramientas, sobre el color del lienzo. Usa el mismo
   // reproductor que el código exportado (línea de tiempo, hover, clic, enter, «reducir movimiento»):
   // lo que se ve aquí es lo que verá la web. Esc (o la ×) vuelve al editor.
-  import { builtins, createEngine, createPlayer, evaluateSceneVariables, type SceneV1 } from '@svertik/engine';
+  import { builtins, createEngine, createPlayer, evaluateSceneVariables, installWire, type SceneV1 } from '@svertik/engine';
   import { downloadFrame } from './capture';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
@@ -16,6 +16,7 @@
   let pointerInControlsZone = false;
   let controlsTimer: ReturnType<typeof setTimeout> | undefined;
   let meter: FpsMeter | null = null;
+  let wireOn = $state(false);
 
   onMount(() => {
     const scene = $state.snapshot(editor.scene) as SceneV1;
@@ -25,6 +26,8 @@
       const values = evaluateSceneVariables(scene, t);
       meter?.variables({ cycle: values.cycle, time: values.time, frame: values.frame, fps: values.fps, duration: values.duration, progress: values.progress, seedGenerator: values.seedGenerator }, values.custom);
     } }) : null;
+    // W: Wire (outlines only), as in the canvas.
+    const wire = svg ? installWire(svg, scene, { onChange: (on) => (wireOn = on) }) : null;
     const t = setTimeout(() => (hint = false), 2200);
     const initialControls = setTimeout(() => { if (!pointerInControlsZone) hideControls(); }, 500);
     return () => {
@@ -32,6 +35,7 @@
       clearTimeout(initialControls);
       clearTimeout(sayTimer);
       clearTimeout(controlsTimer);
+      wire?.dispose();
       player?.stop();
       meter?.stop();
     };
@@ -113,7 +117,7 @@
   }}
 />
 
-<div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || DEFAULT_CANVAS}>
+<div class="presenter" role="dialog" aria-label="Play" style:background={wireOn ? '#101216' : editor.canvas || DEFAULT_CANVAS}>
   <svg bind:this={svg} class="stage" class:full-viewport={!!editor.viewportFit} aria-label="svertik scene"></svg>
   <div class="tools" data-active={controlsVisible || undefined}>
     <button type="button" onclick={capture} disabled={capturing} aria-label="Download current frame as PNG" title="Download current frame as PNG">
@@ -124,7 +128,7 @@
     </button>
     <button type="button" onclick={close} aria-label="Back to the editor (Esc)" title="Back to the editor (Esc)"><Icon name="close" /></button>
   </div>
-  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for debug'}</p>
+  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for debug · W for wire'}</p>
 </div>
 
 <style>

@@ -14,11 +14,16 @@
 // El bundle lleva el motor y nada más: los efectos de la escena se cargan cuando llegan (cada uno es
 // un trozo aparte), y las fuentes y el importador de SVG solo si la escena los necesita.
 
-import { createEngine, createPlayer, isScene, prepareScene, registerFont, type SceneV1 } from '@svertik/engine/player';
+import { createEngine, createPlayer, installWire, isScene, prepareScene, registerFont, type SceneV1, type WireOptions } from '@svertik/engine/player';
 
 export interface PlayOptions {
   /** Cuánto tardó cada fotograma calculado (para medir). */
   onFrame?: (info: { ms: number; t: number }) => void;
+  /**
+   * Wire view (outlines only, a colour per kind of object): `true` toggles it with the W key; or give
+   * the key and whether to start in Wire. Off by default, so an embedded scene does not take keys.
+   */
+  wire?: boolean | WireOptions;
 }
 
 export interface Playing {
@@ -61,8 +66,10 @@ export async function play(scene: SceneV1, target: string | Element, options: Pl
   const svg = resolveSVG(target);
   const effects = await prepareScene(scene);
   const engine = createEngine(effects);
-  const player = createPlayer(engine, svg, scene, options);
-  return { scene, svg, refresh: player.refresh, stop: player.stop };
+  const { wire: _wire, ...playerOptions } = options;
+  const player = createPlayer(engine, svg, scene, playerOptions);
+  const wire = options.wire ? installWire(svg, scene, options.wire === true ? {} : options.wire) : null;
+  return { scene, svg, refresh: player.refresh, stop() { wire?.dispose(); player.stop(); } };
 }
 
 /**

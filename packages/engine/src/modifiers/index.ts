@@ -37,6 +37,7 @@ import { spikes } from './spikes';
 import { shear } from './shear';
 import { taper } from './taper';
 import { gather } from './gather';
+import { rope } from './rope';
 import { tint } from './tint';
 import { trace } from './trace';
 import { trim } from './trim';
@@ -59,7 +60,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, feather, gravity, physics, rigidbody, field, followpath, fractal, gradient, halftone, vectorGrain, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, wave, gather };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, crack, cylinder, damage, envelope, explosion, feather, gravity, physics, rigidbody, field, followpath, fractal, gradient, halftone, vectorGrain, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, wave, gather, rope };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -71,6 +72,7 @@ export const builtins = [
   bones,
   taper,
   gather,
+  rope,
   shear,
   wave,
   ripple,

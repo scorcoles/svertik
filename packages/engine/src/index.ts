@@ -19,6 +19,7 @@ export * from './interactions';
 export { validateScene, type SceneReport } from './validate';
 export * from './modifiers';
 export { rng, noise2D } from './random';
+export { wireColors, wirePalette, wireCSS, installWire, type WireOptions } from './wire';
 export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor, rgbToOklab, oklchToRgb } from './color';
 export * from './palettes';
 export { effectDescriptions, shapeDescriptions } from './descriptions';

@@ -661,6 +661,17 @@ A general rigid-body simulation for the children of a group. Add **Physics** to 
 Rigid Body's `velocity` is the child’s initial `[x, y]` velocity in px/s; `spin` is its initial angular velocity in degrees/s. Filled contours, including interior holes, are used for collisions; open paths and stroke thickness are ignored. The simulation uses deterministic 120 Hz steps and is seekable and exportable. For a circular arena, use a hollow filled shape as an immovable child or select it under `solids`.
 
 
+### Rope (`rope`)
+
+Every **open** path becomes a hanging rope pinned at its first and last point (closed paths are left alone): a Verlet chain whose links keep the length of the drawn path, so a path that already is a catenary stays at rest and a slack one drops and swings. Output is smooth cubics through the chain.
+
+- `time`: seconds; bind it to `{ "$expr": "scene.time", "fallback": 0 }`.
+- `gravity`: fraction of the drawing size per s², default `1`. `wind`: sideways sway (same unit, default `0`), phased per rope and `seed`.
+- `damping` (1/s), `stiffness` (constraint iterations, higher = less stretch; default 14), `segments` (chain links per path, 4–120; default 24). The cost grows with paths × segments × stiffness: 16 segments and stiffness 8 look the same on smooth threads and cost about a third.
+- `pointer` (`[fx, fy]`, fractions of the box) and `radius` (fraction of the size, `0` = off): a round obstacle that pushes the ropes out of its way. Bind `pointer` with a `follow` interaction (`stay: true`) and tween `radius` on `hover` so it only exists while the cursor is over the drawing.
+
+It is **stateful**: the chain is stepped (120 Hz) from the last time shown. The state is cached on the input geometry (by object, or by a fingerprint of its open paths when an upstream effect such as Clone hands over a new object every frame), so two Ropes over the same drawing share one chain: duplicate the drawing if they need different settings. `settle` (seconds, default 0) pre-simulates the drawn pose falling into its rest shape before time 0, so a path drawn as a slack arc starts already hanging. Hanging threads need no precomputed paths: a `line` bent with Bend, cloned with Clone → Object → Inside a filled region, then Rope on the group. A jump back or a long jump forward restarts the chain at rest two seconds before and replays it with the current pointer; sequential frame export is deterministic. Obstacle motion is not recorded in exports (no pointer there).
+
 #### Explosion → Gravity: inertia
 
 Set Explosion's `motion` to `impulse` to launch pieces using `force` (source sizes/s), `spin` (degrees/s) and `amount` (impulse strength). In this mode Explosion leaves each piece in place instead of applying a position/angle offset. Follow it with rigid-body Gravity and animate Gravity's `time` from the burst: linear and angular velocity persist in free flight, then respond to floor friction and impacts. This also works with gravity set to zero. Shrink still changes the source geometry; use `shrink: 0` for a rigid launch.

@@ -20,6 +20,7 @@
       #boot li.done .status::before { content: '✓'; border: 0; width: auto; height: auto; animation: none; }
       @keyframes boot-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { #boot { transition: opacity 0ms linear; } #boot li { transition: opacity 0ms linear; } #boot li .status::before { animation: none; } }
+      body.wire { background: #101216 !important; }
       #stage { width: min(92vw, 100%); height: 92vh; overflow: visible; }
       #stage.full-viewport { width: 100vw; height: 100dvh; overflow: hidden; }
       #tools { position: fixed; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0.46; transition: opacity 180ms; }

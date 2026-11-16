@@ -1,14 +1,14 @@
 <script lang="ts">
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
   import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
   import TextEdit from './TextEdit.svelte';
   import DropArea from './DropArea.svelte';
-  import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
+    import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
   import type { CanvasStatus } from './canvas-status';
 
   interface Props {
@@ -60,23 +60,6 @@
     };
     items.forEach(visit);
     return found.slice(0, 4);
-  }
-  const wirePalette = ['#22d3ee', '#2dd4bf', '#a3e635', '#facc15', '#fb923c', '#fb7185', '#e879f9', '#818cf8'];
-  function wireColors(scene: SceneV1) {
-    const colors = new Map<string, string>();
-    const visit = (items: SceneNode[]) => {
-      for (const node of items) {
-        const key = node.kind === 'object' ? 'svg' : node.kind === 'group' && node.composition ? 'composition' : node.kind === 'shape' ? node.shape : node.kind;
-        const category = node.stack?.[0]?.type ? `effect:${node.stack[0].type}` : key;
-        let hash = 0;
-        for (const char of category) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-        colors.set(node.id, wirePalette[hash % wirePalette.length]!);
-        if (node.children?.length) visit(node.children);
-        if (node.kind === 'group' && node.composition) visit(node.composition.scene.objects);
-      }
-    };
-    visit(scene.objects);
-    return colors;
   }
   function wireBodyKinds(scene: SceneV1) {
     const kinds = new Map<string, 'fixed' | 'mobile'>();

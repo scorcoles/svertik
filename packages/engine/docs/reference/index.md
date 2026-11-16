@@ -16,6 +16,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Bones](effects/bones.md) | `bones` | A chain of 2 to 6 equal bones from Start to End. |
 | [Taper](effects/taper.md) | `taper` | Narrows (or widens) one end: the width across the axis changes along it. |
 | [Gather](effects/gather.md) | `gather` | Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom. |
+| [Rope](effects/rope.md) | `rope` | Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. |
 | [Shear](effects/shear.md) | `shear` | Slants the drawing: X shifts with the height and Y with the width, around the center. |
 | [Wave](effects/wave.md) | `wave` | Makes the drawing wavy: moves each point across the direction of the wave. |
 | [Ripple](effects/ripple.md) | `ripple` | Concentric waves from a point, like a drop in water; they fade with the distance. |

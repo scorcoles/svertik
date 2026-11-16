@@ -37,4 +37,4 @@ const scene: SceneV1 = {
   },
 };
 
-await play(scene, '#stage');
+await play(scene, '#stage', { wire: true });

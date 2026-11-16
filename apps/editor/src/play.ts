@@ -65,6 +65,8 @@ async function start(m: typeof import('@svertik/engine/player')) {
   // Rendimiento: D o ?debug en la URL.
   const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
+  // Wire (W, or ?wire in the URL): outlines only, as in the editor's canvas.
+  m.installWire(stage, scene, { initial: new URLSearchParams(location.search).has('wire'), onChange: (on) => document.body.classList.toggle('wire', on) });
   createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms, t }) => {
     meter.frame(ms);
     const values = evaluateSceneVariables(scene, t);
