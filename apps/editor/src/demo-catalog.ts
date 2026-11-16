@@ -1,3 +1,4 @@
+import { printPosterProject } from './demo-poster';
 import { timeRemapProject, compositionsProject, crossFillProject, motionProject, rhythmProject, demoProject, gravityProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
 
 /** Shared by both menus and the loader: one place for labels, order, factories and presentation. */
@@ -13,6 +14,7 @@ export const DEMOS = [
   { which: 'reel', label: 'Reel: motion graphics in three acts', create: reelProject, view: 'timeline' },
   { which: 'orbit', label: 'Orbit: the Utils working together', create: orbitProject, view: 'timeline' },
   { which: 'pointer', label: 'Pointer: it follows your mouse', create: pointerProject, view: 'presenter' },
+  { which: 'poster', label: 'Print Poster: a 1200×4800 glitch print', create: printPosterProject, view: 'canvas' },
 ] as const;
 
 export type DemoName = (typeof DEMOS)[number]['which'];

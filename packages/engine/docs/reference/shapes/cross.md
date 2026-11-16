@@ -14,7 +14,7 @@ A filled plus sign: Size controls the overall extent and Width the thickness of 
 | `fillColor` | color | `"#d9d9d9"` | #rrggbb | group: Style; label: Fill color |
 | `stroke` | boolean | `false` |  | not animatable; group: Style |
 | `strokeColor` | color | `"#ededed"` | #rrggbb | only when `stroke` is `true`; group: Style; label: Stroke color |
-| `strokeWidth` | number | `2` | min 0, max 40, step 0.5 | unit: px; only when `stroke` is `true`; group: Style; label: Stroke width |
+| `strokeWidth` | number | `2` | min 0, max 400, step 0.5 | unit: px; only when `stroke` is `true`; group: Style; label: Stroke width |
 | `strokeJoin` | enum | `"round"` | `miter`, `round`, `bevel` | not animatable; only when `stroke` is `true`; group: Style; label: Join |
 | `strokeCap` | enum | `"round"` | `butt`, `round`, `square` | not animatable; only when `stroke` is `true`; group: Style; label: Cap |
 | `dash` | number | `0` | min 0, max 400, step 0.5 | unit: px; only when `stroke` is `true`; group: Style |

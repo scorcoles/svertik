@@ -32,7 +32,7 @@ const style: ParamSchema = {
   fillColor: { type: 'color', default: '#d9d9d9', group: 'Style', label: 'Fill color' },
   stroke: { type: 'boolean', default: false, group: 'Style', label: 'Stroke', animatable: false },
   strokeColor: { type: 'color', default: '#ededed', group: 'Style', label: 'Stroke color', showIf: strokeOn },
-  strokeWidth: { type: 'number', default: 2, min: 0, max: 40, step: 0.5, unit: 'px', group: 'Style', label: 'Stroke width', showIf: strokeOn },
+  strokeWidth: { type: 'number', default: 2, min: 0, max: 400, step: 0.5, unit: 'px', group: 'Style', label: 'Stroke width', random: [1, 12], showIf: strokeOn },
   strokeJoin: { type: 'enum', default: 'round', options: ['miter', 'round', 'bevel'], group: 'Style', label: 'Join', animatable: false, showIf: strokeOn },
   strokeCap: { type: 'enum', default: 'round', options: ['butt', 'round', 'square'], group: 'Style', label: 'Cap', animatable: false, showIf: strokeOn },
   ...strokeExtras('Style'),

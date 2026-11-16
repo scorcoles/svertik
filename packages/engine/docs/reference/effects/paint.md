@@ -15,7 +15,7 @@ Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or 
 | `fillEmpty` | boolean | `false` |  | not animatable; group: Fill; label: Fill empty |
 | `stroke` | boolean | `false` |  | not animatable; group: Stroke |
 | `strokeColor` | color | `"#000000"` | #rrggbb | group: Stroke; label: Color |
-| `strokeWidth` | number | `1` | min 0, max 20, step 0.1 | unit: px; group: Stroke; label: Width |
+| `strokeWidth` | number | `1` | min 0, max 200, step 0.1 | unit: px; group: Stroke; label: Width |
 | `strokeOpacity` | number | `1` | min 0, max 1, step 0.01 | group: Stroke; label: Opacity |
 | `strokeJoin` | enum | `"keep"` | `keep`, `miter`, `round`, `bevel` | not animatable; group: Stroke; label: Join |
 | `strokeCap` | enum | `"keep"` | `keep`, `butt`, `round`, `square` | not animatable; group: Stroke; label: Cap |

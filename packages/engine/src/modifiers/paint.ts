@@ -19,7 +19,7 @@ export const paint = defineModifier({
     fillEmpty: { type: 'boolean', default: false, label: 'Fill empty', group: 'Fill', animatable: false },
     stroke: { type: 'boolean', default: false, label: 'Stroke', group: 'Stroke', animatable: false },
     strokeColor: { type: 'color', default: '#000000', label: 'Color', group: 'Stroke' },
-    strokeWidth: { type: 'number', default: 1, min: 0, max: 20, step: 0.1, unit: 'px', label: 'Width', group: 'Stroke', random: [0.5, 6] },
+    strokeWidth: { type: 'number', default: 1, min: 0, max: 200, step: 0.1, unit: 'px', label: 'Width', group: 'Stroke', random: [0.5, 6] },
     strokeOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Opacity', group: 'Stroke', ramp: false, random: [0.4, 1] },
     // Stroke joins and caps; "keep" respects what the drawing has.
     strokeJoin: { type: 'enum', default: 'keep', options: ['keep', 'miter', 'round', 'bevel'] as const, label: 'Join', group: 'Stroke', animatable: false },

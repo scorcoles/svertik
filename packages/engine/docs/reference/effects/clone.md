@@ -9,9 +9,9 @@ Duplicates the drawing in a grid, concentric rings or a line, around the origina
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
 | `mode` | enum | `"grid"` | `grid`, `radial`, `linear`, `object` | not animatable |
-| `count` | number | `6` | min 1, max 64, step 1 | only when `mode` is `radial` or `linear` or `object` |
-| `columns` | number | `3` | min 1, max 64, step 1 | group: Grid |
-| `rows` | number | `3` | min 1, max 64, step 1 | group: Grid |
+| `count` | number | `6` | min 1, max 256, step 1 | only when `mode` is `radial` or `linear` or `object` |
+| `columns` | number | `3` | min 1, max 256, step 1 | group: Grid |
+| `rows` | number | `3` | min 1, max 256, step 1 | group: Grid |
 | `spacing` | point | `[1.1,1.1]` | [x, y], fractions of the box (0–1) | group: Grid |
 | `radius` | number | `1` | min 0, max 5, step 0.01 | fraction of the drawing size; group: Radial |
 | `rings` | number | `1` | min 1, max 64, step 1 | group: Radial |
