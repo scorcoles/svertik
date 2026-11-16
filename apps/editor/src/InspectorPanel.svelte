@@ -144,6 +144,6 @@
   .split:focus-visible::before { inset: 3px 0; background: var(--sv-accent-fill); }
   .split:focus-visible { outline: none; }
   .document-panel { overflow-y: auto; }
-  .empty { padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.5; }
+  .empty { padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
   .empty p { margin: 0 0 var(--sv-space-4); }
 </style>

@@ -401,5 +401,5 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   .params { padding: var(--sv-space-6) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
   /* Multi-selection: one compact band, aligned with the header (no indented block leaving a gap). */
-  .note { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
+  .note { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-secondary); font-size: var(--sv-font-size-11); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
 </style>

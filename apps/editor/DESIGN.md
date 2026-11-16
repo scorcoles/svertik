@@ -204,6 +204,8 @@ Grafito neutro sin tinte y un solo trazo de fósforo turquesa; el resto de color
 ### Named Rules
 **The Weight-Not-Size Rule.** La jerarquía se hace con peso y paso de gris, no subiendo de tamaño. El rango útil es de 9 a 12 px. El token de 14 px existe, pero el editor no lo usa.
 
+**The Read-It-At-11 Rule.** Lo que se lee como frase o como nombre va a 11 px (Body): explicaciones y estados vacíos, avisos y errores, notas, nombres de pista y de parámetro en la timeline, y los controles de la barra de estado. Los 10 px (Label) quedan para lo que acompaña a otra cosa: contadores, unidades, porcentajes, atajos de teclado, marcas del reloj y la segunda línea de un elemento de menú. Los 9 px (Badge), solo para insignias.
+
 ## Layout
 
 Retícula de aplicación a pantalla completa (`100dvh`): barra superior, área principal y barra de estado. El área principal tiene tres columnas: un raíl de modificadores a la izquierda, el área de trabajo flexible (lienzo, timeline y paneles maximizables) y un inspector fijo de 300 px a la derecha. Un panel se puede maximizar y ocupar toda el área.
@@ -220,6 +222,14 @@ Es solo para escritorio. Existe un punto de corte a 760 px que apila el inspecto
 Plano. La profundidad se construye con capas de grafito: el hueco del campo (más oscuro), el fondo de la aplicación, el panel, el paso del puntero y el elemento elevado (más claro). Los menús desplegables se separan con un grafito más claro y una regla marcada de 1 px, no con sombra.
 
 Excepciones observadas que son funcionales y no decorativas: un anillo de 1 px negro semitransparente que separa los tiradores del lienzo de cualquier fondo, un anillo de 2 px de halo de fósforo para lo seleccionado en el lienzo. La tarjeta del estado vacío es plana, con regla de 1 px y sin sombra. También es excepción el cristal (`backdrop-filter: blur`) de los controles que flotan sobre la obra: los botones «← Back» y «Finish pen» del lienzo y dos controles del modo Play. Mantienen legible el control sobre cualquier dibujo; no se usa en paneles ni menús.
+
+Otras superposiciones funcionales, documentadas para que el detector no las tome por decoración:
+- **Velo de diálogo:** negro al 50 % bajo los diálogos modales, para que el diálogo sea lo único activo.
+- **Medidor de fps:** fondo negro al 60 % tras sus cifras, porque se dibuja encima de la obra.
+- **Selección del editor de código:** blanco sólido con texto negro (CodeMirror), la única selección de texto que tiene que verse sobre el resaltado de sintaxis.
+- **Anillo de las muestras de color:** 1 px blanco al 15 % hacia dentro, para que una muestra oscura no desaparezca sobre el grafito.
+- **Borde de las claves de la timeline:** 1 px negro al 50 % alrededor de cada rombo, para separarlo de la curva y de otras claves.
+- **Papel cebolla:** los fotogramas vecinos, atenuados y teñidos (azul antes, verde después) bajo el resultado; no es decoración, es información de movimiento.
 
 ### Named Rules
 **The Graphite Layers Rule.** Si algo tiene que destacar, se aclara un paso de grafito o se le pone una regla de 1 px. No se le añade sombra, desenfoque ni degradado.

@@ -287,5 +287,5 @@
   }
   .hint { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-muted); }
   .hint p { margin: 0 0 var(--sv-space-4); }
-  .dim { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .dim { color: var(--sv-text-muted); font-size: var(--sv-font-size-11); }
 </style>

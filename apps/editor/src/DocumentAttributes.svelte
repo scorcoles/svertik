@@ -131,5 +131,5 @@
     box-sizing: border-box;
   }
   .name:focus { border-color: var(--sv-accent-fill); }
-  .note, .hint { margin: var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.5; }
+  .note, .hint { margin: var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
 </style>

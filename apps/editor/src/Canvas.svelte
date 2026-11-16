@@ -1615,6 +1615,6 @@
     stroke-width: 1px !important;
     vector-effect: non-scaling-stroke;
   }
-  .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-10); }
+  .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-11); }
   .canvas > .error { position: absolute; top: 28px; left: var(--sv-space-12); }
 </style>

@@ -267,7 +267,7 @@
     color: var(--sv-signal-error);
     background: var(--sv-surface-panel);
     border: var(--sv-border-1) solid var(--sv-signal-error);
-    font-size: var(--sv-font-size-9);
+    font-size: var(--sv-font-size-11);
     line-height: 1.3;
     white-space: normal;
     overflow-wrap: anywhere;

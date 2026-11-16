@@ -38,7 +38,7 @@
     background: var(--sv-surface-panel);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
     font-family: var(--sv-font-mono);
-    font-size: var(--sv-font-size-10);
+    font-size: var(--sv-font-size-11);
   }
   header { display: flex; align-items: center; gap: var(--sv-space-8); }
   h2 { flex: 1; margin: 0; font-size: var(--sv-font-size-11); }

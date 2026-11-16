@@ -130,6 +130,6 @@
   .info dd { margin: 0; color: var(--sv-text-primary); }
   .info .about { color: var(--sv-text-secondary); line-height: 1.5; }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
-  .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .empty { margin: 0; padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.5; }
+  .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); }
+  .empty { margin: 0; padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
 </style>

@@ -33,7 +33,7 @@
 </AlertDialog.Root>
 
 <style>
-  .warnings { margin: 0 0 var(--sv-space-16); padding-left: var(--sv-space-16); color: var(--sv-signal-warning); font-size: var(--sv-font-size-10); line-height: 1.5; }
+  .warnings { margin: 0 0 var(--sv-space-16); padding-left: var(--sv-space-16); color: var(--sv-signal-warning); font-size: var(--sv-font-size-11); line-height: 1.5; }
   .warnings li + li { margin-top: var(--sv-space-4); }
   .actions { display: flex; justify-content: flex-end; }
 </style>

@@ -748,12 +748,12 @@
     background: var(--sv-surface-panel);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
     color: var(--sv-text-muted);
-    font-size: var(--sv-font-size-10);
+    font-size: var(--sv-font-size-11);
   }
   .canvas-status { display: flex; align-items: center; gap: var(--sv-space-12); min-width: 0; }
   .canvas-status button { height: 22px; padding: 0 var(--sv-space-6); color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; font: inherit; }
   .canvas-status button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
-  .canvas-status .pct, .canvas-status .size, .canvas-status .cost { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .canvas-status .pct, .canvas-status .size, .canvas-status .cost { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .canvas-status .cost { flex: 0 0 9ch; width: 9ch; text-align: right; }
   .canvas-status .size { padding: 0 var(--sv-space-4); background: none; border: 0; cursor: pointer; }
   .canvas-status .size:hover { color: var(--sv-text-primary); text-decoration: underline; }

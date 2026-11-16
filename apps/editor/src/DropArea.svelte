@@ -1,6 +1,7 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
+  import DemoReel from './DemoReel.svelte';
   import { Button, Icon } from '@svertik/ui';
   import { DEFAULT_DOCUMENT, type Editor } from './editor.svelte';
   import type { DemoName } from './demo-catalog';
@@ -26,13 +27,14 @@
     <span class="icon"><Icon name="import" /></span>
     <strong>Drop an SVG or a .svrtk project here</strong>
     <span class="muted">or paste it (⌘V), or draw with the tools on the left</span>
+    <DemoReel {ondemo} />
     <div class="start">
       <div class="open-document">
         <!-- One primary action: the demos are the quickest way to see what svertik does. -->
         <Button label="Choose file…" onclick={onimport} />
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
-            {#snippet child({ props })}<Button {...props} kind="primary" label="Demos ▾" />{/snippet}
+            {#snippet child({ props })}<Button {...props} kind="primary" label="All demos ▾" />{/snippet}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content class="sv-menu sv-demos" side="right" align="start" sideOffset={4} collisionPadding={8}>

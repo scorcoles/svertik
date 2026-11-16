@@ -417,7 +417,7 @@
   .ruler-gap :global(.sv-icon-button) { width: 16px; height: 16px; }
   .ruler-gap :global(.sv-icon) { width: 12px; height: 12px; }
   .label, .lane { height: 22px; border-bottom: var(--sv-border-1) solid var(--sv-rule-subtle, var(--sv-rule-default)); }
-  .label { position: relative; display: flex; align-items: center; padding: 0 var(--sv-space-8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--sv-font-size-10); }
+  .label { position: relative; display: flex; align-items: center; padding: 0 var(--sv-space-8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--sv-font-size-11); }
   .label.group { gap: var(--sv-space-4); padding-left: var(--sv-space-4); background: var(--sv-surface-raised); }
   .label.group[data-selected] .name { color: var(--sv-accent-fill); }
   .label.group button { padding: 0; font: inherit; color: var(--sv-text-primary); background: none; border: 0; cursor: pointer; }
@@ -476,5 +476,5 @@
   .key[data-selected] { background: var(--sv-accent-fill); border-color: var(--sv-accent-fill); outline: 1px solid var(--sv-text-primary); outline-offset: 2px; }
   .head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sv-timeline-playhead); pointer-events: none; }
   .head::before { content: ''; position: absolute; top: 0; left: -4px; width: 9px; height: 8px; background: var(--sv-timeline-playhead); clip-path: polygon(0 0, 100% 0, 50% 100%); }
-  .empty { margin: var(--sv-space-12) 0; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); max-width: 520px; }
+  .empty { margin: var(--sv-space-12) 0; color: var(--sv-text-muted); font-size: var(--sv-font-size-11); max-width: 520px; }
 </style>
