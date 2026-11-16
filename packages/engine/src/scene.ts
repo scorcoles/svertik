@@ -186,12 +186,18 @@ export interface SceneV1 {
 }
 
 /** What `scene.mouse.*` formulas can read. `pos*`: scene coordinates (px, as an object's x/y); `frac*`: 0–1 across the document. */
-export interface ScenePointer { posX: number; posY: number; fracX: number; fracY: number; down: number; inside: number }
-export const POINTER_FIELDS = ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside'] as const;
+export interface ScenePointer {
+  posX: number; posY: number; fracX: number; fracY: number; down: number; inside: number;
+  /** Pointer speed, px per second in scene coordinates (smoothed; it decays to 0 when the pointer stops). */
+  velX: number; velY: number;
+  /** Milliseconds the primary button has been held; after release, how long the last press lasted (0 before any). */
+  downMs: number;
+}
+export const POINTER_FIELDS = ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside', 'velX', 'velY', 'downMs'] as const;
 
 /** The pointer before it has moved: the centre of the document, not pressed, not inside. */
 export const neutralPointer = (scene: Pick<SceneV1, 'document'>): ScenePointer => ({
-  posX: scene.document?.x ?? 0, posY: scene.document?.y ?? 0, fracX: 0.5, fracY: 0.5, down: 0, inside: 0,
+  posX: scene.document?.x ?? 0, posY: scene.document?.y ?? 0, fracX: 0.5, fracY: 0.5, down: 0, inside: 0, velX: 0, velY: 0, downMs: 0,
 });
 
 /** The scene (what is saved and exported). */

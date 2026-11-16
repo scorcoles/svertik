@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { builtins, createEngine, createPlayer, evaluateExpression, evaluateSceneExpressions, validateExpression, type Engine, type SceneV1 } from '../src';
+import { builtins, createEngine, createMouseInstances, createPlayer, evaluateExpression, evaluateSceneExpressions, validateExpression, walkNodes, type Engine, type GroupNode, type SceneV1 } from '../src';
 
 const base = { time: 0, frame: 0, fps: 30, duration: 10, progress: 0, seedGenerator: 1, custom: {} };
 const rect = (x: unknown): SceneV1 => ({
@@ -9,7 +9,7 @@ const rect = (x: unknown): SceneV1 => ({
 
 describe('scene.mouse.*', () => {
   it('parses its fields and rejects anything else', () => {
-    for (const f of ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside']) expect(validateExpression(`scene.mouse.${f}`)).toBeNull();
+    for (const f of ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside', 'velX', 'velY', 'downMs']) expect(validateExpression(`scene.mouse.${f}`)).toBeNull();
     expect(validateExpression('scene.mouse.speed')).toMatch(/pointer field/);
     expect(validateExpression('scene.mouse')).not.toBeNull();
   });
@@ -74,5 +74,62 @@ describe('scene.mouse.*', () => {
     const player = createPlayer(createEngine(builtins), svg, rect(0));
     expect(add.mock.calls.some(([type]) => type === 'pointermove')).toBe(false);
     player.stop();
+  });
+
+  it('measures speed and how long the button was held (kept after release)', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    Object.assign(svg, { getScreenCTM: () => ({ inverse: () => ({}) }) });
+    vi.stubGlobal('DOMPoint', class { constructor(public x: number, public y: number) {} matrixTransform() { return { x: this.x, y: this.y }; } });
+    let scheduled: FrameRequestCallback | undefined;
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => { scheduled = fn; return 1; });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    let drawn: SceneV1 | undefined;
+    const engine = { mount: () => ({ update: (f: SceneV1) => { drawn = f; }, doc: () => ({ geometry: { viewBox: [0, 0, 100, 100] } }) }) } as unknown as Engine;
+    let clock = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => clock);
+    const fire = (type: string, x: number, y: number, buttons: number) => {
+      const e = new PointerEvent(type, { clientX: x, clientY: y, buttons });
+      Object.defineProperties(e, { clientX: { value: x }, clientY: { value: y }, buttons: { value: buttons } });
+      svg.dispatchEvent(e);
+    };
+    const s = rect(0);
+    (s.objects[0] as { params: Record<string, unknown> }).params.width = { $expr: 'scene.mouse.velX + scene.mouse.downMs', fallback: 1 };
+    try {
+      const player = createPlayer(engine, svg, s);
+      scheduled!(clock);
+      fire('pointermove', 0, 0, 0);
+      clock += 20; fire('pointermove', 10, 0, 0);          // 500 px/s, smoothed towards it
+      scheduled!(clock);
+      expect(drawn!.pointer!.velX).toBeGreaterThan(100);
+      expect(drawn!.pointer!.velX).toBeLessThanOrEqual(500);
+      expect(drawn!.pointer!.velY).toBeCloseTo(0);
+      clock += 5; fire('pointerdown', 10, 0, 1);
+      clock += 300; scheduled!(clock);                     // still held: counts while no event arrives
+      expect(drawn!.pointer!.down).toBe(1);
+      expect(drawn!.pointer!.downMs).toBeCloseTo(300, -1);
+      clock += 100; fire('pointerup', 10, 0, 0);
+      expect(drawn!.pointer!.downMs).toBeCloseTo(300, -1);
+      scheduled!(clock);
+      expect(drawn!.pointer!.down).toBe(0);
+      expect(drawn!.pointer!.downMs).toBeCloseTo(400, -1); // the last press lasted 400 ms, and stays
+      clock += 2000; scheduled!(clock);
+      expect(drawn!.pointer!.velX).toBe(0);                // it coasted to a stop
+      expect(drawn!.pointer!.downMs).toBeCloseTo(400, -1);
+      player.stop();
+    } finally { vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+  });
+
+  it('lets a Mouse Instance read the pointer at the event (hold time on release)', () => {
+    const s: SceneV1 = {
+      version: 1, document: { width: 800, height: 600 },
+      objects: [
+        { kind: 'instance', id: 'mouse', name: 'Mouse', of: 'source', stack: [], mouse: { event: 'click', scale: { $expr: '1 + scene.mouse.downMs / 1000', fallback: 1 }, offset: [{ $expr: 'scene.mouse.posX / 10', fallback: 0 }, 0] } },
+        { kind: 'shape', id: 'source', name: 'Source', shape: 'rectangle', visible: false, params: { width: 20, height: 10 }, stack: [] },
+      ],
+    };
+    const m = createMouseInstances(s);
+    m.event('click', [200, 100], 10, 0, 0, null, { posX: 200, downMs: 1500 });
+    const copy = [...walkNodes(m.apply({ ...s, pointer: { posX: 200, downMs: 1500 } }, 10).objects)].map(({ node }) => node).find((n) => n.id.startsWith('@mouse-')) as GroupNode;
+    expect(copy.transform).toMatchObject({ scale: 2.5, x: 220, y: 100 });
   });
 });

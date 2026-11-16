@@ -4,7 +4,7 @@ import { seedMouseColors } from './mouse-color-seeds';
 import { evaluateSceneExpressions } from './expression';
 import { onlyFor, walkNodes } from './document';
 import { resolveParams, type ParamSchema } from './modifier';
-import type { GroupNode, InstanceNode, SceneNode, SceneV1 } from './scene';
+import type { GroupNode, InstanceNode, SceneNode, ScenePointer, SceneV1 } from './scene';
 
 export const mouseParams = {
   target: { type: 'node', default: '', label: 'Target', animatable: false },
@@ -64,9 +64,9 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
     templates.set(g.id, local);
     return local;
   }
-  const paramsAt = (g: InstanceNode, sceneTime: number, birthIndex: number) => {
+  const paramsAt = (g: InstanceNode, sceneTime: number, birthIndex: number, pointer?: Partial<ScenePointer>) => {
     const evaluated = evaluateSceneExpressions({
-      version: 1, custom: scene.custom, seedGenerator: scene.seedGenerator,
+      version: 1, custom: scene.custom, seedGenerator: scene.seedGenerator, document: scene.document, pointer,
       animation: scene.animation ? { ...scene.animation, tracks: [], markers: undefined } : undefined, at: sceneTime,
       objects: [{ ...g, stack: [], children: undefined }],
     }, { randomSalt: birthIndex }).objects[0] as InstanceNode;
@@ -84,11 +84,11 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
     return p;
   };
   return {
-    event(kind: MouseEventKind, point: [number, number], now: number, buttons = 0, sceneTime = now, doc?: DocumentResult | null) {
+    event(kind: MouseEventKind, point: [number, number], now: number, buttons = 0, sceneTime = now, doc?: DocumentResult | null, pointer?: Partial<ScenePointer>) {
       if (!point.every(Number.isFinite) || !Number.isFinite(now)) return false;
       let handled = false;
       for (const g of generators) {
-        const p = paramsAt(g, sceneTime, serial + 1);
+        const p = paramsAt(g, sceneTime, serial + 1, pointer);
         if (p.event !== kind) continue;
         if (kind === 'move' && p.button !== 'any' && !(buttons & ({ left: 1, right: 2, middle: 4 }[p.button] ?? 0))) continue;
         if (p.target && !insideMouseTarget(doc, p.target, point)) continue;
@@ -104,7 +104,7 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
         const vary = (v: number) => (random() * 2 - 1) * v;
         for (let i = 0; i < Math.min(50, Math.max(1, Math.floor(p.count))); i++) {
           const id = unique(`@mouse-${g.id}-${++serial}`);
-          const birth = i === 0 ? p : paramsAt(g, sceneTime, serial);
+          const birth = i === 0 ? p : paramsAt(g, sceneTime, serial, pointer);
           const node: GroupNode = {
             kind: 'group', id, name: g.name, children: [], stack: [], elementIndex: serial, eventIndex: eventSalt,
             transform: { x: point[0] + birth.offset[0]! + vary(birth.scatter), y: point[1] + birth.offset[1]! + vary(birth.scatter), scale: Math.max(0.01, birth.scale * (1 + vary(birth.scaleVariation))), rotation: birth.rotation + vary(birth.rotationVariation) },

@@ -306,6 +306,11 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const usesPointer = /scene\.mouse\./.test(JSON.stringify(scene));
   const pointerNow: ScenePointer = neutralPointer(scene);
   let pointerDirty = false;
+  let downAt = 0;
+  let lastMoveAt = 0;
+  let lastPos: [number, number] | null = null;
+  /** Velocity or a held button keep changing without events: the loop must keep painting. */
+  const pointerBusy = () => usesPointer && (pointerNow.down === 1 || Math.abs(pointerNow.velX) > 0 || Math.abs(pointerNow.velY) > 0);
   const anim = scene.animation?.infinite || scene.animation?.tracks.length || sceneHasExpressions(scene)
     ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
@@ -337,16 +342,28 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     last = now;
     const moving = inter.step(reduce ? 1e6 : dt);
     const t = clockAt(now);
+    if (pointerBusy()) {
+      // The button held, the pointer coasting to a stop: values that change between events.
+      if (pointerNow.down) pointerNow.downMs = now - downAt;
+      if (now - lastMoveAt > 50) {
+        const decay = Math.exp(-dt / 0.1);
+        pointerNow.velX = Math.abs(pointerNow.velX * decay) < 1 ? 0 : pointerNow.velX * decay;
+        pointerNow.velY = Math.abs(pointerNow.velY * decay) < 1 ? 0 : pointerNow.velY * decay;
+      }
+      pointerDirty = true;
+    }
     if (t !== shown || moving || mouseDirty || pointerDirty || mouse.active()) {
       const c0 = performance.now();
-      const framed = mouse.apply(inter.apply(anim ? sampleScene(scene, t) : scene), now / 1000);
-      live.update(usesPointer ? { ...framed, pointer: { ...pointerNow } } : framed);
+      const stepped = inter.apply(anim ? sampleScene(scene, t) : scene);
+      // The pointer goes on the frame before Mouse Instances read it, and on to whatever draws it.
+      const framed = mouse.apply(usesPointer ? { ...stepped, pointer: { ...pointerNow } } : stepped, now / 1000);
+      live.update(framed);
       mouseDirty = false;
       pointerDirty = false;
       shown = t;
       options.onFrame?.({ ms: performance.now() - c0, t });
     }
-    const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active();
+    const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active() || pointerBusy();
     frame = keepGoing ? requestAnimationFrame(draw) : 0;
   };
   const wake = () => {
@@ -380,22 +397,38 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     inter.pointer(null, null);
     wake();
   };
-  /** `scene.mouse.*`: where the pointer is (scene coordinates and 0–1 across the viewBox), and whether it is down or inside. */
-  const trackPointer = (e: PointerEvent) => {
+  /** `scene.mouse.*`: position (scene coordinates and 0–1 across the viewBox), speed, button and how long it was held. */
+  const updatePointer = (e: MouseEvent) => {
     const m = svg.getScreenCTM?.();
     if (!m) return;
     const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    const now = performance.now();
+    if (lastPos && now > lastMoveAt) {
+      const dt = (now - lastMoveAt) / 1000;
+      // A smoothed speed; a long pause means the pointer came back from somewhere else, not a fast move.
+      if (dt < 0.2) {
+        const k = 1 - Math.exp(-dt / 0.04);
+        pointerNow.velX += ((p.x - lastPos[0]) / dt - pointerNow.velX) * k;
+        pointerNow.velY += ((p.y - lastPos[1]) / dt - pointerNow.velY) * k;
+      } else { pointerNow.velX = 0; pointerNow.velY = 0; }
+    }
+    lastPos = [p.x, p.y];
+    lastMoveAt = now;
     const [vx, vy, vw, vh] = live.doc()?.geometry.viewBox ?? [0, 0, 1, 1];
     pointerNow.posX = p.x;
     pointerNow.posY = p.y;
     pointerNow.fracX = (p.x - vx) / (vw || 1);
     pointerNow.fracY = (p.y - vy) / (vh || 1);
-    pointerNow.down = e.buttons & 1 ? 1 : 0;
+    const down = e.buttons & 1 ? 1 : 0;
+    if (down && !pointerNow.down) downAt = now;
+    if (down || pointerNow.down) pointerNow.downMs = now - downAt;
+    pointerNow.down = down;
     pointerNow.inside = 1;
     pointerDirty = true;
-    wake();
   };
+  const trackPointer = (e: PointerEvent) => { updatePointer(e); wake(); };
   const leavePointer = () => {
+    if (pointerNow.down) pointerNow.downMs = performance.now() - downAt;
     pointerNow.inside = 0;
     pointerNow.down = 0;
     pointerDirty = true;
@@ -406,7 +439,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     if (!m) return false;
     const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
     const now = performance.now();
-    const handled = mouse.event(kind, [q.x, q.y], now / 1000, e.buttons, clockAt(now), live.doc());
+    // Mouse Instance formulas read scene.mouse.* at this event: bring it up to date first.
+    if (usesPointer) updatePointer(e);
+    const handled = mouse.event(kind, [q.x, q.y], now / 1000, e.buttons, clockAt(now), live.doc(), usesPointer ? { ...pointerNow } : undefined);
     if (handled) { mouseDirty = true; wake(); }
     return handled;
   };
