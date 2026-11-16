@@ -42,7 +42,7 @@
 
 <style>
   .time-controls { display: flex; align-items: center; gap: var(--sv-space-4); color: var(--sv-text-secondary); }
-  .time-controls :global(.sv-icon-button) { width: 22px; height: 22px; }
+  .time-controls :global(.sv-icon-button) { width: 20px; height: 20px; }
   .time-controls :global(.sv-icon) { width: 13px; height: 13px; }
   .scrubber { appearance: none; width: clamp(64px, 9vw, 140px); height: 22px; margin: 0 var(--sv-space-4); padding: 0; background: transparent; cursor: ew-resize; }
   .scrubber::-webkit-slider-runnable-track { height: 2px; background: var(--sv-rule-strong); }
@@ -52,6 +52,6 @@
   .scrubber:hover::-webkit-slider-thumb, .scrubber:focus-visible::-webkit-slider-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
   .scrubber:hover::-moz-range-thumb, .scrubber:focus-visible::-moz-range-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
   .scrubber:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
-  .marker-jump { max-width: 130px; height: 22px; font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-default); }
+  .marker-jump { max-width: 130px; height: 20px; font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-default); }
   .separator { color: var(--sv-text-muted); }
 </style>

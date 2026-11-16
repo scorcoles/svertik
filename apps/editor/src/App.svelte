@@ -643,10 +643,16 @@
       <InspectorPanel {editor} bind:active={inspectorTab} onreplace={() => replaceInput.click()} />
     </aside>{/if}
   </main>
+  {#snippet diagnosticsToggle()}
+    <span class="diagnostics-toggle" data-warning={warningCount > 0 || undefined}>
+      <IconButton icon="bug" label={`${diagnosticsOpen ? 'Close' : 'Open'} debug output${diagnostics.length ? ` (${diagnostics.length})` : ''}${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
+    </span>
+  {/snippet}
   <footer class="status" class:no-inspector={panelMaximized}>
     {#if !editor.commandInEffectsSlot}<CommandLine {editor} />{/if}
     {#if canvasStatus}
-      <div class="canvas-status">
+      <!-- Three groups, left to right: the canvas view, time, and the panels. Version info goes last, dimmed. -->
+      <div class="canvas-status status-group" role="group" aria-label="Canvas view">
         <span class="pct" title="Zoom (wheel or pinch)">{canvasStatus.percent}%</span>
         <button type="button" onclick={canvasStatus.fit} title="Fit (⇧1)">Fit</button>
         <button type="button" onclick={canvasStatus.actualSize} title="100% (⇧0)">100%</button>
@@ -658,21 +664,18 @@
           </span>
         {/if}
       </div>
-      <TimeControls {editor} />
-      <div class="status-actions">
+      <div class="status-group" role="group" aria-label="Time"><TimeControls {editor} /></div>
+      <div class="status-actions status-group" role="group" aria-label="Panels">
         <ViewMenu {editor} />
         <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
+        {@render diagnosticsToggle()}
       </div>
+    {:else}
+      <div class="status-actions">{@render diagnosticsToggle()}</div>
     {/if}
-    <div class="status-meta">
-      <span>svertik {version} alpha</span>
-      <span>engine · {builtins.length} modifiers</span>
-      <span class="diagnostics-toggle" data-warning={warningCount > 0 || undefined}>
-        <IconButton icon="bug" label={`${diagnosticsOpen ? 'Close' : 'Open'} debug output${diagnostics.length ? ` (${diagnostics.length})` : ''}${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
-      </span>
-    </div>
+    <span class="status-meta">svertik {version} alpha · {builtins.length} modifiers</span>
   </footer>
   <input
     bind:this={fileInput}
@@ -751,18 +754,21 @@
     font-size: var(--sv-font-size-11);
   }
   .canvas-status { display: flex; align-items: center; gap: var(--sv-space-12); min-width: 0; }
-  .canvas-status button { height: 22px; padding: 0 var(--sv-space-6); color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; font: inherit; }
+  /* Groups are split by a 1 px rule; every control in the bar is 20 px high with the same outline. */
+  .status-group { display: flex; align-items: center; min-width: 0; }
+  .status-group + .status-group { padding-left: var(--sv-space-12); border-left: var(--sv-border-1) solid var(--sv-rule-default); }
+  .canvas-status button { height: 20px; padding: 0 var(--sv-space-6); color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; font: inherit; }
   .canvas-status button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .canvas-status .pct, .canvas-status .size, .canvas-status .cost { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .canvas-status .cost { flex: 0 0 9ch; width: 9ch; text-align: right; }
   .canvas-status .size { padding: 0 var(--sv-space-4); background: none; border: 0; cursor: pointer; }
   .canvas-status .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
   .canvas-status .cost[data-slow] { color: var(--sv-signal-error); }
-  .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; padding-left: var(--sv-space-12); }
-  .status-actions button { height: 18px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: 1px solid var(--sv-rule-strong); cursor: pointer; }
+  .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; }
+  .status-actions button { height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; }
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
-  .status-meta { display: flex; align-items: center; gap: var(--sv-space-12); white-space: nowrap; }
+  .status-meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .diagnostics-toggle { display: flex; align-items: center; }
   .diagnostics-toggle :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
   .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }

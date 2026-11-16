@@ -59,12 +59,12 @@
 
 <style>
   :global(.sv-view-trigger) {
-    height: 18px;
+    height: 20px;
     padding: 0 var(--sv-space-6);
     font: inherit;
     color: var(--sv-text-secondary);
     background: none;
-    border: 1px solid var(--sv-rule-strong);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
     cursor: pointer;
   }
   :global(.sv-view-trigger:hover:not(:disabled)) { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
