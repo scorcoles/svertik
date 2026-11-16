@@ -596,7 +596,7 @@ export function createDocumentEvaluator(
       const cb = bounds(content);
       const all = union([{ x: vx, y: vy, width: vw, height: vh }, cb]);
       const region: [number, number, number, number] = [all.x - all.width, all.y - all.height, all.width * 3, all.height * 3];
-      const d = (s: Shape) => toPathData(s, 2);
+      const d = (s: Shape) => toPathData(s, 2, true);
       let markup: string;
       if (m.mode === 'luminance') {
         // With its colours (and its gradients).

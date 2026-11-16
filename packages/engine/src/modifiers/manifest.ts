@@ -50,6 +50,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   explosion: one(() => import('./explosion'), 'explosion'),
   fractal: one(() => import('./fractal'), 'fractal'),
   halftone: one(() => import('./halftone'), 'halftone'),
+  vectorgrain: one(() => import('./vectorgrain'), 'vectorGrain'),
   metaball: one(() => import('./metaball'), 'metaball'),
   mirror: one(() => import('./mirror'), 'mirror'),
   morph: one(() => import('./morph'), 'morph'),

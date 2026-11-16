@@ -40,6 +40,11 @@
   /** Lo que tarda en recalcular y pintar (ms, suavizado). Pasado SLOW, aviso. */
   let cost = $state<number | null>(null);
   const SLOW = 50;
+  /** ms without a redraw before the cost readout counts as idle. */
+  const IDLE_AFTER = 600;
+  let idle = $state(false);
+  let smoothCost: number | null = null;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let slowReported = false;
 
   function slowCandidates(items: SceneNode[]): string[] {
@@ -107,9 +112,17 @@
       renderError = null;
       // Tiempo de recálculo, suavizado (para el aviso de rendimiento).
       const ms = performance.now() - t0;
-      const prev = untrack(() => cost);
+      // The warning follows a smoothed cost (one spike is not "slow"), restarted after the canvas has been
+      // still: the first redraw after a pause (which may build caches) doesn't weigh on the ones after it.
+      const prev = untrack(() => (idle ? null : smoothCost));
       const nextCost = prev === null ? ms : prev * 0.7 + ms * 0.3;
-      cost = nextCost;
+      smoothCost = nextCost;
+      // The readout shows what the last redraw really took.
+      cost = ms;
+      // The readout says when the canvas has gone still (the cost stays as "last redraw").
+      idle = false;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => (idle = true), IDLE_AFTER);
       if (profileFrame) onprofileframe?.(profileFrame.runId, profileFrame.index, ms);
       if (nextCost > SLOW && !slowReported) {
         const candidates = slowCandidates(scene.objects);
@@ -179,12 +192,14 @@
     void viewBox[2];
     void viewBox[3];
     void cost;
+    void idle;
     status = editor.scene ? {
       percent,
       width: Math.round(viewBox[2]),
       height: Math.round(viewBox[3]),
       cost,
-      slow: cost !== null && cost > SLOW,
+      slow: smoothCost !== null && smoothCost > SLOW,
+      idle,
       fit: refit,
       actualSize: () => (view = actualSize(view, fit, box[0], box[1])),
       redraw,
@@ -472,9 +487,41 @@
       return out;
     };
     rulerTicks = { x: make(x0, x1, 'x'), y: make(y0, y1, 'y') };
+    rebuildGrid(rect, scale);
+  }
+
+  // ── Grid (View > Grid): document-aligned lines in stage pixels. The step is the smallest 1-2-5 step that
+  // keeps lines at least GRID_MIN px apart on screen; every 5th (step 2…) or 10th line is a major one.
+  const GRID_MIN = 12;
+  let grid = $state<{ minor: string; major: string }>({ minor: '', major: '' });
+  function rebuildGrid(rect: DOMRect, scale: number) {
+    if (!editor.showGrid) return void (grid = { minor: '', major: '' });
+    const raw = GRID_MIN / scale;
+    const power = 10 ** Math.floor(Math.log10(raw));
+    const mantissa = [1, 2, 5, 10].find((n) => n * power >= raw) ?? 10;
+    const step = mantissa * power;
+    const every = mantissa === 2 ? 5 : 10;
+    const a = clientToDoc(rect.left, rect.top), b = clientToDoc(rect.right, rect.bottom);
+    if (!a || !b) return void (grid = { minor: '', major: '' });
+    let minor = '', major = '';
+    const lines = (lo: number, hi: number, axis: 'x' | 'y') => {
+      const first = Math.ceil(Math.min(lo, hi) / step);
+      const last = Math.floor(Math.max(lo, hi) / step);
+      for (let k = first, guard = 0; k <= last && guard < 2000; k++, guard++) {
+        const p = axis === 'x' ? docToStage(k * step, 0) : docToStage(0, k * step);
+        if (!p) continue;
+        const v = Math.round(axis === 'x' ? p[0] : p[1]) + 0.5;
+        const d = axis === 'x' ? `M${v} 0V${rect.height}` : `M0 ${v}H${rect.width}`;
+        if (k % every === 0) major += d;
+        else minor += d;
+      }
+    };
+    lines(a[0], b[0], 'x');
+    lines(a[1], b[1], 'y');
+    grid = { minor, major };
   }
   $effect(() => {
-    void view; void stageSize; void viewBox; void nodes; void editor.scene?.document;
+    void view; void stageSize; void viewBox; void nodes; void editor.scene?.document; void editor.showGrid;
     const frame = requestAnimationFrame(rebuildRulers);
     return () => cancelAnimationFrame(frame);
   });
@@ -922,7 +969,9 @@
   $effect(() => {
     void view; void stageSize; void viewBox; void nodes;
     const m = editor.current;
-    const values = handleParams.map(({ name }) => $state.snapshot(m?.params?.[name]) as [number, number] | undefined);
+    // A point the scene doesn't store (written by hand or by an agent) still has its default: show it too.
+    const defaults = m ? registry.get(m.type)?.params : undefined;
+    const values = handleParams.map(({ name }) => ($state.snapshot(m?.params?.[name]) ?? defaults?.[name]?.default) as [number, number] | undefined);
     const frame = requestAnimationFrame(() => {
       handles = handleParams.flatMap(({ name, label }, i) => {
         const v = values[i];
@@ -1148,6 +1197,12 @@
             {@const p = docToStage(0, y)}
             {#if p}<line x1="0" y1={p[1]} x2={stageSize[0]} y2={p[1]} />{/if}
           {/each}
+        </svg>
+      {/if}
+      {#if editor.showGrid}
+        <svg class="grid" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+          <path class="grid-minor" d={grid.minor} />
+          <path class="grid-major" d={grid.major} />
         </svg>
       {/if}
       {#if editor.showRulers}
@@ -1434,6 +1489,11 @@
   .ruler-zone { position: absolute; z-index: 5; touch-action: none; background: transparent; }
   .ruler-zone.horizontal { top: 0; right: 0; left: 48px; height: 20px; cursor: ns-resize; }
   .ruler-zone.vertical { top: 20px; bottom: 0; left: 28px; width: 20px; cursor: ew-resize; }
+  /* Grid: white lines in difference blend, so they read on light and dark artwork alike. */
+  .grid { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: difference; }
+  .grid path { fill: none; stroke: #fff; stroke-width: 1; shape-rendering: crispEdges; }
+  .grid-minor { opacity: 0.12; }
+  .grid-major { opacity: 0.28; }
   .document-guides { position: absolute; z-index: 6; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .document-guides .guide-hit { stroke: transparent; stroke-width: 12; pointer-events: stroke; touch-action: none; }
   .document-guides .guide-line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }

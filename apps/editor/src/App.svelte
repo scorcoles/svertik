@@ -659,8 +659,9 @@
         <button type="button" class="redraw" onclick={canvasStatus.redraw} title="Redraw everything" aria-label="Redraw">↻</button>
         <button type="button" class="size" title="Document: size and canvas" onclick={showDocumentTab}>{canvasStatus.width} × {canvasStatus.height}</button>
         {#if canvasStatus.cost !== null}
-          <span class="cost" data-slow={canvasStatus.slow || undefined} title={canvasStatus.slow ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects' : 'Time to evaluate and draw'}>
-            {canvasStatus.slow ? '⚠ ' : ''}{Math.round(canvasStatus.cost)} ms
+          <!-- While the canvas is still, the figure is the last redraw's (nothing is running): dimmed, no warning sign. -->
+          <span class="cost" data-slow={canvasStatus.slow || undefined} data-idle={canvasStatus.idle || undefined} title={canvasStatus.idle ? `Last redraw took ${Math.round(canvasStatus.cost)} ms. Nothing is being computed now.` : canvasStatus.slow ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects' : 'Time to evaluate and draw'}>
+            {canvasStatus.slow && !canvasStatus.idle ? '⚠ ' : ''}{Math.round(canvasStatus.cost)} ms
           </span>
         {/if}
       </div>
@@ -765,6 +766,7 @@
   .canvas-status .size { padding: 0 var(--sv-space-4); background: none; border: 0; cursor: pointer; }
   .canvas-status .size:hover { color: var(--sv-text-primary); text-decoration: underline; }
   .canvas-status .cost[data-slow] { color: var(--sv-signal-error); }
+  .canvas-status .cost[data-idle] { color: var(--sv-text-muted); }
   .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; }
   .status-actions button { height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; }
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }

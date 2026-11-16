@@ -460,6 +460,18 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `invert` (boolean, def false)
     - `jitter` (number, def 0, fraction)
 
+31b. **`vectorgrain`**: Vector stipple that gathers at the edges, made of real marks (unlike the SVG `grain` filter). Density is highest at the edge and falls off inward.
+    - `edge` (`"inside" | "outside" | "both"`, def `"inside"`)
+    - `density` (number, def 2000, 0 to 5000, marks per 100×100 px at the edge), `falloff` (number, def 40, px), `curve` (number, def 1.5), `interior` (number, def 0, 0 to 1: density deep inside, as a fraction of the edge's)
+    - `center` (point, def `[0.5, 0.5]`, fraction of the drawing's box; a handle on the canvas) works as a light: in the middle the band of grain is even all round; moved off it, the band gets thinner and sparser on the edge near it and wider and denser on the far edge (up to 3× the falloff). `focus` (number, def 1, 0 to 1; 0 keeps the band even) sets how much, `focusCurve` (number, def 1) sharpens it. With the centre top left, a circle reads as a sphere lit from the top left
+    - `distribution` (`"random" | "even"`, def `"random"`)
+    - `shape` (`"circle" | "square" | "speck"`, def `"circle"`)
+    - `size` (number, def 1.2, px), `sizeJitter` (number, def 0.5), `edgeSize` (number, def 1: size multiplier at the edge)
+    - `color` (`"ink" | "original"`, def `"ink"`), `ink` (color, def `"#000000"`), `blend` (CSS blend mode, def `"normal"`)
+    - `opacity` (number, def 1), `opacityJitter` (number, def 0)
+    - `source` (`"keep" | "replace"`, def `"keep"`: the drawing stays, the grain goes on top), `seed` (seed, def 1)
+    - At most 80 000 marks per effect (about 180 bytes of SVG each); marks of the same colour and opacity share one path.
+
 32. **`slices`** (Glitch family): Horizontal bands shifted laterally. Each band is an element.
     - `count` (number, def 8), `amount` (number, def 0.15, fraction), `probability` (number, def 0.6, 0 to 1), `seed` (seed, def 1)
 

@@ -229,7 +229,7 @@ Otras superposiciones funcionales, documentadas para que el detector no las tome
 - **Velo de diálogo:** negro al 50 % bajo los diálogos modales, para que el diálogo sea lo único activo.
 - **Medidor de fps:** fondo negro al 60 % tras sus cifras, porque se dibuja encima de la obra.
 - **Selección del editor de código:** blanco sólido con texto negro (CodeMirror), la única selección de texto que tiene que verse sobre el resaltado de sintaxis.
-- **Anillo de las muestras de color:** 1 px blanco al 15 % hacia dentro, para que una muestra oscura no desaparezca sobre el grafito.
+- **Anillo de las muestras de color:** una regla marcada de 1 px por fuera (la muestra se ve como casilla aunque sea negra sobre el hueco del campo) y 1 px blanco al 15 % por dentro, para separar el color del borde.
 - **Borde de las claves de la timeline:** 1 px negro al 50 % alrededor de cada rombo, para separarlo de la curva y de otras claves.
 - **Papel cebolla:** los fotogramas vecinos, atenuados y teñidos (azul antes, verde después) bajo el resultado; no es decoración, es información de movimiento.
 

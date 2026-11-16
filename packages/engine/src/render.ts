@@ -36,17 +36,36 @@ const fmt =
     return n < 0 ? '-' + out : out;
   };
 
-export function toPathData(shape: Shape, precision = 2): string {
+/**
+ * A shape's path data. With `lines`, cubics that are exact straight segments (control points at a third and
+ * two thirds, as `line()` makes them) are written as `L`: the same drawing in about half the text, which
+ * matters for effects with thousands of polygons (grain, halftone). Off by default: animated SVG interpolates
+ * `d` between frames and needs the same commands in every frame.
+ */
+export function toPathData(shape: Shape, precision = 2, lines = false): string {
   const f = (n: number) => fmt(n, precision);
   let d = '';
   for (const sp of shape.subpaths) {
     d += `M${f(sp.start[0])} ${f(sp.start[1])}`;
+    let p0 = sp.start;
     for (const s of sp.segs) {
-      d += `C${f(s.c1[0])} ${f(s.c1[1])} ${f(s.c2[0])} ${f(s.c2[1])} ${f(s.p[0])} ${f(s.p[1])}`;
+      if (lines && isLine(p0, s)) d += `L${f(s.p[0])} ${f(s.p[1])}`;
+      else d += `C${f(s.c1[0])} ${f(s.c1[1])} ${f(s.c2[0])} ${f(s.c2[1])} ${f(s.p[0])} ${f(s.p[1])}`;
+      p0 = s.p;
     }
     if (sp.closed) d += 'Z';
   }
   return d;
+}
+
+/** Whether a cubic is an exact straight segment from `p0` (control points on the chord at 1/3 and 2/3). */
+function isLine(p0: readonly number[], s: Shape['subpaths'][number]['segs'][number]): boolean {
+  const dx = s.p[0] - p0[0]!, dy = s.p[1] - p0[1]!;
+  const eps = 1e-6 * Math.max(1, Math.abs(dx), Math.abs(dy));
+  return (
+    Math.abs(s.c1[0] - (p0[0]! + dx / 3)) <= eps && Math.abs(s.c1[1] - (p0[1]! + dy / 3)) <= eps &&
+    Math.abs(s.c2[0] - (p0[0]! + (2 * dx) / 3)) <= eps && Math.abs(s.c2[1] - (p0[1]! + (2 * dy) / 3)) <= eps
+  );
 }
 
 const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -171,7 +190,7 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
     if (shape.image) {
       const image = imagePlacement(shape);
       lines.push(`${'  '.repeat(wrap.length + 1)}<image href="${escapeAttr(shape.image.href)}" x="0" y="0" width="${shape.image.width}" height="${shape.image.height}" transform="${image}" preserveAspectRatio="${escapeAttr(shape.image.preserveAspectRatio)}"${styleAttrs(drawnStyle(geo, shape, blends))}/>`);
-    } else lines.push(`${'  '.repeat(wrap.length + 1)}<path d="${toPathData(shape, precision)}"${styleAttrs(drawnStyle(geo, shape, blends))}/>`);
+    } else lines.push(`${'  '.repeat(wrap.length + 1)}<path d="${toPathData(shape, precision, true)}"${styleAttrs(drawnStyle(geo, shape, blends))}/>`);
   }
   for (let i = open.length - 1; i >= 0; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
   const paths = lines.join('\n');
@@ -255,7 +274,7 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       const placement = imagePlacement(shape);
       const attrs: Record<string, string> = { href: shape.image.href, x: '0', y: '0', width: String(shape.image.width), height: String(shape.image.height), transform: placement, preserveAspectRatio: shape.image.preserveAspectRatio };
       for (const [k, v] of Object.entries(attrs)) if (path.getAttribute(k) !== v) path.setAttribute(k, v);
-    } else path.setAttribute('d', toPathData(shape, precision));
+    } else path.setAttribute('d', toPathData(shape, precision, true));
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
     // Style attributes it no longer has (an opacity, a stroke…) are removed: otherwise it would keep

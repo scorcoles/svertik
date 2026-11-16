@@ -633,6 +633,13 @@ export class Editor {
     this.#showGuides = on;
     writePref('svertik.guides', on ? 'on' : 'off');
   }
+  /** Grid: a square grid on the canvas whose step follows the zoom (off by default; remembered here). */
+  #showGrid = $state(readPref('svertik.grid') === 'on');
+  get showGrid() { return this.#showGrid; }
+  set showGrid(on: boolean) {
+    this.#showGrid = on;
+    writePref('svertik.grid', on ? 'on' : 'off');
+  }
   /** Onion skin: faded frames around the playhead (off by default; remembered in this browser). */
   #onionSkin = $state(readPref('svertik.onion') === 'on');
   get onionSkin() { return this.#onionSkin; }

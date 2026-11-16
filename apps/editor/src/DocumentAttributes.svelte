@@ -118,7 +118,7 @@
   .swap { position: absolute; left: 176px; top: 50%; translate: 0 -50%; display: flex; }
   .actions { display: flex; justify-content: center; gap: var(--sv-space-8); padding: var(--sv-space-12) var(--sv-space-8) var(--sv-space-4); }
   .chips { display: flex; flex-wrap: wrap; gap: 4px; padding: var(--sv-space-4) var(--sv-space-8) var(--sv-space-4) 100px; }
-  .chip { width: 14px; height: 14px; box-shadow: inset 0 0 0 1px var(--sv-overlay-light-soft); }
+  .chip { width: 14px; height: 14px; box-shadow: 0 0 0 1px var(--sv-rule-strong), inset 0 0 0 1px var(--sv-overlay-light-soft); }
   .name {
     width: 96px;
     height: 20px;

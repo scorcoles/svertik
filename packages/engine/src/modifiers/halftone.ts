@@ -334,7 +334,7 @@ function nearIndex(index: LineIndex, x: number, y: number, half: number): boolea
   return false;
 }
 
-function insideFill(polys: Vec2[][], [x, y]: Vec2, evenodd: boolean): boolean {
+export function insideFill(polys: Vec2[][], [x, y]: Vec2, evenodd: boolean): boolean {
   let wind = 0, odd = false;
   for (const r of polys) {
     for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
@@ -348,7 +348,7 @@ function insideFill(polys: Vec2[][], [x, y]: Vec2, evenodd: boolean): boolean {
   return evenodd ? odd : wind !== 0;
 }
 
-function flatten(sp: SubPath, max: number): Vec2[] {
+export function flatten(sp: SubPath, max: number): Vec2[] {
   const pts: Vec2[] = [sp.start];
   let prev = sp.start;
   for (const seg of sp.segs) {
@@ -374,7 +374,7 @@ function splitCubic(p0: Vec2, s: { c1: Vec2; c2: Vec2; p: Vec2 }, t: number) {
 }
 
 // Deterministic pseudo-random in [0,1).
-function rnd(seed: number, i: number, j: number, k: number): number {
+export function rnd(seed: number, i: number, j: number, k: number): number {
   let x = Math.imul(seed | 0, 374761393) + Math.imul(i | 0, 668265263) + Math.imul(j | 0, 2147483647) + Math.imul(k | 0, 1274126177);
   x = (x ^ (x >>> 13)) * 1274126177;
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
@@ -402,7 +402,7 @@ function circle(cx: number, cy: number, r: number): SubPath {
   return circlePath(cx, cy, r, false);
 }
 
-function circlePath(cx: number, cy: number, r: number, cw: boolean): SubPath {
+export function circlePath(cx: number, cy: number, r: number, cw: boolean): SubPath {
   const k = 0.5523 * r;
   const P = (x: number, y: number): Vec2 => [cx + x, cy + y];
   if (!cw) return { start: P(r, 0), segs: [ { c1: P(r, k), c2: P(k, r), p: P(0, r) }, { c1: P(-k, r), c2: P(-r, k), p: P(-r, 0) }, { c1: P(-r, -k), c2: P(-k, -r), p: P(0, -r) }, { c1: P(k, -r), c2: P(r, -k), p: P(r, 0) } ], closed: true };

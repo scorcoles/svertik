@@ -209,7 +209,7 @@
   .sv-paint[data-compact] { width: auto; padding: 3px; }
   :global(.sv-paint .swatch) {
     flex:none; width:12px; height:12px; padding:0; border:0; cursor:pointer; position:relative; overflow:hidden;
-    box-shadow: inset 0 0 0 1px var(--sv-overlay-light-soft);
+    box-shadow: 0 0 0 1px var(--sv-rule-strong), inset 0 0 0 1px var(--sv-overlay-light-soft);
     background-image: linear-gradient(45deg, #bbb 25%, transparent 25%), linear-gradient(-45deg, #bbb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #bbb 75%), linear-gradient(-45deg, transparent 75%, #bbb 75%);
     background-size: 8px 8px;
     background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
@@ -223,7 +223,7 @@
   .hex-in { width: 100%; height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-primary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); outline: none; box-sizing: border-box; }
   .hex-in:focus { border-color: var(--sv-accent-fill); }
   .grid { display: grid; grid-template-columns: repeat(7, 16px); gap: 4px; }
-  .chip { width: 16px; height: 16px; padding: 0; border: 0; box-shadow: inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
+  .chip { width: 16px; height: 16px; padding: 0; border: 0; box-shadow: 0 0 0 1px var(--sv-rule-strong), inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
   .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .head { margin: 0; color: var(--sv-text-muted); }
