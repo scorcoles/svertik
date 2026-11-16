@@ -105,12 +105,33 @@ export interface EffectorNode extends NodeBase {
 
 export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode | EffectorNode;
 
+/** A custom variable: a number, an expression, or a number with a range (min/max/step for a slider). */
+export type CustomVariable = number | { $expr: string; fallback: number } | RangedVariable;
+export interface RangedVariable {
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+/** Whether a custom variable is a number with a range. */
+export const isRangedVariable = (v: unknown): v is RangedVariable =>
+  !!v && typeof v === 'object' && typeof (v as RangedVariable).value === 'number' && !('$expr' in (v as object));
+/** A plain or ranged variable's number (clamped to its range), or null for an expression. */
+export function customNumber(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (!isRangedVariable(v) || !Number.isFinite(v.value)) return null;
+  return Math.min(v.max ?? Infinity, Math.max(v.min ?? -Infinity, v.value));
+}
+
 export interface SceneV1 {
   version: 1;
   /** Global seed for effect expressions; nested compositions inherit it unless they override it. */
   seedGenerator?: number;
-  /** Optional numeric variables or expressions available as `scene.custom.name`. */
-  custom?: Record<string, number | { $expr: string; fallback: number }>;
+  /**
+   * Optional numeric variables available as `scene.custom.name`: a number, an expression, or a number with a
+   * range (`{ value, min?, max?, step? }`, shown as a slider in the editor; the value is clamped to it).
+   */
+  custom?: Record<string, CustomVariable>;
   /** User notes about the scene; editor metadata, ignored by rendering and SVG export. */
   notes?: string;
   /** Editor ruler guides in document coordinates; ignored by rendering and SVG export. */

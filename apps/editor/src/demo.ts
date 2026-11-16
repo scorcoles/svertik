@@ -1,4 +1,4 @@
-import type { SceneNode, SceneV1, Track } from '@svertik/engine';
+import { type SceneNode, type SceneV1, type Track } from '@svertik/engine';
 import physicsSource from './demo-physics.svrtk?raw';
 
 // La demo del menú: un proyecto pequeño que enseña texto, escalonados, curvas, copias y trazos que se dibujan.

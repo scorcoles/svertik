@@ -141,7 +141,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 
 ## Conventions (where agents usually go wrong)
 
-- **Custom variables**: define optional document-scoped numeric values in `custom`, then reference them in expressions as `scene.custom.name`. A value can itself be `{ "$expr": "...", "fallback": number }`; dependencies between variables resolve automatically. Missing names and cyclic dependencies use their expression fallbacks. Each composition has its own custom-variable scope. See the examples in the root `AGENTS.md` and `docs/ENGINE_AND_EFFECTS.md`.
+- **Custom variables**: define optional document-scoped numeric values in `custom`, then reference them in expressions as `scene.custom.name`. A value can itself be `{ "$expr": "...", "fallback": number }`; dependencies between variables resolve automatically. A number can carry a range, `{ "value": 6, "min": 1, "max": 20, "step": 1 }`: the editor shows it as a slider and the value is clamped to the range. Missing names and cyclic dependencies use their expression fallbacks. Each composition has its own custom-variable scope. See the examples in the root `AGENTS.md` and `docs/ENGINE_AND_EFFECTS.md`.
 
 - **Coordinates**: y grows downwards. A node is centred on its `transform.x/y` (the centre of its own
   drawing). Rotations in degrees, clockwise.

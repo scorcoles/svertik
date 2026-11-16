@@ -1,4 +1,4 @@
-import { sceneDuration } from './scene';
+import { customNumber, sceneDuration } from './scene';
 import type { SceneNode, SceneV1 } from './document';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
@@ -231,8 +231,10 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
     duration,
     progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
     seedGenerator: Math.max(0, Math.round(Number.isFinite(Number(out.seedGenerator)) ? Number(out.seedGenerator) : 1)),
-    custom: Object.fromEntries(Object.entries(out.custom ?? {}).flatMap(([key, value]) =>
-      typeof value === 'number' && Number.isFinite(value) ? [[key, value]] : [])),
+    custom: Object.fromEntries(Object.entries(out.custom ?? {}).flatMap(([key, value]) => {
+      const n = customNumber(value);
+      return n === null ? [] : [[key, n]];
+    })),
   };
   // Resolve custom variable formulas in dependency order, so declarations can refer forward to one another.
   // Cycles and missing references fall back to each variable's stored safe value.

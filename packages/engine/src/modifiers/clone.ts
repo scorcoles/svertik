@@ -23,6 +23,11 @@ export const clone = defineModifier({
     largeRatio: { type: 'number', default: 0.16, min: 0, max: 0.5, step: 0.01, group: 'Grid', label: 'Big / normal', ramp: false, showIf: { packLarge: ['2x2'] } },
     gridSeed: { type: 'seed', default: 1, group: 'Grid', label: 'Seed', showIf: { packLarge: ['2x2'] } },
     gap: { type: 'number', default: 12, min: 0, max: 500, step: 1, unit: 'px', group: 'Grid', label: 'Gap', showIf: { packLarge: ['2x2'] } },
+    // Partial grids: keep a share of the cells, at random or growing from one side (a skyline).
+    fill: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, group: 'Grid', label: 'Fill', ramp: false, random: [0.4, 0.9] },
+    fillDirection: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, group: 'Grid', label: 'Fill direction', ramp: false, random: [0, 1] },
+    fillAngle: { type: 'angle', default: 90, group: 'Grid', label: 'Fill angle', ramp: false, random: false },
+    fillSeed: { type: 'seed', default: 1, group: 'Grid', label: 'Fill seed' },
     radius: { type: 'number', default: 1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', ramp: false },
     rings: { type: 'number', default: 1, min: 1, max: 64, step: 1, group: 'Radial', label: 'Rings', ramp: false, sliderCurve: 'quadratic' },
     ringSpacing: { type: 'number', default: 1.1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', label: 'Ring spacing', ramp: false },
@@ -45,7 +50,7 @@ export const clone = defineModifier({
     const size = Math.max(W, H);
 
     // Each copy: offset, rotation and scale around the centre of the drawing.
-    const copies: { dx: number; dy: number; rot: number; scale: number }[] = [];
+    const copies: Copy[] = [];
     if (p.mode === 'grid') {
       const cols = Math.max(1, Math.round(p.columns));
       const rows = Math.max(1, Math.round(p.rows));
@@ -63,7 +68,11 @@ export const clone = defineModifier({
         const add = (c: number, r: number, scale: number, cellWidth = 1, cellHeight = 1) => {
           const gx = c + (cellWidth - 1) / 2;
           const gy = r + (cellHeight - 1) / 2;
-          copies.push({ dx: (gx - (cols - 1) / 2) * (W + p.gap), dy: (gy - (rows - 1) / 2) * (H + p.gap), rot: 0, scale });
+          // A copy spanning several cells also covers the gaps between them, so every gap stays the same width:
+          // 2 cells across are 2·W + gap wide (not 2·W).
+          const sx = (cellWidth * W + (cellWidth - 1) * p.gap) / (W || 1);
+          const sy = (cellHeight * H + (cellHeight - 1) * p.gap) / (H || 1);
+          copies.push({ dx: (gx - (cols - 1) / 2) * (W + p.gap), dy: (gy - (rows - 1) / 2) * (H + p.gap), rot: 0, scale: sx, sy, cells: cellWidth * cellHeight });
         };
         const targetLarge = Math.round((cols * rows * p.largeRatio) / (1 + 3 * p.largeRatio));
         let largeCount = 0;
@@ -85,6 +94,7 @@ export const clone = defineModifier({
           copies.push({ dx: (c - (cols - 1) / 2) * p.spacing[0] * W, dy: (r - (rows - 1) / 2) * p.spacing[1] * H, rot: 0, scale: 1 });
         }
       }
+      if (p.fill < 1) fillGrid(copies, p.fill, p.fillDirection, p.fillAngle, p.fillSeed);
     } else if (p.mode === 'radial') {
       const n = Math.max(1, Math.round(p.count));
       const rings = Math.max(1, Math.min(64, Math.round(p.rings)));
@@ -154,11 +164,12 @@ export const clone = defineModifier({
 
     const shapes: Shape[] = [];
     for (const [index, k] of copies.entries()) {
-      const c = Math.cos(k.rot) * k.scale;
-      const s = Math.sin(k.rot) * k.scale;
+      const c = Math.cos(k.rot);
+      const s = Math.sin(k.rot);
+      const sx = k.scale, sy = k.sy ?? k.scale;
       const moved = mapPoints(geo, ([x, y]) => {
-        const ux = x - cx;
-        const uy = y - cy;
+        const ux = (x - cx) * sx;
+        const uy = (y - cy) * sy;
         return [cx + ux * c - uy * s + k.dx, cy + ux * s + uy * c + k.dy];
       });
       shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index })));
@@ -168,6 +179,9 @@ export const clone = defineModifier({
     return { ...out, viewBox: fitViewBox(geo.viewBox, bounds(out)) };
   },
 });
+
+/** A copy: its offset, rotation and scale around the drawing's centre (`sy`: a different vertical scale; `cells`: grid cells it covers). */
+interface Copy { dx: number; dy: number; rot: number; scale: number; sy?: number; cells?: number }
 
 /** Grows the viewBox just enough to fit everything, with a 5 % margin. */
 export function fitViewBox([x, y, w, h]: [number, number, number, number], b: { x: number; y: number; width: number; height: number }): [number, number, number, number] {
@@ -179,4 +193,33 @@ export function fitViewBox([x, y, w, h]: [number, number, number, number], b: { 
   if (x0 === x && y0 === y && x1 === x + w && y1 === y + h) return [x, y, w, h];
   const r = (n: number) => Math.round(n * 100) / 100;
   return [r(x0), r(y0), r(x1 - x0), r(y1 - y0)];
+}
+
+/**
+ * Keeps a share (`fill`, by area: a 2×2 copy counts as four cells) of a grid's copies. Each copy gets a key: how
+ * far it lies towards `angle` (screen degrees, clockwise; 90 is down, so the grid fills from the bottom),
+ * weighted by `direction`, plus a seeded random part. At direction 0 the holes are random; towards 1 the grid
+ * grows from that side with a ragged edge (some randomness always stays, so the edge is never a straight cut).
+ * Copies keep their order, so per-element effects still number them consistently.
+ */
+function fillGrid(copies: Copy[], fill: number, direction: number, angle: number, seed: number) {
+  if (!copies.length) return;
+  const rand = rng(seed);
+  const a = (angle * Math.PI) / 180;
+  const proj = copies.map((c) => c.dx * Math.cos(a) + c.dy * Math.sin(a));
+  const lo = Math.min(...proj), span = Math.max(...proj) - lo || 1;
+  const d = Math.max(0, Math.min(1, direction));
+  const keyed = copies.map((c, i) => ({ i, key: d * ((proj[i]! - lo) / span) + (1 - d * 0.75) * rand(), area: c.cells ?? c.scale * c.scale }));
+  const total = keyed.reduce((sum, k) => sum + k.area, 0);
+  const want = Math.max(0, Math.min(1, fill)) * total;
+  const keep = new Set<number>();
+  let area = 0;
+  for (const k of [...keyed].sort((x, y) => y.key - x.key)) {
+    if (area >= want - 1e-9) break;
+    keep.add(k.i);
+    area += k.area;
+  }
+  const kept = copies.filter((_, i) => keep.has(i));
+  copies.length = 0;
+  copies.push(...kept);
 }

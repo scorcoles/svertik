@@ -1,7 +1,8 @@
 <script lang="ts">
   // Sin nada seleccionado: el documento. Su tamaño es lo que se exporta y lo que enseña el modo Play.
-  import { Button, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select } from '@svertik/ui';
-  import { DOCUMENT_PALETTE, PALETTES, isNumericExpression, validateExpression, type NumericExpression } from '@svertik/engine';
+  import { Button, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select, Slider } from '@svertik/ui';
+  import { DOCUMENT_PALETTE, PALETTES, customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
+  import { tick } from 'svelte';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
@@ -20,10 +21,12 @@
   const chips = $derived(current?.colors ?? editor.docColors);
   const own = $derived(!!current && !PALETTES.some((p) => p.name === current.name));
   let saving = $state('');
-  let variableName = $state('');
-  let sectionOpen = $state({ size: true, seed: true, canvas: true, palette: true });
+  let sectionOpen = $state({ size: true, seed: true, canvas: true, palette: true, variables: true });
   const custom = $derived(editor.scene?.custom ?? {});
-  const validVariableName = $derived(/^[A-Za-z_][A-Za-z_0-9]*$/.test(variableName.trim()) && !Object.hasOwn(custom, variableName.trim()));
+  // Variables: renaming in place (double-click the name) and the open range editors (min/max/step).
+  let renaming = $state<string | null>(null);
+  let rangeOpen = $state<Record<string, boolean>>({});
+  const NAME = /^[A-Za-z_][A-Za-z_0-9]*$/;
   function save() {
     if (editor.savePalette(saving)) saving = '';
   }
@@ -32,13 +35,20 @@
     // Al fijarlo, empieza del tamaño de lo dibujado (y centrado en ello): no se corta nada.
     else editor.fitDocument();
   }
-  function addVariable() {
-    const name = variableName.trim();
-    if (!validVariableName) return;
+  /** + : a new variable (var1, var2…) with its name ready to type. */
+  async function addVariable() {
+    let k = 1;
+    while (Object.hasOwn(custom, `var${k}`)) k++;
+    const name = `var${k}`;
     editor.setCustomVariables({ ...custom, [name]: 0 });
-    variableName = '';
+    sectionOpen.variables = true;
+    renaming = name;
+    await tick();
+    const input = document.getElementById(`custom-rename-${name}`) as HTMLInputElement | null;
+    input?.focus();
+    input?.select();
   }
-  function setVariable(name: string, value: number | NumericExpression) {
+  function setVariable(name: string, value: CustomVariable) {
     editor.setCustomVariables({ ...custom, [name]: value });
   }
   function removeVariable(name: string) {
@@ -46,8 +56,36 @@
     delete next[name];
     editor.setCustomVariables(Object.keys(next).length ? next : null);
   }
+  /** Rename in place, keeping the order; a taken or invalid name is refused (the old one stays). */
+  function rename(from: string, to: string) {
+    renaming = null;
+    const name = to.trim();
+    if (name === from || !NAME.test(name) || Object.hasOwn(custom, name)) return;
+    editor.setCustomVariables(Object.fromEntries(Object.entries(custom).map(([k, v]) => [k === from ? name : k, v])));
+    if (rangeOpen[from]) rangeOpen = { ...rangeOpen, [name]: true };
+  }
+  async function copyReference(name: string) {
+    try {
+      await navigator.clipboard.writeText(`scene.custom.${name}`);
+      editor.notice = `Copied scene.custom.${name}`;
+    } catch {
+      editor.notice = `Use it in expressions as scene.custom.${name}`;
+    }
+  }
+  /** A number's value (plain or ranged); setting it keeps the range. */
+  function setNumber(name: string, value: CustomVariable, n: number) {
+    setVariable(name, isRangedVariable(value) ? { ...value, value: n } : n);
+  }
+  /** Range edits: an empty range goes back to a plain number. */
+  function setRange(name: string, value: CustomVariable, key: 'min' | 'max' | 'step', n: number | undefined) {
+    const base: RangedVariable = isRangedVariable(value) ? { ...value } : { value: customNumber(value) ?? 0 };
+    if (n === undefined) delete base[key];
+    else base[key] = n;
+    const empty = base.min === undefined && base.max === undefined && base.step === undefined;
+    setVariable(name, empty ? base.value : base);
+  }
   function setAllSections(open: boolean) {
-    sectionOpen = { size: open, seed: open, canvas: open, palette: open };
+    sectionOpen = { size: open, seed: open, canvas: open, palette: open, variables: open };
   }
 </script>
 
@@ -96,6 +134,8 @@
   <Section title="Seed generator" bind:open={sectionOpen.seed}>
     <ParamRow label="Seed" for="scene-seed-generator">
       <NumberField id="scene-seed-generator" value={editor.seedGenerator} min={0} max={2147483647} step={1} onchange={(v) => editor.setSeedGenerator(v)} />
+      <!-- The dice, as on effects: a new random seed (everything linked to the generator changes with it). -->
+      <IconButton icon="dice" label="New random seed" onclick={() => editor.setSeedGenerator(Math.floor(Math.random() * 100000))} />
     </ParamRow>
     <div class="actions">
       <Button label="Link all seeds" title="Link numeric effect seeds to this generator, preserving their current differences" onclick={() => editor.linkSeedsToGenerator()} />
@@ -142,66 +182,83 @@
     {#if editor.showInfo}<p class="note">The chosen palette shows in every color picker. Save keeps this document's colors as a palette of your own, in this browser.</p>{/if}
   </Section>
   {#if editor.showInfo}<p class="hint">Select an object or a modifier to edit it. Drop more SVGs to add objects.</p>{/if}
-  <div class="custom-block">
-    <h2>Custom Variables</h2>
-    {#if Object.keys(custom).length}
-      {#each Object.entries(custom) as [name, value] (name)}
-          {@const expression = isNumericExpression(value) ? value : null}
-          {@const expressionError = expression ? validateExpression(expression.$expr) : null}
-          <div class="variable-item">
-            <label for={`custom-variable-${name}`}>{name}</label>
-            <div class="variable-controls">
-              {#if expression}
-                <div class="variable-expression" data-invalid={expressionError || undefined}>
-                  <input
-                    id={`custom-variable-${name}`}
-                    class="expression-input"
-                    value={expression.$expr}
-                    aria-label={`${name} expression`}
-                    aria-invalid={expressionError ? 'true' : undefined}
-                    title={expressionError ?? 'Use scene variables, scene.custom.name, and math functions such as min, max, sin and cos.'}
-                    spellcheck="false"
-                    oninput={(e) => setVariable(name, { ...expression, $expr: e.currentTarget.value })}
-                    onkeydown={(e) => e.stopPropagation()}
-                  />
-                  <button class="expression-toggle" type="button" aria-label={`Use a number for ${name}`} title="Switch to a number" onclick={() => setVariable(name, expression.fallback)}>ƒx</button>
-                  {#if expressionError}<span class="expression-error" role="status">{expressionError}</span>{/if}
-                </div>
-              {:else}
-                <NumberField
-                  id={`custom-variable-${name}`}
-                  value={value as number}
-                  step={0.1}
-                  width="100%"
-                  label={`${name} custom variable`}
-                  trailingAction={{ label: `Use an expression for ${name}`, title: 'Use an expression with scene variables and other custom variables', onclick: () => setVariable(name, { $expr: String(value), fallback: value as number }) }}
-                  onchange={(v) => setVariable(name, v)}
-                />
-              {/if}
-              <span class="variable-action variable-trash"><IconButton icon="trash" label={`Remove ${name}`} onclick={() => removeVariable(name)} /></span>
+  <Section title="Variables" bind:open={sectionOpen.variables}>
+    {#snippet action()}<IconButton icon="plus" label="Add variable" onclick={addVariable} />{/snippet}
+    {#each Object.entries(custom) as [name, value] (name)}
+      {@const expression = isNumericExpression(value) ? value : null}
+      {@const expressionError = expression ? validateExpression(expression.$expr) : null}
+      {@const ranged = isRangedVariable(value) ? value : null}
+      {@const n = customNumber(value) ?? 0}
+      <div class="var">
+        {#if renaming === name}
+          <input
+            id={`custom-rename-${name}`}
+            class="var-rename"
+            value={name}
+            aria-label="Variable name"
+            spellcheck="false"
+            onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') rename(name, e.currentTarget.value); else if (e.key === 'Escape') renaming = null; }}
+            onblur={(e) => rename(name, e.currentTarget.value)}
+          />
+        {:else}
+          <button class="var-name" type="button" title={`scene.custom.${name} · click to copy, double-click to rename`} onclick={() => copyReference(name)} ondblclick={() => (renaming = name)}>{name}</button>
+        {/if}
+        <div class="var-control">
+          {#if expression}
+            <div class="variable-expression" data-invalid={expressionError || undefined}>
+              <input
+                class="expression-input"
+                value={expression.$expr}
+                aria-label={`${name} expression`}
+                aria-invalid={expressionError ? 'true' : undefined}
+                title={expressionError ?? 'Use scene variables, scene.custom.name, and math functions such as min, max, sin and cos.'}
+                spellcheck="false"
+                oninput={(e) => setVariable(name, { ...expression, $expr: e.currentTarget.value })}
+                onkeydown={(e) => e.stopPropagation()}
+              />
+              <button class="expression-toggle" type="button" aria-label={`Use a number for ${name}`} title="Switch to a number" onclick={() => setVariable(name, expression.fallback)}>ƒx</button>
+              {#if expressionError}<span class="expression-error" role="status">{expressionError}</span>{/if}
             </div>
-          </div>
-      {/each}
-    {:else}
-      {#if editor.showInfo}<p class="note">No custom variables. Add one to use it in expressions as <code>scene.custom.name</code>.</p>{/if}
-    {/if}
-    <div class="variable-add-block">
-      <label for="custom-variable-new">Add custom variable</label>
-      <div class="variable-add">
-        <input
-          id="custom-variable-new"
-          class="name variable-name"
-          placeholder="variable_name"
-          aria-label="Custom variable name"
-          spellcheck="false"
-          bind:value={variableName}
-          onkeydown={(e) => e.key === 'Enter' && addVariable()}
-        />
-        <span class="variable-action"><IconButton icon="plus" label="Add variable" disabled={!validVariableName} onclick={addVariable} /></span>
+          {:else}
+            <NumberField
+              value={n}
+              step={ranged?.step ?? 0.1}
+              min={ranged?.min}
+              max={ranged?.max}
+              width="72px"
+              label={`${name} value`}
+              trailingAction={{ label: `Use an expression for ${name}`, title: 'Use an expression with scene variables and other custom variables', onclick: () => setVariable(name, { $expr: String(n), fallback: n }) }}
+              onchange={(v) => setNumber(name, value, v)}
+            />
+            {#if ranged && ranged.min !== undefined && ranged.max !== undefined}
+              <Slider value={n} min={ranged.min} max={ranged.max} step={ranged.step ?? 0.01} label={name} width="56px" onchange={(v) => setNumber(name, value, v)} />
+            {/if}
+          {/if}
+          <span class="var-actions" data-pinned={rangeOpen[name] || undefined}>
+            {#if !expression}<IconButton icon="range" label={rangeOpen[name] ? `Hide ${name} range` : `Set a range for ${name} (slider)`} active={!!rangeOpen[name]} onclick={() => (rangeOpen = { ...rangeOpen, [name]: !rangeOpen[name] })} />{/if}
+            <IconButton icon="trash" label={`Remove ${name}`} onclick={() => removeVariable(name)} />
+          </span>
+        </div>
       </div>
-    </div>
-    {#if editor.showInfo}<p class="custom-help">Use <code>scene.custom.name</code> in numeric expressions. Variables can reference each other, for example <code>scene.custom.rows * 2</code>. They are stored in this scene's JSON under <code>custom</code>; expression values include a fallback for missing or circular references.</p>{/if}
-  </div>
+      {#if rangeOpen[name] && !expression}
+        <!-- Min / Max / Step: with both ends set, the value gets a slider and stays within them. -->
+        <div class="var var-range">
+          <span class="var-name var-name-spacer" aria-hidden="true"></span>
+          <div class="var-control">
+            {#each [['min', 'Min'], ['max', 'Max'], ['step', 'Step']] as const as [key, prefix] (key)}
+              {@const set = ranged?.[key] !== undefined}
+              <NumberField value={ranged?.[key] ?? (key === 'step' ? 0.1 : key === 'min' ? Math.min(0, n) : Math.max(1, n))} step={0.1} prefix={prefix} width="58px" label={`${name} ${key}`} error={false}
+                trailingAction={set ? { label: `Clear ${name} ${key}`, title: `Clear ${key}`, onclick: () => setRange(name, value, key, undefined) } : undefined}
+                onchange={(v) => setRange(name, value, key, v)} />
+            {/each}
+          </div>
+        </div>
+      {/if}
+    {:else}
+      {#if editor.showInfo}<p class="note">No variables yet. Add one with + and use it in any numeric expression as <code>scene.custom.name</code>.</p>{/if}
+    {/each}
+    {#if editor.showInfo && Object.keys(custom).length}<p class="note">Click a name to copy <code>scene.custom.name</code>; double-click to rename. Variables can use each other (<code>scene.custom.rows * 2</code>). A range adds a slider and keeps the value inside it.</p>{/if}
+  </Section>
 </div>
 
 <style>
@@ -226,16 +283,17 @@
     box-sizing: border-box;
   }
   .name:focus { border-color: var(--sv-accent-fill); }
-  .variable-item { padding: var(--sv-space-4) var(--sv-space-8); }
-  .variable-item > label { display: block; margin-bottom: var(--sv-space-4); color: var(--sv-text-secondary); }
-  .variable-controls, .variable-add { display: flex; align-items: center; gap: var(--sv-space-8); }
-  .variable-add { padding: var(--sv-space-4) var(--sv-space-8); }
-  .variable-add-block { margin-top: var(--sv-space-12); }
-  .variable-add-block > label { display: block; margin: 0 var(--sv-space-8) var(--sv-space-4); color: var(--sv-text-secondary); }
-  .variable-controls :global(.sv-field) { width: 100% !important; flex: 1 1 auto !important; min-width: 0; }
-  .variable-name { width: auto; flex: 1 1 auto; min-width: 0; }
-  .variable-action :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
-  .variable-trash :global(.sv-icon) { transform: scale(0.8); }
+  /* Variables: the same row as the other parameters (name column on the left, controls on the right). */
+  .var { display: flex; align-items: center; gap: var(--sv-space-8); height: var(--sv-size-row); padding: 0 var(--sv-space-8); }
+  .var-name { flex: none; width: 84px; padding: 0; font: inherit; color: var(--sv-text-secondary); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; cursor: copy; }
+  .var-name:hover { color: var(--sv-text-primary); }
+  .var-name-spacer { cursor: default; }
+  .var-rename { flex: none; width: 84px; height: 20px; padding: 0 var(--sv-space-4); box-sizing: border-box; font: inherit; color: var(--sv-text-primary); text-align: right; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-accent-fill); outline: none; }
+  .var-control { flex: 1; display: flex; align-items: center; gap: var(--sv-space-4); min-width: 0; }
+  /* Row actions show on hover or focus, like the stack's; an open range keeps its button visible. */
+  .var-actions { display: flex; margin-left: auto; visibility: hidden; }
+  .var:hover .var-actions, .var:focus-within .var-actions, .var-actions[data-pinned] { visibility: visible; }
+  .var-actions :global(.sv-icon-button) { width: 20px; height: 20px; }
   .variable-expression {
     position: relative;
     display: flex;
@@ -255,9 +313,6 @@
   .expression-toggle { flex: none; width: 18px; height: 16px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; font: inherit; font-size: var(--sv-font-size-10); line-height: 1; cursor: pointer; }
   .expression-toggle:hover { color: var(--sv-accent-fill); }
   .expression-error { position: absolute; z-index: 4; top: calc(100% + var(--sv-space-4)); left: 0; width: 100%; padding: var(--sv-space-4) var(--sv-space-6); box-sizing: border-box; color: var(--sv-signal-error); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }
-  .custom-block { margin-top: var(--sv-space-16); padding: var(--sv-space-8) 0 var(--sv-space-24); border-top: var(--sv-border-1) solid var(--sv-rule-default); }
-  .custom-block h2 { padding-left: var(--sv-space-8); }
-  .custom-help { margin: var(--sv-space-12) var(--sv-space-8) 0; color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
   code { color: var(--sv-text-secondary); }
   .note, .hint { margin: var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
 </style>

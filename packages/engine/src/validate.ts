@@ -1,3 +1,5 @@
+import { isRangedVariable } from './scene';
+import { isNumericExpression } from './expression';
 import { parsePercent } from './units';
 import { signalSchemas } from './modifiers/signal-schemas';
 import { compositionParams } from './composition';
@@ -172,6 +174,15 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
     markerIds.add(marker.id);
     if (typeof marker.name !== 'string' || !marker.name.trim()) warnings.push('Timeline marker needs a name');
     if (!Number.isFinite(marker.t) || marker.t < 0 || marker.t > scene.animation!.duration) warnings.push(`Marker "${marker.name}" is outside the timeline`);
+  }
+
+  // Custom variables: a number, an expression, or a number with a sensible range.
+  for (const [key, v] of Object.entries(scene.custom ?? {})) {
+    if (!/^[A-Za-z_][A-Za-z_0-9]*$/.test(key)) warnings.push(`Custom variable "${key}": use letters, digits and _ (not starting with a digit)`);
+    if (typeof v === 'number' || isNumericExpression(v)) continue;
+    if (!isRangedVariable(v)) warnings.push(`Custom variable "${key}": must be a number, an expression or { value, min?, max?, step? }`);
+    else if (v.min !== undefined && v.max !== undefined && v.min > v.max) warnings.push(`Custom variable "${key}": min is above max`);
+    else if (v.step !== undefined && !(v.step > 0)) warnings.push(`Custom variable "${key}": step must be positive`);
   }
 
   // Interactions: who fires them and what they act on.

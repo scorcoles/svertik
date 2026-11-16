@@ -1292,7 +1292,7 @@ export class Editor {
     }
     this.record(true);
   }
-  setCustomVariables(values: Record<string, number | { $expr: string; fallback: number }> | null) {
+  setCustomVariables(values: NonNullable<SceneV1['custom']> | null) {
     if (!this.scene) return;
     if (values === null) delete this.scene.custom;
     else this.scene.custom = values;

@@ -2,7 +2,7 @@
 
 `type: "clone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Duplicates the drawing in a grid, concentric rings or a line, around the original. Grid can pack 2×2 large copies by reserving their cells, so the copies do not overlap; Gap sets the clear space between cells, Big / normal sets their share and Seed shuffles their placement. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element.
+Duplicates the drawing in a grid, concentric rings or a line, around the original. Grid can pack 2×2 large copies by reserving their cells, so the copies do not overlap; Gap sets the clear space between cells, Big / normal sets their share and Seed shuffles their placement. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element. Fill keeps a share of the grid cells (a 2×2 copy counts as four): at random with Fill direction 0, or growing from the side Fill angle points to (90° is the bottom) towards 1, with a ragged edge; Fill seed varies it.
 
 ## Parameters
 
@@ -17,6 +17,10 @@ Duplicates the drawing in a grid, concentric rings or a line, around the origina
 | `largeRatio` | number | `0.16` | min 0, max 0.5, step 0.01 | only when `packLarge` is `2x2`; group: Grid; label: Big / normal |
 | `gridSeed` | seed | `1` | integer | only when `packLarge` is `2x2`; group: Grid; label: Seed |
 | `gap` | number | `12` | min 0, max 500, step 1 | unit: px; only when `packLarge` is `2x2`; group: Grid |
+| `fill` | number | `1` | min 0, max 1, step 0.01 | group: Grid |
+| `fillDirection` | number | `0` | min 0, max 1, step 0.01 | group: Grid; label: Fill direction |
+| `fillAngle` | angle | `90` | degrees | group: Grid; label: Fill angle |
+| `fillSeed` | seed | `1` | integer | group: Grid; label: Fill seed |
 | `radius` | number | `1` | min 0, max 5, step 0.01 | fraction of the drawing size; group: Radial |
 | `rings` | number | `1` | min 1, max 64, step 1 | group: Radial |
 | `ringSpacing` | number | `1.1` | min 0, max 5, step 0.01 | fraction of the drawing size; group: Radial; label: Ring spacing |
@@ -53,6 +57,10 @@ Inside a node's `stack` (effects run top to bottom):
     "largeRatio": 0.16,
     "gridSeed": 1,
     "gap": 12,
+    "fill": 1,
+    "fillDirection": 0,
+    "fillAngle": 90,
+    "fillSeed": 1,
     "radius": 1,
     "rings": 1,
     "ringSpacing": 1.1,
