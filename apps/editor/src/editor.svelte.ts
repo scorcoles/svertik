@@ -1283,6 +1283,12 @@ export class Editor {
     }
     this.record(true);
   }
+  setCustomVariables(values: Record<string, number | { $expr: string; fallback: number }> | null) {
+    if (!this.scene) return;
+    if (values === null) delete this.scene.custom;
+    else this.scene.custom = values;
+    this.record();
+  }
   /** Link every numeric seed in this scene to its scene seed, retaining its current value as an offset. */
   linkSeedsToGenerator(): number {
     const active = this.scene;

@@ -15,6 +15,7 @@ import { builtins, createEngine, validateScene, type SceneV1 } from '@svertik/en
 
 const scene: SceneV1 = {
   version: 1,
+  custom?: Record<string, number | { $expr: string, fallback: number }>, // expression variables: scene.custom.name
   document: { width: 800, height: 450 },
   objects: [
     {
@@ -139,6 +140,8 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 - They run in `createPlayer` (and in the editor's Play mode), not in `toSVG`.
 
 ## Conventions (where agents usually go wrong)
+
+- **Custom variables**: define optional document-scoped numeric values in `custom`, then reference them in expressions as `scene.custom.name`. A value can itself be `{ "$expr": "...", "fallback": number }`; dependencies between variables resolve automatically. Missing names and cyclic dependencies use their expression fallbacks. Each composition has its own custom-variable scope. See the examples in the root `AGENTS.md` and `docs/ENGINE_AND_EFFECTS.md`.
 
 - **Coordinates**: y grows downwards. A node is centred on its `transform.x/y` (the centre of its own
   drawing). Rotations in degrees, clockwise.

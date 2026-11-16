@@ -14,11 +14,12 @@ export interface ExpressionContext {
   duration: number;
   progress: number;
   seedGenerator: number;
+  custom: Record<string, number>;
 }
 
 type Expr =
   | { kind: 'number'; value: number }
-  | { kind: 'variable'; name: `scene.${'time' | 'frame' | 'fps' | 'duration' | 'progress' | 'seedGenerator'}` | 'pi' | 'e' }
+  | { kind: 'variable'; name: string }
   | { kind: 'unary'; op: '+' | '-'; value: Expr }
   | { kind: 'binary'; op: '+' | '-' | '*' | '/' | '%' | '^' | '**'; left: Expr; right: Expr }
   | { kind: 'call'; name: string; args: Expr[] };
@@ -82,7 +83,13 @@ function parse(source: string): Expr {
         expect('.');
         const field = take();
         if (field === 'countDown') return call('scene.countDown');
-        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, frame, fps, duration, or progress.');
+        if (field === 'custom') {
+          expect('.');
+          const key = take();
+          if (!key || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(key)) throw new Error('Use a valid custom variable name after scene.custom.');
+          return { kind: 'variable', name: `scene.custom.${key}` };
+        }
+        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, frame, fps, duration, progress, seedGenerator, or custom.name.');
         return { kind: 'variable', name: SCENE_VARIABLES[field as keyof typeof SCENE_VARIABLES] };
       }
       if (token === 'pi' || token === 'e') return { kind: 'variable', name: token };
@@ -137,7 +144,12 @@ function treeOf(source: string): Expr {
 function run(tree: Expr, context: ExpressionContext): number {
   if (tree.kind === 'number') return tree.value;
   if (tree.kind === 'variable') {
-    if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof ExpressionContext];
+    if (tree.name.startsWith('scene.custom.')) {
+      const key = tree.name.slice('scene.custom.'.length);
+      if (!Object.hasOwn(context.custom, key)) throw new Error(`Unknown custom variable “${key}”.`);
+      return context.custom[key]!;
+    }
+    if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof Omit<ExpressionContext, 'custom'>];
     return tree.name === 'pi' ? Math.PI : Math.E;
   }
   if (tree.kind === 'unary') return tree.op === '-' ? -run(tree.value, context) : run(tree.value, context);
@@ -202,7 +214,7 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
     (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
-  return scene.objects.some(nodeHas);
+  return Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }
 
 /** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
@@ -219,7 +231,26 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
     duration,
     progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
     seedGenerator: Math.max(0, Math.round(Number.isFinite(Number(out.seedGenerator)) ? Number(out.seedGenerator) : 1)),
+    custom: Object.fromEntries(Object.entries(out.custom ?? {}).flatMap(([key, value]) =>
+      typeof value === 'number' && Number.isFinite(value) ? [[key, value]] : [])),
   };
+  // Resolve custom variable formulas in dependency order, so declarations can refer forward to one another.
+  // Cycles and missing references fall back to each variable's stored safe value.
+  const pending = new Map(Object.entries(out.custom ?? {}).filter((entry): entry is [string, NumericExpression] => isNumericExpression(entry[1])));
+  while (pending.size) {
+    let resolved = false;
+    for (const [key, formula] of pending) {
+      try {
+        context.custom[key] = evaluateExpression(formula.$expr, context);
+        pending.delete(key);
+        resolved = true;
+      } catch {
+        // Another custom variable may resolve this reference on a later pass.
+      }
+    }
+    if (!resolved) break;
+  }
+  for (const [key, formula] of pending) context.custom[key] = formula.fallback;
   const params = (values?: Record<string, unknown>) => {
     if (!values) return;
     for (const [key, value] of Object.entries(values)) {

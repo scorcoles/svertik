@@ -81,7 +81,28 @@ const svg = engine.toSVG(scene);
 7. **Filters (`kind: "filter"`) & Masks (`mask`)**: Always execute after the entire geometry stack has evaluated, regardless of array position.
 8. **Text (`shape: "text"`)**: Each glyph is converted into an independent vector element, enabling `step`, `stagger`, `range`, or `explosion` to act character-by-character. Its `font` is a Fontsource family (`weight` and `italic` go apart, never inside the name).
 9. **Scene notes**: Before editing, animating, or generating a scene, check its optional `notes` field and treat it as user-provided direction. Preserve the notes unless asked to revise them. Notes are project metadata and are not rendered into SVG.
-10. **Expressions**: A numeric parameter may store `{ "$expr": "...", "fallback": 12 }` instead of a number. Evaluate it per frame with `scene.time` (seconds), `scene.frame`, `scene.fps` (default 30), `scene.duration`, and `scene.progress`. Use only the expression language's math functions (`min`, `max`, `clamp`, `lerp`, `sin`, `cos`, `tan`, `abs`, `round`, `floor`, `ceil`, `sqrt`, `pow`), plus `scene.countDown(seconds)`; this is not JavaScript. In Text shape content, `{{scene.time}}` and other numeric expressions interpolate live values, e.g. `{{scene.countDown(10)}}`; use `{{fixed(scene.time, 2)}}` for fixed decimal places or `{{fixed(scene.time, 2, 2)}}` to zero-pad the integer part too. Numeric expressions replace keyframes on the same parameter. Render-time measurements are diagnostic, machine-dependent data and are not expression variables.
+10. **Expressions and custom variables**: A numeric parameter may store `{ "$expr": "...", "fallback": 12 }` instead of a number. Evaluate it per frame with `scene.time` (seconds), `scene.frame`, `scene.fps` (default 30), `scene.duration`, `scene.progress`, and `scene.seedGenerator`. Document-level numeric variables live in `custom` and are referenced as `scene.custom.name`; their values can also be expressions that reference other custom variables. The engine resolves dependencies; missing references and cycles use each expression's `fallback`. Nested compositions have their own `custom` scope. Use only the expression language's math functions (`min`, `max`, `clamp`, `lerp`, `sin`, `cos`, `tan`, `abs`, `round`, `floor`, `ceil`, `sqrt`, `pow`), plus `scene.countDown(seconds)`; this is not JavaScript. In Text shape content, `{{scene.time}}` and other numeric expressions interpolate live values, e.g. `{{scene.countDown(10)}}`; use `{{fixed(scene.time, 2)}}` for fixed decimal places or `{{fixed(scene.time, 2, 2)}}` to zero-pad the integer part too. Numeric expressions replace keyframes on the same parameter. Render-time measurements are diagnostic, machine-dependent data and are not expression variables.
+
+Example shared controls in scene JSON:
+
+```json
+{
+  "custom": {
+    "density": 0.65,
+    "spacing": { "$expr": "scene.custom.density * 12", "fallback": 7.8 }
+  },
+  "objects": [
+    {
+      "kind": "shape",
+      "id": "field",
+      "name": "Field",
+      "shape": "rectangle",
+      "params": { "width": { "$expr": "scene.custom.spacing * 100", "fallback": 780 } },
+      "stack": []
+    }
+  ]
+}
+```
 
 ## Compositions
 

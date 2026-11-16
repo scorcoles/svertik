@@ -5,6 +5,36 @@
 
 ---
 
+## Shared procedural variables
+
+Scenes can define document-scoped numeric variables in `custom`. Use them in numeric expressions as
+`scene.custom.name`; a variable can reference another variable, so changing one control can update a whole
+procedural setup. Expressions use the same safe math language as effect expressions. Missing references and
+dependency cycles use the stored `fallback` values. Nested compositions have their own custom-variable scope.
+
+```json
+{
+  "version": 1,
+  "custom": {
+    "seed": 42,
+    "spacing": { "$expr": "scene.custom.seed % 9 + 4", "fallback": 10 }
+  },
+  "objects": [
+    {
+      "kind": "shape",
+      "id": "grid-cell",
+      "name": "Grid cell",
+      "shape": "rectangle",
+      "params": {
+        "width": { "$expr": "scene.custom.spacing", "fallback": 10 },
+        "height": { "$expr": "scene.custom.spacing * 2", "fallback": 20 }
+      },
+      "stack": []
+    }
+  ]
+}
+```
+
 ## Recipe 1: Kinetic Wavy Typography
 
 Text where each letter is an individual element. A sinusoidal wave sweeps across the letters, backed by a deep drop shadow and an animated wave phase.

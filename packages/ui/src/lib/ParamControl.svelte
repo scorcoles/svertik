@@ -95,7 +95,7 @@
             value={expression.$expr}
             aria-label={`${label} expression`}
             aria-invalid={expressionError ? 'true' : undefined}
-            title={expressionError ?? 'Use scene.time, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator; functions: min, max, clamp, lerp, sin, cos…'}
+            title={expressionError ?? 'Use scene.time, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.custom.name; functions: min, max, clamp, lerp, sin, cos…'}
             spellcheck="false"
             oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
             onkeydown={(e) => e.stopPropagation()}
