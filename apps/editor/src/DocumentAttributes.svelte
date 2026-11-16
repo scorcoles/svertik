@@ -326,13 +326,14 @@
     box-sizing: border-box;
   }
   .name:focus { border-color: var(--sv-accent-fill); }
-  /* Variables: the same row as the other parameters (name column on the left, controls on the right). */
-  .var { display: flex; align-items: center; gap: var(--sv-space-8); height: var(--sv-size-row); padding: 0 var(--sv-space-8); }
-  .var-name { flex: none; width: 84px; padding: 0; font: inherit; color: var(--sv-text-secondary); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; cursor: copy; }
+  /* Variables: the name sits above its controls, over the full width. Names are free text (secondsBetweenBirthsA)
+     and a fixed label column cut them off and squeezed the formula field. */
+  .var { display: flex; flex-direction: column; align-items: stretch; gap: var(--sv-space-2); min-height: var(--sv-size-row); padding: var(--sv-space-4) var(--sv-space-8) var(--sv-space-6); }
+  .var-name { flex: none; width: 100%; padding: 0; font: inherit; color: var(--sv-text-secondary); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; cursor: copy; }
   .var-name:hover { color: var(--sv-text-primary); }
-  .var-name-spacer { cursor: default; }
-  .var-rename { flex: none; width: 84px; height: 20px; padding: 0 var(--sv-space-4); box-sizing: border-box; font: inherit; color: var(--sv-text-primary); text-align: right; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-accent-fill); outline: none; }
-  .var-control { flex: 1; display: flex; align-items: center; gap: var(--sv-space-4); min-width: 0; }
+  .var-name-spacer { display: none; }
+  .var-rename { flex: none; width: 100%; height: 20px; padding: 0 var(--sv-space-4); box-sizing: border-box; font: inherit; color: var(--sv-text-primary); text-align: left; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-accent-fill); outline: none; }
+  .var-control { flex: none; width: 100%; display: flex; align-items: center; gap: var(--sv-space-4); min-width: 0; }
   /* Row actions show on hover or focus, like the stack's; an open range keeps its button visible. */
   .var-actions { display: flex; margin-left: auto; visibility: hidden; }
   .var:hover .var-actions, .var:focus-within .var-actions, .var-actions[data-pinned] { visibility: visible; }
