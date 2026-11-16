@@ -1838,6 +1838,25 @@ export class Editor {
     this.record(true);
   }
 
+  /** Bake a Boolean group's current result into an SVG path object, discarding its editable sources. */
+  booleanToPath() {
+    const scene = this.scene;
+    const group = this.activeNode;
+    if (!scene || !group || group.kind !== 'group' || !this.current || this.current.type !== 'boolean') return;
+    this.flush();
+    const engine = (this.#packEngine ??= createEngine(builtins));
+    const doc = engine.evaluateDocument($state.snapshot(scene) as SceneV1);
+    const baked = packNode(scene, group.id, doc, uid());
+    if (!baked?.node.packed) return;
+    baked.node.source = toSVG(baked.node.packed.geometry, { precision: 3 });
+    delete baked.node.packed;
+    this.selected = group.id;
+    this.also = [];
+    this.#applyTime();
+    this.notice = 'Boolean converted to a path. Its source objects, effects and animation were removed; Undo restores them.';
+    this.record(true);
+  }
+
   // ── Animación: las claves viven en scene.animation; el valor del instante actual se escribe en la escena
   // (sin historial), así panel, lienzo y actuadores leen siempre «lo que se ve ahora».
 

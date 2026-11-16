@@ -96,6 +96,11 @@
                 <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
+            {#if m.type === 'boolean' && editor.activeNode?.kind === 'group'}
+              <div class="actions">
+                <Button label="To Path" title="Destructively bake the Boolean result at this frame. Its source objects, effects and animation will be removed; Undo restores them." onclick={() => editor.booleanToPath()} />
+              </div>
+            {/if}
           </div>
         {:else}
           <dl class="info">
