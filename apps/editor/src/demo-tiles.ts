@@ -14,7 +14,7 @@ const pick = (id: string, start: number, end: number, seedOffset: number, child:
 export function tileWallProject() {
   const W = 1200, H = 800;
   return {
-    svertik: 'project' as const, version: 1 as const, name: 'Tile Wall', canvas: '#e9e0d1',
+    svertik: 'project' as const, version: 1 as const, name: 'Tile Wall', canvas: '#efe6d8',
     scene: {
       version: 1 as const,
       document: { width: W, height: H },
@@ -52,14 +52,6 @@ export function tileWallProject() {
             pick('dots', 0.9, 1, 113, { id: 'dot', type: 'roundcorners', params: { radius: 400, shape: 'round' } }),
             { id: 'chamfer', type: 'roundcorners', params: { radius: expr('scene.custom.chamfer', 16), shape: 'chamfer', corners: 'random', seed: seed(97) } },
           ],
-        },
-        {
-          kind: 'shape' as const,
-          id: 'wall-ground',
-          name: 'Ground',
-          shape: 'rectangle',
-          params: { width: W, height: H, fill: true, fillColor: '#efe6d8', stroke: false },
-          stack: [],
         },
       ],
     },
