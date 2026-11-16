@@ -1,5 +1,5 @@
 import { rng } from './random';
-import { customNumber, neutralPointer, POINTER_FIELDS, sceneDuration, type ScenePointer } from './scene';
+import { CLOCK_FIELDS, customNumber, neutralPointer, neutralRuntime, POINTER_FIELDS, sceneDuration, type SceneRuntime, type ScenePointer } from './scene';
 import type { SceneNode, SceneV1 } from './document';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
@@ -23,6 +23,8 @@ export interface ExpressionContext {
   /** The document's size (`scene.width`, `scene.height`); 0 when the scene has no fixed document. */
   width?: number;
   height?: number;
+  /** Frame time, page scroll, screen density and the real clock (`scene.dt`, `scene.scroll`, …); neutral when absent. */
+  runtime?: Partial<SceneRuntime>;
 }
 
 export interface SceneExpressionValues extends ExpressionContext {
@@ -62,6 +64,7 @@ const ARITY: Record<string, [number, number]> = {
 };
 const SCENE_VARIABLES = {
   cycle: 'scene.cycle', time: 'scene.time', frame: 'scene.frame', fps: 'scene.fps', duration: 'scene.duration', progress: 'scene.progress', seedGenerator: 'scene.seedGenerator', width: 'scene.width', height: 'scene.height',
+  aspect: 'scene.aspect', dt: 'scene.dt', scroll: 'scene.scroll', pixelRatio: 'scene.pixelRatio',
 } as const;
 const parsed = new Map<string, Expr>();
 
@@ -106,13 +109,19 @@ function parse(source: string): Expr {
           if (!key || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(key)) throw new Error('Use a valid custom variable name after scene.custom.');
           return { kind: 'variable', name: `scene.custom.${key}` };
         }
+        if (field === 'clock') {
+          expect('.');
+          const key = take();
+          if (!key || !(CLOCK_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a clock field after scene.clock.: ${CLOCK_FIELDS.join(', ')}.`);
+          return { kind: 'variable', name: `scene.clock.${key}` };
+        }
         if (field === 'mouse') {
           expect('.');
           const key = take();
           if (!key || !(POINTER_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a pointer field after scene.mouse.: ${POINTER_FIELDS.join(', ')}.`);
           return { kind: 'variable', name: `scene.mouse.${key}` };
         }
-        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, width, height, mouse.posX, or custom.name.');
+        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, width, height, aspect, dt, scroll, pixelRatio, clock.hour, mouse.posX, or custom.name.');
         return { kind: 'variable', name: SCENE_VARIABLES[field as keyof typeof SCENE_VARIABLES] };
       }
       if (token === 'pi' || token === 'e') return { kind: 'variable', name: token };
@@ -178,12 +187,18 @@ function run(tree: Expr, context: ExpressionContext): number {
       const value = context.mouse?.[key];
       return Number.isFinite(value) ? value! : neutralPointer({})[key];
     }
+    if (tree.name === 'scene.aspect') return context.height && context.width ? context.width / context.height : 0;
+    if (tree.name === 'scene.dt' || tree.name === 'scene.scroll' || tree.name === 'scene.pixelRatio' || tree.name.startsWith('scene.clock.')) {
+      const key = (tree.name.startsWith('scene.clock.') ? tree.name.slice('scene.clock.'.length) : tree.name.slice('scene.'.length)) as keyof SceneRuntime;
+      const value = context.runtime?.[key];
+      return Number.isFinite(value) ? value! : neutralRuntime({})[key];
+    }
     if (tree.name === 'scene.width' || tree.name === 'scene.height') {
       const size = context[tree.name === 'scene.width' ? 'width' : 'height'];
       return Number.isFinite(size) ? size! : 0;
     }
     if (tree.name === 'scene.cycle') return context.duration > 0 ? Math.max(0, Math.floor(context.time / context.duration)) : 0;
-    if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof Omit<ExpressionContext, 'custom' | 'randomSalt'>];
+    if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof Omit<ExpressionContext, 'custom' | 'randomSalt' | 'mouse' | 'runtime'>] as number;
     return tree.name === 'pi' ? Math.PI : Math.E;
   }
   if (tree.kind === 'unary') return tree.op === '-' ? -run(tree.value, context) : run(tree.value, context);
@@ -276,6 +291,22 @@ export function liveSeed(scene: Pick<SceneV1, 'seedGenerator' | 'seedEvery'>, ti
   return (base + tick * 7919) % 2147483647;
 }
 
+/**
+ * Every variable `scene.*` formulas can read, by name (`time`, `width`, `mouse.posX`…), in the order a debug panel
+ * shows them. It walks the same tables the parser uses, so a new variable cannot be left out. `pointer`, when
+ * given, replaces the pointer in `values` (the player's live one).
+ */
+export function describeSceneVariables(values: SceneExpressionValues, pointer?: Partial<ScenePointer>, runtime?: Partial<SceneRuntime>): Record<string, number> {
+  const ctx: ExpressionContext = { ...values, mouse: { ...values.mouse, ...pointer }, runtime: { ...values.runtime, ...runtime } };
+  const out: Record<string, number> = {};
+  // Each value is read exactly the way a formula reads it (run), so the list cannot drift from the parser.
+  const read = (name: string): number => { const v = run({ kind: 'variable', name }, ctx); return Number.isFinite(v) ? v : 0; };
+  for (const key of Object.keys(SCENE_VARIABLES)) out[key] = read(SCENE_VARIABLES[key as keyof typeof SCENE_VARIABLES]);
+  for (const key of CLOCK_FIELDS) out[`clock.${key}`] = read(`scene.clock.${key}`);
+  for (const key of POINTER_FIELDS) out[`mouse.${key}`] = read(`scene.mouse.${key}`);
+  return out;
+}
+
 /** Resolve the live values exposed to expressions, without evaluating every object parameter. */
 export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, randomSalt = 0): SceneExpressionValues {
   const fps = scene.animation?.fps ?? 30;
@@ -292,6 +323,7 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
     width: scene.document?.width ?? 0,
     height: scene.document?.height ?? 0,
     mouse: { ...neutralPointer(scene), ...scene.pointer },
+    runtime: { ...neutralRuntime(scene), ...scene.runtime },
     custom: Object.fromEntries(Object.entries(scene.custom ?? {}).flatMap(([key, value]) => {
       const n = customNumber(value);
       return n === null ? [] : [[key, n]];

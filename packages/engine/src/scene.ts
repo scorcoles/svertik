@@ -183,22 +183,43 @@ export interface SceneV1 {
    * used; it is never saved). Absent, formulas see the neutral values of `neutralPointer`.
    */
   pointer?: Partial<ScenePointer>;
+  /** Runtime only, like `pointer`: `scene.dt`, `scene.scroll`, `scene.pixelRatio` and `scene.clock.*`. */
+  runtime?: Partial<SceneRuntime>;
 }
 
 /** What `scene.mouse.*` formulas can read. `pos*`: scene coordinates (px, as an object's x/y); `frac*`: 0–1 across the document. */
 export interface ScenePointer {
   posX: number; posY: number; fracX: number; fracY: number; down: number; inside: number;
+  /** Secondary buttons held (0/1). */
+  rightDown: number; middleDown: number;
+  /** Primary clicks since the player started, and ms since the last one (0 before any). */
+  clicks: number; clickMs: number;
+  /** The wheel, accumulated: 1 per 100 px of deltaY (positive = down, as the browser reports it). */
+  wheel: number;
   /** Pointer speed, px per second in scene coordinates (smoothed; it decays to 0 when the pointer stops). */
   velX: number; velY: number;
   /** Milliseconds the primary button has been held; after release, how long the last press lasted (0 before any). */
   downMs: number;
 }
-export const POINTER_FIELDS = ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside', 'velX', 'velY', 'downMs'] as const;
+export const POINTER_FIELDS = ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside', 'velX', 'velY', 'downMs', 'rightDown', 'middleDown', 'clicks', 'clickMs', 'wheel'] as const;
 
 /** The pointer before it has moved: the centre of the document, not pressed, not inside. */
 export const neutralPointer = (scene: Pick<SceneV1, 'document'>): ScenePointer => ({
-  posX: scene.document?.x ?? 0, posY: scene.document?.y ?? 0, fracX: 0.5, fracY: 0.5, down: 0, inside: 0, velX: 0, velY: 0, downMs: 0,
+  posX: scene.document?.x ?? 0, posY: scene.document?.y ?? 0, fracX: 0.5, fracY: 0.5, down: 0, inside: 0, velX: 0, velY: 0, downMs: 0, rightDown: 0, middleDown: 0, clicks: 0, clickMs: 0, wheel: 0,
 });
+
+/** What the player knows besides the pointer: frame time, page scroll, screen density and the real clock. */
+export interface SceneRuntime {
+  /** Seconds since the previous frame (1 / fps in renders and exports). */
+  dt: number;
+  /** How far the page has scrolled, 0–1 (an embedded scene reacts to its page). */
+  scroll: number;
+  pixelRatio: number;
+  /** The real clock, local time (renders and exports see 0: they are not about when they run). */
+  hour: number; minute: number; second: number;
+}
+export const CLOCK_FIELDS = ['hour', 'minute', 'second'] as const;
+export const neutralRuntime = (scene: Pick<SceneV1, 'animation'>): SceneRuntime => ({ dt: 1 / (scene.animation?.fps || 30), scroll: 0, pixelRatio: 1, hour: 0, minute: 0, second: 0 });
 
 /** The scene (what is saved and exported). */
 export type Scene = SceneV1;

@@ -1,5 +1,5 @@
 import { createMouseInstances, type MouseEventKind } from './mouse';
-import { neutralPointer, sceneDuration, VIEWPORT_ASPECT, viewportFit, type ScenePointer } from './scene';
+import { neutralPointer, neutralRuntime, sceneDuration, VIEWPORT_ASPECT, viewportFit, type ScenePointer, type SceneRuntime } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
 // - tween: a value goes to another with its duration and curve, and comes back (on leave, or the next click);
@@ -294,7 +294,14 @@ const nodeOf = (e: Event) => nodeOfEl(e.target);
  * computed four times. `onFrame` gets how long each computed frame took (to measure).
  */
 export interface PlayerOptions {
-  onFrame?: (info: { ms: number; t: number }) => void;
+  /** `pointer`: the live pointer (see `pointer` below), when it is being tracked. */
+  onFrame?: (info: { ms: number; t: number; pointer?: ScenePointer; runtime?: SceneRuntime }) => void;
+  /**
+   * Track the pointer for `onFrame` even if no formula reads `scene.mouse.*` (a debug panel does): `true`, or a
+   * function that says when (it is asked on every pointer event, so a hidden panel costs no repaints). While it
+   * is on, `onFrame` also gets `runtime` (frame time, scroll, density, clock).
+   */
+  pointer?: boolean | (() => boolean);
 }
 
 export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1, options: PlayerOptions = {}) {
@@ -304,13 +311,26 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   let mouseDirty = false;
   // `scene.mouse.*` formulas: the pointer is tracked only when the scene reads it, and repaints when it moves.
   const usesPointer = /scene\.mouse\./.test(JSON.stringify(scene));
+  /** Is the pointer being followed right now (a formula reads it, or the host asked for it)? */
+  const hostWants = () => (typeof options.pointer === 'function' ? options.pointer() : !!options.pointer);
+  const wantsPointer = () => usesPointer || hostWants();
+  const sceneText = JSON.stringify(scene);
+  const usesClickMs = /scene\.mouse\.clickMs/.test(sceneText);
+  // `scene.dt`, `scene.scroll`, `scene.pixelRatio`, `scene.clock.*`: supplied by the player each frame it is used.
+  const usesClock = /scene\.clock\./.test(sceneText), usesScroll = /scene\.scroll/.test(sceneText);
+  const usesRuntime = /scene\.(dt|scroll|pixelRatio|clock\.)/.test(sceneText);
+  const wantsRuntime = () => usesRuntime || hostWants();
+  const runtimeNow: SceneRuntime = neutralRuntime(scene);
+  let clickAt = 0;
   const pointerNow: ScenePointer = neutralPointer(scene);
   let pointerDirty = false;
   let downAt = 0;
   let lastMoveAt = 0;
   let lastPos: [number, number] | null = null;
   /** Velocity or a held button keep changing without events: the loop must keep painting. */
-  const pointerBusy = () => usesPointer && (pointerNow.down === 1 || Math.abs(pointerNow.velX) > 0 || Math.abs(pointerNow.velY) > 0);
+  const pointerBusy = () => wantsPointer() && (pointerNow.down === 1 || Math.abs(pointerNow.velX) > 0 || Math.abs(pointerNow.velY) > 0 || (pointerNow.clicks > 0 && (usesClickMs || hostWants())));
+  /** Values that change every frame by themselves: the real clock. */
+  const runtimeBusy = () => usesClock || (hostWants() && wantsRuntime());
   const anim = scene.animation?.infinite || scene.animation?.tracks.length || sceneHasExpressions(scene)
     ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
@@ -342,7 +362,17 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     last = now;
     const moving = inter.step(reduce ? 1e6 : dt);
     const t = clockAt(now);
+    if (wantsRuntime()) {
+      const d = new Date();
+      runtimeNow.dt = Math.min(dt, 1) || runtimeNow.dt;
+      runtimeNow.hour = d.getHours(); runtimeNow.minute = d.getMinutes(); runtimeNow.second = d.getSeconds() + d.getMilliseconds() / 1000;
+      runtimeNow.pixelRatio = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
+      const el = typeof document !== 'undefined' ? document.documentElement : null;
+      runtimeNow.scroll = el && el.scrollHeight > el.clientHeight ? Math.max(0, Math.min(1, (window.scrollY || el.scrollTop) / (el.scrollHeight - el.clientHeight))) : 0;
+      if (runtimeBusy()) pointerDirty = true;
+    }
     if (pointerBusy()) {
+      if (pointerNow.clicks > 0) pointerNow.clickMs = now - clickAt;
       // The button held, the pointer coasting to a stop: values that change between events.
       if (pointerNow.down) pointerNow.downMs = now - downAt;
       if (now - lastMoveAt > 50) {
@@ -356,14 +386,14 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       const c0 = performance.now();
       const stepped = inter.apply(anim ? sampleScene(scene, t) : scene);
       // The pointer goes on the frame before Mouse Instances read it, and on to whatever draws it.
-      const framed = mouse.apply(usesPointer ? { ...stepped, pointer: { ...pointerNow } } : stepped, now / 1000);
+      const framed = mouse.apply(usesPointer || usesRuntime ? { ...stepped, ...(usesPointer ? { pointer: { ...pointerNow } } : {}), ...(usesRuntime ? { runtime: { ...runtimeNow } } : {}) } : stepped, now / 1000);
       live.update(framed);
       mouseDirty = false;
       pointerDirty = false;
       shown = t;
-      options.onFrame?.({ ms: performance.now() - c0, t });
+      options.onFrame?.({ ms: performance.now() - c0, t, ...(wantsPointer() ? { pointer: { ...pointerNow } } : {}), ...(wantsRuntime() ? { runtime: { ...runtimeNow } } : {}) });
     }
-    const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active() || pointerBusy();
+    const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active() || pointerBusy() || runtimeBusy();
     frame = keepGoing ? requestAnimationFrame(draw) : 0;
   };
   const wake = () => {
@@ -423,17 +453,32 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     if (down && !pointerNow.down) downAt = now;
     if (down || pointerNow.down) pointerNow.downMs = now - downAt;
     pointerNow.down = down;
+    pointerNow.rightDown = e.buttons & 2 ? 1 : 0;
+    pointerNow.middleDown = e.buttons & 4 ? 1 : 0;
     pointerNow.inside = 1;
-    pointerDirty = true;
+    if (wantsPointer()) pointerDirty = true;
   };
-  const trackPointer = (e: PointerEvent) => { updatePointer(e); wake(); };
+  const trackPointer = (e: PointerEvent) => { updatePointer(e); if (wantsPointer()) wake(); };
   const leavePointer = () => {
     if (pointerNow.down) pointerNow.downMs = performance.now() - downAt;
     pointerNow.inside = 0;
     pointerNow.down = 0;
-    pointerDirty = true;
-    wake();
+    pointerNow.rightDown = 0;
+    pointerNow.middleDown = 0;
+    if (wantsPointer()) { pointerDirty = true; wake(); }
   };
+  const countClick = (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    pointerNow.clicks++;
+    pointerNow.clickMs = 0;
+    clickAt = performance.now();
+    if (wantsPointer()) { pointerDirty = true; wake(); }
+  };
+  const countWheel = (e: WheelEvent) => {
+    pointerNow.wheel += e.deltaY / 100;
+    if (wantsPointer()) { pointerDirty = true; wake(); }
+  };
+  const scrolled = () => { if (usesScroll || hostWants()) { pointerDirty = true; wake(); } };
   const emit = (kind: MouseEventKind, e: MouseEvent) => {
     const m = svg.getScreenCTM?.();
     if (!m) return false;
@@ -459,11 +504,14 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     svg.addEventListener('pointermove', mouseMove);
     svg.addEventListener('wheel', mouseWheel, { passive: false });
   }
-  if (usesPointer) {
+  if (typeof window !== 'undefined' && (usesScroll || options.pointer)) window.addEventListener('scroll', scrolled, { passive: true });
+  if (usesPointer || options.pointer) {
     svg.addEventListener('pointermove', trackPointer);
     svg.addEventListener('pointerdown', trackPointer);
     svg.addEventListener('pointerup', trackPointer);
     svg.addEventListener('pointerleave', leavePointer);
+    svg.addEventListener('click', countClick);
+    svg.addEventListener('wheel', countWheel, { passive: true });
   }
   // "enter": when the drawing scrolls into view (every time it comes back).
   let io: IntersectionObserver | null = null;
@@ -506,6 +554,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       svg.removeEventListener('pointerdown', trackPointer);
       svg.removeEventListener('pointerup', trackPointer);
       svg.removeEventListener('pointerleave', leavePointer);
+      svg.removeEventListener('click', countClick);
+      svg.removeEventListener('wheel', countWheel);
+      if (typeof window !== 'undefined') window.removeEventListener('scroll', scrolled);
       svg.removeEventListener('click', mouseClick);
       svg.removeEventListener('dblclick', mouseDouble);
       svg.removeEventListener('contextmenu', mouseContext);

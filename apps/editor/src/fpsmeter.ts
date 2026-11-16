@@ -6,6 +6,8 @@ export interface FpsMeter {
   frame(ms: number): void;
   variables(scene: Record<string, number>, custom: Record<string, number>): void;
   toggle(on?: boolean): void;
+  /** Is the panel showing? (a player only needs to track the pointer while it is) */
+  visible(): boolean;
   stop(): void;
 }
 
@@ -60,7 +62,7 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
 
   let screen = 0, computed = 0, sum = 0, worst = 0, last = performance.now();
   let performanceText = '', variablesText = '';
-  let lastVariableFrame: number | null = null;
+  let lastVariablesKey = '';
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   const render = () => { el.textContent = [performanceText, variablesText].filter(Boolean).join('\n\n'); };
   copy.addEventListener('click', async () => {
@@ -101,11 +103,12 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
       worst = Math.max(worst, ms);
     },
     variables(scene, custom) {
-      const frame = scene.frame ?? 0;
-      if (frame === lastVariableFrame) return;
-      lastVariableFrame = frame;
+      // Only redraw the text when something changed (the pointer moves between frames too).
+      const key = JSON.stringify(scene) + JSON.stringify(custom);
+      if (key === lastVariablesKey) return;
+      lastVariablesKey = key;
       const format = (value: number) => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
-      const sceneLines = Object.entries(scene).map(([key, value]) => `scene.${key.padEnd(14)} ${format(value)}`);
+      const sceneLines = Object.entries(scene).map(([key, value]) => `scene.${key.padEnd(18)} ${format(value)}`);
       const customLines = Object.entries(custom).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `scene.custom.${key} ${format(value)}`);
       variablesText = ['Scene', ...sceneLines, ...(customLines.length ? ['', 'Custom', ...customLines] : [])].join('\n');
       render();
@@ -113,6 +116,7 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
     toggle(v = panel.hidden) {
       panel.hidden = !v;
     },
+    visible: () => !panel.hidden,
     stop() {
       cancelAnimationFrame(raf);
       clearTimeout(copyTimer);

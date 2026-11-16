@@ -47,7 +47,7 @@ const say = (text: string, ms = 2400) => {
 };
 
 async function start(m: typeof import('@svertik/engine/player')) {
-  const { createEngine, createPlayer, prepareScene, effectTypes, sceneEffectTypes, evaluateSceneVariables } = m;
+  const { createEngine, createPlayer, prepareScene, effectTypes, sceneEffectTypes, evaluateSceneVariables, describeSceneVariables } = m;
   const hash = location.hash.match(/^#[ps]=(.+)$/);
   if (!hash) return say('No scene in this link.', 0);
   const state = await decodeState(hash[1]!);
@@ -67,10 +67,10 @@ async function start(m: typeof import('@svertik/engine/player')) {
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
   // Wire (W, or ?wire in the URL): outlines only, as in the editor's canvas.
   m.installWire(stage, scene, { initial: new URLSearchParams(location.search).has('wire'), onChange: (on) => document.body.classList.toggle('wire', on) });
-  createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms, t }) => {
+  createPlayer(createEngine(effects), stage, scene, { pointer: () => meter.visible(), onFrame: ({ ms, t, pointer, runtime }) => {
     meter.frame(ms);
     const values = evaluateSceneVariables(scene, t);
-    meter.variables({ cycle: values.cycle, time: values.time, frame: values.frame, fps: values.fps, duration: values.duration, progress: values.progress, seedGenerator: values.seedGenerator }, values.custom);
+    meter.variables(describeSceneVariables(values, pointer, runtime), values.custom);
   } });
   capture.disabled = false;
   video.disabled = false;

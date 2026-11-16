@@ -132,4 +132,34 @@ describe('scene.mouse.*', () => {
     const copy = [...walkNodes(m.apply({ ...s, pointer: { posX: 200, downMs: 1500 } }, 10).objects)].map(({ node }) => node).find((n) => n.id.startsWith('@mouse-')) as GroupNode;
     expect(copy.transform).toMatchObject({ scale: 2.5, x: 220, y: 100 });
   });
+
+  it('tracks the pointer for onFrame only while the host asks for it, even if no formula reads it', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    Object.assign(svg, { getScreenCTM: () => ({ inverse: () => ({}) }) });
+    vi.stubGlobal('DOMPoint', class { constructor(public x: number, public y: number) {} matrixTransform() { return { x: this.x, y: this.y }; } });
+    let scheduled: FrameRequestCallback | undefined;
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => { scheduled = fn; return 1; });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const engine = { mount: () => ({ update: () => {}, doc: () => ({ geometry: { viewBox: [0, 0, 100, 100] } }) }) } as unknown as Engine;
+    let visible = false;
+    const frames: (number | undefined)[] = [];
+    const move = (x: number) => {
+      const e = new PointerEvent('pointermove', { clientX: x, clientY: 5 });
+      Object.defineProperties(e, { clientX: { value: x }, clientY: { value: 5 }, buttons: { value: 0 } });
+      svg.dispatchEvent(e);
+      scheduled?.(performance.now() + 50);
+    };
+    try {
+      const player = createPlayer(engine, svg, rect(0), { pointer: () => visible, onFrame: ({ pointer }) => frames.push(pointer?.posX) });
+      scheduled!(performance.now());
+      expect(frames.at(-1)).toBeUndefined();            // panel hidden: no pointer in the frame
+      const before = frames.length;
+      move(30);
+      expect(frames.length).toBe(before);                // and no repaint for a pointer nobody reads
+      visible = true;
+      move(40);
+      expect(frames.at(-1)).toBe(40);                    // panel visible: the live pointer comes with the frame
+      player.stop();
+    } finally { vi.unstubAllGlobals(); }
+  });
 });

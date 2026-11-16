@@ -9,6 +9,9 @@ import { applyWeighted, keyFor } from './weighted';
  * - in: elements start with the nested effects applied and end at their place (entrances);
  * - out: they start at their place and end with the effects (exits).
  * Stagger: 0, all at once; 1, one after another without overlapping.
+ * Jitter: each element's turn is pushed later by a random amount up to that many positions, so a row keeps its order
+ * on the whole but neighbours may swap (the second can move before the first). The total length leaves room for the
+ * largest push, so it does not depend on the draw.
  */
 export const stagger = defineModifier({
   type: 'stagger',
@@ -19,6 +22,7 @@ export const stagger = defineModifier({
     direction: { type: 'enum', default: 'in', options: ['in', 'out'] as const, animatable: false },
     stagger: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Stagger', ramp: false },
     ease: { type: 'enum', default: 'ease-out', options: EASES.filter((e) => e !== 'hold'), animatable: false },
+    jitter: { type: 'number', default: 0, min: 0, max: 64, step: 0.1, label: 'Jitter', ramp: false },
     order: { type: 'enum', default: 'forward', options: ['forward', 'reverse', 'center', 'edges', 'random'] as const, animatable: false },
     unit: { type: 'enum', default: 'elements', options: ['elements', 'words', 'lines'] as const, animatable: false },
     seed: { type: 'seed', default: 1 },
@@ -45,7 +49,11 @@ export const stagger = defineModifier({
         turn.set(k, t);
       });
     }
-    const last = Math.max(...turn.values()) || 1;
+    // Jitter pushes turns later by up to `jitter` positions; the length below is sized for the largest push.
+    const jitter = Math.max(0, Number.isFinite(p.jitter) ? p.jitter : 0);
+    const ranks = Math.max(...turn.values());
+    if (jitter > 0) { const jr = rng(p.seed * 7919 + 13); for (const k of keys) turn.set(k, turn.get(k)! + jr() * jitter); }
+    const last = (ranks + jitter) || 1;
     // Each element lasts L; the next starts `stagger` × L later (no overlap with stagger 1).
     const s = Math.max(0, Math.min(1, p.stagger));
     const L = 1 / (1 + last * s);

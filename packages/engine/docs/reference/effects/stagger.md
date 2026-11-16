@@ -14,6 +14,7 @@ Takes nested effects (`children`): each element goes from them to its rest (in) 
 | `direction` | enum | `"in"` | `in`, `out` | not animatable |
 | `stagger` | number | `0.5` | min 0, max 1, step 0.01 |  |
 | `ease` | enum | `"ease-out"` | `linear`, `ease-in`, `ease-out`, `ease-in-out`, `expo-in`, `expo-out`, `back-in`, `back-out`, `elastic-in`, `elastic-out`, `bounce-in`, `bounce-out` | not animatable |
+| `jitter` | number | `0` | min 0, max 64, step 0.1 |  |
 | `order` | enum | `"forward"` | `forward`, `reverse`, `center`, `edges`, `random` | not animatable |
 | `unit` | enum | `"elements"` | `elements`, `words`, `lines` | not animatable |
 | `seed` | seed | `1` | integer |  |
@@ -33,6 +34,7 @@ Inside a node's `stack` (effects run top to bottom):
     "direction": "in",
     "stagger": 0.5,
     "ease": "ease-out",
+    "jitter": 0,
     "order": "forward",
     "unit": "elements",
     "seed": 1

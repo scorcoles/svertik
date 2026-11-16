@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateExpression, evaluateSceneExpressions, evaluateSceneVariables, validateExpression, type SceneV1 } from '../src';
+import { POINTER_FIELDS, describeSceneVariables, evaluateExpression, evaluateSceneExpressions, evaluateSceneVariables, validateExpression, type SceneV1 } from '../src';
 
 const base = { time: 0, frame: 0, fps: 30, duration: 10, progress: 0, seedGenerator: 1, custom: {} };
 const shape = (document: SceneV1['document'], extra: Record<string, unknown> = {}): SceneV1 => ({
@@ -27,5 +27,19 @@ describe('scene.width / scene.height', () => {
     const parent: SceneV1 = { version: 1, document: { width: 900, height: 1400 }, objects: [{ kind: 'group', id: 'c', name: 'C', stack: [], children: [], composition: { scene: child } }] };
     expect(evaluateSceneVariables(parent, 0)).toMatchObject({ width: 900 });
     expect(evaluateSceneVariables(child, 0)).toMatchObject({ width: 300 });
+  });
+
+  it('describeSceneVariables lists every variable a formula can read (so a debug panel cannot miss one)', () => {
+    const scene = shape({ width: 900, height: 1400 });
+    const all = describeSceneVariables(evaluateSceneVariables(scene, 2.5));
+    const names = Object.keys(all);
+    // Everything the parser accepts must be listed: probe each name through validateExpression.
+    for (const name of names) expect(validateExpression(`scene.${name}`), `scene.${name}`).toBeNull();
+    for (const f of POINTER_FIELDS) expect(names, `scene.mouse.${f}`).toContain(`mouse.${f}`);
+    for (const f of ['time', 'frame', 'fps', 'duration', 'progress', 'cycle', 'seedGenerator', 'width', 'height']) expect(names).toContain(f);
+    expect(all).toMatchObject({ time: 2.5, width: 900, height: 1400, fps: 30 });
+    expect(describeSceneVariables(evaluateSceneVariables(scene, 0), { posX: 12, down: 1 })).toMatchObject({ 'mouse.posX': 12, 'mouse.down': 1, 'mouse.inside': 0 });
+    // Anything an expression can say about the scene, the list knows about: a name the parser rejects is not in it.
+    expect(validateExpression('scene.nonsense')).not.toBeNull();
   });
 });
