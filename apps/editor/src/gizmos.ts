@@ -354,6 +354,30 @@ Object.assign(builders, {
     };
   },
 
+  gather(p: Params, b: Bounds): Gizmo {
+    // The fan of guide lines the drawing follows (as a row of bars would), and one handle per edge on the
+    // middle line: drag it along its edge to squeeze towards that side (the middle line lands at ½ − bias/4).
+    const alongX = p.axis !== 'y';
+    const start = clamp(Number(p.start) || 0, -0.99, 0.99), end = clamp(Number(p.end) || 0, -0.99, 0.99);
+    const squeeze = (t: number, bias: number) => t - bias * t * (1 - t);
+    const pt = (t: number, s: number): Vec2 => (alongX ? [b.x + t * b.width, b.y + s * b.height] : [b.x + s * b.width, b.y + t * b.height]);
+    const guide = (t: number) => ({ pts: [pt(squeeze(t, start), 0), pt(squeeze(t, end), 1)], dashed: t !== 0.5 });
+    const across = alongX ? b.width : b.height;
+    const handle = (key: 'start' | 'end', s: 0 | 1): GizmoHandle => ({
+      at: pt(squeeze(0.5, key === 'start' ? start : end), s),
+      label: key === 'start' ? 'Start' : 'End',
+      drag: (p0, from, to, snap) => {
+        const d = (alongX ? to[0] - from[0] : to[1] - from[1]) / (across || 1);
+        const v = clamp((Number(p0[key]) || 0) - 4 * d, -0.99, 0.99);
+        return { [key]: snap ? Math.round(v * 20) / 20 : round(v, 100) };
+      },
+    });
+    return {
+      lines: [boxLine(b), ...[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875].map(guide)],
+      handles: [handle('start', 0), handle('end', 1)],
+    };
+  },
+
   shear(p: Params, b: Bounds): Gizmo {
     const [cx, cy] = center(b);
     const tx = Math.tan(rad(clamp(Number(p.x) || 0, -85, 85)));

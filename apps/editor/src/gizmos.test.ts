@@ -57,3 +57,14 @@ it('Clone radial muestra cada anillo y permite arrastrar su separación', () => 
   expect(g.handles.find((h) => h.label === 'Ring spacing')!.drag({}, [100, 350], [100, 450], false)).toEqual({ ringSpacing: 1 });
   expect(gizmoFor('clone', { mode: 'radial', radius: 1 }, box)!.handles).toHaveLength(1);
 });
+
+it('gather: a handle per edge on the middle line; dragging it along the edge sets that end', () => {
+  const g = gizmoFor('gather', { axis: 'x', start: 0.4, end: -0.4 }, box)!;
+  const [start, end] = g.handles;
+  // Middle line: x = ½ − bias/4 of the width, at the top (start) and the bottom (end).
+  expect(start!.at).toEqual([80, 0]);
+  expect(end!.at).toEqual([120, 100]);
+  // 10 px right on a 200 px box = 0.05 of the width → bias falls by 0.2.
+  expect(start!.drag({ start: 0.4 }, [80, 0], [90, 0], false)).toEqual({ start: 0.2 });
+  expect(gizmoFor('gather', { axis: 'y', start: 0.4, end: 0 }, box)!.handles[0]!.at).toEqual([0, 40]);
+});

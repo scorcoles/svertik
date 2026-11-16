@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
@@ -373,10 +373,43 @@
       e.preventDefault();
       if (!e.repeat) { space = true; spacePanned = false; }
     }
+    else if (ARROWS[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey && (e.target === document.body || e.target === stage)) arrowKey(e, ARROWS[e.key]!);
     else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
     else if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); view = actualSize(view, fit, box[0], box[1]); }
     // Intro, con un texto seleccionado: escribir en él.
     else if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && isText(editor.currentNode)) { e.preventDefault(); editor.editingText = editor.currentNode!.id; }
+  }
+  const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  /**
+   * Arrow keys: adjust the handle dragged last (1 screen px, 10 with Shift), or else move the selected
+   * objects (1 document px, 10 with Shift). Repeated presses join one undo step (history is debounced).
+   */
+  function arrowKey(e: KeyboardEvent, [dx, dy]: [number, number]) {
+    const step = e.shiftKey ? 10 : 1;
+    const m = editor.current;
+    const target = arrowTarget && m && arrowTarget.effect === m.id ? arrowTarget : null;
+    if (target?.point) {
+      const h = handles.find((x) => x.name === target.point);
+      if (h) { e.preventDefault(); nudgePoint(h, dx * step, dy * step); return; }
+    }
+    if (target?.gizmo && gizmoScreen && stage) {
+      const h = gizmoScreen.handles.find((x) => x.label === target.gizmo);
+      const r = stage.getBoundingClientRect();
+      const from = h && toLocalNode(r.left + h.x, r.top + h.y);
+      const to = h && toLocalNode(r.left + h.x + dx * step, r.top + h.y + dy * step);
+      if (h && from && to) {
+        e.preventDefault();
+        for (const [k, v] of Object.entries(h.drag(liveParams(m!), from, to, false))) editor.setParam(k, v);
+        return;
+      }
+    }
+    const nodes = editor.selectedNodes.filter((n) => !editor.isLocked(n.id));
+    if (!nodes.length) return;
+    e.preventDefault();
+    for (const n of nodes) {
+      if (dx) editor.setNode(n.id, 'x', (n.transform?.x ?? 0) + dx * step);
+      if (dy) editor.setNode(n.id, 'y', (n.transform?.y ?? 0) + dy * step);
+    }
   }
   const isText = (n: SceneNode | null | undefined): n is SceneNode & { kind: 'shape' } => n?.kind === 'shape' && n.shape === 'text';
   /** Doble clic en un texto: escribir en él, sobre el lienzo. */
@@ -418,6 +451,11 @@
   interface Handle { name: string; label: string; x: number; y: number }
   let hover = $state<string | null>(null);
   let grabbing = $state<string | null>(null);
+  /**
+   * The handle the arrow keys adjust: the last one dragged (a point handle by param name, or an actuator
+   * handle by label), while the same effect stays selected. Without one, arrows move the selection.
+   */
+  let arrowTarget = $state<{ effect: string; point?: string; gizmo?: string } | null>(null);
 
   const handleParams = $derived.by(() => {
     const m = editor.current;
@@ -1112,13 +1150,32 @@
 
   // ── Actuadores del efecto seleccionado: su wire y sus tiradores (ver gizmos.ts)
 
+  /**
+   * The effect's params as the actuator should draw them: formulas resolved at the playhead, so a handle
+   * sits where the drawing is. (Dragging still writes a plain number, replacing the formula.)
+   */
+  function liveParams(m: { id: string; params?: Record<string, unknown> }): Record<string, unknown> {
+    const raw = $state.snapshot(m.params ?? {}) as Record<string, unknown>;
+    const formula = (v: unknown) => isNumericExpression(v) || (Array.isArray(v) && v.some(isNumericExpression));
+    if (!editor.scene || !Object.values(raw).some(formula)) return raw;
+    const resolved = evaluateSceneExpressions(sampleScene($state.snapshot(editor.scene) as SceneV1, editor.time));
+    type Item = { id: string; params?: Record<string, unknown>; children?: Item[] };
+    const inStack = (items: Item[] | undefined): Item | undefined => {
+      for (const it of items ?? []) { if (it.id === m.id) return it; const hit = inStack(it.children); if (hit) return hit; }
+    };
+    const inNodes = (nodes: SceneNode[]): Item | undefined => {
+      for (const n of nodes) { const hit = inStack(n.stack as Item[] | undefined) ?? inNodes(n.children ?? []); if (hit) return hit; }
+    };
+    return inNodes(resolved.objects)?.params ?? raw;
+  }
+
   const gizmo = $derived.by(() => {
     const m = editor.current;
     const info = ownerInfo();
     // Dentro de Step cada copia usa su propio centro; el actuador se dibuja sobre el objeto entero
     // y sirve igual para cambiar los valores (los de la primera copia; las demás los multiplican).
     if (!m || !info || cornerTypes.has(m.type)) return null;
-    return gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, refBox(info));
+    return gizmoFor(m.type, liveParams(m), refBox(info));
   });
   /** El actuador en el recuadro de la esquina (Rotate 3D), en sus propios píxeles. */
   const cornerGizmo = $derived.by(() => {
@@ -1180,7 +1237,9 @@
     const el = e.currentTarget as Element;
     el.setPointerCapture(e.pointerId);
     const from = toLocal(e.clientX, e.clientY);
-    const p0 = $state.snapshot(m.params ?? {}) as Record<string, unknown>;
+    if (toLocal === toLocalNode) arrowTarget = { effect: m.id, gizmo: label };
+    // Start from the values as drawn (formulas resolved), so a handle never jumps on the first move.
+    const p0 = liveParams(m);
     const r = stage!.getBoundingClientRect();
     gizmoActive = true;
     const move = (ev: PointerEvent) => {
@@ -1214,6 +1273,7 @@
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     grabbing = h.name;
+    if (editor.current) arrowTarget = { effect: editor.current.id, point: h.name };
     const v0 = $state.snapshot(editor.current?.params?.[h.name]) as [number, number] | undefined;
     const move = (ev: PointerEvent) => {
       const f = toFraction(ev.clientX, ev.clientY);
@@ -1230,14 +1290,24 @@
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
   function nudgeHandle(e: KeyboardEvent, h: Handle) {
-    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-    const v = editor.current?.params?.[h.name] as [number, number] | undefined;
-    if (!d || !v) return;
+    const d = ARROWS[e.key];
+    if (!d || e.metaKey || e.ctrlKey || e.altKey) return;
     e.preventDefault();
     e.stopPropagation();
-    const k = e.shiftKey ? 0.1 : 0.01;
-    const r = (n: number) => Math.round(n * 1000) / 1000;
-    editor.setParam(h.name, [r(v[0] + d[0]! * k), r(v[1] + d[1]! * k)]);
+    if (editor.current) arrowTarget = { effect: editor.current.id, point: h.name };
+    const step = e.shiftKey ? 10 : 1;
+    nudgePoint(h, d[0] * step, d[1] * step);
+  }
+  /** Moves a point handle by (dx, dy) screen pixels, as dragging it would. */
+  function nudgePoint(h: Handle, dx: number, dy: number) {
+    const v = (liveParams(editor.current!)[h.name] ?? registry.get(editor.current!.type)?.params?.[h.name]?.default) as [number, number] | undefined;
+    if (!v || !stage) return;
+    const r = stage.getBoundingClientRect();
+    // The change in fraction that the same move would make when dragging (any offset cancels out).
+    const a = toFraction(r.left + h.x, r.top + h.y), b = toFraction(r.left + h.x + dx, r.top + h.y + dy);
+    if (!a || !b) return;
+    const q = (n: number) => Math.round(n * 1000) / 1000;
+    editor.setParam(h.name, [q(v[0] + b[0] - a[0]), q(v[1] + b[1] - a[1])]);
   }
 
   function drop(e: DragEvent) {
@@ -1446,8 +1516,14 @@
             style:left="{h.x}px"
             style:top="{h.y}px"
             title={h.label}
-            aria-label={h.label}
+            aria-label={`${h.label} (arrow keys nudge)`}
             onpointerdown={(e) => dragGizmo(e, h.drag, h.label)}
+            onkeydown={(e) => {
+              if (!ARROWS[e.key] || e.metaKey || e.ctrlKey || e.altKey || !editor.current) return;
+              e.stopPropagation();
+              arrowTarget = { effect: editor.current.id, gizmo: h.label };
+              arrowKey(e, ARROWS[e.key]!);
+            }}
             onpointerenter={() => (gizmoHover = true)}
             onpointerleave={() => (gizmoHover = false)}
           ></button>

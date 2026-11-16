@@ -27,6 +27,7 @@
         ['⌘G  /  ⇧⌘G', 'Group / ungroup'],
         ['Delete', 'Remove'],
         ['R', 'Randomize the selected effect'],
+        ['←↑→↓  ⇧', 'Nudge the selection 1 px (10 with ⇧), or the handle dragged last'],
       ],
     },
     {
