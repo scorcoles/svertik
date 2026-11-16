@@ -9,6 +9,7 @@ Text turned into outlines, one piece per letter (so Step, Stagger and Range can 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
 | `text` | text | `"svertik"` |  |  |
+| `updateRate` | number | `12` | min 1, max 60, step 1 | unit: Hz; not animatable; label: Update rate |
 | `font` | font | `"JetBrains Mono"` |  |  |
 | `weight` | number | `400` | min 100, max 900, step 100 | not animatable |
 | `italic` | boolean | `false` |  | not animatable |
@@ -20,10 +21,10 @@ Text turned into outlines, one piece per letter (so Step, Stagger and Range can 
 | `fill` | boolean | `true` |  | not animatable; group: Style |
 | `fillColor` | color | `"#d9d9d9"` | #rrggbb | group: Style; label: Fill color |
 | `stroke` | boolean | `false` |  | not animatable; group: Style |
-| `strokeColor` | color | `"#ededed"` | #rrggbb | group: Style; label: Stroke color |
-| `strokeWidth` | number | `2` | min 0, max 40, step 0.5 | unit: px; group: Style; label: Stroke width |
-| `strokeJoin` | enum | `"round"` | `miter`, `round`, `bevel` | not animatable; group: Style; label: Join |
-| `strokeCap` | enum | `"round"` | `butt`, `round`, `square` | not animatable; group: Style; label: Cap |
+| `strokeColor` | color | `"#ededed"` | #rrggbb | only when `stroke` is `true`; group: Style; label: Stroke color |
+| `strokeWidth` | number | `2` | min 0, max 40, step 0.5 | unit: px; only when `stroke` is `true`; group: Style; label: Stroke width |
+| `strokeJoin` | enum | `"round"` | `miter`, `round`, `bevel` | not animatable; only when `stroke` is `true`; group: Style; label: Join |
+| `strokeCap` | enum | `"round"` | `butt`, `round`, `square` | not animatable; only when `stroke` is `true`; group: Style; label: Cap |
 | `dash` | number | `0` | min 0, max 400, step 0.5 | unit: px; only when `stroke` is `true`; group: Style |
 | `gap` | number | `0` | min 0, max 400, step 0.5 | unit: px; only when `stroke` is `true`; group: Style |
 | `dashOffset` | number | `0` | min -10000, max 10000, step 1 | unit: px; only when `stroke` is `true`; group: Style; label: Dash offset |
@@ -41,6 +42,7 @@ Parameters can be animated with a track `{ on: "shape", param: "<name>" }`.
   "shape": "text",
   "params": {
     "text": "svertik",
+    "updateRate": 12,
     "font": "JetBrains Mono",
     "weight": 400,
     "italic": false,
