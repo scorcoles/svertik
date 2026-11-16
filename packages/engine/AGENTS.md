@@ -152,6 +152,9 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
   of the document, Rectangle radii of half the shorter side). A plain number is px. See the reference.
 - **Order matters**: the stack runs top to bottom. Filters (Shadow, Blur, Glow, Grain, Displace, Bevel,
   Thicken, Tone) and Mask always apply after the whole stack, whatever their position.
+- **Effect responsibility**: keep each effect focused on one job and compose effects through the stack.
+  Clone generates and places copies; Color assigns their colours. Avoid adding another effect's
+  responsibility to an effect for a single use case.
 - **Ids** must be unique across nodes and across effects (tracks and interactions refer to them).
 - **Colours** are `#rrggbb` strings.
 - **Fonts of a text**: `font` is the family alone (a Fontsource one, e.g. `JetBrains Mono`) and `weight`

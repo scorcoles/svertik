@@ -434,7 +434,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `target` (node): Guide node for `"object"` mode.
     - `placement` (`"outline" | "vertices" | "inside"`, def `"outline"`)
     - `seed` (seed, def 1)
-    - **Variation** (every mode; fixed random values from `variationSeed`, neutral by default): `jitter` (`[x, y]`, fraction of the *source drawing's* box, so a perfectly horizontal line has no height to jitter or space by), `scaleMin`/`scaleMax` (per-copy scale range, def 1), `rotateJitter` (± degrees), `randomColor` + `colors` (a palette; each copy repaints its painted fill/stroke with one entry, gradients are left alone), `variationSeed`. Five numbers are drawn per copy in a fixed order, so changing one control does not reshuffle the others. A jittered Grid of one bent line under Rope replaces dozens of hand-placed objects.
+    - **Variation** (every mode; fixed random values from `variationSeed`, neutral by default): `jitter` (`[x, y]`, fraction of the *source drawing's* box, so a perfectly horizontal line has no height to jitter or space by), `scaleMin`/`scaleMax` (per-copy scale range, def 1), `rotateJitter` (± degrees), `variationSeed`. Four numbers are drawn per copy in a fixed order, so changing one control does not reshuffle the others. To give copies random colours from a palette, add a Color effect after Clone. A jittered Grid of one bent line under Rope replaces dozens of hand-placed objects.
 
 28. **`mirror`**: Reflects geometry across an axis.
     - `axis` (`"horizontal" | "vertical" | "angle"`, def `"horizontal"`)

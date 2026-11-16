@@ -80,7 +80,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 
 | Effect | Type | What it does |
 | --- | --- | --- |
-| [Color](effects/color.md) | `color` | Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact color from an editable list (one choice per Mouse Instance input event). |
+| [Color](effects/color.md) | `color` | Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact colour from an editable list for each element, including each Clone copy. |
 | [Tint](effects/tint.md) | `tint` | Pushes the colour towards a target colour. |
 | [Paint](effects/paint.md) | `paint` | Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order. |
 | [Gradient](effects/gradient.md) | `gradient` | A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). |

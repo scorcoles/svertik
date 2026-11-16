@@ -34,17 +34,24 @@ export const color = defineModifier({
     const n = keys.length;
     const props = p.target === 'both' ? ['fill', 'stroke'] : [p.target];
     const palette = (Array.isArray(p.palette) ? p.palette : []).map(c => typeof c === 'string' ? parseColor(c) : null).filter(c => c !== null);
-    const paletteIndex = p.paletteMode === 'index' ? (Number.isFinite(p.index) ? Math.floor(p.index) : 0) : Math.floor(rng(p.seed)() * palette.length);
-    const paletteColor = palette.length ? toHex(palette[((paletteIndex % palette.length) + palette.length) % palette.length]!) : undefined;
+    const paletteIndex = Number.isFinite(p.index) ? Math.floor(p.index) : 0;
+    const paletteColor = (key: number, emission?: number) => {
+      if (!palette.length) return undefined;
+      if (p.paletteMode === 'index') return toHex(palette[((paletteIndex % palette.length) + palette.length) % palette.length]!);
+      // Mouse copies from one input event share a palette choice; ordinary elements (including
+      // Clone copies) each get their own stable choice from the effect seed and element key.
+      const seed = emission !== undefined
+        ? (p.seed >>> 0) ^ Math.imul(emission, 0x9e3779b9)
+        : p.seed * 7919 + key;
+      return toHex(palette[Math.floor(rng(seed)() * palette.length)]!);
+    };
     const assigned = typeof p.color === 'string' ? parseColor(p.color) : null;
     const from = parseColor(p.from) ?? [0, 0, 0, 1];
     const to = parseColor(p.to) ?? [255, 255, 255, 1];
 
     const recolor = (value: string | undefined, prop: string, i: number, key: number, emission?: number): string | undefined => {
       if (p.mode === 'palette') {
-        const pick = emission !== undefined && p.paletteMode !== 'index' && palette.length
-          ? toHex(palette[Math.floor(rng((p.seed >>> 0) ^ Math.imul(emission, 0x9e3779b9))() * palette.length)]!)
-          : paletteColor;
+        const pick = paletteColor(key, emission);
         return value === 'none' || value === 'transparent' || !pick ? value : pick;
       }
       if (p.mode === 'solid') return value === 'none' || !assigned ? value : toHex(assigned);

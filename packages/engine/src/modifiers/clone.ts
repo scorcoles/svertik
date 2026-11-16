@@ -1,4 +1,4 @@
-import { bounds, flatten, insidePolygons, mapPoints, type Geometry, type Shape, type Style, type Vec2 } from '../geometry';
+import { bounds, flatten, insidePolygons, mapPoints, type Geometry, type Shape, type Vec2 } from '../geometry';
 import { pointAt, polylines } from '../paths';
 import { rng } from '../random';
 import { defineModifier, deg } from '../modifier';
@@ -45,8 +45,6 @@ export const clone = defineModifier({
     scaleMin: { type: 'number', default: 1, min: 0.05, max: 4, step: 0.01, group: 'Variation', label: 'Scale min', ramp: false, neutral: 1, random: [0.5, 1] },
     scaleMax: { type: 'number', default: 1, min: 0.05, max: 4, step: 0.01, group: 'Variation', label: 'Scale max', ramp: false, neutral: 1, random: [1, 1.8] },
     rotateJitter: { type: 'angle', default: 0, group: 'Variation', label: 'Rotation jitter', ramp: false, random: false },
-    randomColor: { type: 'boolean', default: false, group: 'Variation', label: 'Random colour', animatable: false },
-    colors: { type: 'palette', default: ['#26262a', '#d8344f', '#4458d8', '#f0b82e', '#e0608e'], group: 'Variation', label: 'Colours', animatable: false, showIf: { randomColor: ['true'] } },
     variationSeed: { type: 'seed', default: 1, group: 'Variation', label: 'Variation seed' },
   },
   apply(geo, p, ctx) {
@@ -170,20 +168,17 @@ export const clone = defineModifier({
       }
     }
 
-    // Variation: five numbers per copy in a fixed order, so toggling one control does not reshuffle the others.
+    // Variation: four numbers per copy in a fixed order, so toggling one control does not reshuffle the others.
     const vary = rng(p.variationSeed);
     const lo = Math.min(p.scaleMin, p.scaleMax), hi = Math.max(p.scaleMin, p.scaleMax);
-    const palette = p.randomColor ? p.colors.filter((c) => /^#[0-9a-f]{6}$/i.test(c)) : [];
-    const colorOf: (string | undefined)[] = [];
     for (const k of copies) {
-      const [jx, jy, s, r, c] = [vary(), vary(), vary(), vary(), vary()];
+      const [jx, jy, s, r] = [vary(), vary(), vary(), vary()];
       k.dx += (jx * 2 - 1) * p.jitter[0] * W;
       k.dy += (jy * 2 - 1) * p.jitter[1] * H;
       const f = lo + (hi - lo) * s;
       k.scale *= f;
       if (k.sy !== undefined) k.sy *= f;
       k.rot += (r * 2 - 1) * deg(p.rotateJitter);
-      colorOf.push(palette.length ? palette[Math.min(palette.length - 1, Math.floor(c * palette.length))] : undefined);
     }
 
     const shapes: Shape[] = [];
@@ -196,24 +191,13 @@ export const clone = defineModifier({
         const uy = (y - cy) * sy;
         return [cx + ux * c - uy * s + k.dx, cy + ux * s + uy * c + k.dy];
       });
-      const color = colorOf[index];
-      shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index, ...(color ? { style: recolor(s.style, color) } : {}) })));
+      shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index })));
     }
 
     const out: Geometry = { viewBox: geo.viewBox, shapes };
     return { ...out, viewBox: fitViewBox(geo.viewBox, bounds(out)) };
   },
 });
-
-/** The same style with its painted fill and stroke (not `none`, not a gradient) in `color`. */
-function recolor(style: Style, color: string): Style {
-  const out = { ...style };
-  for (const key of ['fill', 'stroke'] as const) {
-    const v = out[key];
-    if (v && v !== 'none' && !v.startsWith('url(')) out[key] = color;
-  }
-  return out;
-}
 
 /** A copy: its offset, rotation and scale around the drawing's centre (`sy`: a different vertical scale; `cells`: grid cells it covers). */
 interface Copy { dx: number; dy: number; rot: number; scale: number; sy?: number; cells?: number }

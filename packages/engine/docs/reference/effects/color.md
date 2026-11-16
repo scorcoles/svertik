@@ -2,7 +2,7 @@
 
 `type: "color"` · Style: changes colours or paint, not the geometry. · Editor menu: **Style**.
 
-Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact color from an editable list (one choice per Mouse Instance input event).
+Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact colour from an editable list for each element, including each Clone copy. Copies emitted by one Mouse Instance input event share a palette choice.
 
 ## Parameters
 

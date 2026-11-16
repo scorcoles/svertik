@@ -8,7 +8,7 @@ const heights = (shapes: ReturnType<typeof run>) => shapes.map((s) => { const sp
 
 describe('clone variation', () => {
   it('changes nothing with its defaults', () => {
-    expect(run({})).toEqual(run({ jitter: [0, 0], scaleMin: 1, scaleMax: 1, rotateJitter: 0, randomColor: false }));
+    expect(run({})).toEqual(run({ jitter: [0, 0], scaleMin: 1, scaleMax: 1, rotateJitter: 0 }));
   });
 
   it('scales each copy inside the range, reproducibly', () => {
@@ -25,9 +25,16 @@ describe('clone variation', () => {
     expect(moved.some((s, i) => s.subpaths[0]!.start[0] !== plain[i]!.subpaths[0]!.start[0])).toBe(true);
   });
 
-  it('gives each copy a colour from the palette', () => {
-    const colours = run({ randomColor: true, colors: ['#ff0000', '#00ff00'] }).map((s) => s.style.stroke);
+  it('lets the Color effect assign a seeded palette colour to each copy', () => {
+    const engine = createEngine(builtins);
+    const render = () => engine.evaluateStack({ source: line, stack: [
+      { id: 'c', type: 'clone', params: { mode: 'grid', columns: 6, rows: 2 } },
+      { id: 'color', type: 'color', params: { mode: 'palette', palette: ['#ff0000', '#00ff00'], seed: 1, target: 'stroke' } },
+    ] } as StackInput).shapes;
+    const shapes = render();
+    const colours = shapes.map((s) => s.style.stroke);
     expect(colours.every((c) => c === '#ff0000' || c === '#00ff00')).toBe(true);
     expect(new Set(colours).size).toBe(2);
+    expect(render().map(s => s.style.stroke)).toEqual(colours);
   });
 });
