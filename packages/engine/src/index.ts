@@ -3,6 +3,7 @@ export * from './paths';
 export { importSVG, parsePathData } from './import';
 export { toSVG, toPathData, renderInto, gradientDefs, type ToSVGOptions } from './render';
 export * from './modifier';
+export * from './units';
 export { createEngine, type Engine, type StackInput, type ModifierInstance } from './engine';
 export * from './document';
 export { outlineNode, packNode, unpackNode } from './pack';

@@ -148,6 +148,8 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 - **Fractions**: `point` params with unit `fraction` (centres, pivots, anchors) and `fraction` numbers
   (radii) are relative to the box the effect measures: the object's drawing, or what an earlier Clone,
   Mirror… produced. `[0.5, 0.5]` is the centre.
+- **Percentages**: some px params also take text like `"50%"` (Rectangle/Ellipse `width` and `height`
+  of the document, Rectangle radii of half the shorter side). A plain number is px. See the reference.
 - **Order matters**: the stack runs top to bottom. Filters (Shadow, Blur, Glow, Grain, Displace, Bevel,
   Thicken, Tone) and Mask always apply after the whole stack, whatever their position.
 - **Ids** must be unique across nodes and across effects (tracks and interactions refer to them).

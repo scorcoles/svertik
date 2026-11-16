@@ -1,3 +1,4 @@
+import { parsePercent } from './units';
 import { signalSchemas } from './modifiers/signal-schemas';
 import { compositionParams } from './composition';
 // Scene validation: what comes from a file, the code panel or a link.
@@ -45,7 +46,11 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
     for (const [k, v] of Object.entries(params ?? {})) {
       const spec = schema[k];
       if (!spec) warnings.push(`${where}: unknown parameter "${k}"`);
-      else if (spec.type === 'node' && typeof v === 'string' && v) nodeRefs.push({ from: where, param: k, id: v });
+      else if (spec.type === 'number' && typeof v === 'string') {
+        // Text in a number: only a percentage, and only where the parameter accepts one.
+        if (parsePercent(v) === null) warnings.push(`${where}: "${k}" must be a number or a percentage like "50%", not "${v}"`);
+        else if (!spec.percentOf) warnings.push(`${where}: "${k}" does not accept percentages ("${v}")`);
+      } else if (spec.type === 'node' && typeof v === 'string' && v) nodeRefs.push({ from: where, param: k, id: v });
       else if (spec.type === 'nodes') {
         if (!Array.isArray(v) || v.some((id) => typeof id !== 'string')) errors.push(`${where}: "${k}" must be an array of node ids`);
         else for (const id of v) if (id) nodeRefs.push({ from: where, param: k, id });

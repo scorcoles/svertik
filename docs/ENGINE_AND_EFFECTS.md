@@ -196,6 +196,8 @@ The **Effector** modifiers (`step`, `stagger`, `range`, `field`, `explosion`, `c
 
 ## 6. Geometric Primitives (`shapes`)
 
+**Percent sizes.** Rectangle and Ellipse `width`/`height`, and Rectangle `radius` and its four corner radii, accept a percentage written as text, like CSS: `"width": "50%"`. A plain number is still px. Width is a percentage of the document width, height of the document height (1000 px when the scene has no fixed document), and a corner radius of half the shorter side (`"100%"` makes a pill or a circle). Percentages resolve to px before the shape is built, so effects see plain numbers. Two percentage keyframes interpolate as percentages; a px key next to a % key jumps. `validateScene` warns on a percentage where it is not accepted or on text that is not one. In the editor, click a field's unit (`px` / `%`) to switch: the value is converted, so the drawing stays the same.
+
 All shapes share a standard styling block:
 - `fill` (`boolean`, default `true`): Enable shape fill.
 - `fillColor` (`color`, default `"#d9d9d9"`): `#rrggbb` hex colour.
@@ -711,7 +713,7 @@ For a regular pattern, create a small Cross, apply **Clone → Grid**, then **Ma
 
 Clone Grid sliders support up to **64 columns × 64 rows**, with a quadratic slider curve for finer control at small counts. Columns and Rows can be linked to change proportionally. Count is hidden in Grid: the total is Columns × Rows.
 
-Grid can optionally pack large 2×2 copies. Set **Pack large copies** to `2x2`, then set **Big / normal** to the desired share of large tiles and choose a seed. The generator reserves each large copy's four cells before placing the remaining normal copies, so the generated grid copies do not overlap. Spacing is at least one source width/height while packing is enabled. Each copy stays a separate element and can be varied with Range, Step or other effectors.
+Grid can optionally pack large 2×2 copies. Set **Pack large copies** to `2x2`, then set **Big / normal**, **Gap** in pixels, and the seed. A large copy is exactly twice the source width and height. The generator reserves its four cells before placing normal copies, so the grid copies do not overlap. Each copy stays a separate element and can be varied with Range, Step or other effectors.
 
 
 ### Clone: concentric radial rings

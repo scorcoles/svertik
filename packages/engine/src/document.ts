@@ -1,6 +1,7 @@
 // Scene: several objects and groups, each with its own effect stack and placement.
 
 import { bounds, centroid, mapPoints, type Bounds, type FilterDef, type Geometry, type Shape, type Vec2 } from './geometry';
+import { hasPercent } from './units';
 import { importSVG } from './importer';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape, shapeRegistry } from './shapes';
@@ -374,7 +375,7 @@ export function createDocumentEvaluator(
           const key =
             node.kind === 'instance'
               ? JSON.stringify([resolution, stack]) + '\n' + instSrc!.key + childKey
-              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) + childKey : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]) + childKey;
+              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) + childKey : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, hasPercent(node.params) ? [scene.document?.width, scene.document?.height] : 0]) + childKey;
           let entry = cache.get(node.id);
           // One that uses another object is valid if what it sees of it hasn't changed.
           // A trail depends on the time: it is not cached.
@@ -384,10 +385,12 @@ export function createDocumentEvaluator(
             for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
           }
           if (!entry || !fresh) {
-            const sk = node.kind === 'instance' ? instSrc!.key : node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0]);
+            // A shape sized in percentages depends on the document: its size is part of the key.
+            const unitDoc = node.kind === 'shape' && hasPercent(node.params) ? (scene.document ?? null) : null;
+            const sk = node.kind === 'instance' ? instSrc!.key : node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, unitDoc && [unitDoc.width, unitDoc.height]]);
             let src = sources.get(node.id);
             if (!src || src.key !== sk) {
-              src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params) };
+              src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params, { document: scene.document }) };
               sources.set(node.id, src);
             }
             const source = src.geo;

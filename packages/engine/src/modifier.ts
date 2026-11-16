@@ -31,10 +31,20 @@ interface ParamBase {
   randomRelative?: boolean;
   /** Only shown (and only counts) when another parameter has one of these values: `{ tile: ['polygon'] }`. */
   showIf?: Record<string, readonly string[]>;
+  /**
+   * A boolean that links one value to several (Rectangle: `radius` ↔ its four corners). Editors draw it as a
+   * link button beside the values instead of a checkbox: linked shows `one`; unlinked shows `each`, two per row.
+   * `prefixes` are short names for `each` inside their fields (TL, TR…).
+   */
+  links?: { one: string; each: readonly string[]; prefixes?: readonly string[] };
 }
 
 export type ParamSpec =
-  | (ParamBase & { type: 'number'; default: number; min?: number; max?: number; step?: number; unit?: string })
+  | (ParamBase & {
+      type: 'number'; default: number; min?: number; max?: number; step?: number; unit?: string;
+      /** Also accepts a percentage, stored as text ("50%"); `percentOf` says what 100% is (see units.ts). */
+      percentOf?: import('./units').PercentOf;
+    })
   | (ParamBase & { type: 'angle'; default: number })
   | (ParamBase & { type: 'point'; default: [number, number]; unit?: 'fraction' | 'px'; step?: number; min?: number })
   | (ParamBase & { type: 'seed'; default: number })

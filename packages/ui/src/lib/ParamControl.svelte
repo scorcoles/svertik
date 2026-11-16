@@ -1,6 +1,6 @@
 <script lang="ts">
   // Un parámetro del esquema del motor → su control. Así el esquema dibuja el panel de atributos.
-  import { isNumericExpression, validateExpression, type ParamSpec } from '@svertik/engine';
+  import { formatPercent, isNumericExpression, parsePercent, validateExpression, type ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
   import ColorField from './ColorField.svelte';
   import IconButton from './IconButton.svelte';
@@ -30,8 +30,10 @@
     fieldWidth?: string;
     keyState?: 'none' | 'animated' | 'key';
     onkey?: () => void;
+    /** Numbers that accept percentages: switch to the other unit, keeping the drawing as it is. */
+    onunit?: (to: 'px' | '%') => void;
   }
-  let { name, spec, value: given, onchange, nodes = [], onselectnode, swatches, fonts = [], fieldWidth, keyState, onkey }: Props = $props();
+  let { name, spec, value: given, onchange, nodes = [], onselectnode, swatches, fonts = [], fieldWidth, keyState, onkey, onunit }: Props = $props();
 
   // Text with live values: buttons insert a ready-made token at the caret, so nobody has to learn the
   // {{…}} syntax to get a timer or a countdown.
@@ -53,6 +55,13 @@
   }
   // Un parámetro que no viene (proyecto escrito a mano, versión anterior…) se enseña con su valor por defecto.
   const value = $derived(given ?? spec.default);
+  // A percentage ("50%") is edited as its number, with % as the unit; every change writes it back as text.
+  const percent = $derived(spec.type === 'number' && spec.percentOf ? parsePercent(value) : null);
+  const shown = $derived(percent ?? value);
+  const emit = (v: number) => onchange(percent !== null ? formatPercent(v) : v);
+  const unitAction = $derived(spec.type === 'number' && spec.percentOf && onunit
+    ? { label: `${spec.label ?? name.charAt(0).toUpperCase() + name.slice(1)}: use ${percent !== null ? 'px' : '%'}`, onclick: () => onunit?.(percent !== null ? 'px' : '%') }
+    : undefined);
   const advanced = $derived((spec.type === 'number' || spec.type === 'seed') && spec.expression !== false);
   const expression = $derived(advanced && isNumericExpression(value) ? value : null);
   const numericFieldWidth = $derived(fieldWidth ?? (expression ? '132px' : '80px'));
@@ -85,7 +94,7 @@
 {#if spec.type === 'nodes'}
   <NodeTargets value={value as string[]} {nodes} {label} onselect={onselectnode} onadd={(id) => onchange([...new Set([...(value as string[]), id])])} onremove={(id) => onchange((value as string[]).filter((node) => node !== id))} />
 {:else}
-<ParamRow {label} for={id} tall={spec.type === 'text'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey} scrub={spec.type === 'number' && !expression ? { value: value as number, step: spec.step ?? 0.01, min: spec.min, max: spec.max, onchange: (v) => onchange(v) } : spec.type === 'angle' ? { value: value as number, step: 1, onchange: (v) => onchange(v) } : spec.type === 'seed' && !expression ? { value: value as number, step: 1, min: 0, onchange: (v) => onchange(v) } : undefined}>
+<ParamRow {label} for={id} tall={spec.type === 'text'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey} scrub={spec.type === 'number' && !expression ? { value: shown as number, step: spec.step ?? 0.01, min: spec.min, max: spec.max, onchange: emit } : spec.type === 'angle' ? { value: value as number, step: 1, onchange: (v) => onchange(v) } : spec.type === 'seed' && !expression ? { value: value as number, step: 1, min: 0, onchange: (v) => onchange(v) } : undefined}>
   {#if spec.type === 'number' || spec.type === 'seed'}
     {#if expression}
       <div class="expression-control" style={`--sv-field-width: ${numericFieldWidth}`}>
@@ -115,21 +124,22 @@
     {:else}
       <NumberField
         {id}
-        value={value as number}
+        value={shown as number}
         step={spec.type === 'seed' ? 1 : spec.step ?? 0.01}
         min={spec.type === 'seed' ? 0 : spec.min}
         max={spec.type === 'seed' ? undefined : spec.max}
         width={advanced ? numericFieldWidth : '72px'}
-        unit={spec.type === 'number' ? (spec.unit === 'fraction' ? '' : spec.unit) : ''}
-        trailingAction={advanced ? {
+        unit={percent !== null ? '%' : spec.type === 'number' ? (spec.unit === 'fraction' ? '' : spec.unit) : ''}
+        {unitAction}
+        trailingAction={advanced && percent === null ? {
           label: `Use an expression for ${label}`,
           title: expression ? 'Expression enabled; switch to a number' : 'Use an expression with scene variables',
           active: !!expression,
           onclick: () => onchange({ $expr: spec.type === 'seed' ? 'scene.seedGenerator' : String(value), fallback: Number(value) }),
         } : undefined}
-        {onchange}
+        onchange={spec.type === 'number' ? emit : onchange}
       />
-      {#if spec.type === 'number' && spec.min !== undefined && spec.max !== undefined}
+      {#if spec.type === 'number' && spec.min !== undefined && spec.max !== undefined && percent === null}
         <Slider value={value as number} min={spec.min} max={spec.max} step={spec.step ?? 0.01} curve={spec.sliderCurve} label={label} width={advanced ? '72px' : '100px'} {onchange} />
       {/if}
     {/if}

@@ -1,3 +1,4 @@
+import { formatPercent, parsePercent } from './units';
 // Animation: keyframe tracks on any parameter (of an effect, of a primitive or of a node's
 // placement). `sampleScene` gives the scene at a time: the rest of the engine doesn't change.
 import { mixColor, parseColor, toHex } from './color';
@@ -96,6 +97,9 @@ export function lerpValue(a: unknown, b: unknown, k: number): unknown {
   if (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v) => typeof v === 'number')) {
     return a.map((v, i) => (v as number) + ((b[i] as number) - (v as number)) * k);
   }
+  // Two percentages ("20%" → "80%") interpolate as percentages; a px key next to a % key jumps (no common unit).
+  const pa = parsePercent(a), pb = parsePercent(b);
+  if (pa !== null && pb !== null) return formatPercent(pa + (pb - pa) * k);
   if (typeof a === 'string' && typeof b === 'string' && a.startsWith('#') && b.startsWith('#')) {
     const ca = parseColor(a), cb = parseColor(b);
     // Colours don't overshoot (back, elastic): they stay between the two.

@@ -1,6 +1,7 @@
 // Primitives: shapes generated from parameters, not imported SVG.
 
 import { line, type Cubic, type Geometry, type Gradient, type Style, type SubPath, type Vec2 } from './geometry';
+import { resolveUnits, type UnitContext } from './units';
 import type { Font } from 'opentype.js';
 import { fontFor, fontKey } from './fonts';
 import { resolveParams, type ParamSchema, type ParamValues } from './modifier';
@@ -86,21 +87,22 @@ export const rectangle = defineShape({
   type: 'rectangle',
   label: 'Rectangle',
   params: {
-    width: { type: 'number', default: 160, min: 1, step: 1, unit: 'px', pair: 'height' },
-    height: { type: 'number', default: 120, min: 1, step: 1, unit: 'px' },
-    radius: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Radius', showIf: { linkCorners: ['true'] } },
-    linkCorners: { type: 'boolean', default: true, label: 'Link corners', animatable: false },
-    radiusTopLeft: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Top left', showIf: { linkCorners: ['false'] } },
-    radiusTopRight: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Top right', showIf: { linkCorners: ['false'] } },
-    radiusBottomRight: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Bottom right', showIf: { linkCorners: ['false'] } },
-    radiusBottomLeft: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Bottom left', showIf: { linkCorners: ['false'] } },
+    width: { type: 'number', default: 160, min: 1, step: 1, unit: 'px', pair: 'height', percentOf: 'documentWidth' },
+    height: { type: 'number', default: 120, min: 1, step: 1, unit: 'px', percentOf: 'documentHeight' },
+    radius: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Radius', showIf: { linkCorners: ['true'] }, percentOf: 'halfShortSide' },
+    linkCorners: { type: 'boolean', default: true, label: 'Link corners', animatable: false, links: { one: 'radius', each: ['radiusTopLeft', 'radiusTopRight', 'radiusBottomLeft', 'radiusBottomRight'], prefixes: ['TL', 'TR', 'BL', 'BR'] } },
+    radiusTopLeft: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Top left', showIf: { linkCorners: ['false'] }, percentOf: 'halfShortSide' },
+    radiusTopRight: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Top right', showIf: { linkCorners: ['false'] }, percentOf: 'halfShortSide' },
+    radiusBottomRight: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Bottom right', showIf: { linkCorners: ['false'] }, percentOf: 'halfShortSide' },
+    radiusBottomLeft: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Bottom left', showIf: { linkCorners: ['false'] }, percentOf: 'halfShortSide' },
     ...style,
   },
   build({ width: w, height: h, radius, linkCorners, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft }) {
     const raw = linkCorners
       ? [radius, radius, radius, radius]
       : [radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft];
-    const [tl0, tr0, br0, bl0] = raw.map((r) => Math.max(0, Number(r) || 0)) as [number, number, number, number];
+    const maxCornerRadius = Math.min(w, h) / 2;
+    const [tl0, tr0, br0, bl0] = raw.map((r) => Math.min(maxCornerRadius, Math.max(0, Number(r) || 0))) as [number, number, number, number];
     // Match CSS border-radius behavior: scale all corners together if adjacent radii do not fit.
     const factor = Math.min(1, w / Math.max(1e-9, tl0 + tr0), w / Math.max(1e-9, bl0 + br0), h / Math.max(1e-9, tl0 + bl0), h / Math.max(1e-9, tr0 + br0));
     const [tl, tr, br, bl] = [tl0, tr0, br0, bl0].map((r) => r * factor) as [number, number, number, number];
@@ -126,8 +128,8 @@ export const ellipseShape = defineShape({
   type: 'ellipse',
   label: 'Ellipse',
   params: {
-    width: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', pair: 'height' },
-    height: { type: 'number', default: 140, min: 1, step: 1, unit: 'px' },
+    width: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', pair: 'height', percentOf: 'documentWidth' },
+    height: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', percentOf: 'documentHeight' },
     ...style,
   },
   build: ({ width, height }) => [ellipse(width / 2, height / 2)],
@@ -600,10 +602,11 @@ export const shapes = [rectangle, ellipseShape, polygon, star, cross, arrow, lin
 export const shapeRegistry = new Map<string, ShapeDef>([...shapes, ...autonomousGenerators].map((s) => [s.type, s as ShapeDef]));
 
 /** A primitive's geometry, with its style. */
-export function buildShape(type: string, given: Record<string, unknown> = {}): Geometry {
+export function buildShape(type: string, given: Record<string, unknown> = {}, units: UnitContext = {}): Geometry {
   const def = shapeRegistry.get(type);
   if (!def) throw new Error(`svertik: unknown primitive "${type}"`);
-  const p = resolveParams(def.params, given) as Record<string, unknown>;
+  // Percentages ("50%") become px here, against the document or the shape's own size.
+  const p = resolveUnits(def.params, resolveParams(def.params, given) as Record<string, unknown>, units);
   const parts = def.buildParts ? def.buildParts(p as never) : [def.build(p as never)];
   const gradients: Gradient[] = [];
   const fill = paintStyle(p.fill, p.fillColor, 'fill', gradients, 'sf');

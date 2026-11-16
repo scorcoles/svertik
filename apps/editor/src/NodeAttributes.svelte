@@ -25,9 +25,10 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   }
   function setShapeParam(name: string, value: unknown) {
     if (node.kind === 'shape' && node.shape === 'rectangle' && name === 'linkCorners') {
-      if (value) editor.setShapeParams(node.id, { radius: Number(node.params.radiusTopLeft ?? node.params.radius ?? 0), linkCorners: true });
+      if (value) editor.setShapeParams(node.id, { radius: node.params.radiusTopLeft ?? node.params.radius ?? 0, linkCorners: true });
       else {
-        const radius = Number(node.params.radius ?? 0);
+        // As stored (px or a percentage): copying keeps the unit.
+        const radius = node.params.radius ?? 0;
         editor.setShapeParams(node.id, {
           radiusTopLeft: radius,
           radiusTopRight: radius,
@@ -157,10 +158,10 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   {#if node.kind === 'shape' && shapeDef}
     {#if shapeMain.length || isText}
       <Section title={shapeDef.label}>
-        <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
+        <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} schema={Object.entries(shapeDef.params)} unitContext={{ document: editor.scene?.document ?? null }} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
         {#if isText}
           <FontField {editor} {node} />
-          <ParamList swatches={editor.docColors} params={afterFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
+          <ParamList swatches={editor.docColors} params={afterFont} values={node.params} schema={Object.entries(shapeDef.params)} unitContext={{ document: editor.scene?.document ?? null }} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
         {/if}
       </Section>
     {/if}

@@ -2,7 +2,7 @@
 
 `type: "roundcorners"` · Deformer: moves the points of the drawing. · Editor menu: **Deform**.
 
-Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). Smooth curves are left alone; `limit` keeps corners wider than that angle. Set Corners to Random to choose a stable seeded subset independently for each clone.
+Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). A corner radius is capped at half the length of either adjoining side. Smooth curves are left alone; `limit` keeps corners wider than that angle. Set Corners to Random to choose a stable seeded subset independently for each clone.
 
 ## Parameters
 

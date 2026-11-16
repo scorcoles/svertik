@@ -2,7 +2,7 @@
 
 Primitive · `shape: "rectangle"`.
 
-A rectangle, with optional rounded corners.
+A rectangle, with optional rounded corners. Each radius is capped at half the shorter side of the rectangle, then adjacent corners are scaled together if needed to fit.
 
 ## Parameters
 

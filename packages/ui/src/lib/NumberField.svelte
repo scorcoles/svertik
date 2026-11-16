@@ -18,6 +18,8 @@
     error?: boolean;
     disabled?: boolean;
     trailingAction?: { label: string; title: string; active?: boolean; onclick: () => void };
+    /** The unit is a button (px ↔ %): clicking it switches the field to the other unit. */
+    unitAction?: { label: string; onclick: () => void };
     onchange?: (value: number) => void;
   }
   let {
@@ -34,6 +36,7 @@
     error = false,
     disabled = false,
     trailingAction,
+    unitAction,
     onchange,
   }: Props = $props();
 
@@ -133,7 +136,9 @@
     onkeydown={keydown}
     onblur={() => editing && commit()}
   />
-  {#if unit}<span class="unit" aria-hidden="true">{unit}</span>{/if}
+  {#if unit && unitAction}
+    <button class="unit unit-action" type="button" aria-label={unitAction.label} title={unitAction.label} onclick={unitAction.onclick}>{unit}</button>
+  {:else if unit}<span class="unit" aria-hidden="true">{unit}</span>{/if}
   {#if trailingAction}
     <button
       class="trailing-action"
@@ -177,6 +182,9 @@
   input:not([readonly]) { cursor: text; }
   .unit,
   .prefix { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  /* A switchable unit reads as the plain unit until hovered: a quiet control, not a second label. */
+  .unit-action { flex: none; padding: 0; font: inherit; font-size: var(--sv-font-size-10); color: var(--sv-text-secondary); background: none; border: 0; cursor: pointer; }
+  .unit-action:hover { color: var(--sv-accent-fill); }
   .trailing-action {
     flex: none;
     width: 12px;
