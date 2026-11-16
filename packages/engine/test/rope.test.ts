@@ -57,4 +57,11 @@ describe('rope', () => {
     const mid = (p: readonly (readonly [number, number])[]) => p[Math.floor(p.length / 2)]!;
     expect(Math.hypot(mid(pushed)[0] - 50, mid(pushed)[1] - 50)).toBeGreaterThan(Math.hypot(mid(free)[0] - 50, mid(free)[1] - 50) - 1e-6);
   });
+
+  it('takes the pointer in scene px when asked', () => {
+    // Its own drawing (the chain is cached per drawing). Without an obstacle its middle node sits at about (51, -50).
+    const hump = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -60 103 120"><path d="M0 0C20 -80 80 -80 103 0" stroke="#000" fill="none"/></svg>';
+    const pts = nodes(0.5, { pointer: [51, -50], radius: 0.2, space: 'scene' }, hump);
+    for (const [x, y] of pts.slice(1, -1)) expect(Math.hypot(x - 51, y + 50)).toBeGreaterThanOrEqual(19);
+  });
 });

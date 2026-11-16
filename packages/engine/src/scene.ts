@@ -178,7 +178,21 @@ export interface SceneV1 {
    * the editor, when evaluating). Not saved: only what is delayed uses it (Effector's Delay).
    */
   at?: number;
+  /**
+   * The live pointer, for `scene.mouse.*` formulas. Runtime only (the player fills it in each frame it is
+   * used; it is never saved). Absent, formulas see the neutral values of `neutralPointer`.
+   */
+  pointer?: Partial<ScenePointer>;
 }
+
+/** What `scene.mouse.*` formulas can read. `pos*`: scene coordinates (px, as an object's x/y); `frac*`: 0–1 across the document. */
+export interface ScenePointer { posX: number; posY: number; fracX: number; fracY: number; down: number; inside: number }
+export const POINTER_FIELDS = ['posX', 'posY', 'fracX', 'fracY', 'down', 'inside'] as const;
+
+/** The pointer before it has moved: the centre of the document, not pressed, not inside. */
+export const neutralPointer = (scene: Pick<SceneV1, 'document'>): ScenePointer => ({
+  posX: scene.document?.x ?? 0, posY: scene.document?.y ?? 0, fracX: 0.5, fracY: 0.5, down: 0, inside: 0,
+});
 
 /** The scene (what is saved and exported). */
 export type Scene = SceneV1;

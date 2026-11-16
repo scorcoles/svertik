@@ -1,5 +1,5 @@
 import { rng } from './random';
-import { customNumber, sceneDuration } from './scene';
+import { customNumber, neutralPointer, POINTER_FIELDS, sceneDuration, type ScenePointer } from './scene';
 import type { SceneNode, SceneV1 } from './document';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
@@ -18,6 +18,8 @@ export interface ExpressionContext {
   /** Host-provided implicit random salt (Mouse Instance birth index); explicit random seeds override it. */
   randomSalt?: number;
   custom: Record<string, number>;
+  /** The live pointer (`scene.mouse.*`); the neutral one when absent. */
+  mouse?: Partial<ScenePointer>;
 }
 
 export interface SceneExpressionValues extends ExpressionContext {
@@ -101,7 +103,13 @@ function parse(source: string): Expr {
           if (!key || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(key)) throw new Error('Use a valid custom variable name after scene.custom.');
           return { kind: 'variable', name: `scene.custom.${key}` };
         }
-        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, or custom.name.');
+        if (field === 'mouse') {
+          expect('.');
+          const key = take();
+          if (!key || !(POINTER_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a pointer field after scene.mouse.: ${POINTER_FIELDS.join(', ')}.`);
+          return { kind: 'variable', name: `scene.mouse.${key}` };
+        }
+        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, mouse.posX, or custom.name.');
         return { kind: 'variable', name: SCENE_VARIABLES[field as keyof typeof SCENE_VARIABLES] };
       }
       if (token === 'pi' || token === 'e') return { kind: 'variable', name: token };
@@ -161,6 +169,11 @@ function run(tree: Expr, context: ExpressionContext): number {
       const key = tree.name.slice('scene.custom.'.length);
       if (!Object.hasOwn(context.custom, key)) throw new Error(`Unknown custom variable “${key}”.`);
       return context.custom[key]!;
+    }
+    if (tree.name.startsWith('scene.mouse.')) {
+      const key = tree.name.slice('scene.mouse.'.length) as keyof ScenePointer;
+      const value = context.mouse?.[key];
+      return Number.isFinite(value) ? value! : neutralPointer({})[key];
     }
     if (tree.name === 'scene.cycle') return context.duration > 0 ? Math.max(0, Math.floor(context.time / context.duration)) : 0;
     if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof Omit<ExpressionContext, 'custom' | 'randomSalt'>];
@@ -269,6 +282,7 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
     progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
     cycle: duration > 0 ? Math.max(0, Math.floor(time / duration)) : 0,
     seedGenerator: liveSeed(scene, time),
+    mouse: { ...neutralPointer(scene), ...scene.pointer },
     custom: Object.fromEntries(Object.entries(scene.custom ?? {}).flatMap(([key, value]) => {
       const n = customNumber(value);
       return n === null ? [] : [[key, n]];

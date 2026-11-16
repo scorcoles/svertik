@@ -15,6 +15,7 @@ Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn leng
 | `stiffness` | number | `14` | min 1, max 60, step 1 | not animatable |
 | `segments` | number | `24` | min 4, max 120, step 1 | not animatable |
 | `pointer` | point | `[-2,-2]` | [x, y], fractions of the box (0–1) | group: Pointer |
+| `space` | enum | `"box"` | `box`, `scene` | not animatable; group: Pointer; label: Pointer in |
 | `radius` | number | `0` | min 0, max 1, step 0.005 | fraction of the drawing size; group: Pointer |
 | `settle` | number | `0` | min 0, max 10, step 0.1 | unit: s; not animatable; label: Settle (s) |
 | `seed` | seed | `1` | integer | group: Wind |
@@ -40,6 +41,7 @@ Inside a node's `stack` (effects run top to bottom):
       -2,
       -2
     ],
+    "space": "box",
     "radius": 0,
     "settle": 0,
     "seed": 1

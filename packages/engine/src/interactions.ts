@@ -1,5 +1,5 @@
 import { createMouseInstances, type MouseEventKind } from './mouse';
-import { sceneDuration, VIEWPORT_ASPECT, viewportFit } from './scene';
+import { neutralPointer, sceneDuration, VIEWPORT_ASPECT, viewportFit, type ScenePointer } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
 // - tween: a value goes to another with its duration and curve, and comes back (on leave, or the next click);
@@ -302,6 +302,10 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const inter = createInteractions(() => scene);
   const mouse = createMouseInstances(scene);
   let mouseDirty = false;
+  // `scene.mouse.*` formulas: the pointer is tracked only when the scene reads it, and repaints when it moves.
+  const usesPointer = /scene\.mouse\./.test(JSON.stringify(scene));
+  const pointerNow: ScenePointer = neutralPointer(scene);
+  let pointerDirty = false;
   const anim = scene.animation?.infinite || scene.animation?.tracks.length || sceneHasExpressions(scene)
     ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
@@ -333,10 +337,12 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     last = now;
     const moving = inter.step(reduce ? 1e6 : dt);
     const t = clockAt(now);
-    if (t !== shown || moving || mouseDirty || mouse.active()) {
+    if (t !== shown || moving || mouseDirty || pointerDirty || mouse.active()) {
       const c0 = performance.now();
-      live.update(mouse.apply(inter.apply(anim ? sampleScene(scene, t) : scene), now / 1000));
+      const framed = mouse.apply(inter.apply(anim ? sampleScene(scene, t) : scene), now / 1000);
+      live.update(usesPointer ? { ...framed, pointer: { ...pointerNow } } : framed);
       mouseDirty = false;
+      pointerDirty = false;
       shown = t;
       options.onFrame?.({ ms: performance.now() - c0, t });
     }
@@ -374,6 +380,27 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     inter.pointer(null, null);
     wake();
   };
+  /** `scene.mouse.*`: where the pointer is (scene coordinates and 0–1 across the viewBox), and whether it is down or inside. */
+  const trackPointer = (e: PointerEvent) => {
+    const m = svg.getScreenCTM?.();
+    if (!m) return;
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    const [vx, vy, vw, vh] = live.doc()?.geometry.viewBox ?? [0, 0, 1, 1];
+    pointerNow.posX = p.x;
+    pointerNow.posY = p.y;
+    pointerNow.fracX = (p.x - vx) / (vw || 1);
+    pointerNow.fracY = (p.y - vy) / (vh || 1);
+    pointerNow.down = e.buttons & 1 ? 1 : 0;
+    pointerNow.inside = 1;
+    pointerDirty = true;
+    wake();
+  };
+  const leavePointer = () => {
+    pointerNow.inside = 0;
+    pointerNow.down = 0;
+    pointerDirty = true;
+    wake();
+  };
   const emit = (kind: MouseEventKind, e: MouseEvent) => {
     const m = svg.getScreenCTM?.();
     if (!m) return false;
@@ -396,6 +423,12 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     svg.addEventListener('mousedown', mouseMiddle);
     svg.addEventListener('pointermove', mouseMove);
     svg.addEventListener('wheel', mouseWheel, { passive: false });
+  }
+  if (usesPointer) {
+    svg.addEventListener('pointermove', trackPointer);
+    svg.addEventListener('pointerdown', trackPointer);
+    svg.addEventListener('pointerup', trackPointer);
+    svg.addEventListener('pointerleave', leavePointer);
   }
   // "enter": when the drawing scrolls into view (every time it comes back).
   let io: IntersectionObserver | null = null;
@@ -434,6 +467,10 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
         if (originalAspectRatio === null) svg.removeAttribute('preserveAspectRatio');
         else svg.setAttribute('preserveAspectRatio', originalAspectRatio);
       }
+      svg.removeEventListener('pointermove', trackPointer);
+      svg.removeEventListener('pointerdown', trackPointer);
+      svg.removeEventListener('pointerup', trackPointer);
+      svg.removeEventListener('pointerleave', leavePointer);
       svg.removeEventListener('click', mouseClick);
       svg.removeEventListener('dblclick', mouseDouble);
       svg.removeEventListener('contextmenu', mouseContext);

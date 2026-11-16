@@ -59,6 +59,8 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
       // Without its own seed, a composition takes the parent's live one (it follows a re-seeding parent).
       seedGenerator: source.seedGenerator ?? liveSeed(scene, scene.at ?? 0),
       at: localTime,
+      // The pointer is the parent's (its coordinates): a nested scene sees it as is.
+      pointer: scene.pointer,
     }, { randomSalt: localRandomSalt });
     const byId = new Map([...walkNodes(local.objects)].map(({ node }) => [node.id, node]));
     const extra = effectorStacks(local, byId);

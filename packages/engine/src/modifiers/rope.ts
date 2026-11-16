@@ -161,6 +161,7 @@ export const rope = defineModifier({
     stiffness: { type: 'number', default: 14, min: 1, max: 60, step: 1, label: 'Stiffness', animatable: false, ramp: false },
     segments: { type: 'number', default: 24, min: 4, max: 120, step: 1, label: 'Segments', animatable: false, ramp: false },
     pointer: { type: 'point', default: [-2, -2], unit: 'fraction', label: 'Pointer', group: 'Pointer' },
+    space: { type: 'enum', default: 'box', options: ['box', 'scene'] as const, group: 'Pointer', label: 'Pointer in', animatable: false },
     radius: { type: 'number', default: 0, min: 0, max: 1, step: 0.005, label: 'Radius', unit: 'fraction', group: 'Pointer', ramp: false },
     settle: { type: 'number', default: 0, min: 0, max: 10, step: 0.1, label: 'Settle (s)', unit: 's', animatable: false, ramp: false },
     seed: { type: 'seed', default: 1, label: 'Seed', group: 'Wind' },
@@ -175,7 +176,8 @@ export const rope = defineModifier({
     let st = byKey.get(key) ?? bySignature.get(sigKey);
     const size = Math.max(ctx.bounds.width, ctx.bounds.height) || 1;
     const forces: Forces = { gravity: Math.max(0, p.gravity) * size, wind: Math.max(0, p.wind) * size, damping: Math.max(0, p.damping), iterations: Math.max(1, Math.round(p.stiffness)), seed: p.seed };
-    const [fx, fy] = fromFraction(ctx.bounds, p.pointer);
+    // `scene`: the pointer is in the rope's own coordinates (px), as scene.mouse.posX / posY give it.
+    const [fx, fy] = p.space === 'scene' ? p.pointer : fromFraction(ctx.bounds, p.pointer);
     const target: [number, number, number] = [fx, fy, Math.max(0, p.radius) * size];
     const time = Math.max(0, p.time);
     if (!st || time < st.t - STEP || time - st.t > MAX_ADVANCE) {
