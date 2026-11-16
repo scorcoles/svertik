@@ -63,4 +63,10 @@
   --sv-code-punctuation: var(--sv-gray-400);
   --sv-code-comment: var(--sv-gray-400);
   --sv-code-gutter: var(--sv-gray-400);
+  --sv-overlay-ink-soft: rgb(0 0 0 / 0.35);
+  --sv-overlay-ink: rgb(0 0 0 / 0.5);
+  --sv-overlay-ink-strong: rgb(0 0 0 / 0.75);
+  --sv-overlay-light-soft: rgb(255 255 255 / 0.15);
+  --sv-overlay-light: rgb(255 255 255 / 0.25);
+  --sv-overlay-light-strong: rgb(255 255 255 / 0.76);
 }

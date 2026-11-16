@@ -72,5 +72,5 @@
   :global(.sv-menu-item.search-all) { color: var(--sv-text-secondary); }
   :global(.sv-menu-item.search-all[data-highlighted]) { color: var(--sv-text-primary); }
   :global(.sv-menu-item.search-all) .effect-name { flex: 1; }
-  kbd { font: inherit; color: var(--sv-text-muted); }
+  kbd { font: inherit; color: var(--sv-text-secondary); }
 </style>

@@ -171,7 +171,7 @@ Grafito neutro sin tinte y un solo trazo de fósforo turquesa; el resto de color
 - **Regla Marcada** (rule-strong): bordes de botón, campo al pasar el puntero, pista del slider y borde de los menús.
 - **Niebla** (text-primary): texto principal y valores.
 - **Ceniza** (text-secondary): títulos de sección, iconos en reposo y texto de apoyo.
-- **Humo** (text-muted): unidades, metadatos, chevrons, opciones inactivas, textos vacíos y la barra de estado. Pasa AA sobre el panel y el paso del puntero, pero no sobre el grafito elevado: en los menús, las cabeceras usan ceniza.
+- **Humo** (text-muted): unidades, metadatos, chevrons, opciones inactivas, textos vacíos y la barra de estado. Pasa AA sobre el panel y el paso del puntero (5,1:1 y 4,7:1), pero no sobre el grafito elevado (4,0:1). Por eso todo lo que va dentro de un menú o del panel de resultados de la línea de comandos (atajos, cabeceras, filas apagadas) usa ceniza.
 - **Carbón** (text-disabled): solo controles desactivados de verdad. No sirve como «gris discreto» para texto informativo: no llega a AA (2,5:1).
 
 ### Señales funcionales
@@ -179,7 +179,7 @@ Grafito neutro sin tinte y un solo trazo de fósforo turquesa; el resto de color
 - **Ejes del gizmo** (gizmo-x, gizmo-y, gizmo-z): rojo, verde y azul en las guías de transformación del lienzo, por convención de CAD/3D. No salen del lienzo.
 - **Aviso** (signal-warning): avisos de diagnóstico, exportación y fuentes, y el botón de depuración cuando hay avisos.
 - **Cabeza de reproducción** (timeline-playhead): la línea del tiempo actual en el timeline, en niebla. No usa el rojo de error, que se leería como alarma.
-- **Superposiciones sobre la obra**: el lienzo y el modo Play usan negro o blanco semitransparente (rgba) para tiradores, guías y velos encima del dibujo. No son tokens a propósito: tienen que leerse sobre cualquier color de la obra, no sobre el grafito.
+- **Superposiciones sobre la obra**: el lienzo y el modo Play usan negro o blanco semitransparente para tiradores, guías y velos encima del dibujo, porque tienen que leerse sobre cualquier color de la obra, no sobre el grafito. Tienen su propia escala de tres pasos por tinta, sin valores sueltos: `overlay-ink-soft` (35 %), `overlay-ink` (50 %) y `overlay-ink-strong` (75 %) en negro; `overlay-light-soft` (15 %), `overlay-light` (25 %) y `overlay-light-strong` (76 %) en blanco. El blanco puro solo se usa para trazos y glifos encima de la obra (guías, tiradores). El medidor de fps repite `overlay-ink` como valor literal, porque también se dibuja en la página del reproductor, que no carga tokens.
 
 ### Named Rules
 **The One Phosphor Rule.** El turquesa marca solo lo activo, lo seleccionado, lo enfocado o lo pulsable. Nunca es decoración, fondo de zona ni color de marca. Si nada en pantalla está activo, casi no debería verse turquesa.
@@ -203,6 +203,8 @@ Grafito neutro sin tinte y un solo trazo de fósforo turquesa; el resto de color
 
 ### Named Rules
 **The Weight-Not-Size Rule.** La jerarquía se hace con peso y paso de gris, no subiendo de tamaño. El rango útil es de 9 a 12 px. El token de 14 px existe, pero el editor no lo usa.
+
+**Excepción de tamaño:** la vista previa de cada fuente en el selector de fuentes va a 15 px y en esa misma fuente. Es una muestra del tipo de letra, no texto de la interfaz.
 
 **The Read-It-At-11 Rule.** Lo que se lee como frase o como nombre va a 11 px (Body): explicaciones y estados vacíos, avisos y errores, notas, nombres de pista y de parámetro en la timeline, y los controles de la barra de estado. Los 10 px (Label) quedan para lo que acompaña a otra cosa: contadores, unidades, porcentajes, atajos de teclado, marcas del reloj y la segunda línea de un elemento de menú. Los 9 px (Badge), solo para insignias.
 

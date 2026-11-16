@@ -31,7 +31,7 @@
 </AlertDialog.Root>
 
 <style>
-  :global(.sv-dialog-overlay) { position: fixed; inset: 0; z-index: 90; background: rgb(0 0 0 / 0.5); }
+  :global(.sv-dialog-overlay) { position: fixed; inset: 0; z-index: 90; background: var(--sv-overlay-ink); }
   :global(.sv-dialog) {
     position: fixed;
     z-index: 91;

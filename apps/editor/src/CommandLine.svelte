@@ -389,7 +389,7 @@
     role="combobox"
     aria-label={target ? `Command line: add an effect to ${target.name}, e.g. twist angle=45, or set, key, select, goto, export` : 'Command line: select an object to add effects, or use select, goto, export'}
     aria-expanded={open && ((browsing && matches.length > 0) || choices.length > 0)}
-    aria-controls={listId}
+    aria-controls={open && ((browsing && matches.length > 0) || (call && call.verb !== 'set' && call.verb !== 'key' && choices.length > 0)) ? listId : undefined}
     aria-autocomplete="list"
     aria-activedescendant={open && browsing && highlighted ? optionId(highlighted.type) : open && call && choice ? optionId(`${call.verb}-${choices.indexOf(choice)}`) : undefined}
     aria-invalid={error ? true : undefined}
@@ -548,7 +548,8 @@
   tr[data-current] { background: var(--sv-surface-hover); }
   tr[data-current] th { color: var(--sv-accent-fill); }
   tr[data-set] td.value { color: var(--sv-text-primary); }
-  tr[data-off] th, tr[data-off] td { color: var(--sv-text-muted); }
+  /* Not typable: same grey as the rest of the row (humo fails AA on the raised surface), name not in niebla. */
+  tr[data-off] th, tr[data-off] td { color: var(--sv-text-secondary); }
   .empty { padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-secondary); }
   .error { padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-signal-error); border-top: var(--sv-border-1) solid var(--sv-rule-strong); }
   .keys { padding: 0 var(--sv-space-8); height: 20px; display: flex; align-items: center; color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); border-top: var(--sv-border-1) solid var(--sv-rule-default); }

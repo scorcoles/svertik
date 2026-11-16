@@ -230,10 +230,10 @@
   .text-expression-hint { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.3; }
   .text-live { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-space-4); }
   .text-live-button {
-    height: 18px;
-    padding: 0 var(--sv-space-4);
+    height: 20px;
+    padding: 0 var(--sv-space-6);
     font: inherit;
-    font-size: var(--sv-font-size-10);
+    font-size: var(--sv-font-size-11);
     color: var(--sv-text-secondary);
     background: none;
     border: var(--sv-border-1) solid var(--sv-rule-strong);
@@ -292,7 +292,7 @@
     background: none;
     border: 0;
     font: inherit;
-    font-size: 9px;
+    font-size: var(--sv-font-size-10);
     line-height: 1;
     cursor: pointer;
   }

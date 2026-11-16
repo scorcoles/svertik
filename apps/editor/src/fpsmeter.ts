@@ -20,7 +20,7 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
     padding: '6px 8px',
     font: '11px/1.5 ui-monospace, "JetBrains Mono", monospace',
     color: '#ededed',
-    background: 'rgb(0 0 0 / 0.6)',
+    background: 'rgb(0 0 0 / 0.5)', // overlay.ink (literal: the player page has no tokens)
     pointerEvents: 'none',
     whiteSpace: 'pre',
   });

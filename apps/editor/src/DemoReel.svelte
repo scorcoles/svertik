@@ -85,6 +85,6 @@
   .tile:hover svg, .tile:focus-visible svg { border-color: var(--sv-accent-fill); }
   .tile:hover .title, .tile:focus-visible .title { color: var(--sv-accent-fill); }
   .tile:focus-visible { outline: none; }
-  .title { font-size: var(--sv-font-size-10); }
+  .title { font-size: var(--sv-font-size-11); }
   @media (max-width: 480px) { .reel { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

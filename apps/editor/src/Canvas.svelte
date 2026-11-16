@@ -124,21 +124,28 @@
   });
 
   // ── Onion skin: the scene a few frames before and after the playhead, faded, under the result.
-  // Paused only (while playing it would triple the work); about 1/6 s apart, so motion reads at a glance.
+  // Paused only (while playing it would multiply the work); about 1/6 s apart, so motion reads at a glance.
+  // Drawn once edits settle (ONION_DELAY ms without changes), so dragging a value costs one render, not five.
   const ONION = [-2, -1, 1, 2];
+  const ONION_DELAY = 150;
   let onion = $state<SVGSVGElement[]>([]);
   $effect(() => {
     if (!editor.onionSkin || !editor.scene?.animation || editor.playing || editor.preview) return;
     void editor.fontsTick;
     const base = $state.snapshot(editor.scene) as SceneV1;
+    const time = editor.time;
+    const vb = viewBox.join(' ');
+    const timer = setTimeout(() => drawOnion(base, time, vb), ONION_DELAY);
+    return () => clearTimeout(timer);
+  });
+  function drawOnion(base: SceneV1, time: number, vb: string) {
     const fps = base.animation?.fps ?? 30;
     const duration = base.animation?.duration ?? 3;
     const step = Math.max(1, Math.round(fps / 6)) / fps;
-    const vb = viewBox.join(' ');
     ONION.forEach((offset, i) => {
       const svg = onion[i];
       if (!svg) return;
-      const t = editor.time + offset * step;
+      const t = time + offset * step;
       if (t < -1e-6 || t > duration + 1e-6) return void svg.replaceChildren();
       try {
         renderInto(svg, engine.evaluateDocument(sampleScene(base, t)).geometry);
@@ -147,7 +154,7 @@
         svg.replaceChildren();
       }
     });
-  });
+  }
 
   // ── Vista: zoom y desplazamiento
 
@@ -1413,8 +1420,8 @@
   .finish-pen kbd { color: var(--sv-text-muted); font: inherit; font-size: var(--sv-font-size-10); }
   .guides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .guides polyline { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-  .guides polyline.under { stroke: rgb(0 0 0 / 0.75); stroke-width: 5; }
-  .guides circle { fill: #fff; stroke: rgb(0 0 0 / 0.75); stroke-width: 2; }
+  .guides polyline.under { stroke: var(--sv-overlay-ink-strong); stroke-width: 5; }
+  .guides circle { fill: #fff; stroke: var(--sv-overlay-ink-strong); stroke-width: 2; }
   .guides circle[data-root] { fill: var(--sv-accent-fill); }
   .snap-guides { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .snap-guides line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
@@ -1432,7 +1439,7 @@
   .document-guides .guide-line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
   .document-guides .guide-preview { stroke: var(--sv-accent-fill); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
   .bounds { pointer-events: none; }
-  .bounds .outside { fill: rgb(0 0 0 / 0.5); }
+  .bounds .outside { fill: var(--sv-overlay-ink); }
   .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }
   .bounds .frame[data-auto] { stroke: var(--sv-text-muted); stroke-dasharray: 4 4; }
   .draft .outline { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1px; vector-effect: non-scaling-stroke; }
@@ -1450,7 +1457,7 @@
     background: radial-gradient(circle, var(--sv-accent-fill) 0 2.5px, transparent 3px);
     border: 2px solid #fff;
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(0 0 0 / 0.35);
+    box-shadow: 0 0 0 1px var(--sv-overlay-ink), inset 0 0 0 1px var(--sv-overlay-ink-soft);
     cursor: move;
   }
   .handle:hover { scale: 1.15; }
@@ -1476,7 +1483,7 @@
     background: none;
     border: 1px solid var(--sv-accent-fill);
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4);
+    box-shadow: 0 0 0 1px var(--sv-overlay-ink-soft);
     cursor: move;
   }
   .pivot::before,
@@ -1568,7 +1575,7 @@
   /* Wire del efecto: tenue en reposo; encendido al pasar, al arrastrar o al cambiar sus valores. */
   .gizmo { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0.8; transition: opacity 120ms; }
   .gizmo[data-active] { opacity: 1; }
-  .gizmo .halo { fill: none; stroke: rgb(0 0 0 / 0.55); stroke-width: 3.5; }
+  .gizmo .halo { fill: none; stroke: var(--sv-overlay-ink); stroke-width: 3.5; }
   .gizmo .line { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.25; }
   .gizmo .line[data-tone='x'], .gizmo .line[data-tone='y'], .gizmo .line[data-tone='z'] { stroke-width: 1.75; }
   .gizmo .line[data-dashed] { stroke-dasharray: 4 3; }
@@ -1576,7 +1583,7 @@
   .gizmo .line[data-tone='y'] { stroke: #6bdc6b; }
   .gizmo .line[data-tone='z'] { stroke: #5c8cff; }
   /* Cintas: banda ancha y translúcida de su color, con un borde oscuro debajo. */
-  .gizmo .halo[data-ribbon] { stroke: rgb(0 0 0 / 0.45); stroke-width: 11; }
+  .gizmo .halo[data-ribbon] { stroke: var(--sv-overlay-ink-soft); stroke-width: 11; }
   .gizmo .line[data-ribbon] { stroke-width: 8; stroke-opacity: 0.8; }
   .gizmo .hit[data-ribbon] { stroke-width: 12; }
   /* La bola: se agarra por dentro (relleno invisible). */
@@ -1591,7 +1598,7 @@
     background: var(--sv-accent-fill);
     border: 0;
     border-radius: 0;
-    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 0 1px var(--sv-overlay-ink);
     cursor: move;
   }
   .gizmo-handle::before { content: ''; position: absolute; inset: -4px; }

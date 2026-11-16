@@ -455,7 +455,7 @@
     rotate: 45deg;
     /* At rest in gray: phosphor only marks the selected keyframe (One Phosphor Rule). */
     background: var(--sv-text-secondary);
-    border: 1px solid rgb(0 0 0 / 0.5);
+    border: 1px solid var(--sv-overlay-ink);
     cursor: grab;
   }
   .key:hover { background: var(--sv-text-primary); }

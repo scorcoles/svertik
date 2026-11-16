@@ -78,7 +78,13 @@
       "code.property": "{gray.200}",
       "code.punctuation": "{gray.400}",
       "code.comment": "{gray.400}",
-      "code.gutter": "{gray.400}"
+      "code.gutter": "{gray.400}",
+      "overlay.ink.soft": "rgb(0 0 0 / 0.35)",
+      "overlay.ink": "rgb(0 0 0 / 0.5)",
+      "overlay.ink.strong": "rgb(0 0 0 / 0.75)",
+      "overlay.light.soft": "rgb(255 255 255 / 0.15)",
+      "overlay.light": "rgb(255 255 255 / 0.25)",
+      "overlay.light.strong": "rgb(255 255 255 / 0.76)"
     }
   }
 }

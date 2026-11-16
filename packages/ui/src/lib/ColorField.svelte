@@ -114,7 +114,7 @@
   .sv-color[data-invalid] { border-color: var(--sv-signal-error); }
   .sv-color:has(:focus-visible) { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .sv-color { position: relative; }
-  :global(.sv-color-swatch) { flex: none; width: 12px; height: 12px; padding: 0; border: 0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15); cursor: pointer; }
+  :global(.sv-color-swatch) { flex: none; width: 12px; height: 12px; padding: 0; border: 0; box-shadow: inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
   :global(.sv-color-popover) {
     z-index: 50;
     width: 148px;
@@ -124,7 +124,7 @@
     font-size: var(--sv-font-size-10);
   }
   .grid { display: grid; grid-template-columns: repeat(7, 16px); gap: 4px; }
-  .chip { width: 16px; height: 16px; padding: 0; border: 0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15); cursor: pointer; }
+  .chip { width: 16px; height: 16px; padding: 0; border: 0; box-shadow: inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
   .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .head { margin: var(--sv-space-8) 0 var(--sv-space-4); color: var(--sv-text-muted); }

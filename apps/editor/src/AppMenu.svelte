@@ -75,7 +75,7 @@
   :global(.sv-app-trigger[data-state='open']) { background: var(--sv-accent-selection); color: var(--sv-accent-fill); }
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); font-weight: normal; }
   .label { flex: 1; }
-  .key { margin-left: var(--sv-space-16); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .key { margin-left: var(--sv-space-16); color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
   :global(.sv-app-trigger + * .sv-menu), :global(.sv-menu:has(.key)) { min-width: 300px; }
   :global(.sv-menu-sep) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
   :global(.sv-menu-item[data-disabled]) { opacity: 0.35; }

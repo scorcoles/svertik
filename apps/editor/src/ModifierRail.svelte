@@ -67,5 +67,5 @@
   .color-row { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 32px; }
   .colors :global(.sv-color[data-compact]) { width: 28px; height: 28px; padding: 3px; }
   .colors :global(.sv-color-swatch) { width: 20px; height: 20px; }
-  .color-label { font-size: 9px; line-height: 1; color: var(--sv-text-muted); }
+  .color-label { font-size: var(--sv-font-size-10); line-height: 1; color: var(--sv-text-muted); }
 </style>

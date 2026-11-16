@@ -120,7 +120,7 @@
     translate: -50% -50%;
     border: 2px solid #fff;
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 0 1px var(--sv-overlay-ink);
     pointer-events: none;
   }
   .thumb.bar { top: 50%; width: 6px; height: 14px; border-radius: 0; }

@@ -143,7 +143,8 @@
   .cats button[aria-checked='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   .list { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; border-top: var(--sv-border-1) solid var(--sv-rule-default); }
   .font { display: block; width: 100%; padding: var(--sv-space-6) var(--sv-space-8); font-size: 15px; line-height: 1.2; color: var(--sv-text-primary); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; cursor: pointer; }
-  .font:hover, .font:focus-visible { background: var(--sv-surface-hover); outline: none; }
+  .font:hover, .font:focus-visible { background: var(--sv-surface-hover); }
+  .font:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
   .font[aria-selected='true'] { color: var(--sv-accent-fill); }
   .more, .foot { margin: 0; padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .foot { border-top: var(--sv-border-1) solid var(--sv-rule-default); }

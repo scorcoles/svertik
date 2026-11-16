@@ -134,9 +134,9 @@
     align-items: center;
     gap: 8px;
     padding: 4px;
-    color: rgb(255 255 255 / 0.76);
+    color: var(--sv-overlay-light-strong);
     background: rgb(24 25 24 / 0.6);
-    border: 1px solid rgb(255 255 255 / 0.14);
+    border: 1px solid var(--sv-overlay-light-soft);
     border-radius: 0;
     backdrop-filter: blur(12px);
     opacity: 0;
@@ -149,7 +149,7 @@
     transform: translateY(0);
     pointer-events: auto;
     background: rgb(24 25 24 / 0.68);
-    border-color: rgb(255 255 255 / 0.24);
+    border-color: var(--sv-overlay-light);
   }
   .tools button {
     position: relative;
@@ -172,11 +172,11 @@
     top: 9px;
     bottom: 9px;
     width: 1px;
-    background: rgb(255 255 255 / 0.16);
+    background: var(--sv-overlay-light);
   }
-  .tools button:hover { color: #fff; background: rgb(255 255 255 / 0.09); }
+  .tools button:hover { color: #fff; background: var(--sv-overlay-light-soft); }
   .tools button:disabled { opacity: 0.45; cursor: wait; }
-  .tools button:active { background: rgb(255 255 255 / 0.16); }
+  .tools button:active { background: var(--sv-overlay-light); }
   .tools button:focus-visible { outline: 2px solid var(--sv-accent-fill, #09fdd1); outline-offset: 1px; }
   .tools :global(.sv-icon) { width: 16px; height: 16px; }
   @media (pointer: coarse) {
@@ -191,9 +191,9 @@
     bottom: var(--sv-space-16);
     margin: 0;
     padding: var(--sv-space-4) var(--sv-space-8);
-    color: rgb(255 255 255 / 0.76);
+    color: var(--sv-overlay-light-strong);
     background: rgb(24 25 24 / 0.6);
-    border: 1px solid rgb(255 255 255 / 0.14);
+    border: 1px solid var(--sv-overlay-light-soft);
     backdrop-filter: blur(12px);
     font-size: var(--sv-font-size-10);
     transition: opacity 400ms, background 180ms, border-color 180ms;
