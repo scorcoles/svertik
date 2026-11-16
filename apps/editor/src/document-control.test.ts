@@ -1,0 +1,85 @@
+import { expect, it } from 'vitest';
+import { mount, unmount, flushSync } from 'svelte';
+import DocumentAttributes from './DocumentAttributes.svelte';
+import { Editor } from './editor.svelte';
+
+it.each([false, true])('Full can be toggled by clicking in Document (fixed: %s)', async fixed => {
+  const editor = new Editor();
+  editor.scene = { version: 1, objects: [], ...(fixed ? { document: { width: 800, height: 600 } } : {}) };
+  const target = document.createElement('div');
+  document.body.append(target);
+  const component = mount(DocumentAttributes, { target, props: { editor } });
+  flushSync();
+  try {
+    const control = target.querySelector<HTMLInputElement>('#doc-full-viewport')!;
+    expect(control).not.toBeNull();
+    expect(control.checked).toBe(false);
+    control.click();
+    flushSync();
+    expect(editor.scene.fullViewport).toBe(true);
+    expect(control.checked).toBe(true);
+    control.click();
+    flushSync();
+    expect(editor.scene.fullViewport).toBeUndefined();
+    expect(control.checked).toBe(false);
+    const labels = [...target.querySelectorAll('label')].map(n => n.textContent?.trim());
+    if (fixed) expect(labels.indexOf('Full')).toBeGreaterThan(labels.indexOf('Height'));
+  } finally { await unmount(component); target.remove(); }
+});
+
+import { vi } from 'vitest';
+import Canvas from './Canvas.svelte';
+
+it('Full affects only Play and preserves the editor frame, margins and bounds', async () => {
+  const editor = new Editor();
+  editor.scene = { version: 1, document: { width: 1920, height: 1080 }, objects: [] };
+  editor.showRulers = false;
+  editor.showBounds = true;
+  const target = document.createElement('div');
+  document.body.append(target);
+  let resize: (entries: unknown[]) => void = () => {};
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: (entries: unknown[]) => void) { resize = callback; }
+    observe() {}
+    disconnect() {}
+  });
+  const doc = mount(DocumentAttributes, { target, props: { editor } });
+  const canvas = mount(Canvas, { target, props: { editor, onimport() {}, onfile() {}, ondemo() {} } });
+  try {
+    flushSync();
+    resize([{ contentRect: { width: 800, height: 600 } }]);
+    flushSync();
+    const input = target.querySelector<HTMLInputElement>('#doc-full-viewport')!;
+    input.click();
+    flushSync();
+    expect(input.checked).toBe(true);
+    expect(target.querySelector('svg.result')?.getAttribute('viewBox')).toBe('-960 -540 1920 1080');
+    expect(target.querySelector('.bounds .frame')?.getAttribute('width')).toBe('1920');
+    expect(target.querySelector('.bounds .frame')?.getAttribute('height')).toBe('1080');
+    expect((target.querySelector('.view') as HTMLElement).style.inset).toBe('48px 48px 56px');
+    input.click();
+    flushSync();
+    expect(input.checked).toBe(false);
+  } finally {
+    await unmount(canvas); await unmount(doc); target.remove(); vi.unstubAllGlobals();
+  }
+});
+
+import Presenter from './Presenter.svelte';
+
+it.each([false, true])('full-screen editor Play maps the saved frame edge to edge only with Full (%s)', async full => {
+  const editor = new Editor();
+  editor.scene = { version: 1, fullViewport: full, document: { width: 1920, height: 1080 }, objects: [] };
+  const target = document.createElement('div');
+  document.body.append(target);
+  vi.stubGlobal('requestAnimationFrame', () => 1);
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  const component = mount(Presenter, { target, props: { editor } });
+  try {
+    flushSync();
+    const svg = target.querySelector('svg.stage')!;
+    expect(svg.classList.contains('full-viewport')).toBe(full);
+    expect(svg.getAttribute('preserveAspectRatio')).toBe(full ? 'none' : null);
+    expect(svg.getAttribute('viewBox')).toBe('-960 -540 1920 1080');
+  } finally { await unmount(component); target.remove(); vi.unstubAllGlobals(); }
+});

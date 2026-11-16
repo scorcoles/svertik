@@ -1047,6 +1047,30 @@ export class Editor {
     this.record(true);
   }
 
+  addMouseInstance() {
+    if (!this.scene) return;
+    const source = this.activeNode;
+    const taken = new Set([...walkNodes(this.scene.objects)].map(({ node }) => node.name));
+    let name = 'Mouse Instance';
+    for (let i = 2; taken.has(name); i++) name = `Mouse Instance ${i}`;
+    const node: InstanceNode = {
+      kind: 'instance', id: `mouse-${uid()}`, name,
+      of: source && source.kind !== 'effector' && !(source.kind === 'instance' && source.mouse) ? source.id : '',
+      mouse: {}, stack: [],
+    };
+    this.scene.objects.unshift(node);
+    this.selected = node.id;
+    this.record(true);
+  }
+
+  setMouseParam(id: string, name: string, value: unknown) {
+    if (this.isLocked(id)) return;
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'instance' || !at.node.mouse) return;
+    at.node.mouse[name] = value;
+    this.record();
+  }
+
   /**
    * Effector nuevo, arriba de la lista, con los objetos seleccionados como targets (puede empezar sin
    * ninguno). Queda seleccionado: los efectos que se añadan van a su pila.
@@ -1276,6 +1300,12 @@ export class Editor {
       this.scene.document = { width: Math.max(1, r(width)), height: Math.max(1, r(height)), ...(x ? { x: r(x) } : {}), ...(y ? { y: r(y) } : {}) };
     } else delete this.scene.document;
     this.record(commit);
+  }
+  setFullViewport(enabled: boolean) {
+    if (!this.scene) return;
+    if (enabled) this.scene.fullViewport = true;
+    else delete this.scene.fullViewport;
+    this.record(true);
   }
   setSeedGenerator(value: number) {
     if (!this.scene) return;

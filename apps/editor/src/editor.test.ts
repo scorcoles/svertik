@@ -1249,3 +1249,29 @@ describe('Time Remap editing', () => {
     e.removeMarker(marker.id); expect(e.animation!.markers).toEqual([]);
   });
 });
+
+it('creates and configures a Mouse Instance without changing the source', () => {
+  const e = fresh();
+  const source = e.activeNode!;
+  const before = JSON.stringify(source);
+  e.addMouseInstance();
+  const mouse = e.activeNode!;
+  expect(mouse).toMatchObject({ kind: 'instance', of: source.id, mouse: {} });
+  e.setMouseParam(mouse.id, 'event', 'double-click');
+  expect(e.activeNode).toMatchObject({ mouse: { event: 'double-click' } });
+  expect(JSON.stringify(locateNode(e.scene!.objects, source.id)!.node)).toBe(before);
+});
+
+it('saves Full viewport as opt-in and restores the prior state with undo', () => {
+  const e = fresh();
+  const doc = JSON.stringify(e.scene!.document);
+  expect(e.scene!.fullViewport).toBeUndefined();
+  e.setFullViewport(true);
+  expect(e.scene!.fullViewport).toBe(true);
+  expect(JSON.stringify(e.scene!.document)).toBe(doc);
+  e.undo();
+  expect(e.scene!.fullViewport).toBeUndefined();
+  e.setFullViewport(true);
+  e.setFullViewport(false);
+  expect(e.scene!.fullViewport).toBeUndefined();
+});

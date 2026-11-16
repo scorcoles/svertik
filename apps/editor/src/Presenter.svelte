@@ -110,7 +110,7 @@
 />
 
 <div class="presenter" role="dialog" aria-label="Play" style:background={editor.canvas || DEFAULT_CANVAS}>
-  <svg bind:this={svg} class="stage" aria-label="svertik scene"></svg>
+  <svg bind:this={svg} class="stage" class:full-viewport={editor.scene?.fullViewport} aria-label="svertik scene"></svg>
   <div class="tools" data-active={controlsVisible || undefined}>
     <button type="button" onclick={capture} disabled={capturing} aria-label="Download current frame as PNG" title="Download current frame as PNG">
       <Icon name="image" />
@@ -126,6 +126,7 @@
 <style>
   .presenter { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; }
   .stage { width: min(92vw, 100%); height: 92vh; overflow: visible; }
+  .stage.full-viewport { width: 100vw; height: 100dvh; overflow: hidden; }
   .tools {
     position: absolute;
     top: max(16px, env(safe-area-inset-top));

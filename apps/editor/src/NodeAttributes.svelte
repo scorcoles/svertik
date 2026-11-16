@@ -1,5 +1,5 @@
 <script lang="ts">
-import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
+import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
@@ -43,7 +43,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   }
   // El slider se amplía por octavas para que siga siendo útil en escalas grandes.
   const scaleSliderMax = $derived(p.scale <= 16 ? 16 : 2 ** (Math.floor(Math.log2(p.scale)) + 1));
-  const kindLabel = $derived(node.kind === 'group' ? node.composition ? 'composition' : `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
+  const kindLabel = $derived(node.kind === 'group' ? node.composition ? 'composition' : `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? node.mouse ? 'mouse instance' : 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
   // Objetos importados: cuántas formas trae su SVG (para poder expandirlo en un objeto por forma).
   const shapes = $derived(node.kind === 'object' && !node.packed ? editor.shapeCount(node.source) : 0);
   // Instancia: de qué objeto (cualquiera menos ella misma).
@@ -126,15 +126,19 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
     </Section>
   {/if}
   {#if node.kind === 'instance'}
-    <Section title="Instance">
+    <Section title={node.mouse ? "Mouse Instance" : "Instance"}>
       <ParamRow label="Of">
         <Select
           value={original?.name ?? '—'}
-          options={['—', ...others.map((n) => n.name)]}
+          options={['—', ...others.filter(n => n.kind !== 'effector' && !(n.kind === 'instance' && n.mouse)).map((n) => n.name)]}
           label="Of"
           onchange={(v) => editor.setInstanceOf(node.id, others.find((n) => n.name === v)?.id ?? '')}
         />
       </ParamRow>
+      {#if node.mouse}
+        <ParamList params={Object.entries(mouseParams)} values={node.mouse} onchange={(name, value) => editor.setMouseParam(node.id, name, value)} />
+        <p class="note">Generate copies on the canvas in Play. Each copy starts its animation at zero. Life 0 keeps copies until the limit replaces the oldest.</p>
+      {/if}
       {#if node.of && !original}<p class="note">The original no longer exists: pick another one.</p>{/if}
       {#if original}
         <div class="actions">
@@ -177,6 +181,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
     {/if}
   {/if}
   {#if node.kind !== 'effector'}
+  {#if !(node.kind === 'instance' && node.mouse)}
   <Section title="Transform">
     {#if parentInfo}
       <ParamRow label="Position space">
@@ -215,6 +220,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
       <IconButton icon="flip-v" label="Flip vertically" active={!!p.flipY} onclick={() => editor.setNode(node.id, 'flipY', !p.flipY, true)} />
     </ParamRow>
   </Section>
+  {/if}
   <Section title="Display">
     <ParamRow label="Opacity" for="node-op" keyState={nodeKey('opacity')} onkey={() => toggleNode('opacity')}>
       <NumberField id="node-op" value={node.opacity ?? 1} step={0.01} min={0} max={1} onchange={(v) => editor.setNode(node.id, 'opacity', v)} />

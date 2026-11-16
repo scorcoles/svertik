@@ -90,7 +90,7 @@ export function generatedPart(scene: SceneV1): string {
   const head = Object.entries(rest).map(([k, v]) => `  ${k}: ${inlineLiteral(v)},`);
   const sceneText = ['{', ...head, '  objects: [', ...objects.map((n) => `    ${writeNode(n, vars, '    ')},`), '  ],', '}'].join('\n');
   return [
-    `import { createEngine, ${[...sceneTypes(scene), ...(scene.animation?.tracks.length || scene.interactions?.length ? ['createPlayer'] : [])].join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
+    `import { createEngine, ${[...sceneTypes(scene), ...(scene.fullViewport || scene.animation?.tracks.length || scene.interactions?.length || [...walkNodes(scene.objects)].some(({ node }) => node.kind === 'instance' && node.mouse) ? ['createPlayer'] : [])].join(', ')} } from '@svertik/engine';`.replace(', }', ' }').replace('createEngine,  }', 'createEngine }'),
     '',
     ...consts,
     '',
@@ -136,7 +136,7 @@ export const sourceRange = (text: string) => sourceRanges(text)[0] ?? null;
 export function exportJS(scene: SceneV1, script: string): string {
   const types = sceneTypes(scene);
   // Con animación o interacciones, el reproductor del motor (línea de tiempo, hover, clic y «reducir movimiento»).
-  const player = !!(scene.animation?.tracks.length || scene.interactions?.length);
+  const player = !!(scene.fullViewport || scene.animation?.tracks.length || scene.interactions?.length || [...walkNodes(scene.objects)].some(({ node }) => node.kind === 'instance' && node.mouse));
   // Con textos, sus fuentes (libres, de Fontsource) se bajan antes de dibujar.
   const fonts = sceneFonts(scene).length > 0;
   const head = generatedPart(scene);

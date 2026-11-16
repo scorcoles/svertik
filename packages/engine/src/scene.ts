@@ -90,6 +90,8 @@ export interface GroupNode extends NodeBase {
 export interface InstanceNode extends NodeBase {
   kind: 'instance';
   of: string;
+  /** Generates copies from canvas input during playback; draws nothing at rest. */
+  mouse?: Record<string, unknown>;
 }
 
 /**
@@ -125,6 +127,8 @@ export function customNumber(v: unknown): number | null {
 
 export interface SceneV1 {
   version: 1;
+  /** Stretch the saved document to fill the viewport during Play; editor geometry is unchanged. */
+  fullViewport?: boolean;
   /** Global seed for effect expressions; nested compositions inherit it unless they override it. */
   seedGenerator?: number;
   /**

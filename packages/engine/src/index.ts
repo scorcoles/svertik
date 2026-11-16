@@ -25,3 +25,5 @@ export { effectDescriptions, shapeDescriptions } from './descriptions';
 export { initKernels, kernels, type Kernels, type MetaballInput, type MetaballShape } from './kernels';
 
 export { compositionParams, compositionTime } from './composition';
+
+export { mouseParams, createMouseInstances, type MouseEventKind } from './mouse';

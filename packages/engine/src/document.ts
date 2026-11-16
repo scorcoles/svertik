@@ -345,7 +345,7 @@ export function createDocumentEvaluator(
       // Returns the node's geometry in its parent's coordinates.
       const evalNode = (node: SceneNode, parentMatrix: Mat): Shape[] => {
         seen.add(node.id);
-        if (node.kind === 'effector') return [];
+        if (node.kind === 'effector' || (node.kind === 'instance' && node.mouse)) return [];
         const stack = stackOf(node);
         const p = placementOf(node);
         if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {

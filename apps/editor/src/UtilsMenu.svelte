@@ -47,6 +47,9 @@
         <Icon name="instance" />
         Instance
       </DropdownMenu.Item>
+      <DropdownMenu.Item class="sv-menu-item" title="Generate copies at the cursor during Play" onSelect={() => editor.addMouseInstance()}>
+        <Icon name="mouse-instance" /> Mouse Instance
+      </DropdownMenu.Item>
       <DropdownMenu.Item
         class="sv-menu-item"
         title="Effects that apply to other objects (its targets), each on its own. Selected objects become its targets."

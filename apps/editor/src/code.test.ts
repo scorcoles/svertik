@@ -71,3 +71,16 @@ describe('código con animación', () => {
     expect(js).toContain('reducir movimiento');
   });
 });
+
+it('exports Mouse Instance scenes with the interactive player', () => {
+  const s: SceneV1 = { version: 1, objects: [{ kind: 'instance', id: 'mouse', name: 'Mouse', of: 'source', stack: [], mouse: { event: 'move' } }] };
+  const js = exportJS(s, '');
+  expect(js).toContain('createPlayer(engine, document.querySelector');
+  expect(js).toContain("mouse: { event: 'move' }");
+  expect(js.split('\n')[0]).toContain('createPlayer');
+});
+
+it('exports static Full viewport scenes with the responsive player', () => {
+  const s: SceneV1 = { version: 1, fullViewport: true, objects: [] };
+  expect(exportJS(s, '')).toContain('createPlayer(engine, document.querySelector');
+});

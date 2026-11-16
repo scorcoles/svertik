@@ -800,3 +800,48 @@ A deformer that walks each path by length and raises `count` evenly spaced tips,
 ```
 
 Curved outlines are walked as fine polylines, so the stretches left between spikes (`width` below 1) become straight segments. A spike that straddles a sharp corner can cross itself.
+
+## Mouse Instance
+
+Add **Utils → Mouse Instance**, choose a source object/group in **Of**, then enter **Play**. Input is received anywhere on the SVG canvas, including its empty background. The source may be hidden; its generated copies still render. Mouse Instance has its own mouse icon in the layer list.
+
+A Mouse Instance is an instance node with a `mouse` configuration. It draws nothing in the editor or in a headless render. The player generates temporary copies without changing saved scene objects. Each copy starts the source's animation at local time zero, holds its final frame, and disappears after `lifetime` seconds. A composition source keeps its own playback settings. `lifetime: 0` keeps copies until newer copies replace them at `limit`. Stopping/restarting Play clears generated copies. SVG/MP4 timeline exports do not record mouse input; a Play frame capture includes the visible copies.
+
+```json
+{
+  "kind": "instance",
+  "id": "mouse-brush",
+  "name": "Mouse Instance",
+  "of": "source-object-id",
+  "stack": [],
+  "mouse": {
+    "event": "move",
+    "button": "left",
+    "rate": 20,
+    "distance": 8,
+    "count": 1,
+    "lifetime": 3,
+    "limit": 100,
+    "offset": [0, 0],
+    "scale": 1,
+    "rotation": 0,
+    "scatter": 0,
+    "scaleVariation": 0,
+    "rotationVariation": 0
+  }
+}
+```
+
+- `event`: `click` (default), `double-click`, `right-click`, `middle-click`, `move`, `wheel-up`, `wheel-down`. Multiple Mouse Instance nodes can listen to different events.
+- `button`: for movement only, `any` (no button required), `left`, `right`, or `middle` (must be held).
+- `rate`: maximum emissions per second (default 20, 0.1–120), with no queued emissions. Movement also requires `distance` pixels since the last emission (default 0).
+- `count`: copies per emission (1–50). `limit`: maximum live copies per generator (1–500); oldest copies are removed first. `lifetime`: seconds, default 3; zero keeps copies.
+- `offset`: canvas coordinates relative to the cursor; `scale` and `rotation`: additional transform on the source; `scatter`: random ±px per axis; `scaleVariation`: random relative scale (0–1); `rotationVariation`: random ±degrees.
+
+The source's initial local position is aligned with the cursor; its scale, rotation, effects and subsequent position animation are retained. Its parent placement does not affect cursor positioning. Generator transform controls are replaced by the explicit mouse offset/scale/rotation controls. The generator's effects, opacity and blend apply to its copies. Right-click and wheel suppress browser defaults only when a matching generator handles the input. A double-click also produces the browser's normal click events, so separate click generators respond too. Mouse generators inside nested compositions are not activated; place them in the outer scene and use the composition as their source.
+
+## Full viewport
+
+**Document → Size → Full** (Full viewport) is off by default. Enable it to fill the complete viewport in Play/shared Play, without the usual presentation margins. The editor retains its saved document size, canvas margins and bounds as a reference. The saved document is stretched edge to edge along both axes (`preserveAspectRatio="none"`), so objects placed on its edges stay at the viewport edges. Different document/viewport aspect ratios stretch the artwork; there are no letterbox margins or cropped edges.
+
+The setting is saved as optional `SceneV1.fullViewport: true`. Document dimensions and geometry stay unchanged in the editor and in headless exports. Both the editor's full-screen Play and the shared-link Play size their SVG to the full viewport. Embedded pages should size their SVG to the intended viewport; `createPlayer` applies the same edge-to-edge mapping. Mouse Instance coordinates use the SVG screen transform, including this scaling.

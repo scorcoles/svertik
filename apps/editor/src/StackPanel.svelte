@@ -264,7 +264,7 @@
       <StackItem
         label={n.name}
         kind="object"
-        icon={(n.kind === 'group' ? n.composition ? 'composition' : 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : /<image\b/i.test(n.source) ? 'image' : 'object') as IconName}
+        icon={(n.kind === 'group' ? n.composition ? 'composition' : 'group' : n.kind === 'shape' ? n.shape : n.kind === 'instance' ? n.mouse ? 'mouse-instance' : 'instance' : n.kind === 'effector' ? 'effector' : n.packed ? 'pack' : /<image\b/i.test(n.source) ? 'image' : 'object') as IconName}
         oniconactivate={!n.locked && n.kind === 'group' && n.composition ? () => editor.openComposition(n.id) : undefined}
         {depth}
         expanded={!n.locked && (n.stack.length || n.kind === 'group' || n.children?.length) ? open : undefined}

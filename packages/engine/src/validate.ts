@@ -1,3 +1,4 @@
+import { mouseParams } from './mouse';
 import { isRangedVariable } from './scene';
 import { isNumericExpression } from './expression';
 import { parsePercent } from './units';
@@ -35,6 +36,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   if (raw.version !== 1) errors.push('version must be 1');
   if (!Array.isArray(raw.objects)) return { errors: [...errors, 'objects must be an array'], warnings };
   const scene = raw as SceneV1;
+  if (scene.fullViewport !== undefined && typeof scene.fullViewport !== 'boolean') errors.push('fullViewport must be a boolean');
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 
   // Every node and effect, by id (for references), and repeated ids.
@@ -94,6 +96,16 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
       if (n.kind === 'object' && typeof n.source !== 'string' && !n.packed) errors.push(`${name(n)}: needs a source SVG`);
       if (n.kind === 'instance') {
+        if (n.mouse) {
+          checkParams(mouseParams, n.mouse, name(n) + ' Mouse Instance');
+          for (const [key, spec] of Object.entries(mouseParams)) {
+            const v = n.mouse[key];
+            if (v === undefined) continue;
+            if (spec.type === 'number' && (typeof v !== 'number' || !Number.isFinite(v))) errors.push(`${name(n)}: mouse ${key} must be a finite number`);
+            if (spec.type === 'enum' && !(spec.options as readonly unknown[]).includes(v)) errors.push(`${name(n)}: unknown mouse ${key}`);
+            if (spec.type === 'point' && (!Array.isArray(v) || v.length !== 2 || v.some(c => typeof c !== 'number' || !Number.isFinite(c)))) errors.push(`${name(n)}: mouse ${key} must be a numeric point`);
+          }
+        }
         if (typeof n.of !== 'string' || !n.of) warnings.push(`${name(n)}: is an instance of nothing ("of" is empty)`);
         else nodeRefs.push({ from: name(n), param: 'of', id: n.of });
       }

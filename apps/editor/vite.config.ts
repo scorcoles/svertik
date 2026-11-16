@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [svelte()],
+  // Component interaction tests use the same client runtime as the editor.
+  resolve: { conditions: ['browser'] },
   base: './',
   build: {
     rolldownOptions: {

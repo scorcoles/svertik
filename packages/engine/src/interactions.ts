@@ -1,3 +1,4 @@
+import { createMouseInstances, type MouseEventKind } from './mouse';
 import { sceneDuration } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
@@ -299,10 +300,14 @@ export interface PlayerOptions {
 export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1, options: PlayerOptions = {}) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const inter = createInteractions(() => scene);
+  const mouse = createMouseInstances(scene);
+  let mouseDirty = false;
   const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
     ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
   const autoplay = !!anim && anim.autoplay !== false;
+  const originalAspectRatio = svg.getAttribute('preserveAspectRatio');
+  if (scene.fullViewport) svg.setAttribute('preserveAspectRatio', 'none');
   const live = engine.mount(svg, anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene);
   const t0 = performance.now();
   let last = t0;
@@ -323,13 +328,14 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     if (anim && head !== null) t = head;
     // At the scene's pace: the time falls on its frame; if it's the same and nothing else moves, nothing is painted.
     if (anim) t = Math.min(anim.duration, Math.floor(t * fps + 1e-6) / fps);
-    if (t !== shown || moving) {
+    if (t !== shown || moving || mouseDirty || mouse.active()) {
       const c0 = performance.now();
-      live.update(inter.apply(anim ? sampleScene(scene, t) : scene));
+      live.update(mouse.apply(inter.apply(anim ? sampleScene(scene, t) : scene), now / 1000));
+      mouseDirty = false;
       shown = t;
       options.onFrame?.({ ms: performance.now() - c0, t });
     }
-    const keepGoing = (autoplay && !reduce && (anim!.loop !== false || t < anim!.duration)) || moving;
+    const keepGoing = (autoplay && !reduce && (anim!.loop !== false || t < anim!.duration)) || moving || mouse.active();
     frame = keepGoing ? requestAnimationFrame(draw) : 0;
   };
   const wake = () => {
@@ -363,6 +369,28 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     inter.pointer(null, null);
     wake();
   };
+  const emit = (kind: MouseEventKind, e: MouseEvent) => {
+    const m = svg.getScreenCTM?.();
+    if (!m) return false;
+    const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    const handled = mouse.event(kind, [q.x, q.y], performance.now() / 1000, e.buttons);
+    if (handled) { mouseDirty = true; wake(); }
+    return handled;
+  };
+  const mouseClick = (e: MouseEvent) => { emit('click', e); };
+  const mouseDouble = (e: MouseEvent) => { emit('double-click', e); };
+  const mouseContext = (e: MouseEvent) => { if (emit('right-click', e)) e.preventDefault(); };
+  const mouseMiddle = (e: MouseEvent) => { if (e.button === 1 && emit('middle-click', e)) e.preventDefault(); };
+  const mouseMove = (e: PointerEvent) => { emit('move', e); };
+  const mouseWheel = (e: WheelEvent) => { if (e.deltaY && emit(e.deltaY < 0 ? 'wheel-up' : 'wheel-down', e)) e.preventDefault(); };
+  if (mouse.enabled) {
+    svg.addEventListener('click', mouseClick);
+    svg.addEventListener('dblclick', mouseDouble);
+    svg.addEventListener('contextmenu', mouseContext);
+    svg.addEventListener('mousedown', mouseMiddle);
+    svg.addEventListener('pointermove', mouseMove);
+    svg.addEventListener('wheel', mouseWheel, { passive: false });
+  }
   // "enter": when the drawing scrolls into view (every time it comes back).
   let io: IntersectionObserver | null = null;
   const list = scene.interactions ?? [];
@@ -395,6 +423,17 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     stop() {
       cancelAnimationFrame(frame);
       io?.disconnect();
+      mouse.clear();
+      if (scene.fullViewport) {
+        if (originalAspectRatio === null) svg.removeAttribute('preserveAspectRatio');
+        else svg.setAttribute('preserveAspectRatio', originalAspectRatio);
+      }
+      svg.removeEventListener('click', mouseClick);
+      svg.removeEventListener('dblclick', mouseDouble);
+      svg.removeEventListener('contextmenu', mouseContext);
+      svg.removeEventListener('mousedown', mouseMiddle);
+      svg.removeEventListener('pointermove', mouseMove);
+      svg.removeEventListener('wheel', mouseWheel);
       svg.removeEventListener('pointerover', enter);
       svg.removeEventListener('pointerout', leave);
       svg.removeEventListener('click', click);

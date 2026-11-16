@@ -91,7 +91,7 @@
 
 <div class="doc">
   <header>
-    <h2>Document</h2><span class="meta">{doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
+    <h2>Document</h2><span class="meta">{editor.scene?.fullViewport ? 'viewport' : doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
     <IconButton icon="expand-all" label="Expand all document sections" onclick={() => setAllSections(true)} />
     <IconButton icon="collapse-all" label="Collapse all document sections" onclick={() => setAllSections(false)} />
   </header>
@@ -121,10 +121,15 @@
         </ParamRow>
         <span class="swap"><IconButton icon="swap" label="Swap document width and height" onclick={() => editor.setDocument({ width: doc.height, height: doc.width })} /></span>
       </div>
-      <div class="actions">
-        <Button label="Fit to drawing" onclick={() => editor.fitDocument()} />
-      </div>
     {/if}
+    <div class="full-viewport-row">
+      <label for="doc-full-viewport">Full</label>
+      <input id="doc-full-viewport" type="checkbox" aria-label="Full viewport" title="Fill the available viewport in Play" checked={editor.scene?.fullViewport === true} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
+    </div>
+    {#if doc}
+      <div class="actions"><Button label="Fit to drawing" onclick={() => editor.fitDocument()} /></div>
+    {/if}
+    {#if editor.scene?.fullViewport && editor.showInfo}<p class="note">In Play, stretch the document edge to edge across the viewport. The editor keeps its document size and bounds.</p>{/if}
     {#if editor.showInfo}<p class="note">
       {doc
         ? 'What is exported and shown in Play. Anything outside is cut off. Turn on Bounds (View, below) to see the edge.'
@@ -266,6 +271,9 @@
   h2 { margin: 0; font-size: var(--sv-font-size-11); color: var(--sv-text-primary); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .spacer { flex: 1; }
+  .full-viewport-row { display: flex; align-items: center; gap: var(--sv-space-8); height: var(--sv-size-row); padding: 0 var(--sv-space-8); }
+  .full-viewport-row label { flex: none; width: 84px; text-align: right; color: var(--sv-text-secondary); cursor: pointer; }
+  .full-viewport-row input { width: 12px; height: 12px; margin: 0; accent-color: var(--sv-accent-fill); cursor: pointer; }
   .dimensions { position: relative; }
   .swap { position: absolute; left: 176px; top: 50%; translate: 0 -50%; display: flex; }
   .actions { display: flex; justify-content: center; gap: var(--sv-space-8); padding: var(--sv-space-12) var(--sv-space-8) var(--sv-space-4); }
