@@ -54,7 +54,8 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
         // Text in a number: only a percentage, and only where the parameter accepts one.
         if (parsePercent(v) === null) warnings.push(`${where}: "${k}" must be a number or a percentage like "50%", not "${v}"`);
         else if (!spec.percentOf) warnings.push(`${where}: "${k}" does not accept percentages ("${v}")`);
-      } else if (spec.type === 'node' && typeof v === 'string' && v) nodeRefs.push({ from: where, param: k, id: v });
+      } else if (spec.type === 'palette' && (!Array.isArray(v) || !v.length || v.some(c => typeof c !== 'string' || !/^#[0-9a-f]{6}$/i.test(c)))) errors.push(`${where}: "${k}" must be a non-empty array of #rrggbb colors`);
+      else if (spec.type === 'node' && typeof v === 'string' && v) nodeRefs.push({ from: where, param: k, id: v });
       else if (spec.type === 'nodes') {
         if (!Array.isArray(v) || v.some((id) => typeof id !== 'string')) errors.push(`${where}: "${k}" must be an array of node ids`);
         else for (const id of v) if (id) nodeRefs.push({ from: where, param: k, id });

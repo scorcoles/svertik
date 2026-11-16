@@ -36,6 +36,7 @@ function range(s: ParamSpec): string {
   if (s.type === 'angle') return 'degrees';
   if (s.type === 'seed') return 'integer';
   if (s.type === 'color') return '#rrggbb';
+  if (s.type === 'palette') return 'non-empty array of #rrggbb colors';
   return '';
 }
 

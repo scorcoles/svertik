@@ -30,7 +30,10 @@ const full = (m: string) => (m.length === 4 ? `#${[...m.slice(1)].map((c) => c +
 /** Every string in the scene that may hold colours: parameters, SVG sources and animation keys. */
 function eachText(scene: SceneV1, fn: (value: string, set: (v: string) => void) => void) {
   const visit = (obj: Record<string, unknown>) => {
-    for (const [k, v] of Object.entries(obj)) if (typeof v === 'string') fn(v, (nv) => (obj[k] = nv));
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === 'string') fn(v, (nv) => (obj[k] = nv));
+      else if (Array.isArray(v)) v.forEach((c, i) => { if (typeof c === 'string') fn(c, nv => { v[i] = nv; }); });
+    }
   };
   const stack = (list: ModifierInstance[]) => list.forEach((m) => { if (m.params) visit(m.params); stack(m.children ?? []); });
   for (const { node } of walkNodes(scene.objects)) {

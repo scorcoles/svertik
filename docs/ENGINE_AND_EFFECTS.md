@@ -916,6 +916,66 @@ Example `mouse` configuration:
 }
 ```
 
-Keep finite fallbacks. Invalid formulas use their fallback; invalid non-finite results/fallbacks use safe numeric defaults. Copies per event and Max copies are floored and capped at 50/500, Rate stays within 0.1–120/s, scale stays positive and life/distance/variation distances are non-negative. Scale variation stays within 0–1. A lifetime of zero keeps copies subject to the limit. `random(min, max)` inside Mouse Instance config uses an implicit deterministic birth-index salt, so each copy receives a fresh value, including several copies emitted by one event. Explicit third arguments override that salt: `random(0, 90, scene.cycle)` intentionally shares a value for that cycle; `random(..., scene.frame)` shares a value within the sampled scene frame. Outside Mouse Instance config, omitted seeds still default to 0 and remain stable. Runtime geometry is still temporary and saved formulas remain intact.
+Keep finite fallbacks. Invalid formulas use their fallback; invalid non-finite results/fallbacks use safe numeric defaults. Copies per event and Max copies are floored and capped at 50/500, Rate stays within 0.1–120/s, scale stays positive and life/distance/variation distances are non-negative. Scale variation stays within 0–1. A lifetime of zero keeps copies subject to the limit. `random(min, max)` inside Mouse Instance config uses an implicit deterministic birth-index salt, so each copy receives a fresh value, including several copies emitted by one event. Explicit third arguments override that salt: `random(0, 90, scene.cycle)` intentionally shares a value for that cycle; `random(..., scene.frame)` shares a value within the sampled scene frame. Outside Mouse-generated copies, omitted seeds still default to 0 and remain stable. Runtime geometry is still temporary and saved formulas remain intact.
 
 Mouse random example: set Rotation to `random(0, 90)` to give each emitted cross a distinct angle that remains fixed after birth. Replaying the same accepted emission sequence with the same document seed reproduces those values. Other numeric birth properties and custom-variable random formulas evaluated for that config use the same per-copy context.
+
+Mouse Instance also propagates its implicit per-copy random salt into the source object's shapes, effect stacks (including Paint Amount), custom-variable formulas, text expressions and nested source compositions. `random(0, 1)` in a Cross source's Paint `fillAmount` gives each generated copy its own mix amount, stable over its lifetime. Explicit third arguments still override per-copy variation. The source's saved formula and document seed stay unchanged. Generated composition wrappers carry the runtime `composition.randomSalt` context; agents should not add this field to authored scene JSON. Paint Amount mixes the base fill with Paint's fill color, so choose different colors to see variation.
+
+## Color Palette with Mouse Instance
+
+For an exact random color from a list, add **Color** to the Cross/source, set **Mode → palette** and keep **Choose → random**. The Palette section starts with five editable color pickers; use + or × to add/remove colors (at least one remains). Set Target to fill, stroke or both. This replaces the target with one exact palette entry, without blending neighboring colors. Each accepted mouse input picks a new random palette entry; all copies created by that one emission share the pick. The next click may legitimately pick the previous color again. The choice stays stable across frames with the default seed, and the saved source remains unchanged.
+
+```json
+{
+  "id": "palette-color",
+  "type": "color",
+  "params": {
+    "mode": "palette",
+    "palette": ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff"],
+    "paletteMode": "random",
+    "seed": 1,
+    "target": "fill"
+  }
+}
+```
+
+Palette entries are a non-empty `#rrggbb` array. The document seed, Color's Seed and accepted emission sequence determine the choices reproducibly. Throttled input does not consume a choice. Movement/wheel/other mouse triggers follow the same rule per accepted emission. Source compositions inherit the emission context. A static scene outside Mouse uses the effect's Seed for a stable choice.
+
+For manual/procedural selection, choose **index** and set numeric/ƒx `index`; index 0 is the first entry, fractional values are floored and out-of-range/negative indices wrap. Explicit index mode bypasses automatic per-click selection. Empty/malformed palettes fail validation; runtime rendering safely ignores an empty palette. None/transparent fills are preserved, and stroke targeting follows the existing Color behavior.
+
+**Color → random** remains a different mode: it varies hue/lightness according to Variation rather than restricting the result to the palette. In Mouse Instance it now uses a distinct seed per generated copy, including multiple copies from one click, and retains its color with the default static settings. Use Variation > 0 to see a difference. This per-copy rule applies whether Color is on the generator's own stack or on its source/nested source composition. **Palette** deliberately picks per emission instead.
+
+## Mouse Instance Target area
+
+Mouse Instance's **Target** optionally limits where its input is accepted. Create a rectangle covering the desired part of the scene, select it as Target, and hide it in the layer list. Hidden target geometry still gates clicks, double/right/middle clicks, movement and wheel events in both Play hosts. No Target means the whole SVG canvas. Source (**Of**) and Target are independent references.
+
+Example: an invisible rectangle makes only the left half interactive:
+
+```json
+{
+  "version": 1,
+  "document": { "width": 800, "height": 600 },
+  "objects": [
+    {
+      "kind": "instance", "id": "mouse", "name": "Mouse Instance",
+      "of": "cross", "stack": [], "mouse": { "event": "click", "target": "left-half" }
+    },
+    {
+      "kind": "shape", "id": "cross", "name": "Cross", "shape": "cross",
+      "params": { "size": 80 }, "visible": false, "stack": []
+    },
+    {
+      "kind": "shape", "id": "left-half", "name": "Left half", "shape": "rectangle",
+      "params": { "width": 400, "height": 600 }, "transform": { "x": -200 },
+      "visible": false, "stack": []
+    }
+  ]
+}
+```
+
+The player tests the target's evaluated closed contours in document coordinates, including transforms, effects and animation, rather than just its bounding box or DOM hit-testing. Fill/stroke color, opacity, visibility and filter extents do not define the area. Target contours respect nonzero/even-odd holes; borders are included. Use a closed shape (a line alone has no interior). A missing/deleted target accepts no input, with a validation warning. Input outside the target does not emit copies, consume palette choices, update the rate/distance gate or suppress browser context-menu/wheel defaults. Full viewport screen transforms still map input into the same scene coordinates.
+
+Set `mouse.target: "<node-id>"` in JSON; the reference belongs to the same scene scope. Direct runtime callers pass the evaluated `DocumentResult` as the sixth argument to `.event(kind, point, monotonicSeconds, buttons?, sceneTime?, document?)`; `createPlayer` supplies the currently displayed document automatically. Input with a target and no geometry context is ignored. Composition extraction checks target references; pasted targets remap when copied alongside their generators.
+
+The Mouse Instance inspector contains its source, target and generation controls; it omits the generic Display, Interactions, Animate, Pack/Group/Remove blocks. Use the layer list to toggle/remove the generator. The effect stack remains available; animate or style the source to define what its emitted copies do.

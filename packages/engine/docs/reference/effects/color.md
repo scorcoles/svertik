@@ -2,13 +2,16 @@
 
 `type: "color"` · Style: changes colours or paint, not the geometry. · Editor menu: **Style**.
 
-Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random.
+Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact color from an editable list (one choice per Mouse Instance input event).
 
 ## Parameters
 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
-| `mode` | enum | `"shift"` | `solid`, `shift`, `gradient`, `random` | not animatable |
+| `mode` | enum | `"shift"` | `solid`, `shift`, `gradient`, `random`, `palette` | not animatable |
+| `palette` | palette | `["#ff6b5e","#ffc857","#09fdd1","#4d8dff","#b894f6"]` | non-empty array of #rrggbb colors | not animatable; only when `mode` is `palette`; group: Palette; label: Colors |
+| `paletteMode` | enum | `"random"` | `random`, `index` | not animatable; only when `mode` is `palette`; group: Palette; label: Choose |
+| `index` | number | `0` | step 1 | only when `mode` is `palette` and `paletteMode` is `index`; group: Palette |
 | `color` | color | `"#D2502F"` | #rrggbb | only when `mode` is `solid` |
 | `hue` | angle | `30` | degrees | only when `mode` is `shift` |
 | `saturation` | number | `0` | min -1, max 1, step 0.01 | only when `mode` is `shift` |
@@ -31,6 +34,15 @@ Inside a node's `stack` (effects run top to bottom):
   "type": "color",
   "params": {
     "mode": "shift",
+    "palette": [
+      "#ff6b5e",
+      "#ffc857",
+      "#09fdd1",
+      "#4d8dff",
+      "#b894f6"
+    ],
+    "paletteMode": "random",
+    "index": 0,
     "color": "#D2502F",
     "hue": 30,
     "saturation": 0,

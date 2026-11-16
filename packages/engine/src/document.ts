@@ -692,7 +692,10 @@ export function onlyFor(scene: SceneV1, id: string): SceneV1 {
     for (const { node } of walkNodes([root])) {
       const out: string[] = [];
       refs(node.stack ?? [], out);
-      if (node.kind === 'instance') out.push(node.of);
+      if (node.kind === 'instance') {
+        out.push(node.of);
+        if (typeof node.mouse?.target === 'string' && node.mouse.target) out.push(node.mouse.target);
+      }
       if (node.kind === 'effector') out.push(...(node.targets ?? []));
       for (const e of effectorsOf.get(node.id) ?? []) out.push(e.id);
       for (const x of out) if (!seen.has(x)) todo.push(x);

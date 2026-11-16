@@ -50,6 +50,7 @@ export type ParamSpec =
   | (ParamBase & { type: 'seed'; default: number })
   | (ParamBase & { type: 'boolean'; default: boolean })
   | (ParamBase & { type: 'color'; default: string; solid?: boolean })
+  | (ParamBase & { type: 'palette'; default: string[] })
   | (ParamBase & { type: 'enum'; default: string; options: readonly string[] })
   /** Another node of the scene (its id); empty = none. */
   | (ParamBase & { type: 'node'; default: string })
@@ -243,6 +244,7 @@ export function randomizeParams(schema: ParamSchema, current: Record<string, unk
         break;
       case 'boolean':
       case 'color':
+      case 'palette':
       case 'node':
       case 'nodes':
       case 'text':

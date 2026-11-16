@@ -378,7 +378,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     if (!m) return false;
     const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
     const now = performance.now();
-    const handled = mouse.event(kind, [q.x, q.y], now / 1000, e.buttons, clockAt(now));
+    const handled = mouse.event(kind, [q.x, q.y], now / 1000, e.buttons, clockAt(now), live.doc());
     if (handled) { mouseDirty = true; wake(); }
     return handled;
   };

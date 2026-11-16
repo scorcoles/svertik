@@ -1,3 +1,4 @@
+import { seedMouseColors } from './mouse-color-seeds';
 import { signalSchemas } from './modifiers/signal-schemas';
 import { waveform, wiggleSignal, pulseSignal, shakeSignal } from './modifiers/time-signal';
 import { sampleScene } from './animation';
@@ -40,7 +41,7 @@ export function compositionTime(parentTime: number, duration: number, given: Rec
 }
 
 /** Materialize each scene at its own clock, then namespace it before passing it to the document evaluator. */
-export function expandCompositions(scene: SceneV1, registry: Map<string, ModifierDef<any>>, depth = 0, ancestors = new Set<SceneV1>()): SceneV1 {
+export function expandCompositions(scene: SceneV1, registry: Map<string, ModifierDef<any>>, depth = 0, ancestors = new Set<SceneV1>(), randomSalt = 0, eventSalt?: number): SceneV1 {
   if (depth > 32 || ancestors.has(scene)) throw new Error('Composition nesting is cyclic or exceeds 32 levels');
   const chain = new Set(ancestors); chain.add(scene);
   const occupied = new Set<string>();
@@ -50,16 +51,18 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
     if (node.kind !== 'group') return node.children?.length ? { ...node, children: expand(node.children) } : node;
     if (!node.composition) return { ...node, children: expand(node.children) };
     const source = node.composition.scene;
+    const localEventSalt = node.composition.eventSalt ?? eventSalt;
+    const localRandomSalt = node.composition.randomSalt ?? randomSalt;
     const localTime = compositionTime(scene.at ?? 0, sceneDuration(source), node.composition.params, node.composition.modulation);
     const local = evaluateSceneExpressions({
       ...sampleScene(source, localTime),
       seedGenerator: source.seedGenerator ?? scene.seedGenerator ?? 1,
       at: localTime,
-    });
+    }, { randomSalt: localRandomSalt });
     const byId = new Map([...walkNodes(local.objects)].map(({ node }) => [node.id, node]));
     const extra = effectorStacks(local, byId);
-    const bake = (items: SceneNode[]): SceneNode[] => items.map(n => ({ ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], ...(n.children ? { children: bake(n.children) } : {}), ...(n.kind === 'effector' ? { visible: false } : {}) } as SceneNode));
-    const resolved = expandCompositions({ ...local, objects: bake(local.objects) }, registry, depth + 1, chain);
+    const bake = (items: SceneNode[]): SceneNode[] => items.map(n => ({ ...n, stack: seedMouseColors([...(n.stack ?? []), ...(extra.get(n.id) ?? [])], localEventSalt, local.seedGenerator, localRandomSalt), ...(n.children ? { children: bake(n.children) } : {}), ...(n.kind === 'effector' ? { visible: false } : {}) } as SceneNode));
+    const resolved = expandCompositions({ ...local, objects: bake(local.objects) }, registry, depth + 1, chain, localRandomSalt, localEventSalt);
     // Length-delimited prefixes are distinct even for IDs containing our separators.
     let prefix = `${node.id.length}:${node.id}::`;
     while ([...occupied].some(id => id.startsWith(prefix))) prefix = '@' + prefix;
@@ -72,7 +75,7 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
     });
     const namespace = (items: SceneNode[]): SceneNode[] => items.map(n => ({
       ...n, id: prefix + n.id, stack: stack(n.stack),
-      ...(n.kind === 'instance' ? { of: prefix + n.of } : {}),
+      ...(n.kind === 'instance' ? { of: prefix + n.of, ...(n.mouse?.target ? { mouse: { ...n.mouse, target: prefix + n.mouse.target } } : {}) } : {}),
       ...(n.kind === 'effector' ? { targets: n.targets.map(id => prefix + id) } : {}),
       ...(n.children ? { children: namespace(n.children) } : {}),
     } as SceneNode));

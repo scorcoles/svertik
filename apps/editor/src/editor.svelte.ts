@@ -348,7 +348,7 @@ export class Editor {
       const ids = new Set([...walkNodes(objects)].map(({ node }) => node.id));
       // A composition is an isolated scope: never silently break references at its boundary.
       for (const { node: n } of walkNodes(parent.objects)) {
-        const refs: string[] = n.kind === 'instance' ? [n.of] : n.kind === 'effector' ? n.targets : [];
+        const refs: string[] = n.kind === 'instance' ? [n.of, ...(typeof n.mouse?.target === 'string' && n.mouse.target ? [n.mouse.target] : [])] : n.kind === 'effector' ? n.targets : [];
         const scan = (stack: ModifierInstance[]) => { for (const m of stack) {
           const schema = registry.get(m.type)?.params ?? {};
           for (const [key, value] of Object.entries(m.params ?? {})) {
@@ -478,7 +478,10 @@ export class Editor {
         updateStack(modifier.children ?? []);
       });
       updateStack(node.stack);
-      if (node.kind === 'instance') node.of = remap.get(node.of) ?? node.of;
+      if (node.kind === 'instance') {
+        node.of = remap.get(node.of) ?? node.of;
+        if (typeof node.mouse?.target === 'string') node.mouse.target = remap.get(node.mouse.target) ?? node.mouse.target;
+      }
       if (node.kind === 'effector') node.targets = node.targets.map((target) => remap.get(target) ?? target);
       if (node.children) cloneRefs(node.children);
     });
@@ -2320,6 +2323,9 @@ export class Editor {
       nodeIds.set(node.id, after[i]!.node.id);
       mapModifiers(node.stack, after[i]!.node.stack);
     });
+    for (const { node } of after) {
+      if (node.kind === 'instance' && typeof node.mouse?.target === 'string') node.mouse.target = nodeIds.get(node.mouse.target) ?? node.mouse.target;
+    }
     const roots = new Set((data.items as SceneNode[]).map(n => n.id));
     const source = data.animation;
     const tracks = Array.isArray(source?.tracks) ? source.tracks.flatMap(tr => {

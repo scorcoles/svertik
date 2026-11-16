@@ -1,9 +1,13 @@
+import { insideMouseTarget } from './mouse-target';
+import type { DocumentResult } from './document';
+import { seedMouseColors } from './mouse-color-seeds';
 import { evaluateSceneExpressions } from './expression';
 import { onlyFor, walkNodes } from './document';
 import { resolveParams, type ParamSchema } from './modifier';
 import type { GroupNode, InstanceNode, SceneNode, SceneV1 } from './scene';
 
 export const mouseParams = {
+  target: { type: 'node', default: '', label: 'Target', animatable: false },
   event: { type: 'enum', default: 'click', options: ['click', 'double-click', 'right-click', 'middle-click', 'move', 'wheel-up', 'wheel-down'], label: 'Event' },
   button: { type: 'enum', default: 'any', options: ['any', 'left', 'right', 'middle'], label: 'While pressed', showIf: { event: ['move'] } },
   rate: { type: 'number', default: 20, min: 0.1, max: 120, step: 1, label: 'Rate', unit: '/s' },
@@ -39,6 +43,7 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
   for (const n of byId.values()) occupyStack(n.stack);
   const unique = (base: string) => { let id = base; while (occupied.has(id)) id = '@' + id; return id; };
   let serial = 0;
+  let emission = 0;
   const templates = new Map<string, SceneV1>();
   function template(g: InstanceNode): SceneV1 | null {
     if (templates.has(g.id)) return templates.get(g.id)!;
@@ -77,13 +82,14 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
     return p;
   };
   return {
-    event(kind: MouseEventKind, point: [number, number], now: number, buttons = 0, sceneTime = now) {
+    event(kind: MouseEventKind, point: [number, number], now: number, buttons = 0, sceneTime = now, doc?: DocumentResult | null) {
       if (!point.every(Number.isFinite) || !Number.isFinite(now)) return false;
       let handled = false;
       for (const g of generators) {
         const p = paramsAt(g, sceneTime, serial + 1);
         if (p.event !== kind) continue;
         if (kind === 'move' && p.button !== 'any' && !(buttons & ({ left: 1, right: 2, middle: 4 }[p.button] ?? 0))) continue;
+        if (p.target && !insideMouseTarget(doc, p.target, point)) continue;
         const local = template(g);
         if (!local) continue;
         handled = true;
@@ -92,16 +98,21 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
         if (now - st.last < 1 / Math.max(0.1, Math.min(120, p.rate))) continue;
         if (kind === 'move' && Number.isFinite(st.last) && Math.hypot(point[0] - st.point[0], point[1] - st.point[1]) < p.distance) continue;
         st.last = now; st.point = point;
+        const eventSalt = ++emission;
         const vary = (v: number) => (random() * 2 - 1) * v;
         for (let i = 0; i < Math.min(50, Math.max(1, Math.floor(p.count))); i++) {
           const id = unique(`@mouse-${g.id}-${++serial}`);
           const birth = i === 0 ? p : paramsAt(g, sceneTime, serial);
+          const birthStack = evaluateSceneExpressions({
+            version: 1, custom: scene.custom, seedGenerator: scene.seedGenerator,
+            animation: scene.animation, at: sceneTime, objects: [{ ...g, mouse: undefined, children: undefined }],
+          }, { randomSalt: serial }).objects[0]!.stack;
           const copyStack = (items: SceneNode['stack']): SceneNode['stack'] => items.map(m => ({ ...m, id: `${id}::${m.id}`, ...(m.children ? { children: copyStack(m.children) } : {}) }));
           st.copies.unshift({ born: now, life: Math.max(0, birth.lifetime), node: {
-            kind: 'group', id, name: g.name, children: [], stack: copyStack(g.stack),
+            kind: 'group', id, name: g.name, children: [], stack: copyStack(seedMouseColors(birthStack, eventSalt, scene.seedGenerator, serial)),
             opacity: g.opacity, blend: g.blend,
             transform: { x: point[0] + birth.offset[0]! + vary(birth.scatter), y: point[1] + birth.offset[1]! + vary(birth.scatter), scale: Math.max(0.01, birth.scale * (1 + vary(birth.scaleVariation))), rotation: birth.rotation + vary(birth.rotationVariation) },
-            composition: { scene: local, params: { time: 0, loop: 'hold' } },
+            composition: { scene: local, randomSalt: serial, eventSalt, params: { time: 0, loop: 'hold' } },
           } });
         }
         st.copies.length = Math.min(st.copies.length, Math.max(1, Math.min(500, Math.floor(p.limit))));

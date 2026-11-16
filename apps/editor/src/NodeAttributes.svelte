@@ -150,8 +150,8 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
         />
       </ParamRow>
       {#if node.mouse}
-        <ParamList params={mouseFields} values={mouseValues} onchange={setMouseField} />
-        <p class="note mouse-help">Generate copies on the canvas in Play. Each copy starts its animation at zero. Life 0 keeps copies until the limit replaces the oldest.</p>
+        <ParamList params={mouseFields} values={mouseValues} nodes={others.filter(n => n.kind !== 'effector' && !(n.kind === 'instance' && n.mouse)).map(n => ({ id: n.id, label: n.name }))} onselectnode={(id) => (editor.selected = id)} onchange={setMouseField} />
+        <p class="note mouse-help">Generate copies on the canvas in Play. Target restricts input to its closed shape, even when hidden. Each copy starts its animation at zero. Life 0 keeps copies until the limit replaces the oldest.</p>
       {/if}
       {#if node.of && !original}<p class="note">The original no longer exists: pick another one.</p>{/if}
       {#if original}
@@ -194,7 +194,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
       </Section>
     {/if}
   {/if}
-  {#if node.kind !== 'effector'}
+  {#if node.kind !== 'effector' && !(node.kind === 'instance' && node.mouse)}
   {#if !(node.kind === 'instance' && node.mouse)}
   <Section title="Transform">
     {#if parentInfo}
@@ -373,6 +373,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
     {#if editor.showInfo}<p class="note">Letters, copies, tiles or pieces arrive one after another (Fall: they leave). Adds a Stagger with two keyframes; tweak it like anything else.</p>{/if}
   </Section>
   {/if}
+  {#if !(node.kind === 'instance' && node.mouse)}
   <div class="actions">
     {#if node.kind === 'effector'}
       <!-- Un Effector no se empaqueta ni se agrupa: no dibuja nada. -->
@@ -414,6 +415,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
         : 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
       : 'Effects below apply only to it. Drag it on the canvas to move it.'}
   </p>{/if}
+  {/if}
 </div>
 
 <style>
@@ -442,5 +444,5 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
   /* Multi-selection: one compact band, aligned with the header (no indented block leaving a gap). */
   .note { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-secondary); font-size: var(--sv-font-size-11); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
-  .note.mouse-help { margin-bottom: var(--sv-space-12); }
+  .note.mouse-help { margin-bottom: var(--sv-space-12); padding-bottom: var(--sv-space-12); }
 </style>

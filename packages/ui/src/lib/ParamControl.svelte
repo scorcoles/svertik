@@ -1,6 +1,6 @@
 <script lang="ts">
   // Un parámetro del esquema del motor → su control. Así el esquema dibuja el panel de atributos.
-  import { formatPercent, isNumericExpression, parsePercent, validateExpression, type ParamSpec } from '@svertik/engine';
+  import { formatPercent, isNumericExpression, normalizeHex, parsePercent, validateExpression, type ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
   import ColorField from './ColorField.svelte';
   import IconButton from './IconButton.svelte';
@@ -94,7 +94,7 @@
 {#if spec.type === 'nodes'}
   <NodeTargets value={value as string[]} {nodes} {label} onselect={onselectnode} onadd={(id) => onchange([...new Set([...(value as string[]), id])])} onremove={(id) => onchange((value as string[]).filter((node) => node !== id))} />
 {:else}
-<ParamRow {label} for={id} tall={spec.type === 'text'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey} scrub={spec.type === 'number' && !expression ? { value: shown as number, step: spec.step ?? 0.01, min: spec.min, max: spec.max, onchange: emit } : spec.type === 'angle' ? { value: value as number, step: 1, onchange: (v) => onchange(v) } : spec.type === 'seed' && !expression ? { value: value as number, step: 1, min: 0, onchange: (v) => onchange(v) } : undefined}>
+<ParamRow {label} for={id} tall={spec.type === 'text' || spec.type === 'palette'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey} scrub={spec.type === 'number' && !expression ? { value: shown as number, step: spec.step ?? 0.01, min: spec.min, max: spec.max, onchange: emit } : spec.type === 'angle' ? { value: value as number, step: 1, onchange: (v) => onchange(v) } : spec.type === 'seed' && !expression ? { value: value as number, step: 1, min: 0, onchange: (v) => onchange(v) } : undefined}>
   {#if spec.type === 'number' || spec.type === 'seed'}
     {#if expression}
       <div class="expression-control" style={`--sv-field-width: ${numericFieldWidth}`}>
@@ -163,6 +163,17 @@
     <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
+  {:else if spec.type === 'palette'}
+    {@const colors = Array.isArray(value) ? value as string[] : spec.default}
+    <div class="palette-editor">
+      {#each colors as color, i (i)}
+        <div class="palette-entry">
+          <ColorField value={color} label={`Palette color ${i + 1}`} {swatches} onchange={(v) => onchange(colors.map((c, j) => j === i ? normalizeHex(v) ?? c : c))} />
+          <IconButton icon="close" label={`Remove palette color ${i + 1}`} disabled={colors.length <= 1} onclick={() => onchange(colors.filter((_, j) => j !== i))} />
+        </div>
+      {/each}
+      <IconButton icon="plus" label="Add palette color" onclick={() => onchange([...colors, '#ffffff'])} />
+    </div>
   {:else if spec.type === 'color'}
     {#if spec.solid}
       <ColorField {id} value={value as string} {label} {swatches} {onchange} />
@@ -220,6 +231,10 @@
 {/if}
 
 <style>
+  .palette-editor { display: grid; gap: var(--sv-space-4); padding-block: var(--sv-space-2); }
+  .palette-entry { display: flex; align-items: center; gap: var(--sv-space-4); }
+  .palette-editor :global(.sv-icon-button) { width: 18px; height: 18px; }
+
   .reset { display: flex; }
   .reset :global(.sv-icon-button) { width: 18px; height: 18px; }
   .sv-text, .sv-font {

@@ -12,7 +12,10 @@ export const color = defineModifier({
   label: 'Color',
   kind: 'style',
   params: {
-    mode: { type: 'enum', default: 'shift', options: ['solid', 'shift', 'gradient', 'random'] as const, animatable: false },
+    mode: { type: 'enum', default: 'shift', options: ['solid', 'shift', 'gradient', 'random', 'palette'] as const, animatable: false },
+    palette: { type: 'palette', default: ['#ff6b5e', '#ffc857', '#09fdd1', '#4d8dff', '#b894f6'], label: 'Colors', group: 'Palette', animatable: false, showIf: { mode: ['palette'] } },
+    paletteMode: { type: 'enum', default: 'random', options: ['random', 'index'] as const, label: 'Choose', group: 'Palette', animatable: false, showIf: { mode: ['palette'] } },
+    index: { type: 'number', default: 0, step: 1, label: 'Index', group: 'Palette', showIf: { mode: ['palette'], paletteMode: ['index'] } },
     color: { type: 'color', default: '#D2502F', solid: true, label: 'Color', showIf: { mode: ['solid'] } },
     hue: { type: 'angle', default: 30, label: 'Hue', random: [-180, 180], showIf: { mode: ['shift'] } },
     saturation: { type: 'number', default: 0, min: -1, max: 1, step: 0.01, random: [-0.4, 0.4], showIf: { mode: ['shift'] } },
@@ -30,11 +33,15 @@ export const color = defineModifier({
     const index = new Map(keys.map((k, i) => [k, i]));
     const n = keys.length;
     const props = p.target === 'both' ? ['fill', 'stroke'] : [p.target];
+    const palette = (Array.isArray(p.palette) ? p.palette : []).map(c => typeof c === 'string' ? parseColor(c) : null).filter(c => c !== null);
+    const paletteIndex = p.paletteMode === 'index' ? (Number.isFinite(p.index) ? Math.floor(p.index) : 0) : Math.floor(rng(p.seed)() * palette.length);
+    const paletteColor = palette.length ? toHex(palette[((paletteIndex % palette.length) + palette.length) % palette.length]!) : undefined;
     const assigned = typeof p.color === 'string' ? parseColor(p.color) : null;
     const from = parseColor(p.from) ?? [0, 0, 0, 1];
     const to = parseColor(p.to) ?? [255, 255, 255, 1];
 
     const recolor = (value: string | undefined, prop: string, i: number, key: number): string | undefined => {
+      if (p.mode === 'palette') return value === 'none' || value === 'transparent' || !paletteColor ? value : paletteColor;
       if (p.mode === 'solid') return value === 'none' || !assigned ? value : toHex(assigned);
       // Without a declared fill, SVG paints black.
       const c = parseColor(value ?? (prop === 'fill' ? '#000000' : undefined));
