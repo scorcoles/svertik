@@ -246,6 +246,7 @@
         </label>
       {/if}
     {/if}
+    <IconButton icon="key-here" label="Key here (K): a keyframe at the playhead on what is animated in the selection" disabled={!editor.selected} onclick={() => editor.keySelectionHere()} />
     <IconButton icon="marker" label="Add marker at current time" onclick={() => editor.addMarker()} />
     <span class="spacer"></span>
     <!-- Zoom de la línea de tiempo (también ⌘ + rueda, o pellizcar, sobre las pistas). -->

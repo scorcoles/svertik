@@ -59,6 +59,7 @@
     {
       title: 'Timeline',
       keys: [
+        ['K', 'Key here: keyframe what is animated in the selection'],
         ['← →', 'Move the focused keyframe one frame'],
         ['Delete', 'Remove the focused keyframe'],
       ],

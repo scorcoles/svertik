@@ -633,6 +633,13 @@ export class Editor {
     this.#showGuides = on;
     writePref('svertik.guides', on ? 'on' : 'off');
   }
+  /** Onion skin: faded frames around the playhead (off by default; remembered in this browser). */
+  #onionSkin = $state(readPref('svertik.onion') === 'on');
+  get onionSkin() { return this.#onionSkin; }
+  set onionSkin(on: boolean) {
+    this.#onionSkin = on;
+    writePref('svertik.onion', on ? 'on' : 'off');
+  }
   /** Smart alignment guides are on by default; manual ruler guides remain available when disabled. */
   #smartGuides = $state(readPref('svertik.smartGuides') !== 'off');
   get smartGuides() { return this.#smartGuides; }
@@ -696,6 +703,16 @@ export class Editor {
   notice = $state<string | null>(null);
   /** Request to open the command line with some text (the stack's +, "/", ⌘K). `n` tells identical requests apart. */
   commandRequest = $state<{ text: string; n: number } | null>(null);
+  /** The demo this document was opened from, while it is still that demo (null: the person's own work). */
+  demoOrigin = $state<string | null>(null);
+  /** From a demo to a piece of one's own: a new name, so saving never looks like editing the demo. */
+  makeOwn() {
+    if (!this.demoOrigin) return;
+    this.name = `my-${this.name}`;
+    this.demoOrigin = null;
+    this.playing = false;
+    this.notice = `Now it is yours: “${this.name}”. Save it with ⌘S.`;
+  }
   /** The keyboard shortcut sheet ("?" or the svertik menu). */
   showShortcuts = $state(false);
   /** Set by the app: runs an export by format (the command line's "export png"). */
@@ -734,6 +751,35 @@ export class Editor {
   keyHere(t: TrackTarget) {
     if (this.isLocked(t.node)) return;
     if (this.keyState(t) !== 'key') this.toggleKey(t);
+  }
+
+  /**
+   * "Key here" (as F6 in classic animation tools): a keyframe at the playhead on everything already
+   * animated in the selection. A selected object with nothing animated gets x, y, rotation and scale.
+   * Returns how many keys were placed (0: nothing to key, with a notice).
+   */
+  keySelectionHere(): number {
+    const anim = this.animation;
+    const tracks = anim?.tracks ?? [];
+    const targets: TrackTarget[] = [];
+    if (this.current && this.activeNode) {
+      const m = this.current;
+      targets.push(...tracks.filter((t) => t.on === 'modifier' && t.modifier === m.id));
+    } else {
+      for (const n of this.selectedNodes) {
+        if (this.isLocked(n.id)) continue;
+        const own = tracks.filter((t) => t.node === n.id && t.on !== 'modifier');
+        targets.push(...(own.length ? own : (['x', 'y', 'rotation', 'scale'] as const).map((param) => ({ node: n.id, on: 'node' as const, param }))));
+      }
+    }
+    const missing = targets.filter((t) => this.keyState(t) !== 'key');
+    if (!targets.length) {
+      this.notice = this.current ? 'Nothing animated in this effect yet: use the ◇ next to a value, or: key <parameter>.' : 'Select an object to key.';
+      return 0;
+    }
+    for (const t of missing) this.keyHere({ node: t.node, on: t.on, modifier: t.modifier, param: t.param });
+    if (!this.timelineOpen) this.timelineOpen = true;
+    return missing.length;
   }
 
   /** Every object and effect by display name, for "select" (locked objects are left out). */
@@ -2463,6 +2509,7 @@ export class Editor {
   newFile(width = DEFAULT_DOCUMENT.width, height = DEFAULT_DOCUMENT.height) {
     this.compositionPath = [];
     this.#compositionViews = [];
+    this.demoOrigin = null;
     this.scene = { ...newScene(), document: { width: Math.max(1, Math.min(10000, Number(width) || DEFAULT_DOCUMENT.width)), height: Math.max(1, Math.min(10000, Number(height) || DEFAULT_DOCUMENT.height)) } };
     this.name = 'untitled';
     this.script = DEFAULT_SCRIPT;
@@ -2510,6 +2557,7 @@ export class Editor {
     if (report.warnings.length) console.warn(`svertik: ${report.warnings.length} problem(s) in the project:\n${report.warnings.join('\n')}`);
     this.compositionPath = [];
     this.#compositionViews = [];
+    this.demoOrigin = null;
     this.scene = scene;
     // Las primitivas, con todos sus parámetros (los que falten, por defecto): el panel los necesita.
     for (const { node } of walkNodes(this.scene.objects)) {

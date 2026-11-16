@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, toPathData, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, invert, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
@@ -121,6 +121,32 @@
       renderError = e instanceof Error ? e.message : String(e);
       ondiagnostic?.('error', renderError, e instanceof Error ? e.stack : undefined);
     }
+  });
+
+  // ── Onion skin: the scene a few frames before and after the playhead, faded, under the result.
+  // Paused only (while playing it would triple the work); about 1/6 s apart, so motion reads at a glance.
+  const ONION = [-2, -1, 1, 2];
+  let onion = $state<SVGSVGElement[]>([]);
+  $effect(() => {
+    if (!editor.onionSkin || !editor.scene?.animation || editor.playing || editor.preview) return;
+    void editor.fontsTick;
+    const base = $state.snapshot(editor.scene) as SceneV1;
+    const fps = base.animation?.fps ?? 30;
+    const duration = base.animation?.duration ?? 3;
+    const step = Math.max(1, Math.round(fps / 6)) / fps;
+    const vb = viewBox.join(' ');
+    ONION.forEach((offset, i) => {
+      const svg = onion[i];
+      if (!svg) return;
+      const t = editor.time + offset * step;
+      if (t < -1e-6 || t > duration + 1e-6) return void svg.replaceChildren();
+      try {
+        renderInto(svg, engine.evaluateDocument(sampleScene(base, t)).geometry);
+        svg.setAttribute('viewBox', vb);
+      } catch {
+        svg.replaceChildren();
+      }
+    });
   });
 
   // ── Vista: zoom y desplazamiento
@@ -1080,6 +1106,11 @@
     <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
       <div class="view" style:inset="{editor.showRulers ? '21px 48px 56px 21px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
+        {#if editor.onionSkin && editor.animation && !editor.playing}
+          {#each ONION as offset, i (offset)}
+            <svg class="onion" data-side={offset < 0 ? 'before' : 'after'} style:opacity={Math.abs(offset) === 1 ? 0.32 : 0.14} bind:this={onion[i]} aria-hidden="true"></svg>
+          {/each}
+        {/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
         {#if editor.showBounds}
           {@const [bx, by, bw, bh] = docViewBox}
@@ -1574,6 +1605,10 @@
   .stage[data-space] .gizmo-handle,
   .stage[data-space] .gizmo .hit { pointer-events: none; }
   .ghost { opacity: 0.2; }
+  /* Onion skin tint: before the playhead bluish, after it greenish (as in classic animation tools). */
+  .onion { pointer-events: none; }
+  .onion[data-side='before'] { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(4); }
+  .onion[data-side='after'] { filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4); }
   .wire :global(path) {
     fill: none !important;
     stroke: var(--sv-text-secondary) !important;

@@ -366,6 +366,7 @@
     if (!demo) return;
     if (editor.openProject(JSON.stringify(demo.create()))) {
       recordActivity('Opened demo', which);
+      editor.demoOrigin = demo.which;
       editor.selected = null;
       editor.timelineOpen = demo.view === 'timeline';
       editor.setTime(0);
@@ -433,6 +434,10 @@
     } else if (editor.scene && ((e.key === '/' && !mod && !e.altKey && !typing(e)) || (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k'))) {
       e.preventDefault();
       editor.openCommand();
+    } else if (e.key.toLowerCase() === 'k' && !mod && !e.altKey && editor.selected && !typing(e)) {
+      e.preventDefault();
+      const n = editor.keySelectionHere();
+      if (n) say(`${n} key${n === 1 ? '' : 's'} at ${editor.time.toFixed(2)} s`);
     } else if (mod && !e.altKey && e.key.toLowerCase() === 'a' && !typing(e)) {
       e.preventDefault();
       window.getSelection()?.removeAllRanges();
