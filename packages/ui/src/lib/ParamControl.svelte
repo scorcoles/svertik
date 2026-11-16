@@ -32,6 +32,25 @@
     onkey?: () => void;
   }
   let { name, spec, value: given, onchange, nodes = [], onselectnode, swatches, fonts = [], fieldWidth, keyState, onkey }: Props = $props();
+
+  // Text with live values: buttons insert a ready-made token at the caret, so nobody has to learn the
+  // {{…}} syntax to get a timer or a countdown.
+  let textArea = $state<HTMLTextAreaElement>();
+  const liveValues = [
+    { label: 'Time', token: '{{fixed(scene.time, 2)}}', title: 'Seconds since the start, two decimals' },
+    { label: 'Countdown', token: '{{scene.countDown(10)}}', title: 'Counts down from 10 seconds' },
+    { label: 'Frame', token: '{{scene.frame}}', title: 'The current frame number' },
+  ];
+  function insertLive(token: string) {
+    const el = textArea;
+    if (!el) return;
+    const [a, b] = [el.selectionStart ?? el.value.length, el.selectionEnd ?? el.value.length];
+    const next = el.value.slice(0, a) + token + el.value.slice(b);
+    el.value = next;
+    onchange(next);
+    el.focus();
+    el.setSelectionRange(a + token.length, a + token.length);
+  }
   // Un parámetro que no viene (proyecto escrito a mano, versión anterior…) se enseña con su valor por defecto.
   const value = $derived(given ?? spec.default);
   const advanced = $derived(spec.type === 'number' && spec.expression !== false);
@@ -153,6 +172,7 @@
     <!-- Se aplica al dejar de escribir un momento (cada pulsación rehace las letras). -->
     <div class="text-control">
       <textarea
+        bind:this={textArea}
         {id}
         class="sv-text"
         rows="2"
@@ -162,7 +182,14 @@
         oninput={(e) => onchange(e.currentTarget.value)}
         onkeydown={(e) => e.stopPropagation()}
       ></textarea>
-      {#if spec.expression}<small class="text-expression-hint">Use &#123;&#123;scene.time&#125;&#125;, &#123;&#123;fixed(scene.time, 2)&#125;&#125;, or &#123;&#123;fixed(scene.time, 2, 2)&#125;&#125; for live values.</small>{/if}
+      {#if spec.expression}
+        <div class="text-live" role="group" aria-label="Insert a live value">
+          <small class="text-expression-hint">Insert live:</small>
+          {#each liveValues as v (v.label)}
+            <button type="button" class="text-live-button" title={v.title} onclick={() => insertLive(v.token)}>{v.label}</button>
+          {/each}
+        </div>
+      {/if}
     </div>
   {:else if spec.type === 'font'}
     <input
@@ -200,7 +227,19 @@
   .sv-font { height: 20px; }
   .sv-text { resize: vertical; min-height: 36px; }
   .text-control { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: var(--sv-space-2); }
-  .text-expression-hint { color: var(--sv-text-muted); font-size: var(--sv-font-size-9); line-height: 1.3; }
+  .text-expression-hint { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.3; }
+  .text-live { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-space-4); }
+  .text-live-button {
+    height: 18px;
+    padding: 0 var(--sv-space-4);
+    font: inherit;
+    font-size: var(--sv-font-size-10);
+    color: var(--sv-text-secondary);
+    background: none;
+    border: var(--sv-border-1) solid var(--sv-rule-strong);
+    cursor: pointer;
+  }
+  .text-live-button:hover { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   .expression-control { position: relative; display: flex; flex: 0 0 var(--sv-field-width, 132px); flex-direction: column; width: var(--sv-field-width, 132px); min-width: 0; }
   .expression-field {
     display: flex;

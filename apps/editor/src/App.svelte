@@ -16,6 +16,7 @@
   import Timeline from './Timeline.svelte';
   import TimeControls from './TimeControls.svelte';
   import UnsavedDialog from './UnsavedDialog.svelte';
+  import ShortcutsDialog from './ShortcutsDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import NotesPanel from './NotesPanel.svelte';
   import DiagnosticsPanel from './DiagnosticsPanel.svelte';
@@ -417,7 +418,10 @@
     // ⌘⇧V: pegar en el mismo sitio. El evento de pegar no lleva las teclas: se anota aquí.
     if (mod && e.key.toLowerCase() === 'v') pasteInPlace = e.shiftKey;
     // The command line: "/" outside text fields, ⌘K from anywhere.
-    if (editor.scene && ((e.key === '/' && !mod && !e.altKey && !typing(e)) || (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k'))) {
+    if (e.key === '?' && !mod && !e.altKey && !typing(e)) {
+      e.preventDefault();
+      editor.showShortcuts = true;
+    } else if (editor.scene && ((e.key === '/' && !mod && !e.altKey && !typing(e)) || (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k'))) {
       e.preventDefault();
       editor.openCommand();
     } else if (mod && !e.altKey && e.key.toLowerCase() === 'a' && !typing(e)) {
@@ -681,6 +685,7 @@
   />
   {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
   {#if report}<ExportReport {...report} onclose={() => (report = null)} />{/if}
+  {#if editor.showShortcuts}<ShortcutsDialog onclose={() => (editor.showShortcuts = false)} />{/if}
   {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}
   {#if videoExport}
     <div class="video-export">

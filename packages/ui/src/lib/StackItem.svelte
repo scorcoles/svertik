@@ -99,6 +99,7 @@
   aria-level={depth + 1}
   aria-expanded={expanded}
   data-kind={kind}
+  data-label={label}
   data-selected={selected || undefined}
   data-disabled={!enabled || undefined}
   style:--depth={depth}

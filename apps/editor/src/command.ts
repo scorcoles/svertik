@@ -32,6 +32,9 @@ const CATEGORY: Record<string, string> = {
   utils: 'Utils',
 };
 
+/** The menu category a definition belongs to ("Deform"…), so the UI uses the same words as the top bar. */
+export const categoryOf = (d: { kind?: string; family?: string }) => CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other';
+
 export function buildCatalog(defs: readonly DefLike[], autonomous: readonly DefLike[], descriptions: Record<string, string>): CommandEntry[] {
   const entry = (d: DefLike, isAuto: boolean): CommandEntry => ({
     type: d.type,

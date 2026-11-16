@@ -190,7 +190,7 @@
     }
     const m = editor.scene && tr.modifier ? locateModifier(editor.scene, tr.modifier)?.inst : undefined;
     const def = m ? registry.get(m.type) : undefined;
-    return { node, what: def?.label ?? '?', param: tr.param === 'enabled' ? 'On' : (def?.params[tr.param]?.label ?? tr.param) };
+    return { node, what: m?.name || (def?.label ?? '?'), param: tr.param === 'enabled' ? 'On' : (def?.params[tr.param]?.label ?? tr.param) };
   }
   // ── Pistas agrupadas por objeto, en el orden del panel Stack; cada grupo se pliega.
   let folded = $state<string[]>([]);
@@ -374,7 +374,7 @@
               data-hold={k.ease === 'hold' || undefined}
               style:left="{x(k.t)}px"
               title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'} · ←→ move, Del remove`}
-              aria-label={`Keyframe at ${k.t.toFixed(2)} seconds`}
+              aria-label={(({ node, what, param }) => `${[node, what, param].filter(Boolean).join(' · ')}: keyframe at ${k.t.toFixed(2)} seconds`)(labelOf(tr))}
               aria-keyshortcuts="ArrowLeft ArrowRight Delete"
               data-key={`${tr.id}@${k.t}`}
               onpointerdown={(e) => dragKey(e, tr.id, k.t)}

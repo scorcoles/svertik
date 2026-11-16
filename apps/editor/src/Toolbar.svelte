@@ -29,7 +29,7 @@
 
 <header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} onexportsvg={onexport} {onexportpng} {onexportmp4} {onexportlottie} {onexportanimsvg} {oncopyjson} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {ondemo} />
     <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>

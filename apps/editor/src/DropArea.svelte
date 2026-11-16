@@ -35,7 +35,7 @@
             {#snippet child({ props })}<Button {...props} kind="primary" label="Demos ▾" />{/snippet}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content class="sv-menu sv-demos" sideOffset={4} collisionPadding={8}>
+            <DropdownMenu.Content class="sv-menu sv-demos" side="right" align="start" sideOffset={4} collisionPadding={8}>
               <DemoItems {ondemo} />
             </DropdownMenu.Content>
           </DropdownMenu.Portal>

@@ -79,7 +79,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   {/if}
 </header>
 <div class="params">
-  {#if editor.selectedNodes.length > 1}<p class="note">Scale applies to all {editor.selectedNodes.length} selected objects around their shared center.</p>{/if}
+  {#if editor.selectedNodes.length > 1}<p class="note">{editor.selectedNodes.length} selected · scale applies to all, around their shared center</p>{/if}
   {#if node.kind === 'group' && node.composition}
     <Section title="Composition">
       <div class="actions"><Button label="Open composition" onclick={() => editor.openComposition(node.id)} /></div>
@@ -400,5 +400,6 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
-  .note { margin: 0; padding: var(--sv-space-8) var(--sv-space-8) 0 100px; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  /* Multi-selection: one compact band, aligned with the header (no indented block leaving a gap). */
+  .note { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
 </style>

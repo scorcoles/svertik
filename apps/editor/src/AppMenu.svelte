@@ -1,5 +1,5 @@
 <script lang="ts">
-  // El menú de «svertik»: abrir, guardar, exportar… y la demo.
+  // The «svertik» menu: new, open, save, and the demos. Exporting lives only in the Export button.
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
   import { Icon, type IconName } from '@svertik/ui';
@@ -11,27 +11,16 @@
     onnew: () => void;
     onopen: () => void;
     onsave: () => void;
-    onexportsvg: () => void;
-    onexportpng: () => void;
-    onexportmp4: () => void;
-    onexportlottie: () => void;
-    onexportanimsvg: () => void;
-    oncopyjson: () => void;
     ondemo: (which: DemoName) => void;
   }
-  let { editor, onnew, onopen, onsave, onexportsvg, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, oncopyjson, ondemo }: Props = $props();
+  let { editor, onnew, onopen, onsave, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: 'New scene', icon: 'plus', run: onnew, needs: true },
     { label: 'Open project or import SVG…', icon: 'import', key: '⌘O', run: onopen },
     { label: 'Save project (.svrtk)', icon: 'save', key: '⌘S', run: onsave, needs: true },
     'sep',
-    { label: 'Export SVG', icon: 'export', run: onexportsvg, needs: true },
-    { label: 'Export PNG', icon: 'image', run: onexportpng, needs: true },
-    { label: 'Export MP4 (one cycle)', icon: 'play', run: onexportmp4, needs: true },
-    { label: 'Export animated SVG', icon: 'wave', run: onexportanimsvg, needs: true },
-    { label: 'Export Lottie (.json)', icon: 'timeline', run: onexportlottie, needs: true },
-    { label: 'Copy JSON', icon: 'object', run: oncopyjson, needs: true },
+    { label: 'Keyboard shortcuts', icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },
   ]);
 </script>
 

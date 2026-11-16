@@ -7,9 +7,35 @@
 
   // Tree keyboard: ↑↓ move to the previous/next visible row and select it (as in a layers panel);
   // Home/End jump to the first/last. ⌥↑↓ is left to the editor (it reorders).
+  // Type-ahead (ARIA tree pattern): typing letters jumps to the next visible row whose name starts with
+  // them. While a row has focus, letters search the tree instead of reaching the editor's shortcuts.
+  let typed = '';
+  let typedTimer: ReturnType<typeof setTimeout> | undefined;
+  function typeAhead(e: KeyboardEvent, row: HTMLElement, items: HTMLElement[]) {
+    clearTimeout(typedTimer);
+    typedTimer = setTimeout(() => (typed = ''), 600);
+    typed += e.key.toLowerCase();
+    const start = items.indexOf(row);
+    // A single repeated letter cycles through the rows starting with it.
+    const query = [...typed].every((c) => c === typed[0]) ? typed[0]! : typed;
+    const from = query.length === 1 ? start + 1 : start;
+    const order = [...items.slice(from), ...items.slice(0, from)];
+    const next = order.find((el) => (el.dataset.label ?? '').toLowerCase().startsWith(query));
+    if (next && next !== row) {
+      next.click();
+      next.focus();
+    }
+  }
+
   function treeKey(e: KeyboardEvent) {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
     if (!rows || !row || e.target !== row || e.altKey || e.metaKey || e.ctrlKey) return;
+    if (e.key.length === 1 && /\S/.test(e.key) && e.key !== '/') {
+      e.preventDefault();
+      e.stopPropagation();
+      typeAhead(e, row, [...rows.querySelectorAll<HTMLElement>('[role="treeitem"]')]);
+      return;
+    }
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
     const items = [...rows.querySelectorAll<HTMLElement>('[role="treeitem"]')];
     const i = items.indexOf(row);
@@ -25,6 +51,27 @@
   $effect(() => {
     void editor.selected;
     queueMicrotask(() => rows?.querySelector('[data-selected]')?.scrollIntoView({ block: 'nearest' }));
+  });
+
+  // While the command line is open: where the effect it would add lands (a line under the row it goes
+  // after, or an outline round the container it goes into). Uses the same rule as editor.add.
+  const lastVisible = (m: ModifierInstance): string => {
+    while (m.children?.length && !editor.isCollapsed(m.id)) m = m.children[m.children.length - 1]!;
+    return m.id;
+  };
+  const insert = $derived.by((): { id: string; where: 'after' | 'inside' } | null => {
+    const type = editor.commandPreview;
+    const spot = type ? editor.insertion(type) : null;
+    if (!spot) return null;
+    if (spot.where === 'inside') return { id: spot.at!.inst.id, where: 'inside' };
+    if (spot.where === 'after') return { id: lastVisible(spot.at!.inst), where: 'after' };
+    const last = spot.owner.stack[spot.owner.stack.length - 1];
+    if (!last || spot.owner.locked || editor.isCollapsed(spot.owner.id)) return { id: spot.owner.id, where: spot.owner.stack.length ? 'inside' : 'after' };
+    return { id: lastVisible(last), where: 'after' };
+  });
+  $effect(() => {
+    if (!insert) return;
+    queueMicrotask(() => rows?.querySelector('[data-insert]')?.scrollIntoView({ block: 'nearest' }));
   });
 
   // Arrastrar: antes o después de una fila, o dentro (tercio central de un Step o de un grupo).
@@ -106,6 +153,7 @@
       class="drag"
       draggable="true"
       data-drop={drop?.id === m.id ? drop.where : undefined}
+      data-insert={insert?.id === m.id ? insert.where : undefined}
       ondragstart={(e) => { e.stopPropagation(); drag = { id: m.id, kind: 'modifier' }; e.dataTransfer?.setData('text/plain', m.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove'; }}
       ondragover={(e) => overModifier(e, m)}
       ondrop={(e) => { e.stopPropagation(); dropHere(e); }}
@@ -113,7 +161,7 @@
       role="none"
     >
       <StackItem
-        label={registry.get(m.type)?.label ?? m.type}
+        label={m.name || (registry.get(m.type)?.label ?? m.type)}
         kind={registry.get(m.type)?.kind}
         icon={m.type as IconName}
         {depth}
@@ -124,6 +172,7 @@
         onselect={() => (editor.selected = m.id)}
         ontoggle={(v) => editor.setEnabled(m.id, v)}
         onremove={() => editor.remove(m.id)}
+        onrename={(name) => editor.renameModifier(m.id, name)}
       />
     </div>
     {#if m.children && open}
@@ -138,11 +187,15 @@
 {#snippet nodes(list: SceneNode[], depth: number)}
   {#each list as n (n.id)}
     {@const open = !n.locked && !editor.isCollapsed(n.id)}
+    <!-- A branch holds an object and everything under it, so the object's row can stick to the top while
+         its modifiers scroll (the context isn't lost in a long stack). Nested objects stick below. -->
+    <div class="branch" role="none" style:--depth={depth}>
     <div
-      class="drag"
+      class="drag node"
       class:hidden-node={n.visible === false}
       draggable={!editor.isLocked(n.id)}
       data-drop={drop?.id === n.id ? drop.where : undefined}
+      data-insert={insert?.id === n.id ? insert.where : undefined}
       ondragstart={(e) => { e.stopPropagation(); drag = { id: n.id, kind: 'node' }; e.dataTransfer?.setData('text/plain', n.id); }}
       ondragover={(e) => overNode(e, n)}
       ondrop={(e) => { e.stopPropagation(); dropHere(e); }}
@@ -173,12 +226,13 @@
       {@render modifiers(n.stack, depth + 1)}
       {#if n.children?.length && !(n.kind === 'group' && n.composition)}{@render nodes(n.children, depth + 1)}{/if}
     {/if}
+    </div>
   {/each}
 {/snippet}
 
 <section class="stack" aria-label="Stack">
   <header>
-    {#if editor.scene}<span class="count" title="Objects">{editor.objectCount}</span>{/if}
+    {#if editor.scene}<span class="count">{editor.objectCount} {editor.objectCount === 1 ? 'object' : 'objects'}</span>{/if}
     <span class="spacer" aria-hidden="true"></span>
     <IconButton icon="expand-all" label="Expand all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
     <IconButton icon="collapse-all" label="Collapse all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
@@ -199,7 +253,7 @@
   {:else}
     <div class="hint">
       <p>No source yet.</p>
-      <p class="dim">Draw, import or open a demo to start stacking modifiers.</p>
+      <p class="dim">Draw, import or open a demo to start stacking&nbsp;modifiers.</p>
     </div>
   {/if}
 </section>
@@ -210,13 +264,17 @@
   header { display: flex; align-items: center; gap: var(--sv-space-4); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); flex: none; }
   .spacer { flex: 1; }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); margin-right: var(--sv-space-4); }
-  .rows { overflow-y: auto; }
+  .rows { overflow-y: auto; scroll-padding-top: var(--sv-size-row); }
   .drag { position: relative; }
+  .drag.node { position: sticky; top: calc(var(--depth) * var(--sv-size-row)); z-index: calc(10 - var(--depth)); background: var(--sv-surface-panel); }
   .hidden-node { opacity: 0.45; }
   .drag[data-drop='before']::after,
   .drag[data-drop='after']::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: var(--sv-accent-fill); z-index: 1; }
   .drag[data-drop='before']::after { top: -1px; }
   .drag[data-drop='after']::after { bottom: -1px; }
+  /* Command line preview: same marks as a drop, on ::before so a drag in progress still shows its own. */
+  .drag[data-insert='after']::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--sv-accent-fill); z-index: 1; pointer-events: none; }
+  .drag[data-insert='inside'] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -1px; }
   .drag[data-drop='inside'] { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
   .empty {
     margin: 0;

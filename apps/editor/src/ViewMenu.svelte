@@ -9,12 +9,12 @@
 
   type Key = 'showOriginal' | 'showWire' | 'showBounds' | 'showRulers' | 'showGuides' | 'smartGuides';
   const options: { key: Key; label: string; hint?: string }[] = [
-    { key: 'showOriginal', label: 'Original', hint: 'The source drawing, before the stack' },
+    { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
     { key: 'showWire', label: 'Wire', hint: 'Outlines only' },
-    { key: 'showBounds', label: 'Bounds', hint: 'The edge of the document: what is exported and shown in Play' },
-    { key: 'showRulers', label: 'Rulers' },
-    { key: 'showGuides', label: 'Guides' },
-    { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to object edges, centers and document bounds' },
+    { key: 'showBounds', label: 'Bounds', hint: 'Document edge: what exports and plays' },
+    { key: 'showRulers', label: 'Rulers', hint: 'Drag out of them to add a guide' },
+    { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
+    { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to edges, centers and the document' },
   ];
   const total = options.length + 1;
   const on = $derived(options.filter((o) => editor[o.key]).length + Number(editor.showEffectMenus && !editor.commandInEffectsSlot));
@@ -29,12 +29,12 @@
       <DropdownMenu.Group>
       <DropdownMenu.GroupHeading class="sv-menu-heading">View · not exported</DropdownMenu.GroupHeading>
       {#each options as o (o.key)}
-        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} title={o.hint} checked={editor[o.key]} onCheckedChange={(v) => (editor[o.key] = v)}>
+        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} checked={editor[o.key]} onCheckedChange={(v) => (editor[o.key] = v)}>
           {#snippet children({ checked })}
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
               {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
             </span>
-            {o.label}
+            <span class="text">{o.label}{#if o.hint}<span class="hint">{o.hint}</span>{/if}</span>
           {/snippet}
         </DropdownMenu.CheckboxItem>
       {/each}
@@ -43,12 +43,12 @@
       <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Group>
         <DropdownMenu.GroupHeading class="sv-menu-heading">Interface</DropdownMenu.GroupHeading>
-        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} disabled={editor.commandInEffectsSlot} title="All effect menus in the top bar, including Utils. Hidden menus remain available in the command line (/)." checked={editor.showEffectMenus && !editor.commandInEffectsSlot} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
+        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} disabled={editor.commandInEffectsSlot} checked={editor.showEffectMenus && !editor.commandInEffectsSlot} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
           {#snippet children({ checked })}
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
               {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
             </span>
-            Effect menus
+            <span class="text">Effect menus<span class="hint">Top bar menus; all are also in /</span></span>
           {/snippet}
         </DropdownMenu.CheckboxItem>
       </DropdownMenu.Group>
@@ -70,7 +70,11 @@
   :global(.sv-view-trigger[data-state='open']) { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   :global(.sv-view-trigger:disabled) { opacity: 0.4; cursor: default; }
   .count { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; }
-  :global(.sv-view-menu) { width: 180px; }
+  :global(.sv-view-menu) { width: 240px; }
+  /* Each option says what it does in a second line (tooltips were not enough). */
+  :global(.sv-view-menu .sv-menu-item) { height: auto; min-height: 24px; padding-block: var(--sv-space-4); }
+  .text { display: flex; flex-direction: column; }
+  .hint { color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
   .box {
     display: inline-grid;
     place-items: center;

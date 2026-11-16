@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Un solo «Export»: los formatos y copiar el JSON dejan de ocupar la barra.
+  // The only place to export from (the svertik menu no longer repeats it). Each format says what it keeps.
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
 
@@ -14,15 +14,15 @@
   }
   let { disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
 
-  type Item = { label: string; icon: IconName; run: () => void } | 'sep';
+  type Item = { label: string; icon: IconName; hint: string; run: () => void } | 'sep';
   const items: Item[] = $derived([
-    { label: 'Export SVG', icon: 'export', run: onexportsvg },
-    { label: 'Export PNG (2×)', icon: 'image', run: onexportpng },
-    { label: 'Export MP4 (one cycle)', icon: 'play', run: onexportmp4 },
-    { label: 'Export animated SVG', icon: 'wave', run: onexportanimsvg },
-    { label: 'Export Lottie (.json)', icon: 'timeline', run: onexportlottie },
+    { label: 'SVG', icon: 'export', hint: 'Vector, the current frame', run: onexportsvg },
+    { label: 'PNG (2×)', icon: 'image', hint: 'Pixels at twice the size, the current frame', run: onexportpng },
+    { label: 'MP4', icon: 'play', hint: 'Video of one cycle, on the canvas colour', run: onexportmp4 },
+    { label: 'Animated SVG', icon: 'wave', hint: 'One .svg that plays by itself, no JavaScript', run: onexportanimsvg },
+    { label: 'Lottie (.json)', icon: 'timeline', hint: 'For Lottie players; lists what does not fit', run: onexportlottie },
     'sep',
-    { label: 'Copy JSON', icon: 'object', run: oncopyjson },
+    { label: 'Copy JSON', icon: 'object', hint: 'The scene, to paste into code or a file', run: oncopyjson },
   ]);
 </script>
 
@@ -31,14 +31,14 @@
     Export <span class="caret" aria-hidden="true">▾</span>
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
-    <DropdownMenu.Content class="sv-menu" align="end" sideOffset={6}>
+    <DropdownMenu.Content class="sv-menu sv-export-menu" align="end" sideOffset={6}>
       {#each items as it, i (i)}
         {#if it === 'sep'}
           <DropdownMenu.Separator class="sv-export-sep" />
         {:else}
           <DropdownMenu.Item class="sv-menu-item" onSelect={it.run}>
             <Icon name={it.icon} />
-            <span class="label">{it.label}</span>
+            <span class="label">{it.label}<span class="hint">{it.hint}</span></span>
           </DropdownMenu.Item>
         {/if}
       {/each}
@@ -63,8 +63,12 @@
   }
   :global(.sv-export-trigger:hover),
   :global(.sv-export-trigger[data-state='open']) { filter: brightness(1.1); }
-  :global(.sv-export-trigger:disabled) { opacity: 0.4; cursor: default; filter: none; }
+  /* Disabled: a neutral outline, not a dimmed turquoise block (nothing to export yet). */
+  :global(.sv-export-trigger:disabled) { color: var(--sv-text-muted); background: none; border-color: var(--sv-rule-strong); cursor: default; filter: none; }
   .caret { font-size: var(--sv-font-size-10); font-weight: normal; }
-  .label { flex: 1; }
+  .label { flex: 1; display: flex; flex-direction: column; }
+  :global(.sv-export-menu) { min-width: 280px; }
+  :global(.sv-export-menu .sv-menu-item) { height: auto; min-height: 24px; padding-block: var(--sv-space-4); }
+  .hint { color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
   :global(.sv-export-sep) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
 </style>

@@ -13,6 +13,8 @@ export interface ModifierInstance {
   /** Stable id: animation tracks refer to it. */
   id: string;
   type: string;
+  /** Optional display name in editors (the stack shows it instead of the effect's label). Not rendered. */
+  name?: string;
   enabled?: boolean;
   params?: Record<string, unknown>;
   /** Modifiers nested in this one (Step applies them copy by copy). */

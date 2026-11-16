@@ -354,7 +354,7 @@ export class Editor {
     const at = locateNode(this.scene.objects, id);
     if (!at || at.node.kind !== 'group' || !at.node.composition) return;
     const compositionNode = at.node;
-    const inner = structuredClone(compositionNode.composition.scene);
+    const inner = structuredClone(at.node.composition.scene);
     const timelineSource = structuredClone(inner);
     const parentClockScene = $state.snapshot(this.scene) as SceneV1;
     const parentDuration = Math.max(0, parentClockScene.animation?.duration ?? sceneDuration(parentClockScene));
@@ -677,6 +677,8 @@ export class Editor {
   notice = $state<string | null>(null);
   /** Request to open the command line with some text (the stack's +, "/", ⌘K). `n` tells identical requests apart. */
   commandRequest = $state<{ text: string; n: number } | null>(null);
+  /** The keyboard shortcut sheet ("?" or the svertik menu). */
+  showShortcuts = $state(false);
   openCommand(text = '') {
     this.commandRequest = { text, n: (this.commandRequest?.n ?? 0) + 1 };
   }
@@ -2068,6 +2070,25 @@ export class Editor {
     return type === 'transform' || type === 'opacity' || type === 'mask' || def?.kind === 'filter';
   }
 
+  /**
+   * Where `add(type)` would put a new modifier: inside the selected container (at the end), after the
+   * selected modifier (climbing out of containers that can't hold `type`, so a Step inside a Step goes
+   * after the outer one), or at the end of the active node's stack. Null without an active node.
+   */
+  insertion(type: string): { owner: SceneNode; where: 'inside' | 'after' | 'end'; at: Location | null } | null {
+    const owner = this.activeNode;
+    if (!owner) return null;
+    const at = locate(owner.stack, this.selected);
+    if (!at) return { owner, where: 'end', at: null };
+    if (canNest(at.inst.type, type)) return { owner, where: 'inside', at };
+    let cur = at;
+    while (cur.parent && !canNest(cur.parent.type, type)) cur = locate(owner.stack, cur.parent.id)!;
+    return { owner, where: 'after', at: cur };
+  }
+
+  /** The modifier type the command line is about to add (the stack previews where it will land). */
+  commandPreview = $state<string | null>(null);
+
   /** `params`: values that override the defaults (from the command line: "twist angle=45"). */
   add(type: string, params: Record<string, unknown> = {}) {
     if (this.activeNode && this.isLocked(this.activeNode.id)) return;
@@ -2089,26 +2110,27 @@ export class Editor {
       inst.children = [{ id: `transform-${uid()}`, type: 'transform', params }];
     }
     Object.assign(inst.params!, params);
-    const stack = owner.stack;
-    const at = locate(stack, this.selected);
-    if (at && canNest(at.inst.type, type)) {
-      // Con Step (o RGB Split) seleccionado: dentro, al final.
-      at.inst.children ??= [];
-      at.inst.children.push(inst);
-    } else if (at) {
-      // Debajo del seleccionado, en su misma lista si lo admite; si no, se sube de nivel (un Step dentro de
-      // un Step va debajo del de fuera).
-      let cur = at;
-      while (cur.parent && !canNest(cur.parent.type, type)) cur = locate(stack, cur.parent.id)!;
-      cur.list.splice(cur.index + 1, 0, inst);
-    } else {
-      // Con el nodo seleccionado: al final de su pila.
-      stack.push(inst);
-    }
+    const at = locate(owner.stack, this.selected);
+    const spot = this.insertion(type)!;
+    if (spot.where === 'inside') {
+      spot.at!.inst.children ??= [];
+      spot.at!.inst.children.push(inst);
+    } else if (spot.where === 'after') spot.at!.list.splice(spot.at!.index + 1, 0, inst);
+    else owner.stack.push(inst);
     this.selected = inst.id;
     // Que se vea lo añadido: el nodo y el Step que lo recibe, desplegados.
     const host = at && containers.has(at.inst.type) ? at.inst.id : at?.parent?.id;
     this.collapsed = this.collapsed.filter((x) => x !== owner.id && x !== host);
+    this.record(true);
+  }
+
+  /** Names a modifier in the stack; an empty name, or the effect's own label, goes back to the label. */
+  renameModifier(id: string, name: string) {
+    const at = this.scene ? locateModifier(this.scene, id) : null;
+    if (!at || this.isLocked(at.owner.id)) return;
+    const clean = name.trim();
+    if (!clean || clean === registry.get(at.inst.type)?.label) delete at.inst.name;
+    else at.inst.name = clean;
     this.record(true);
   }
 
@@ -2246,7 +2268,7 @@ export class Editor {
   /** The dice and zero controls for autonomous shape generators. */
   randomizeShape(id: string, seed = Math.floor(Math.random() * 2 ** 31)) {
     const node = this.scene ? locateNode(this.scene.objects, id)?.node : undefined;
-    const def = node?.kind === 'shape' && shapeRegistry.get(node.shape);
+    const def = node?.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
     if (!node || node.kind !== 'shape' || !def?.timeDriven || this.isLocked(id)) return;
     node.params = randomizeParams(def.params, resolveParams(def.params, node.params), rng(seed));
     this.record(true);
@@ -2254,7 +2276,7 @@ export class Editor {
 
   zeroShape(id: string) {
     const node = this.scene ? locateNode(this.scene.objects, id)?.node : undefined;
-    const def = node?.kind === 'shape' && shapeRegistry.get(node.shape);
+    const def = node?.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
     if (!node || node.kind !== 'shape' || !def?.timeDriven || this.isLocked(id)) return;
     node.params = zeroParams(def.params, resolveParams(def.params, node.params));
     this.record(true);

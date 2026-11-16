@@ -3,6 +3,7 @@
   import { effectDescriptions, walkNodes, type ParamSpec } from '@svertik/engine';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
+  import { categoryOf } from './command';
 
   let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
   let tab = $state('Params');
@@ -49,8 +50,8 @@
 <section class="attrs" aria-label="Attributes" bind:this={panel}>
   {#if m && def}
     <header>
-      <h2>{def.label}</h2>
-      <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : def.kind}</span>
+      <h2>{m.name || def.label}</h2>
+      <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : categoryOf(def)}</span>
       <IconButton icon="zero" label="Set values to zero" onclick={() => editor.zero()} />
       <IconButton icon="dice" label="Randomize (R)" onclick={() => editor.randomize()} />
     </header>
@@ -100,7 +101,7 @@
           <dl class="info">
             {#if effectDescriptions[m.type]}<dt>About</dt><dd class="about">{effectDescriptions[m.type]}</dd>{/if}
             <dt>Type</dt><dd>{m.type}</dd>
-            <dt>Kind</dt><dd>{def.kind}</dd>
+            <dt>Category</dt><dd>{categoryOf(def)}</dd>
             <dt>Id</dt><dd>{m.id}</dd>
           </dl>
           <div class="actions">

@@ -8,7 +8,7 @@
   async function pickColor() {
     if (!canPick) return;
     try {
-      const EyeDropperApi = (window as Window & { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+      const EyeDropperApi = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
       editor.setFillColor((await new EyeDropperApi().open()).sRGBHex);
     } catch {
       // Escape cancels the native eyedropper without changing the selected color.

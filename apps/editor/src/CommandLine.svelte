@@ -47,6 +47,16 @@
   const typing = $derived(parsed.last.includes('=') ? '' : parsed.last.toLowerCase());
   const disabled = $derived(!editor.scene);
 
+  // Where the command lands: the active node (its name is the prompt), or a new object for generators.
+  const target = $derived(editor.activeNode);
+  const pending = $derived(open && !disabled ? (entry ?? highlighted) : null);
+  const promptText = $derived(disabled ? '' : pending?.autonomous ? 'New object' : target ? target.name : 'No selection');
+  // Tell the stack which effect is about to be added, so it marks where it will go.
+  $effect(() => {
+    editor.commandPreview = pending && !pending.autonomous && !blocker(pending) ? pending.type : null;
+  });
+  $effect(() => () => (editor.commandPreview = null));
+
   /** Why it can't be added here (null: it can). */
   function blocker(e: CommandEntry): string | null {
     if (e.autonomous) return null;
@@ -158,7 +168,7 @@
   const optionId = (type: string) => `command-option-${type}`;
 </script>
 
-<div class="command" class:compact data-position={editor.commandInEffectsSlot ? 'effects' : 'footer'} data-disabled={disabled || undefined} data-error={error ? true : undefined}>
+<div class="command" class:compact data-position={editor.commandInEffectsSlot ? 'effects' : 'footer'} data-disabled={disabled || undefined} data-error={error ? true : undefined} data-idle={!disabled && !target ? true : undefined}>
   {#if open && !disabled}
     <div class="results" role="presentation">
       {#if browsing}
@@ -229,12 +239,12 @@
       <p class="keys">⏎ add · Tab complete · ↑↓ choose · Esc close</p>
     </div>
   {/if}
-  <span class="prompt" aria-hidden="true">&gt;</span>
+  <span class="prompt" title={target && !pending?.autonomous ? `Adds to ${target.name}` : undefined}>{promptText} ›</span>
   <input
     bind:this={input}
     type="text"
     role="combobox"
-    aria-label="Command line: add an effect, e.g. twist angle=45"
+    aria-label={target ? `Command line: add an effect to ${target.name}, e.g. twist angle=45` : 'Command line: select an object to add effects, or add a generator'}
     aria-expanded={open && browsing && matches.length > 0}
     aria-controls={listId}
     aria-autocomplete="list"
@@ -243,11 +253,17 @@
     autocomplete="off"
     spellcheck="false"
     {disabled}
-    placeholder={disabled ? 'Open or create a scene to add effects' : 'Add an effect: twist angle=45'}
+    placeholder={disabled ? 'Open or create a scene to add effects' : target ? 'Add an effect: twist angle=45' : 'Select an object to add effects, or add a generator: randomwave'}
     {value}
     oninput={(e) => edit(e.currentTarget.value)}
     onfocus={() => (open = true)}
-    onblur={() => (open = false)}
+    onblur={() => {
+      // Leaving without running: drop the text and any error (nothing stale is left behind).
+      open = false;
+      value = '';
+      error = null;
+      historyAt = null;
+    }}
     onkeydown={keydown}
   />
   {#if !disabled}<span class="hint" aria-hidden="true"><kbd>/</kbd> or <kbd>⌘K</kbd></span>{/if}
@@ -289,7 +305,9 @@
   .command:hover:not([data-disabled]) { border-color: var(--sv-rule-strong); }
   .command:focus-within { border-color: var(--sv-accent-fill); }
   .command[data-error] { border-color: var(--sv-signal-error); }
-  .prompt { color: var(--sv-text-muted); font-weight: var(--sv-font-weight-bold); }
+  .prompt { flex: none; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sv-text-secondary); font-weight: var(--sv-font-weight-bold); }
+  .command[data-idle] .prompt { color: var(--sv-text-muted); font-weight: var(--sv-font-weight-regular); }
+  .command[data-idle]:not(:focus-within) { background: none; }
   .command:focus-within .prompt { color: var(--sv-accent-fill); }
   input {
     flex: 1;
@@ -327,6 +345,8 @@
     color: var(--sv-text-primary);
   }
   .command[data-position='effects'] .results { top: calc(100% + 1px); bottom: auto; }
+  /* In the footer the results span the whole line (in the top bar the line is short: keep 720 px). */
+  .command:not(.compact) .results { width: calc(100% + 2px); }
   .browse {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
