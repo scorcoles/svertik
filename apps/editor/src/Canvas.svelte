@@ -78,6 +78,35 @@
     visit(scene.objects);
     return colors;
   }
+  function wireBodyKinds(scene: SceneV1) {
+    const kinds = new Map<string, 'fixed' | 'mobile'>();
+    const visit = (items: SceneNode[], active = false, inherited?: 'fixed' | 'mobile') => {
+      for (const node of items) {
+        const simulation = active || node.stack?.some((m) => m.enabled !== false && ['physics', 'gravity'].includes(m.type));
+        const rigidBody = node.stack?.find((m) => m.enabled !== false && m.type === 'rigidbody');
+        const kind = rigidBody ? (rigidBody.params?.immovable === true ? 'fixed' : 'mobile') : simulation ? inherited ?? 'mobile' : undefined;
+        if (simulation && kind) kinds.set(node.id, kind);
+        if (node.children?.length) visit(node.children, simulation, kind);
+        if (node.kind === 'group' && node.composition) visit(node.composition.scene.objects, simulation, kind);
+      }
+    };
+    visit(scene.objects);
+    return kinds;
+  }
+  function updateWirePatterns() {
+    if (!result) return;
+    let defs = result.querySelector(':scope > defs[data-wire-hatch]');
+    if (!editor.showWire) { defs?.remove(); return; }
+    if (!defs) {
+      defs = result.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.setAttribute('data-wire-hatch', '');
+      result.append(defs);
+    }
+    const size = 8 / Math.max(view.zoom, 0.001), stroke = 1 / Math.max(view.zoom, 0.001);
+    defs.innerHTML = [
+      ['mobile', '#22d3ee'], ['fixed', '#facc15'],
+    ].map(([kind, color]) => `<pattern id="wire-hatch-${kind}" patternUnits="userSpaceOnUse" width="${size}" height="${size}" patternTransform="rotate(45)"><path d="M0 0V${size}" fill="none" stroke="${color}" stroke-width="${stroke}"/></pattern>`).join('');
+  }
   let dropping = $state(false);
   /**
    * Encuadre del lienzo, en coordenadas del documento. Se fija al abrir y con Fit (⇧1);
@@ -113,12 +142,24 @@
       }
       renderInto(result, doc.geometry);
       const colors = wireColors(scene);
+      const bodyKinds = wireBodyKinds(scene);
+      updateWirePatterns();
       // Escribiendo en un texto: su resultado (con efectos), atenuado debajo del campo.
       const editing = editor.editingText;
       const dimmed = new Set(dimmedNodes);
       for (const p of result.querySelectorAll<SVGElement>('path[data-node], image[data-node]')) {
         const id = p.getAttribute('data-node');
-        p.style.setProperty('--wire-color', colors.get(id ?? '') ?? '#22d3ee');
+        const bodyKind = bodyKinds.get(id ?? '');
+        if (bodyKind) {
+          p.setAttribute('data-wire-body', bodyKind);
+          const color = bodyKind === 'fixed' ? '#facc15' : '#22d3ee';
+          p.style.setProperty('--wire-color', color);
+          p.style.setProperty('--wire-fill', `url(#wire-hatch-${bodyKind})`);
+        } else {
+          p.removeAttribute('data-wire-body');
+          p.style.removeProperty('--wire-fill');
+          p.style.setProperty('--wire-color', colors.get(id ?? '') ?? '#22d3ee');
+        }
         p.style.opacity = editing && id === editing ? '0.25' : id && dimmed.has(id) ? '0.35' : '';
       }
       if (ghost) {
@@ -160,6 +201,7 @@
     if (result) {
       result.setAttribute('viewBox', box);
       result.style.setProperty('--wire-width', wireWidth);
+      updateWirePatterns();
     }
     ghost?.setAttribute('viewBox', box);
   });
@@ -1733,13 +1775,14 @@
   .onion { pointer-events: none; }
   .onion[data-side='before'] { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(4); }
   .onion[data-side='after'] { filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4); }
-  .wire :global(path) {
+  .wire :global(path[data-svertik-shape]) {
     fill: none !important;
     stroke: var(--wire-color, #22d3ee) !important;
     stroke-width: var(--wire-width, 1px) !important;
     opacity: 0.78;
     vector-effect: non-scaling-stroke;
   }
+  .wire :global(path[data-svertik-shape][data-wire-body]) { fill: var(--wire-fill) !important; }
   .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-11); }
   .canvas > .error { position: absolute; top: 28px; left: var(--sv-space-12); }
 </style>

@@ -371,7 +371,9 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
       : node.kind === 'instance'
       ? 'A live copy of the original, with its effects: change the original and this changes too. It has its own position and its own effects on top.'
       : node.kind === 'group'
-      ? 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
+      ? node.stack.some((m) => m.type === 'physics')
+        ? 'Physics on this group simulates its children together. Add Rigid body to a child to set its initial motion or make it an immovable collider.'
+        : 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
       : 'Effects below apply only to it. Drag it on the canvas to move it.'}
   </p>
 </div>

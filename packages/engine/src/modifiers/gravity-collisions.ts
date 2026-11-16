@@ -74,18 +74,25 @@ export function collisionBody(geo: Geometry, body = gravityBody(geo), fixed = fa
   const regions = simplify(regionOf(filled, Math.max(size / 100, detail * 2)), detail);
   const parts: Vec2[][] = [];
   for (const polygon of regions) {
-    // Collision proxies use only each connected shape's exterior: O/B counters and
-    // decorative interior cuts are deliberately solid, while gaps between letters remain open.
-    const ring = polygon[0]!;
-    const end = ring[ring.length - 1]!, first = ring[0]!;
-    const open = end[0] === first[0] && end[1] === first[1] ? ring.slice(0, -1) : ring;
-    const points = open.map(([x, y]): Vec2 => [x - body.center[0], y - body.center[1]]);
+    // Keep interior contours: hollow solids (a ring or an O) must contain dynamic bodies.
+    const rings = polygon.map((ring) => {
+      const end = ring[ring.length - 1]!, first = ring[0]!;
+      const open = end[0] === first[0] && end[1] === first[1] ? ring.slice(0, -1) : ring;
+      return open.map(([x, y]): Vec2 => [x - body.center[0], y - body.center[1]]);
+    });
+    const points = rings.flat();
     const ids = points.map((_, i) => i);
-    const envelope = convex(ids, points);
+    const outerIds = rings[0]!.map((_, i) => i);
+    const envelope = convex(outerIds, points);
     // A convex exterior (notably O) must stay one collider: triangulation seams
     // otherwise supply contradictory normals to a fragment that starts inside it.
-    if (Math.abs(area(envelope, points) - area(ids, points)) < 1e-6) parts.push(envelope.map((i) => points[i]!));
-    else parts.push(...mergeTriangles(earcut(points.flat(), undefined, 2), points));
+    if (rings.length === 1 && Math.abs(area(envelope, points) - area(ids, points)) < 1e-6) parts.push(envelope.map((i) => points[i]!));
+    else {
+      const holes: number[] = [];
+      let offset = rings[0]!.length;
+      for (const ring of rings.slice(1)) { holes.push(offset); offset += ring.length; }
+      parts.push(...mergeTriangles(earcut(points.flat(), holes, 2), points));
+    }
   }
   // Open paths retain their floor dynamics but have no filled area to collide with other bodies.
   return { body, parts, fixed, impulse: geo.shapes[0]?.impulse };
@@ -160,14 +167,16 @@ function cells(box: Box, size: number, visit: (key: string) => void) {
   for (let x = Math.floor(box.x0 / size); x <= Math.floor(box.x1 / size); x++) for (let y = Math.floor(box.y0 / size); y <= Math.floor(box.y1 / size); y++) visit(`${x}:${y}`);
 }
 
-export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, gravity: number, time: number, friction: number, bounce: number, collide: boolean): FallPose[] {
+function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: number, acceleration: Vec2, time: number, friction: number, bounce: number, collide: boolean, contactDamping: number): FallPose[] {
   const cs = Math.cos(rotation), sn = Math.sin(rotation);
-  const key = [floor[0], floor[1], rotation, gravity, friction, bounce, collide].join('|');
+  const key = [floor?.[0], floor?.[1], rotation, ...acceleration, friction, bounce, collide, contactDamping].join('|');
   let replay = world.replay;
   if (!replay || replay.key !== key) {
     const initial = world.bodies.map(({ body, fixed, impulse }): State => {
       const [vx, vy] = fixed ? [0, 0] : impulse?.velocity ?? [0, 0];
-      return { x: (body.center[0] - floor[0]) * cs + (body.center[1] - floor[1]) * sn, y: -(body.center[0] - floor[0]) * sn + (body.center[1] - floor[1]) * cs, angle: -rotation, vx: vx * cs + vy * sn, vy: -vx * sn + vy * cs, omega: fixed ? 0 : impulse?.spin ?? 0 };
+      return floor
+        ? { x: (body.center[0] - floor[0]) * cs + (body.center[1] - floor[1]) * sn, y: -(body.center[0] - floor[0]) * sn + (body.center[1] - floor[1]) * cs, angle: -rotation, vx: vx * cs + vy * sn, vy: -vx * sn + vy * cs, omega: fixed ? 0 : impulse?.spin ?? 0 }
+        : { x: body.center[0], y: body.center[1], angle: 0, vx, vy, omega: fixed ? 0 : impulse?.spin ?? 0 };
     });
     replay = world.replay = { key, checkpoints: [initial], latest: { step: 0, states: initial } };
   }
@@ -175,7 +184,7 @@ export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, 
   const slop = size * 0.0001;
   // Static solids never change during one replay: keep transformed convex parts in a spatial hash.
   let fixed = world.fixedIndex;
-  const fixedKey = [floor[0], floor[1], rotation].join('|');
+  const fixedKey = [floor?.[0], floor?.[1], rotation].join('|');
   if (!fixed || fixed.key !== fixedKey) {
     fixed = { key: fixedKey, cell: Math.max(32, size), grid: new Map(), parts: [], box: { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity } };
     world.bodies.forEach((collider, i) => {
@@ -194,7 +203,9 @@ export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, 
   const advance = (before: State[], dt: number): State[] => {
     const states = before.map((state, i) => {
       if (world.bodies[i]!.fixed) return { ...state };
-      return { ...state, x: state.x + state.vx * dt + gravity * sn * dt * dt / 2, y: state.y + state.vy * dt + gravity * cs * dt * dt / 2, vx: state.vx + gravity * sn * dt, vy: state.vy + gravity * cs * dt, angle: state.angle + state.omega * dt };
+      const ax = floor ? acceleration[1] * sn : acceleration[0];
+      const ay = floor ? acceleration[1] * cs : acceleration[1];
+      return { ...state, x: state.x + state.vx * dt + ax * dt * dt / 2, y: state.y + state.vy * dt + ay * dt * dt / 2, vx: state.vx + ax * dt, vy: state.vy + ay * dt, angle: state.angle + state.omega * dt };
     });
     const placed = world.bodies.flatMap((collider, index) => collider.fixed ? [] : [place(collider, states[index]!, index)]);
     const contacts: Contact[] = [];
@@ -209,10 +220,10 @@ export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, 
         const avx = a.state.vx - a.state.omega * (y - a.state.y), avy = a.state.vy + a.state.omega * (x - a.state.x);
         const bvx = b ? b.state.vx - b.state.omega * (y - b.state.y) : 0, bvy = b ? b.state.vy + b.state.omega * (x - b.state.x) : 0;
         const closing = (bvx - avx) * nx + (bvy - avy) * ny;
-        contacts.push({ a, b, nx, ny, x, y, depth, normal: 0, tangent: 0, target: closing < -Math.sqrt(gravity * size) * 0.05 ? -closing * bounce : 0 });
+        contacts.push({ a, b, nx, ny, x, y, depth, normal: 0, tangent: 0, target: closing < -Math.sqrt(Math.hypot(...acceleration) * size) * 0.05 ? -closing * bounce : 0 });
       }
     };
-    for (const a of placed) if (a.im) {
+    for (const a of placed) if (a.im && floor) {
       const bottom = Math.max(...a.hull.map((p) => p[1]));
       if (bottom < -slop) continue;
       const face = a.hull.filter((p) => bottom - p[1] < slop * 4 + 1e-6);
@@ -270,7 +281,7 @@ export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, 
       apply(tangent - contact.tangent, tx, ty); contact.tangent = tangent;
     }
     const touching = new Set(contacts.flatMap((c) => c.b ? [c.a.index, c.b.index] : [c.a.index]));
-    for (const i of touching) if (!world.bodies[i]!.fixed) states[i]!.omega *= Math.exp(-dt);
+    if (contactDamping) for (const i of touching) if (!world.bodies[i]!.fixed) states[i]!.omega *= Math.exp(-contactDamping * dt);
     return states;
   };
   const whole = Math.floor(time * HZ + 1e-9), at = Math.min(Math.floor(whole / INTERVAL), replay.checkpoints.length - 1);
@@ -283,5 +294,15 @@ export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, 
   replay.latest = { step: whole, states };
   const fraction = time - whole / HZ;
   if (fraction > 1e-12) states = advance(states, fraction);
-  return states.map((s) => ({ x: floor[0] + s.x * cs - s.y * sn, y: floor[1] + s.x * sn + s.y * cs, angle: s.angle + rotation }));
+  return states.map((s) => floor
+    ? ({ x: floor[0] + s.x * cs - s.y * sn, y: floor[1] + s.x * sn + s.y * cs, angle: s.angle + rotation })
+    : ({ x: s.x, y: s.y, angle: s.angle }));
+}
+
+export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, gravity: number, time: number, friction: number, bounce: number, collide: boolean): FallPose[] {
+  return simulateWorld(world, floor, rotation, [0, gravity], time, friction, bounce, collide, 1);
+}
+
+export function physicsWorld(world: CollisionWorld, acceleration: Vec2, time: number, friction: number, bounce: number, collide: boolean): FallPose[] {
+  return simulateWorld(world, null, 0, acceleration, time, friction, bounce, collide, 0);
 }

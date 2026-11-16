@@ -2,7 +2,7 @@
 
 `type: "explosion"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. `amount` from 0 to 1 plays the explosion. Motion: impulse launches the pieces through a following rigid-body Gravity, preserving velocity and spin; offset keeps the direct displacement mode.
+Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. `amount` from 0 to 1 plays the explosion. Motion: impulse launches the pieces through a following rigid-body Gravity or Physics group, preserving velocity and spin; offset keeps the direct displacement mode.
 
 ## Parameters
 

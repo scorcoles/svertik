@@ -29,6 +29,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Path Wrap](effects/pathwrap.md) | `pathwrap` | Wraps the drawing along another object's path (its longest one). |
 | [Morph](effects/morph.md) | `morph` | Morphs this drawing into another object's shape. |
 | [Trim](effects/trim.md) | `trim` | Trims paths (draws them): only the part of each path between Start and End (fractions of its length) remains, shifted by Offset; closed paths wrap around. |
+| [Rigid body](effects/rigidbody.md) | `rigidbody` | Initial linear velocity and spin for a child inside a Physics group (or Gravity). |
 
 ### Generate
 
@@ -70,7 +71,8 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Range](effects/range.md) | `range` | Range selector: picks which elements (letters, words, lines, copies, tiles…) get the nested effects, and how much, by their order. |
 | [Field](effects/field.md) | `field` | Field selector: the nested effects act more or less on each element depending on where its centre is relative to a shape (circle, plane or box). |
 | [Explosion](effects/explosion.md) | `explosion` | Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. |
-| [Gravity](effects/gravity.md) | `gravity` | Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion. |
+| [Gravity](effects/gravity.md) | `gravity` | Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion or Rigid body. |
+| [Physics](effects/physics.md) | `physics` | A deterministic 2D rigid-body simulation for a group. |
 
 ### Style
 

@@ -81,7 +81,7 @@ export const gravity = defineModifier({
         for (const entry of parts) {
           const part = { ...geo, shapes: entry.shapes };
           const body = entry.body === undefined ? (entry.body = gravityBody(part)) : entry.body;
-          const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body, false, detail)) : entry.collider;
+          const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body, !!entry.shapes[0]?.impulse?.immovable, detail)) : entry.collider;
           if (collider) { indices.set(entry.shapes, bodies.length); bodies.push(collider); }
         }
         for (const solid of solids) { const collider = collisionBody(solid, undefined, true, detail); if (collider) bodies.push(collider); }

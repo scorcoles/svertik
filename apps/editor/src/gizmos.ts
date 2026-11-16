@@ -83,6 +83,30 @@ function radiusHandle(b: Bounds, c: Vec2, R: number): GizmoHandle {
 }
 
 const builders: Record<string, (p: Params, b: Bounds) => Gizmo> = {
+  rigidbody(p, b) {
+    const c = center(b), velocity = (p.velocity as Vec2 | undefined) ?? [0, 0];
+    const scale = 0.5;
+    const end: Vec2 = [c[0] + velocity[0] * scale, c[1] + velocity[1] * scale];
+    const speed = Math.hypot(...velocity);
+    const head = Math.min(12, Math.max(6, sizeOf(b) * 0.08));
+    const ux = speed ? velocity[0] / speed : 1, uy = speed ? velocity[1] / speed : 0;
+    const base: Vec2 = [end[0] - ux * head, end[1] - uy * head];
+    const wing: Vec2 = [uy * head * 0.55, -ux * head * 0.55];
+    return {
+      lines: speed > 0.5 && !p.immovable ? [
+        { pts: [c, end] },
+        { pts: [[base[0] + wing[0], base[1] + wing[1]], end, [base[0] - wing[0], base[1] - wing[1]]] },
+      ] : [],
+      handles: p.immovable ? [] : [{
+        at: end,
+        label: 'Velocity',
+        drag: (p0, from, to) => {
+          const v = (p0.velocity as Vec2 | undefined) ?? [0, 0];
+          return { velocity: [round(v[0] + (to[0] - from[0]) / scale), round(v[1] + (to[1] - from[1]) / scale)] };
+        },
+      }],
+    };
+  },
   particles(p, b) {
     const c = at(b, p.center);
     const area = (p.area as Vec2 | undefined) ?? [0.15, 0.15];

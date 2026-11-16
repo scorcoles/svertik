@@ -71,7 +71,7 @@ const normalizeSeedGenerator = (value: number) => Math.max(0, Math.min(0x7ffffff
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
-export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake']);
+export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics']);
 export const containers = new Set([...effectors, 'rgbsplit']);
 /**
  * ¿Puede `child` ir dentro de `parent`? Un efector no lleva otro efector; RGB Split lleva cualquier cosa
@@ -2297,6 +2297,7 @@ export class Editor {
   /** Raster objects support affine transforms, opacity, masks and SVG pixel filters. */
   canAdd(type: string) {
     const node = this.activeNode;
+    if (type === 'physics' && node?.kind !== 'group') return false;
     if (node?.kind !== 'object' || node.packed || !/<image\b/i.test(node.source)) return true;
     const def = registry.get(type);
     return type === 'transform' || type === 'opacity' || type === 'mask' || def?.kind === 'filter';
@@ -2332,7 +2333,7 @@ export class Editor {
     if (!this.scene || !def || !owner) return;
     const inst: ModifierInstance = { id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(def.params) } };
     if (type === 'color') inst.params!.mode = 'solid';
-    if (['particles', 'gravity', 'oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
+    if (['particles', 'gravity', 'physics', 'oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
       inst.params!.time = { $expr: 'scene.time', fallback: 1 };
       this.#ensureAnimation();
     }

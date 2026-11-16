@@ -18,10 +18,11 @@ export interface SubPath {
 
 export type Style = Record<string, string>;
 
-/** One-shot velocity passed from Explosion to the next rigid-body Gravity, in local units/s and radians/s. */
+/** Initial motion metadata consumed by the next rigid-body simulation. */
 export interface Impulse {
   velocity: Vec2;
   spin: number;
+  immovable?: boolean;
 }
 
 export interface Shape {

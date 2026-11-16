@@ -11,6 +11,8 @@
 
   interface Props {
     params: [string, ParamSpec][];
+    /** Full modifier schema, needed when a visibility condition refers to a parameter in another group. */
+    schema?: [string, ParamSpec][];
     values: Record<string, unknown> | undefined;
     onchange: (name: string, value: unknown) => void;
     /** Objetos que se pueden elegir en los parámetros `node`. */
@@ -24,7 +26,7 @@
     keyOf?: (name: string) => 'none' | 'animated' | 'key';
     onkey?: (name: string) => void;
   }
-  let { params, values, onchange, nodes, onselectnode, swatches, fonts, keyOf, onkey }: Props = $props();
+  let { params, schema, values, onchange, nodes, onselectnode, swatches, fonts, keyOf, onkey }: Props = $props();
   const k = (name: string, spec: ParamSpec) => (onkey && spec.animatable !== false ? { keyState: keyOf?.(name), onkey: () => onkey(name) } : {});
 
   type Item = { name: string; spec: ParamSpec; color?: string; pair?: { name: string; spec: ParamSpec } };
@@ -41,7 +43,7 @@
   const shown = (spec: ParamSpec) =>
     !spec.showIf ||
     Object.entries(spec.showIf).every(([other, allowed]) => {
-      const v = values?.[other] ?? params.find(([n]) => n === other)?.[1].default;
+      const v = values?.[other] ?? (schema ?? params).find(([n]) => n === other)?.[1].default;
       return allowed.includes(String(v));
     });
   const items = $derived.by(() => {

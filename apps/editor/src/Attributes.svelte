@@ -25,7 +25,7 @@
   const onkey = (param: string) => editor.toggleKey(target(param));
   // Para los efectos que usan otro objeto: todos menos el dueño del efecto.
   const others = $derived(
-    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id && (m?.type !== 'gravity' || (n.kind !== 'effector' && ![...walkNodes([n])].some(({ node }) => node.id === editor.activeNode?.id) && ![...walkNodes(editor.activeNode ? [editor.activeNode] : [])].some(({ node }) => node.id === n.id)))).map((n) => ({ id: n.id, label: n.name })) : [],
+    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id && (!['gravity', 'physics'].includes(m?.type ?? '') || (n.kind !== 'effector' && ![...walkNodes([n])].some(({ node }) => node.id === editor.activeNode?.id) && ![...walkNodes(editor.activeNode ? [editor.activeNode] : [])].some(({ node }) => node.id === n.id)))).map((n) => ({ id: n.id, label: n.name })) : [],
   );
   const def = $derived(m ? registry.get(m.type) : undefined);
   // Sin grupo: arriba. Con grupo: secciones plegables, en el orden del esquema.
@@ -45,6 +45,7 @@
     }
     return [...out];
   });
+  const schema = $derived(Object.entries(def?.params ?? {}) as [string, ParamSpec][]);
 </script>
 
 <section class="attrs" aria-label="Attributes" bind:this={panel}>
@@ -67,6 +68,10 @@
             ? 'Per element: where it starts (In) or ends (Out). Centers are each element’s own.'
           : 'Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).'}
       </p>
+    {:else if m.type === 'physics'}
+      <p class="note">Simulates the children of this group as rigid bodies. Add Rigid body to a child to set its initial velocity, spin or make it immovable. Add a hollow filled path as an immovable body to make an arena.</p>
+    {:else if m.type === 'rigidbody'}
+      <p class="note">Sets this child’s initial motion for a Physics group or Gravity. Immovable bodies stay fixed and can be used as colliders.</p>
     {:else if def.kind === 'filter'}
       <p class="note">Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.</p>
     {:else if m.children}
@@ -87,17 +92,19 @@
         {#if t === 'Params'}
           <div class="params">
             <!-- Encendido: lo mismo que el ojo de su fila, pero con rombo para animarlo (salta en cada clave). -->
-            <ParamRow label="On" for="mod-on" keyState={keyOf('enabled')} onkey={() => onkey('enabled')}>
-              <Checkbox id="mod-on" checked={m.enabled !== false} label="On" onchange={(v) => editor.setEnabled(m.id, v)} />
-            </ParamRow>
-            <ParamList swatches={editor.docColors} params={main} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
+            <div class:rigid-body-toggle={m.type === 'rigidbody'}>
+              <ParamRow label="On" for="mod-on" keyState={keyOf('enabled')} onkey={() => onkey('enabled')}>
+                <Checkbox id="mod-on" checked={m.enabled !== false} label="On" onchange={(v) => editor.setEnabled(m.id, v)} />
+              </ParamRow>
+            </div>
+            <ParamList swatches={editor.docColors} params={main} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
-                <ParamList swatches={editor.docColors} params={entries} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
+                <ParamList swatches={editor.docColors} params={entries} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
             {#if m.type === 'boolean' && editor.activeNode?.kind === 'group'}
-              <div class="actions">
+              <div class="actions boolean-path-actions">
                 <Button label="To Path" title="Destructively bake the Boolean result at this frame. Its source objects, effects and animation will be removed; Undo restores them." onclick={() => editor.booleanToPath()} />
               </div>
             {/if}
@@ -135,6 +142,8 @@
   .info dd { margin: 0; color: var(--sv-text-primary); }
   .info .about { color: var(--sv-text-secondary); line-height: 1.5; }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
+  .boolean-path-actions { margin-top: var(--sv-space-12); }
+  .rigid-body-toggle :global(label) { text-align: left; }
   .note { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); }
   .empty { margin: 0; padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
 </style>

@@ -640,6 +640,19 @@ All numeric parameters and floor position support animation. Rigid bodies use un
 
 Physics integrates fixed 120 Hz steps, with a fractional final step. Mass properties are cached per input geometry; quarter-second checkpoints and the last full step are reused, so advancing time does not replay the entire fall. Geometry or physics parameter changes invalidate those states. Seeking backwards and headless rendering are deterministic. The current gravity, floor, friction and bounce values are held constant during that replay: their earlier animated values are not integrated. Collisions between pieces are optional (`collisions: true`). The floor guide remains editor-only.
 
+### Physics (`physics`)
+
+A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin or fixed state you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. The whole group shares one simulation and time.
+
+- `time`: simulation time in seconds; the editor links it to `scene.time` when added.
+- `acceleration`: constant `[x, y]` acceleration in px/s²; `[0, 0]` gives free, frictionless motion between impacts.
+- `collisions`: whether dynamic children collide with each other (on by default). Immovable children and `solids` collide regardless.
+- `solids`: optional fixed scene objects that act as colliders, including filled paths with holes.
+- `friction`: contact friction, `0–1`, default `0`.
+- `bounce`: restitution, `0–1`, default `1` for elastic impacts.
+
+Rigid Body's `velocity` is the child’s initial `[x, y]` velocity in px/s; `spin` is its initial angular velocity in degrees/s. Filled contours, including interior holes, are used for collisions; open paths and stroke thickness are ignored. The simulation uses deterministic 120 Hz steps and is seekable and exportable. For a circular arena, use a hollow filled shape as an immovable child or select it under `solids`.
+
 
 #### Explosion → Gravity: inertia
 
@@ -654,7 +667,7 @@ Run `node scripts/bench-gravity.mjs` for stage-by-stage timings of the circle de
 
 Under **Contacts**, enable **Collisions** to let the pieces of this Gravity collide, transfer momentum and stack. It defaults to `false` and does not couple separate Gravity effects. Select any number of **Solids** to use those scene objects as fixed collision obstacles (`solids: ["platform-id", "wall-id"]`). Selecting solids works independently of piece-to-piece collisions; rigid bodies must be enabled. The owner, its ancestors/descendants and effector nodes are excluded from the editor picker.
 
-Contacts use the targets' evaluated filled paths in the Gravity object's local coordinates, including translation, rotation, scale and groups. Only the exterior contour of each connected shape is triangulated and merged into convex parts. Internal holes and decorative cuts do not form collision boundaries: a letter O is a solid obstacle rather than a ring that traps fragments. Disconnected letters/parts remain separate, with open gaps between them. Concave exterior outlines are retained. Collision outlines are simplified at roughly 0.6% of the source size (minimum 0.25 local units); rendered paths stay unchanged. Open paths and stroke thickness do not form solid obstacles. Friction and Bounce govern both the floor and object contacts; mass is proportional to filled area.
+Contacts use the targets' evaluated filled paths in the Gravity object's local coordinates, including translation, rotation, scale and groups. Exterior and interior contours are triangulated and merged into convex parts, so a hollow O can contain moving bodies. Disconnected letters/parts remain separate, with open gaps between them. Concave outlines are retained. Collision outlines are simplified at roughly 0.6% of the source size (minimum 0.25 local units); rendered paths stay unchanged. Open paths and stroke thickness do not form solid obstacles. Friction and Bounce govern both the floor and object contacts; mass is proportional to filled area.
 
 Targets are fixed during a replay, using the geometry and placement of the current frame. Animated target changes invalidate cached world states; their historical movement is not integrated and they do not receive forces from the falling pieces. Large initial overlaps may produce abrupt separation. Very fast movement through thin objects can require a thicker collider. A spatial index rejects distant target parts before SAT tests; static geometry, mass properties, simulation checkpoints and completed steps are reused.
 
