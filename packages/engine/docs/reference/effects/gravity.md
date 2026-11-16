@@ -2,7 +2,7 @@
 
 `type: "gravity"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion or Rigid body. Enable Collisions for piece-to-piece contacts; select Solids to collide with other objects as fixed obstacles. Friction and Bounce apply to all contacts. Exterior and interior contours collide, while gaps between disconnected shapes stay open; strokes are ignored. Targets use their current-frame geometry throughout the replay, not their past movement. Cached deterministic simulation, up to 60 seconds.
+Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion or Rigid body. Enable Collisions for piece-to-piece contacts; select Solids to collide with other objects as fixed obstacles. Friction and Bounce apply to all contacts. Only the exterior of each shape collides (letter counters and holes are solid), while gaps between disconnected shapes stay open; strokes are ignored. For hollow obstacles that contain bodies, use Physics. Targets use their current-frame geometry throughout the replay, not their past movement. Cached deterministic simulation, up to 60 seconds.
 
 ## Parameters
 

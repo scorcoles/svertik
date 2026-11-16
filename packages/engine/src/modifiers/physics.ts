@@ -56,10 +56,10 @@ export const physics = defineModifier({
         const part = { ...geo, shapes };
         const body = entry.body === undefined ? (entry.body = gravityBody(part)) : entry.body;
         const fixed = !!shapes[0]?.impulse?.immovable;
-        const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body ?? undefined, fixed, detail)) : entry.collider;
+        const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body ?? undefined, fixed, detail, true)) : entry.collider;
         if (collider) { indices.set(partIndex, bodies.length); bodies.push(collider); }
       }
-      for (const solid of solids) { const collider = collisionBody(solid, undefined, true, detail); if (collider) bodies.push(collider); }
+      for (const solid of solids) { const collider = collisionBody(solid, undefined, true, detail, true); if (collider) bodies.push(collider); }
       cached = { parts, world: { bodies }, indices };
       worlds.set(key, cached);
       if (worlds.size > 12) worlds.delete(worlds.keys().next().value!);

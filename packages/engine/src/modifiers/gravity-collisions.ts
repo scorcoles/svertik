@@ -66,7 +66,12 @@ function mergeTriangles(triangles: number[], points: Vec2[]): Vec2[][] {
   return [...parts.values()].map((part) => part.map((i) => points[i]!));
 }
 
-export function collisionBody(geo: Geometry, body = gravityBody(geo), fixed = false, tolerance?: number): CollisionBody | null {
+/**
+ * The collider of a drawing: its filled regions as convex parts. With `holes` (Physics), interior contours stay
+ * open, so a hollow shape (a ring, an O) can contain bodies. Without it (Gravity), only each region's exterior
+ * counts: letter counters and interior cuts are solid, while gaps between separate shapes stay open.
+ */
+export function collisionBody(geo: Geometry, body = gravityBody(geo), fixed = false, tolerance?: number, holes = false): CollisionBody | null {
   if (!body) return null;
   const b = bounds(geo), size = Math.max(b.width, b.height) || 1;
   const filled = geo.shapes.filter((shape) => shape.style.fill !== 'none' && shape.subpaths.some((p) => p.closed));
@@ -74,8 +79,8 @@ export function collisionBody(geo: Geometry, body = gravityBody(geo), fixed = fa
   const regions = simplify(regionOf(filled, Math.max(size / 100, detail * 2)), detail);
   const parts: Vec2[][] = [];
   for (const polygon of regions) {
-    // Keep interior contours: hollow solids (a ring or an O) must contain dynamic bodies.
-    const rings = polygon.map((ring) => {
+    // Physics keeps interior contours (a hollow solid contains bodies); Gravity uses only the exterior.
+    const rings = (holes ? polygon : polygon.slice(0, 1)).map((ring) => {
       const end = ring[ring.length - 1]!, first = ring[0]!;
       const open = end[0] === first[0] && end[1] === first[1] ? ring.slice(0, -1) : ring;
       return open.map(([x, y]): Vec2 => [x - body.center[0], y - body.center[1]]);

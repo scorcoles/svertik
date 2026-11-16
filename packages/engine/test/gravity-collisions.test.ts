@@ -17,6 +17,13 @@ function targetScene(targetSource: string, time = 5): SceneV1 {
 }
 const platform = '<svg viewBox="-100 -10 200 20"><path d="M-100 -10H100V10H-100Z"/></svg>';
 
+/** Total area of a collider's convex parts. */
+const partsArea = (parts: ReadonlyArray<ReadonlyArray<ArrayLike<number>>>) =>
+  parts.reduce((sum, points) => sum + Math.abs(points.reduce((a, p, i) => {
+    const q = points[(i + 1) % points.length]!;
+    return a + p[0]! * q[1]! - p[1]! * q[0]!;
+  }, 0)) / 2, 0);
+
 describe('gravity collisions', () => {
   it('stacks two pieces rather than letting them overlap', () => {
     const e = createEngine(builtins);
@@ -59,19 +66,34 @@ describe('gravity collisions', () => {
     expect(boxes[0]!.y + boxes[0]!.height).toBeCloseTo(-5, 0);
     expect(boxes[1]!.y + boxes[1]!.height).toBeCloseTo(45, 0);
   });
-  it('uses only the exterior perimeter of a solid, filling internal holes', () => {
+  it('Gravity uses only the exterior perimeter of a solid, filling internal holes', () => {
     const scene = targetScene('<svg viewBox="-100 -10 200 20"><path fill-rule="evenodd" d="M-100 -10H100V10H-100Z M-30 -6H30V6H-30Z"/></svg>');
     const box = createEngine(builtins).evaluateDocument(scene).nodes.get('falling')!.box;
     expect(box.y + box.height).toBeCloseTo(-10, 0);
     const geometry = createEngine(builtins).evaluateStack({ source: (scene.objects[1] as { source: string }).source, stack: [] });
     const collider = collisionBody(geometry)!;
     expect(collider.parts).toHaveLength(1);
-    const collisionArea = collider.parts.reduce((sum, points) => sum + Math.abs(points.reduce((a, p, i) => {
-      const q = points[(i + 1) % points.length]!;
-      return a + p[0] * q[1] - p[1] * q[0];
-    }, 0)) / 2, 0);
-    expect(collisionArea).toBeCloseTo(4000, 5);
+    expect(partsArea(collider.parts)).toBeCloseTo(4000, 5);
   });
+
+  it('Physics keeps interior holes as open space (a hollow shape can contain bodies)', () => {
+    const geometry = createEngine(builtins).evaluateStack({ source: '<svg viewBox="-100 -10 200 20"><path fill-rule="evenodd" d="M-100 -10H100V10H-100Z M-30 -6H30V6H-30Z"/></svg>', stack: [] });
+    const collider = collisionBody(geometry, undefined, false, undefined, true)!;
+    // The frame around the hole is split into convex parts; their area is the bar minus the hole.
+    expect(collider.parts.length).toBeGreaterThan(1);
+    expect(partsArea(collider.parts)).toBeCloseTo(200 * 20 - 60 * 12, 5);
+    // No part covers the middle of the hole.
+    const covers = (points: [number, number][], [x, y]: [number, number]) => {
+      let odd = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const [xi, yi] = points[i]!, [xj, yj] = points[j]!;
+        if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) odd = !odd;
+      }
+      return odd;
+    };
+    expect(collider.parts.some((p) => covers(p as [number, number][], [0, 0]))).toBe(false);
+  });
+
   it('ejects a piece that begins inside a convex letter outline instead of trapping it on a seam', () => {
     const e = createEngine(builtins);
     const small = e.evaluateStack({ source: '<svg viewBox="-10 -10 20 20"><rect x="-10" y="-10" width="20" height="20"/></svg>', stack: [] });
