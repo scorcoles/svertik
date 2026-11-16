@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine, createMouseInstances, sampleScene, validateScene, type GroupNode, type SceneV1 } from '../src';
+import { bounds, builtins, createEngine, createMouseInstances, sampleScene, validateScene, walkNodes, type GroupNode, type SceneV1 } from '../src';
 
 const scene = (mouse: Record<string, unknown> = {}): SceneV1 => ({
   version: 1, document: { width: 800, height: 600 },
@@ -8,7 +8,7 @@ const scene = (mouse: Record<string, unknown> = {}): SceneV1 => ({
     { kind: 'shape', id: 'source', name: 'Source', shape: 'rectangle', visible: false, params: { width: 20, height: 10 }, transform: { x: 80, y: 40 }, stack: [] },
   ],
 });
-const copies = (s: SceneV1) => s.objects.filter(n => n.kind === 'group') as GroupNode[];
+const copies = (s: SceneV1) => [...walkNodes(s.objects)].map(({ node }) => node).filter(n => n.kind === 'group' && n.id.startsWith('@mouse-')) as GroupNode[];
 
 describe('Mouse Instance', () => {
   it('draws nothing at rest, then places a hidden source at the cursor without changing the scene', () => {
@@ -297,4 +297,103 @@ it('does not emit for a missing target or geometry context and warns about broke
   expect(m.event('click', [0, 0], 0)).toBe(false);
   expect(m.event('click', [0, 0], 0, 0, 0, createEngine(builtins).evaluateDocument(s))).toBe(false);
   expect(validateScene(s).warnings.some(w => w.includes('missing'))).toBe(true);
+});
+
+
+it.each(['horizontal', 'vertical', 'both'] as const)('chains Mirror %s after the placed, animated Mouse collection', axis => {
+  const s = scene({ count: 1, lifetime: 2, limit: 1, rotation: { $expr: 'random(10, 80)', fallback: 25 } });
+  s.objects[0]!.stack = (axis === 'both' ? ['horizontal', 'vertical'] : [axis]).map((direction, i) => ({ id: `mirror-${i}`, type: 'mirror', params: { axis: direction, position: 0.5, reference: 'area' } }));
+  s.objects[1] = { kind: 'shape', id: 'source', name: 'Arrow', shape: 'arrow', params: { length: 40, width: 12, fillColor: '#ff0000' }, transform: { x: 80, y: 40 }, visible: false, stack: [{ id: 'color', type: 'color', params: { mode: 'random', variation: 0.7 } }] };
+  s.objects.push({ kind: 'shape', id: 'area', name: 'Reference', shape: 'rectangle', params: { width: 800, height: 600 }, visible: false, stack: [] });
+  s.animation = { duration: 2, tracks: [{ id: 'move-source', node: 'source', on: 'node', param: 'x', keys: [{ t: 0, value: 80, ease: 'linear' }, { t: 2, value: 120 }] }] };
+  const m = createMouseInstances(s);
+  const engine = createEngine(builtins);
+  m.event('click', [-120, -40], 0);
+  for (const time of [0, 0.5, 1.5]) {
+    const frame = m.apply(sampleScene(s, time), time);
+    expect(copies(frame)).toHaveLength(1);
+    const shapes = engine.evaluateDocument(frame).geometry.shapes;
+    expect(shapes).toHaveLength(axis === 'both' ? 4 : 2);
+    const points = (shape: typeof shapes[number]) => shape.subpaths.flatMap(path => [path.start, ...path.segs.flatMap(seg => [seg.c1, seg.c2, seg.p])]);
+    const first = points(shapes[0]!);
+    for (let index = 1; index < shapes.length; index++) {
+      expect(shapes[index]!.style).toEqual(shapes[0]!.style);
+      const reflected = points(shapes[index]!);
+      const flipX = axis === 'horizontal' || (axis === 'both' && index % 2 === 1);
+      const flipY = axis === 'vertical' || (axis === 'both' && index >= 2);
+      for (let i = 0; i < first.length; i++) {
+        expect(reflected[i]![0]).toBeCloseTo(first[i]![0] * (flipX ? -1 : 1));
+        expect(reflected[i]![1]).toBeCloseTo(first[i]![1] * (flipY ? -1 : 1));
+      }
+    }
+  }
+  expect(engine.evaluateDocument(m.apply(s, 2)).geometry.shapes).toHaveLength(0);
+});
+
+it('uses the hidden Limit right edge as Mirror reference while gating input only on the left', () => {
+  const s = scene({ target: 'area', limit: 1, lifetime: 0 });
+  s.objects[0]!.stack = [{ id: 'mirror', type: 'mirror', params: { reference: 'area', axis: 'horizontal', position: 1 } }];
+  s.objects.push({ kind: 'shape', id: 'area', name: 'Left', shape: 'rectangle', params: { width: 400, height: 600 }, transform: { x: -200 }, visible: false, stack: [] });
+  const m = createMouseInstances(s);
+  const engine = createEngine(builtins), doc = engine.evaluateDocument(s);
+  expect(m.event('click', [-200, 0], 0, 0, 0, doc)).toBe(true);
+  expect(engine.evaluateDocument(m.apply(s, 0)).geometry.shapes).toHaveLength(2);
+  expect(m.event('click', [200, 0], 1, 0, 1, doc)).toBe(false);
+  expect(m.event('click', [-100, 0], 1, 0, 1, doc)).toBe(true);
+  const out = engine.evaluateDocument(m.apply(s, 1)).geometry.shapes;
+  const center = (shape: typeof out[number]) => { const box = bounds({ viewBox: [0, 0, 0, 0], shapes: [shape] }); return box.x + box.width / 2; };
+  expect(out.map(center)).toEqual([-100, 100]);
+});
+
+it('expands source filter bounds to include copies reflected by a collector effect', () => {
+  const s = scene({ lifetime: 0 });
+  s.objects[0]!.stack = [{ id: 'mirror', type: 'mirror', params: { reference: 'area', position: 1 } }];
+  s.objects[1]!.stack = [{ id: 'blur', type: 'blur', params: { amount: 4 } }];
+  s.objects.push({ kind: 'shape', id: 'area', name: 'Limit', shape: 'rectangle', params: { width: 400, height: 600 }, transform: { x: -200 }, visible: false, stack: [] });
+  const m = createMouseInstances(s), engine = createEngine(builtins);
+  m.event('click', [-100, 0], 0);
+  const frame = m.apply(s, 0);
+  const result = engine.evaluateDocument(frame);
+  const centers = result.geometry.shapes.map(shape => {
+    const b = bounds({ viewBox: [0, 0, 0, 0], shapes: [shape] });
+    return b.x + b.width / 2;
+  }).sort((a, b) => a - b);
+  expect(centers).toEqual([-100, 100]);
+  const svg = engine.toSVG(frame);
+  const filter = svg.match(/<filter[^>]*x="([^"]+)"[^>]*width="([^"]+)"/);
+  expect(filter).not.toBeNull();
+  const x = Number(filter![1]), width = Number(filter![2]);
+  expect(x).toBeLessThan(-100);
+  expect(x + width).toBeGreaterThan(100);
+});
+
+it('processes the generator stack in order on the complete placed result', () => {
+  const run = (reverse: boolean) => {
+    const s = scene({ lifetime: 0 });
+    const mirror = { id: 'mirror', type: 'mirror', params: { reference: 'area', position: 1 } };
+    const move = { id: 'move', type: 'transform', params: { x: 10 } };
+    s.objects[0]!.stack = reverse ? [move, mirror] : [mirror, move];
+    s.objects.push({ kind: 'shape', id: 'area', name: 'Limit', shape: 'rectangle', params: { width: 400, height: 600 }, transform: { x: -200 }, visible: false, stack: [] });
+    const m = createMouseInstances(s), engine = createEngine(builtins);
+    m.event('click', [-120, 0], 0);
+    return engine.evaluateDocument(m.apply(s, 0)).geometry.shapes.map(shape => {
+      const b = bounds({ viewBox: [0, 0, 0, 0], shapes: [shape] }); return b.x + b.width / 2;
+    }).sort((a, b) => a - b);
+  };
+  expect(run(false)).toEqual([-110, 130]);
+  expect(run(true)).toEqual([-110, 110]);
+});
+
+it.each(['random', 'palette'])('keeps collector Color %s choices stable when new clicks are added', mode => {
+  const s = scene({ count: 3, lifetime: 0 });
+  s.objects[1] = { ...s.objects[1]!, kind: 'shape', shape: 'cross', params: { fillColor: '#ff6600' } };
+  s.objects[0]!.stack = [{ id: 'color', type: 'color', params: { mode, variation: 0.8, palette: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'] } }];
+  const m = createMouseInstances(s), engine = createEngine(builtins);
+  const colors = (now: number) => engine.evaluateDocument(m.apply(s, now)).geometry.shapes.map(shape => [shape.node!, shape.style.fill!] as const);
+  m.event('click', [0, 0], 0);
+  const first = colors(0);
+  expect(new Set(first.map(([, fill]) => fill)).size).toBe(mode === 'palette' ? 1 : 3);
+  m.event('click', [0, 0], 1);
+  const next = new Map(colors(1));
+  for (const [id, fill] of first) expect(next.get(id)).toBe(fill);
 });

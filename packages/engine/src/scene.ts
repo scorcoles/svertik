@@ -77,6 +77,9 @@ export interface ClockModulation { type: 'oscillate' | 'wiggle' | 'pulse' | 'sha
 
 export interface GroupNode extends NodeBase {
   kind: 'group';
+  /** Runtime element identity and emission for generated collections. */
+  elementIndex?: number;
+  eventIndex?: number;
   children: SceneNode[];
   /** An isolated nested scene. Stored children are empty; the engine evaluates the local scene. */
   composition?: { scene: SceneV1; params?: Record<string, unknown>; modulation?: ClockModulation; /** Runtime copy context; omitted from authored scenes. */ randomSalt?: number; /** Runtime palette choice shared by copies from one input event. */ eventSalt?: number };

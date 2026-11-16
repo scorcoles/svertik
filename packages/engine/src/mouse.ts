@@ -58,6 +58,8 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
     // Keep ancestors hidden as dependencies and draw a detached copy instead.
     const detach = (nodes: SceneNode[]): SceneNode[] => nodes.filter(n => n.id !== copy.id).map(n => ({ ...n, ...(n.children ? { children: detach(n.children) } : {}) }));
     local.objects = [{ kind: 'group', id: unique(`@mouse-origin-${g.id}`), name: 'Origin', stack: [], transform: { x: -(source.transform?.x ?? 0), y: -(source.transform?.y ?? 0) }, children: [copy] }, ...detach(local.objects)];
+    // A known origin aligns each source result with its generated placement.
+    local.document = { width: local.document?.width ?? 1, height: local.document?.height ?? 1, x: 0, y: 0 };
     local.interactions = [];
     templates.set(g.id, local);
     return local;
@@ -103,29 +105,36 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
         for (let i = 0; i < Math.min(50, Math.max(1, Math.floor(p.count))); i++) {
           const id = unique(`@mouse-${g.id}-${++serial}`);
           const birth = i === 0 ? p : paramsAt(g, sceneTime, serial);
-          const birthStack = evaluateSceneExpressions({
-            version: 1, custom: scene.custom, seedGenerator: scene.seedGenerator,
-            animation: scene.animation, at: sceneTime, objects: [{ ...g, mouse: undefined, children: undefined }],
-          }, { randomSalt: serial }).objects[0]!.stack;
-          const copyStack = (items: SceneNode['stack']): SceneNode['stack'] => items.map(m => ({ ...m, id: `${id}::${m.id}`, ...(m.children ? { children: copyStack(m.children) } : {}) }));
-          st.copies.unshift({ born: now, life: Math.max(0, birth.lifetime), node: {
-            kind: 'group', id, name: g.name, children: [], stack: copyStack(seedMouseColors(birthStack, eventSalt, scene.seedGenerator, serial)),
-            opacity: g.opacity, blend: g.blend,
+          const node: GroupNode = {
+            kind: 'group', id, name: g.name, children: [], stack: [], elementIndex: serial, eventIndex: eventSalt,
             transform: { x: point[0] + birth.offset[0]! + vary(birth.scatter), y: point[1] + birth.offset[1]! + vary(birth.scatter), scale: Math.max(0.01, birth.scale * (1 + vary(birth.scaleVariation))), rotation: birth.rotation + vary(birth.rotationVariation) },
             composition: { scene: local, randomSalt: serial, eventSalt, params: { time: 0, loop: 'hold' } },
-          } });
+          };
+          st.copies.unshift({ born: now, life: Math.max(0, birth.lifetime), node });
         }
         st.copies.length = Math.min(st.copies.length, Math.max(1, Math.min(500, Math.floor(p.limit))));
       }
       return handled;
     },
     apply(frame: SceneV1, now: number): SceneV1 {
-      const copies: SceneNode[] = [];
-      for (const st of state.values()) {
-        st.copies = st.copies.filter(c => !c.life || now - c.born < c.life);
-        for (const c of st.copies) copies.push({ ...c.node, composition: { ...c.node.composition!, params: { time: Math.max(0, now - c.born), loop: 'hold' } } });
-      }
-      return copies.length ? { ...frame, objects: [...copies, ...frame.objects] } : frame;
+      if (!generators.length) return frame;
+      const current = new Map([...walkNodes(frame.objects)].map(({ node }) => [node.id, node]));
+      const collectors: GroupNode[] = generators.map(g => {
+        const st = state.get(g.id);
+        if (st) st.copies = st.copies.filter(c => !c.life || now - c.born < c.life);
+        const candidate = current.get(g.id);
+        const node = candidate?.kind === 'instance' ? candidate : g;
+        const evaluated = evaluateSceneExpressions({ ...frame, objects: [{ ...node, children: undefined }] }).objects[0]!;
+        return {
+          kind: 'group', id: g.id, name: g.name,
+          stack: seedMouseColors(evaluated.stack, 0, frame.seedGenerator),
+          visible: node.visible, opacity: node.opacity, blend: node.blend,
+          children: (st?.copies ?? []).map(c => ({ ...c.node, composition: { ...c.node.composition!, params: { time: Math.max(0, now - c.born), loop: 'hold' } } })),
+        };
+      });
+      const ids = new Set(generators.map(g => g.id));
+      const strip = (nodes: SceneNode[]): SceneNode[] => nodes.filter(n => !ids.has(n.id)).map(n => n.children?.length ? { ...n, children: strip(n.children) } : n);
+      return { ...frame, objects: [...collectors, ...strip(frame.objects)] };
     },
     active: () => [...state.values()].some(s => s.copies.length > 0),
     enabled: generators.length > 0,

@@ -979,3 +979,23 @@ The player tests the target's evaluated closed contours in document coordinates,
 Set `mouse.target: "<node-id>"` in JSON; the reference belongs to the same scene scope. Direct runtime callers pass the evaluated `DocumentResult` as the sixth argument to `.event(kind, point, monotonicSeconds, buttons?, sceneTime?, document?)`; `createPlayer` supplies the currently displayed document automatically. Input with a target and no geometry context is ignored. Composition extraction checks target references; pasted targets remap when copied alongside their generators.
 
 The Mouse Instance inspector contains its source, target and generation controls; it omits the generic Display, Interactions, Animate, Pack/Group/Remove blocks. Use the layer list to toggle/remove the generator. The effect stack remains available; animate or style the source to define what its emitted copies do.
+
+## Mouse output and chained effects
+
+Mouse Instance generates a live collection of placed copies. Its normal modifier stack applies once to that collection, in stack order, after each source copy has evaluated its own geometry/effects/animation. This is a reusable pipeline rather than a Mouse-specific symmetry setting.
+
+For reflection from a left-side Target into the right half, add **Mirror** to Mouse Instance's stack. Choose **Reference → Limit**, **Axis → horizontal**, **Axis at → 1**, **Original → keep**:
+
+```json
+{
+  "id": "mirror-click-output",
+  "type": "mirror",
+  "params": { "reference": "left-half", "axis": "horizontal", "position": 1, "original": "keep" }
+}
+```
+
+Mirror's optional `reference` is a general node parameter: it measures that node's evaluated bounds (including hidden objects) in the effect owner's coordinate space. Position 1 is its right/bottom edge, 0.5 its center. Empty Reference preserves the existing behavior based on the input bounds. Mouse Target gates original input only; reflected output may appear outside it.
+
+Mirror now receives the copies already placed, so it reflects their complete animated results, color and handedness. Stack order matters: Mirror then Transform moves both sides together; Transform then Mirror reflects the moved source result. Chain a second Mirror (vertical) for four-way reflection, or add Color, Clone, deformers and effectors normally. Put per-copy effects/animation on the source; put effects intended for the entire generated result on Mouse's stack. Generator-stack expressions use the parent scene clock; source expressions use each copy's local clock.
+
+The runtime collection has the generator's ID, so references can address its evaluated result. Stable element/emission metadata keeps Color Random choices per birth and Color Palette choices per click when new copies arrive. Mouse limit/lifetime govern source births; geometry produced by downstream Mirror disappears with its source birth. No extra Mouse symmetry options are stored. Generated collections and click history remain temporary in Play; authored JSON keeps the Mouse generator plus ordinary effects.

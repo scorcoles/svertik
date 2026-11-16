@@ -40,8 +40,13 @@ export const color = defineModifier({
     const from = parseColor(p.from) ?? [0, 0, 0, 1];
     const to = parseColor(p.to) ?? [255, 255, 255, 1];
 
-    const recolor = (value: string | undefined, prop: string, i: number, key: number): string | undefined => {
-      if (p.mode === 'palette') return value === 'none' || value === 'transparent' || !paletteColor ? value : paletteColor;
+    const recolor = (value: string | undefined, prop: string, i: number, key: number, emission?: number): string | undefined => {
+      if (p.mode === 'palette') {
+        const pick = emission !== undefined && p.paletteMode !== 'index' && palette.length
+          ? toHex(palette[Math.floor(rng((p.seed >>> 0) ^ Math.imul(emission, 0x9e3779b9))() * palette.length)]!)
+          : paletteColor;
+        return value === 'none' || value === 'transparent' || !pick ? value : pick;
+      }
       if (p.mode === 'solid') return value === 'none' || !assigned ? value : toHex(assigned);
       // Without a declared fill, SVG paints black.
       const c = parseColor(value ?? (prop === 'fill' ? '#000000' : undefined));
@@ -62,7 +67,7 @@ export const color = defineModifier({
       const style: Style = { ...shape.style };
       for (const prop of props) {
         if (prop === 'stroke' && !style.stroke) continue;
-        const next = recolor(style[prop], prop, i, key);
+        const next = recolor(style[prop], prop, i, key, shape.emission);
         if (next !== undefined) style[prop] = next;
       }
       return { ...shape, style };

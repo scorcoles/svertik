@@ -13,12 +13,14 @@ export const mirror = defineModifier({
   kind: 'generator',
   reframe: true,
   params: {
+    reference: { type: 'node', default: '', label: 'Reference', animatable: false },
     axis: { type: 'enum', default: 'horizontal', options: ['horizontal', 'vertical'] as const, animatable: false },
     position: { type: 'number', default: 1, min: -1, max: 2, step: 0.01, unit: 'fraction', label: 'Axis at' },
     original: { type: 'enum', default: 'keep', options: ['keep', 'transform'] as const, animatable: false },
   },
   apply(geo, p, ctx) {
-    const b = ctx.bounds;
+    const reference = p.reference ? ctx.target?.(p.reference) : null;
+    const b = reference?.shapes.length ? bounds(reference) : ctx.bounds;
     const horizontal = p.axis !== 'vertical';
     const line = horizontal ? b.x + p.position * b.width : b.y + p.position * b.height;
     const reflected = mapPoints(geo, ([x, y]) => (horizontal ? [2 * line - x, y] : [x, 2 * line - y]));

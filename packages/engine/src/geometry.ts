@@ -33,6 +33,8 @@ export interface Shape {
   style: Style;
   /** Copy number given by Clone (for effectors like Step). */
   clone?: number;
+  /** Runtime input emission, shared by copies from one Mouse event. */
+  emission?: number;
   /** Internal tag for keeping a parent's nested shapes in one time signal. */
   signalGroup?: number;
   /** In a text: which word and which line the letter belongs to (for Range by words or lines). */

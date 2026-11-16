@@ -370,7 +370,7 @@ export function createDocumentEvaluator(
           }
           const childShapes: Shape[] = [];
           for (let i = (node.children?.length ?? 0) - 1; i >= 0; i--) childShapes.push(...evalNode(node.children![i]!, IDENTITY));
-          const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.node, s.wrap, s.gradients, s.image])) : '';
+          const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.image])) : '';
           // Text depends on the registered fonts: when a new one arrives, it is drawn again.
           const key =
             node.kind === 'instance'
@@ -440,8 +440,10 @@ export function createDocumentEvaluator(
         // each child is an element numbered in list order (keeping its copies).
         const childShapes: Shape[] = [];
         for (let i = node.children.length - 1; i >= 0; i--) {
-          const out = evalNode(node.children[i]!, IDENTITY);
-          childShapes.push(...out.map((s) => ({ ...s, clone: i * 10000 + (s.clone ?? 0) })));
+          const child = node.children[i]!;
+          const out = evalNode(child, IDENTITY);
+          const element = child.kind === 'group' ? child.elementIndex ?? i : i;
+          childShapes.push(...out.map(s => ({ ...s, clone: element * 10000 + (s.clone ?? 0), ...(child.kind === 'group' && child.eventIndex !== undefined ? { emission: child.eventIndex } : {}) })));
         }
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
         const frame = node.composition?.scene.document;
@@ -451,7 +453,7 @@ export function createDocumentEvaluator(
         if (stack.length) {
           // What its stack produced holds while its children (shape and style) and its stack don't change, and
           // it doesn't look at other objects (that is always redone): a Metaball isn't repeated in every pass of a frame.
-          const gkey = JSON.stringify([resolution, stack]) + '|' + hashGeo(inner) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.node, s.wrap, s.gradients]));
+          const gkey = JSON.stringify([resolution, stack]) + '|' + hashGeo(inner) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients]));
           const hit = groupCache.get(node.id);
           if (hit && hit.key === gkey) {
             result = hit.result;
@@ -546,7 +548,11 @@ export function createDocumentEvaluator(
     for (const [id, f] of fx) {
       const info = nodes.get(id);
       if (!info) continue;
-      const b = info.box;
+      // A later generator (for example Mirror on a Mouse Instance collection) can move
+      // filtered shapes beyond their source node's original box. Size the filter from
+      // every final shape carrying it so the browser doesn't clip those generated copies.
+      const filtered = shapes.filter((s) => s.wrap?.includes(id));
+      const b = filtered.length ? bounds({ viewBox: [0, 0, 0, 0], shapes: filtered }) : info.box;
       const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
       // Where the object is (its reference box with its matrix): zoned filters follow the object.
       const m = info.matrix, r = info.refs?.[''] ?? info.bounds;
