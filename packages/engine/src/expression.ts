@@ -238,12 +238,12 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
 }
 
 /** Resolve the live values exposed to expressions, without evaluating every object parameter. */
-export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0): SceneExpressionValues {
+export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, randomSalt = 0): SceneExpressionValues {
   const fps = scene.animation?.fps ?? 30;
   const duration = sceneDuration(scene);
   const context: SceneExpressionValues = {
     time,
-    randomSalt: 0,
+    randomSalt,
     frame: Math.floor(time * fps + 1e-9),
     fps,
     duration,
@@ -280,7 +280,7 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
   const time = out.at ?? 0;
   const fps = out.animation?.fps ?? 30;
   const duration = sceneDuration(out);
-  const context: ExpressionContext = { ...evaluateSceneVariables(out, time), randomSalt: options.randomSalt ?? 0 };
+  const context: ExpressionContext = { ...evaluateSceneVariables(out, time, options.randomSalt ?? 0), randomSalt: options.randomSalt ?? 0 };
   const params = (values?: Record<string, unknown>, points = false) => {
     if (!values) return;
     const one = (value: NumericExpression) => {

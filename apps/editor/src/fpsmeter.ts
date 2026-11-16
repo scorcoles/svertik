@@ -32,6 +32,7 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
 
   let screen = 0, computed = 0, sum = 0, worst = 0, last = performance.now();
   let performanceText = '', variablesText = '';
+  let lastVariableFrame: number | null = null;
   const render = () => { el.textContent = [performanceText, variablesText].filter(Boolean).join('\n\n'); };
   let raf = requestAnimationFrame(function tick(now) {
     screen++;
@@ -61,7 +62,10 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
       worst = Math.max(worst, ms);
     },
     variables(scene, custom) {
-      const format = (value: number) => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
+      const frame = scene.frame ?? 0;
+      if (frame === lastVariableFrame) return;
+      lastVariableFrame = frame;
+      const format = (value: number) => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
       const sceneLines = Object.entries(scene).map(([key, value]) => `scene.${key.padEnd(14)} ${format(value)}`);
       const customLines = Object.entries(custom).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `scene.custom.${key} ${format(value)}`);
       variablesText = ['Scene', ...sceneLines, ...(customLines.length ? ['', 'Custom', ...customLines] : [])].join('\n');
