@@ -40,6 +40,7 @@
     {
       title: 'Canvas',
       keys: [
+        ['W', 'Toggle Wire view (canvas focused)'],
         ['V  or  Esc', 'Select tool'],
         ['Space + drag', 'Pan'],
         ['⇧1', 'Zoom to fit'],

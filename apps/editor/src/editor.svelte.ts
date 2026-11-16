@@ -604,6 +604,13 @@ export class Editor {
     this.#showBounds = on;
     writePref('svertik.bounds', on ? '' : 'off');
   }
+  /** Clip artwork to the document frame in the editor; this does not affect exports. */
+  #hideOutside = $state(readPref('svertik.hideOutside') === 'on');
+  get hideOutside() { return this.#hideOutside; }
+  set hideOutside(on: boolean) {
+    this.#hideOutside = on;
+    writePref('svertik.hideOutside', on ? 'on' : 'off');
+  }
   /** The top bar's effect menus (Deform…Utils): shown by default; the command line covers them when
    * hidden. Remembered in this browser. */
   #showEffectMenus = $state(readPref('svertik.effect-menus') !== 'off');

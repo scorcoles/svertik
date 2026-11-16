@@ -184,6 +184,24 @@
   const INSET = $derived({ left: editor.showRulers ? 21 : 48, top: editor.showRulers ? 21 : 48, right: 48, bottom: 56 });
   const box = $derived([stageSize[0] - INSET.left - INSET.right, stageSize[1] - INSET.top - INSET.bottom] as const);
   const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
+  const documentClip = $derived.by(() => {
+    if (!editor.hideOutside) return undefined;
+    const [vx, vy, vw, vh] = viewBox;
+    const [width, height] = box;
+    if (vw <= 0 || vh <= 0 || width <= 0 || height <= 0) return undefined;
+    const scale = Math.min(width / vw, height / vh);
+    const d = editor.scene?.document;
+    const x0 = d ? (d.x ?? 0) - d.width / 2 : docViewBox[0];
+    const y0 = d ? (d.y ?? 0) - d.height / 2 : docViewBox[1];
+    const x1 = d ? x0 + d.width : docViewBox[0] + docViewBox[2];
+    const y1 = d ? y0 + d.height : docViewBox[1] + docViewBox[3];
+    const offsetX = (width - vw * scale) / 2;
+    const offsetY = (height - vh * scale) / 2;
+    const px = (x: number) => Math.max(0, Math.min(width, offsetX + (x - vx) * scale));
+    const py = (y: number) => Math.max(0, Math.min(height, offsetY + (y - vy) * scale));
+    const left = px(x0), right = width - px(x1), top = py(y0), bottom = height - py(y1);
+    return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+  });
   const percent = $derived(Math.round(fit * view.zoom * 100));
 
   $effect(() => {
@@ -269,6 +287,13 @@
     const target = e.target;
     return typing(e) || target instanceof Element && !!target.closest('button, select, a[href], [role="button"], [role="slider"]');
   };
+  function canvasKeydown(e: KeyboardEvent) {
+    if (typing(e) || editor.presenting || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (e.key.toLowerCase() === 'w') {
+      editor.showWire = !editor.showWire;
+      e.preventDefault();
+    }
+  }
   function keydown(e: KeyboardEvent) {
     if (typing(e) || !editor.scene || editor.presenting) return;
     if (e.key === 'Escape' && editor.tool) { penPoints = []; editor.tool = null; e.preventDefault(); }
@@ -304,6 +329,7 @@
     if (!spacePanned && !shortcutBlocked(e) && editor.scene && !editor.presenting) editor.togglePlayback();
   }
   function pointerdown(e: PointerEvent) {
+    if (e.button === 0 && !shortcutBlocked(e)) stage?.focus({ preventScroll: true });
     if (!(space || e.button === 1)) return pick(e);
     e.preventDefault();
     if (space) spacePanned = true;
@@ -1159,8 +1185,9 @@
   {/if}
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="stage" bind:this={stage} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} ondblclick={dblclick}>
-      <div class="view" style:inset="{editor.showRulers ? '21px 48px 56px 21px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex: the canvas takes focus for its keyboard shortcuts. -->
+    <div class="stage" bind:this={stage} tabindex="0" aria-label="Canvas workspace. Press W to toggle Wire view." data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} onkeydown={canvasKeydown} ondblclick={dblclick}>
+      <div class="view" data-hide-outside={editor.hideOutside || undefined} style:--document-clip={documentClip} style:inset="{editor.showRulers ? '21px 48px 56px 21px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         {#if editor.onionSkin && editor.animation && !editor.playing}
           {#each ONION as offset, i (offset)}
@@ -1466,6 +1493,7 @@
   .composition-back { position: absolute; z-index: 20; top: var(--sv-space-12); right: var(--sv-space-12); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 88%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
   .composition-back:hover { border-color: var(--sv-accent-fill); }
   .stage { position: absolute; inset: 0; overflow: hidden; }
+  .stage:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
   .stage[data-space] { cursor: grab; }
   .stage[data-tool] { cursor: crosshair; }
   .stage[data-tool] :global(path[data-node]), .stage[data-tool] :global(image[data-node]) { cursor: crosshair; }
@@ -1506,6 +1534,7 @@
   .stage[data-panning] { cursor: grabbing; }
   .view { position: absolute; inset: 48px 48px 56px; transform-origin: 0 0; }
   .view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .view[data-hide-outside] svg:not(.bounds) { clip-path: var(--document-clip); }
   /* Tirador: cuadradito en reposo; con la cruz al pasar, al arrastrar o al cambiar el punto desde el campo. */
   /* Tirador de punto de un efecto (centro, pivote…): anillo blanco con punto turquesa, bien visible. */
   .handle {

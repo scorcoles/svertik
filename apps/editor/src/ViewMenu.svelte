@@ -7,12 +7,13 @@
   let { editor }: { editor: Editor } = $props();
   let open = $state(false);
 
-  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides';
+  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides';
   const options: { key: Key; label: string; hint?: string }[] = [
     { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
     { key: 'showWire', label: 'Wire', hint: 'Outlines only' },
     { key: 'onionSkin', label: 'Onion skin', hint: 'Frames before (blue) and after (green)' },
     { key: 'showBounds', label: 'Bounds', hint: 'Document edge: what exports and plays' },
+    { key: 'hideOutside', label: 'Hide outside', hint: 'Clip artwork to the document bounds' },
     { key: 'showGrid', label: 'Grid', hint: 'Square grid; its step follows the zoom' },
     { key: 'showRulers', label: 'Rulers', hint: 'Drag out of them to add a guide' },
     { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
