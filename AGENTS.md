@@ -7,7 +7,7 @@
 
 ## 📚 Documentation & Reference
 
-- **[Comprehensive Engine & 65 Effects Guide](docs/ENGINE_AND_EFFECTS.md)**: Deep dive into the architecture, execution rules, all 10 geometric primitives, and all 65 effects with parameter types, ranges, defaults, and notes.
+- **[Comprehensive Engine & Effects Guide](docs/ENGINE_AND_EFFECTS.md)**: Deep dive into the architecture, execution rules, geometric primitives, and effect parameters, ranges, defaults, and notes.
 - **[Scene Recipes (Templates for AI Agents)](docs/SCENE_RECIPES.md)**: 6 fully-formed, validated JSON scene templates (kinetic typography, procedural mandalas, cyberpunk glitch, organic metaballs, mechanical orbital systems, and risograph halftone prints).
 - **Auto-generated Reference Pages**: [`packages/engine/docs/reference/index.md`](packages/engine/docs/reference/index.md) (individual markdown documentation for every effect and shape).
 

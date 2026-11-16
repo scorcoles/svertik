@@ -65,6 +65,7 @@ export const effectDescriptions: Record<string, string> = {
   tint: 'Pushes the colour towards a target colour. Inside Step the amount grows copy by copy (white lightens, black darkens).',
   paint: 'Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order.',
   gradient: "A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). Relative to each shape's box, so it follows the shape.",
+  feather: 'Softens a solid fill with a radial fade and slightly expands the shape to preserve its opaque centre. Uses a native SVG gradient instead of a raster blur filter, so it is lighter for many small copies.',
   mask: "Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). Whole elements discards copies crossing the boundary instead of clipping them (shape mode). The mask can be hidden and still works.",
   opacity: 'Makes the drawing transparent. With Range or Field, letters or pieces that appear or fade away.',
   // Filters (SVG filters, computed by the browser)

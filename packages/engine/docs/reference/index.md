@@ -82,6 +82,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Tint](effects/tint.md) | `tint` | Pushes the colour towards a target colour. |
 | [Paint](effects/paint.md) | `paint` | Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order. |
 | [Gradient](effects/gradient.md) | `gradient` | A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). |
+| [Feather](effects/feather.md) | `feather` | Softens a solid fill with a radial fade and slightly expands the shape to preserve its opaque centre. |
 | [Mask](effects/mask.md) | `mask` | Native SVG mask: the object only shows where another object lets it (`source`). |
 | [Opacity](effects/opacity.md) | `opacity` | Makes the drawing transparent. |
 

@@ -542,12 +542,15 @@ Distribute modifier evaluation across elements. All container effectors accept n
 48. **`gradient`**: Generates native `<linearGradient>` or `<radialGradient>` on fills or strokes.
     - `target` (`"fill" | "stroke"`, def `"fill"`), `type` (`"linear" | "radial"`, def `"linear"`), `angle` (angle, def 90, deg), `from` (color, def `"#09fdd1"`), `to` (color, def `"#055244"`), `via` (color, def `""`), `center` (point, def [0.5, 0.5], fraction), `radius` (number, def 0.5, fraction)
 
-49. **`mask`**: Native SVG masking (`<mask id="...">`) driven by another node.
+49. **`feather`**: Softens a filled shape with a native radial gradient; it expands the shape to preserve its opaque centre and avoids a raster SVG filter.
+    - `softness` (number, def 0.2, 0..0.6, fraction): Width of the fade at the shape's edge.
+
+50. **`mask`**: Native SVG masking (`<mask id="...">`) driven by another node.
     - `source` (node): Mask node ID.
     - `whole` (boolean, def false): Whole elements (shape mode). Discard elements crossing the boundary rather than clipping them. Clone copies remain indivisible, including compound copies. Uses the filled outline, holes and strokes after the geometry stack; invert keeps only complete elements outside.
     - `mode` (`"shape" | "luminance"`, def `"shape"`), `invert` (boolean, def false)
 
-50. **`opacity`**: Node transparency control.
+51. **`opacity`**: Node transparency control.
     - `opacity` (number, def 0.5, 0..1)
 
 ---
@@ -555,28 +558,28 @@ Distribute modifier evaluation across elements. All container effectors accept n
 ### 7.5 SVG Filters (`kind: "filter"`)
 Processed natively via browser `<filter>` primitives. Executed after geometry evaluation.
 
-51. **`shadow`**: Drop shadow.
+52. **`shadow`**: Drop shadow.
     - `x` (number, def 0, px), `y` (number, def 10, px), `blur` (number, def 16, px), `color` (color, def `"#000000"`), `opacity` (number, def 0.4, 0..1)
 
-52. **`blur`**: Gaussian or directional motion blur.
+53. **`blur`**: Gaussian or directional motion blur.
     - `radius` (number, def 8, px), `direction` (`"both" | "horizontal" | "vertical"`, def `"both"`)
 
-53. **`glow`**: Outer radial aura.
+54. **`glow`**: Outer radial aura.
     - `radius` (number, def 16, px), `color` (color, def `"#09fdd1"`), `strength` (number, def 1, 0.2..4)
 
-54. **`grain`**: Photochemical analogue film grain confined to painted silhouette.
+55. **`grain`**: Photochemical analogue film grain confined to painted silhouette.
     - `amount` (number, def 0.25, 0..1), `size` (number, def 1.5, px), `seed` (seed, def 1)
 
-55. **`displace`**: Turbulent edge displacement map.
+56. **`displace`**: Turbulent edge displacement map.
     - `amount` (number, def 8, px), `scale` (number, def 20, px), `seed` (seed, def 1)
 
-56. **`bevel`**: 3D embossed lighting relief (`<feDiffuseLighting>` + `<feSpecularLighting>`).
+57. **`bevel`**: 3D embossed lighting relief (`<feDiffuseLighting>` + `<feSpecularLighting>`).
     - `depth` (number, def 6, px), `height` (number, def 4, px), `angle` (angle, def 45, deg), `elevation` (angle, def 50, deg), `shine` (number, def 0.6, 0..1), `shininess` (number, def 30, 1..100)
 
-57. **`thicken`**: Morphological dilation or sticker outline (`<feMorphology>`).
+58. **`thicken`**: Morphological dilation or sticker outline (`<feMorphology>`).
     - `mode` (`"grow" | "outline"`, def `"grow"`), `amount` (number, def 4, px), `color` (color, def `"#ffffff"`)
 
-58. **`tone`**: Color map manipulation (`<feComponentTransfer>`).
+59. **`tone`**: Color map manipulation (`<feComponentTransfer>`).
     - `mode` (`"posterize" | "duotone" | "invert"`, def `"posterize"`), `levels` (number, def 4, 2..16), `shadows` (color, def `"#05051a"`), `lights` (color, def `"#09fdd1"`)
 
 ---

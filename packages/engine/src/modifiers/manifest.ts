@@ -74,6 +74,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   // Style
   color: one(() => import('./color'), 'color'),
   gradient: one(() => import('./gradient'), 'gradient'),
+  feather: one(() => import('./feather'), 'feather'),
   mask: one(() => import('./mask'), 'mask'),
   opacity: one(() => import('./opacity'), 'opacity'),
   paint: one(() => import('./paint'), 'paint'),
