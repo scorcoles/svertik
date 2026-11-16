@@ -112,8 +112,6 @@
         framed = true;
       }
       renderInto(result, doc.geometry);
-      result.setAttribute('viewBox', viewBox.join(' '));
-      result.style.setProperty('--wire-width', `${1 / Math.max(view.zoom, 0.001)}px`);
       const colors = wireColors(scene);
       // Escribiendo en un texto: su resultado (con efectos), atenuado debajo del campo.
       const editing = editor.editingText;
@@ -125,7 +123,6 @@
       }
       if (ghost) {
         renderInto(ghost, doc.sources);
-        ghost.setAttribute('viewBox', viewBox.join(' '));
       }
       nodes = doc.nodes;
       editor.infos = doc.nodes;
@@ -154,6 +151,17 @@
       renderError = e instanceof Error ? e.message : String(e);
       ondiagnostic?.('error', renderError, e instanceof Error ? e.stack : undefined);
     }
+  });
+
+  // Pan and zoom only update the viewport; they must not reevaluate the scene geometry.
+  $effect(() => {
+    const box = viewBox.join(' ');
+    const wireWidth = `${1 / Math.max(view.zoom, 0.001)}px`;
+    if (result) {
+      result.setAttribute('viewBox', box);
+      result.style.setProperty('--wire-width', wireWidth);
+    }
+    ghost?.setAttribute('viewBox', box);
   });
 
   // ── Onion skin: the scene a few frames before and after the playhead, faded, under the result.
