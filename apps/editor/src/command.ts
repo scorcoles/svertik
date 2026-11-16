@@ -12,6 +12,8 @@ export interface CommandEntry {
   params: ParamSchema;
   /** Creates its own object (does not go to the selection's stack). */
   autonomous: boolean;
+  /** A command verb (set, key…) listed among the results, not an effect. */
+  verb?: boolean;
 }
 
 interface DefLike {
@@ -140,7 +142,7 @@ export function describeParam(spec: ParamSpec): string {
 /** Can it be typed on the line? Colors, points and object references are set in the inspector. */
 export const typable = (spec: ParamSpec) => !['color', 'point', 'node', 'nodes'].includes(spec.type);
 
-function value(name: string, spec: ParamSpec, raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
+export function value(name: string, spec: ParamSpec, raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
   const text = unquote(raw);
   switch (spec.type) {
     case 'number':
@@ -183,21 +185,38 @@ export function compile(catalog: readonly CommandEntry[], input: string): Comman
   if (!p.name) return { ok: false, error: 'Type an effect name, e.g. twist angle=45.' };
   const entry = resolve(catalog, p.name);
   if (!entry) return { ok: false, error: `No effect called "${p.name}". Tab completes names.` };
-  const params: Record<string, unknown> = {};
-  for (const arg of p.args) {
+  const a = assignments(entry.params, p.args, entry.label, false);
+  return a.ok ? { ok: true, entry, params: a.values } : a;
+}
+
+export type Assignments = { ok: true; values: Record<string, unknown>; bare: string[] } | { ok: false; error: string };
+
+/**
+ * Reads "name=value" tokens against a parameter schema (names ignore case). With `allowBare`, a lone
+ * "name" is accepted too and returned in `bare` (the key verb: "key angle").
+ */
+export function assignments(params: ParamSchema, tokens: readonly string[], label: string, allowBare: boolean): Assignments {
+  const values: Record<string, unknown> = {};
+  const bare: string[] = [];
+  const known = () => Object.keys(params).filter((k) => typable(params[k]!));
+  for (const arg of tokens) {
     const eq = arg.indexOf('=');
-    if (eq <= 0) return { ok: false, error: `Write parameters as name=value ("${arg}").` };
-    const key = arg.slice(0, eq);
-    const name = Object.keys(entry.params).find((k) => k.toLowerCase() === key.toLowerCase());
+    if (eq === 0 || (eq < 0 && !allowBare)) return { ok: false, error: `Write parameters as name=value ("${arg}").` };
+    const key = eq < 0 ? arg : arg.slice(0, eq);
+    const name = Object.keys(params).find((k) => k.toLowerCase() === key.toLowerCase());
     if (!name) {
-      const known = Object.keys(entry.params).filter((k) => typable(entry.params[k]!));
-      return { ok: false, error: `${entry.label} has no parameter "${key}"${known.length ? `. Try: ${known.slice(0, 6).join(', ')}${known.length > 6 ? '…' : ''}` : ''}.` };
+      const k = known();
+      return { ok: false, error: `${label} has no parameter "${key}"${k.length ? `. Try: ${k.slice(0, 6).join(', ')}${k.length > 6 ? '…' : ''}` : ''}.` };
     }
-    const v = value(name, entry.params[name]!, arg.slice(eq + 1));
+    if (eq < 0) {
+      bare.push(name);
+      continue;
+    }
+    const v = value(name, params[name]!, arg.slice(eq + 1));
     if (!v.ok) return v;
-    params[name] = v.value;
+    values[name] = v.value;
   }
-  return { ok: true, entry, params };
+  return { ok: true, values, bare };
 }
 
 /** Tab: completes the effect name or the parameter being typed. Null: nothing to complete. */

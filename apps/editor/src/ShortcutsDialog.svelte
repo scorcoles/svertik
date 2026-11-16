@@ -10,7 +10,7 @@
     {
       title: 'General',
       keys: [
-        ['/  or  ⌘K', 'Command line: add an effect'],
+        ['/  or  ⌘K', 'Command line: add an effect, or set, key, select, goto, export'],
         ['⌘O', 'Open project or import SVG'],
         ['⌘S', 'Save project'],
         ['⌘Z  /  ⇧⌘Z', 'Undo / redo'],

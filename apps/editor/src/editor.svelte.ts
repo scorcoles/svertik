@@ -50,6 +50,7 @@ import {
   DOCUMENT_PALETTE,
   PALETTES,
   type Palette,
+  type ParamSchema,
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
@@ -136,6 +137,24 @@ export const PRESETS = ['rise', 'cascade', 'flip', 'spring', 'scatter', 'fall'] 
 export type PresetName = (typeof PRESETS)[number];
 
 export type TrackTarget = Pick<Track, 'node' | 'on' | 'modifier' | 'param'>;
+
+/** The object properties the command line's "set" and "key" can reach (beside the shape's own). */
+const NODE_PARAMS: ParamSchema = {
+  x: { type: 'number', default: 0, unit: 'px' },
+  y: { type: 'number', default: 0, unit: 'px' },
+  rotation: { type: 'angle', default: 0 },
+  scale: { type: 'number', default: 1, min: 0.01 },
+  opacity: { type: 'number', default: 1, min: 0, max: 1 },
+};
+
+/** What "set" and "key" act on: its name, parameters, current values, how to change and key each one. */
+export interface ParamTarget {
+  label: string;
+  params: ParamSchema;
+  value(name: string): unknown;
+  set(name: string, value: unknown): void;
+  track(name: string): TrackTarget;
+}
 
 /** Escribe un valor en lo que apunta una pista (en la escena viva del editor). */
 function writeTrackTarget(scene: SceneV1, tr: TrackTarget, value: unknown) {
@@ -679,6 +698,61 @@ export class Editor {
   commandRequest = $state<{ text: string; n: number } | null>(null);
   /** The keyboard shortcut sheet ("?" or the svertik menu). */
   showShortcuts = $state(false);
+  /** Set by the app: runs an export by format (the command line's "export png"). */
+  exporter: ((format: 'svg' | 'png' | 'mp4' | 'animsvg' | 'lottie' | 'json') => void) | null = null;
+
+  /** The selected effect, or else the selected object (its transform, opacity and shape parameters). */
+  paramTarget(): ParamTarget | null {
+    if (!this.scene) return null;
+    const owner = this.activeNode;
+    const m = this.current;
+    if (m && owner) {
+      const def = registry.get(m.type);
+      if (!def) return null;
+      return {
+        label: m.name || def.label,
+        params: def.params,
+        value: (k) => m.params?.[k] ?? def.params[k]?.default,
+        set: (k, v) => this.setParam(k, v),
+        track: (k) => ({ node: owner.id, on: 'modifier', modifier: m.id, param: k }),
+      };
+    }
+    const n = this.currentNode;
+    if (!n) return null;
+    const shapeParams: ParamSchema = n.kind === 'shape' ? (shapeRegistry.get(n.shape)?.params ?? {}) : {};
+    const isNode = (k: string) => k in NODE_PARAMS;
+    return {
+      label: n.name,
+      params: { ...shapeParams, ...NODE_PARAMS },
+      value: (k) => (k === 'opacity' ? (n.opacity ?? 1) : isNode(k) ? (n.transform?.[k as 'x'] ?? NODE_PARAMS[k]!.default) : n.kind === 'shape' ? (n.params[k] ?? shapeParams[k]?.default) : undefined),
+      set: (k, v) => (isNode(k) ? this.setNode(n.id, k as 'x', v, true) : this.setShapeParam(n.id, k, v)),
+      track: (k) => ({ node: n.id, on: isNode(k) ? 'node' : 'shape', param: k }),
+    };
+  }
+
+  /** Makes sure there is a keyframe at the playhead (unlike toggleKey, never removes one). */
+  keyHere(t: TrackTarget) {
+    if (this.isLocked(t.node)) return;
+    if (this.keyState(t) !== 'key') this.toggleKey(t);
+  }
+
+  /** Every object and effect by display name, for "select" (locked objects are left out). */
+  namedItems(): { id: string; label: string; detail: string }[] {
+    if (!this.scene) return [];
+    const out: { id: string; label: string; detail: string }[] = [];
+    const mods = (list: ModifierInstance[], owner: string) => {
+      for (const m of list) {
+        out.push({ id: m.id, label: m.name || (registry.get(m.type)?.label ?? m.type), detail: `effect on ${owner}` });
+        if (m.children) mods(m.children, owner);
+      }
+    };
+    for (const { node } of walkNodes(this.scene.objects)) {
+      if (this.isLocked(node.id)) continue;
+      out.push({ id: node.id, label: node.name, detail: node.kind === 'group' ? 'group' : 'object' });
+      mods(node.stack, node.name);
+    }
+    return out;
+  }
   openCommand(text = '') {
     this.commandRequest = { text, n: (this.commandRequest?.n ?? 0) + 1 };
   }

@@ -1329,8 +1329,10 @@
           <span class="rule" aria-hidden="true"></span>
           <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'x'))} />
           <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'y'))} />
-          <span class="rule" aria-hidden="true"></span>
+        {:else}
+          <span class="arrange-note">⇧-click another object to align</span>
         {/if}
+        <span class="rule" aria-hidden="true"></span>
         <IconButton icon="flip-h" label="Flip horizontally" title={undefined} onclick={() => editor.flip('x')} />
         <IconButton icon="flip-v" label="Flip vertically" title={undefined} onclick={() => editor.flip('y')} />
         <span class="rule" aria-hidden="true"></span>
@@ -1344,10 +1346,7 @@
         <IconButton icon="order-forward" label="Bring forward (⌘])" title={undefined} onclick={() => editor.reorder('forward')} />
         <IconButton icon="order-backward" label="Send backward (⌘[)" title={undefined} onclick={() => editor.reorder('backward')} />
         <IconButton icon="order-back" label="Send to back (⇧⌘[)" title={undefined} onclick={() => editor.reorder('back')} />
-        <!-- Readout inside the bar, fixed width and height: it never grows over the artwork. With one
-             object and nothing hovered it says how to get align/distribute. -->
-        <span class="rule" aria-hidden="true"></span>
-        <p class="arrange-hint" aria-hidden="true" data-note={!arrangeHint || undefined}>{arrangeHint ?? (n < 2 ? '⇧-click another object to align' : '')}</p>
+        {#if arrangeHint}<p class="arrange-hint" aria-hidden="true">{arrangeHint}</p>{/if}
       </div>
     {/if}
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
@@ -1479,20 +1478,24 @@
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .arrange .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-4); background: var(--sv-rule-default); }
-  .arrange { max-width: calc(100% - 2 * var(--sv-space-12)); }
+  .arrange-note { padding: 0 var(--sv-space-6); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .arrange-hint {
-    flex: 0 1 36ch;
-    min-width: 0;
+    position: absolute;
+    bottom: 100%;
+    left: -1px;
+    right: -1px;
     margin: 0;
-    padding: 0 var(--sv-space-6);
+    padding: var(--sv-space-4) var(--sv-space-8);
     color: var(--sv-text-secondary);
     font-size: var(--sv-font-size-10);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    border-bottom: 0;
     pointer-events: none;
   }
-  .arrange-hint[data-note] { color: var(--sv-text-muted); }
   /* Esquinas: escalar; lados: estirar un eje; al exterior de las esquinas: rotar. */
   .corner,
   .rotate { position: absolute; translate: -50% -50%; }

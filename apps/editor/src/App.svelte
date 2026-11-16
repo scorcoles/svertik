@@ -401,6 +401,15 @@
     download(name, engine.toSVG(frame()), 'image/svg+xml');
     say(`Saved ${name}`);
   }
+  // The command line's "export <format>" goes through the same functions as the Export menu.
+  editor.exporter = (format) => ({
+    svg: exportSVG,
+    png: () => exportPNG(2),
+    mp4: exportMP4,
+    animsvg: exportAnimatedSVG,
+    lottie: exportLottie,
+    json: () => copy(sceneJSON(snapshot()), 'JSON'),
+  })[format]();
 
   const typing = (e: Event) => {
     const t = e.target as HTMLElement | null;

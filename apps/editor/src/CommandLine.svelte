@@ -4,11 +4,12 @@
   import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions } from '@svertik/engine';
   import { Icon } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
-  import { buildCatalog, compile, complete, describeParam, parse, resolve, search, typable, type CommandEntry } from './command';
+  import { buildCatalog, compile, complete, describeParam, parse, resolve, search, tokenize, typable, type CommandEntry } from './command';
+  import { completeParam, EXPORT_FORMATS, matchNames, matchVerbs, parseAssignments, parseTime, splitVerb, VERBS, type ExportFormat } from './verbs';
 
-  // Effects command line, fixed in the status bar (like a CAD prompt): type an effect and, optionally, its
-  // parameters with their JSON names ("twist angle=45"). Focused by "/", ⌘K and the stack's +. Results
-  // open upwards, with each effect's description.
+  // Command line, fixed in the status bar (like a CAD prompt). Type an effect and, optionally, its
+  // parameters with their JSON names ("twist angle=45"), or a verb: set, key, select, goto, export.
+  // Focused by "/", ⌘K and the stack's +. Results open upwards, with descriptions.
   let { editor, compact = false }: { editor: Editor; compact?: boolean } = $props();
 
   const catalog = buildCatalog(builtins as never, autonomousGenerators as never, { ...effectDescriptions, ...shapeDescriptions });
@@ -26,22 +27,26 @@
   let historyAt = $state<number | null>(null);
 
   const parsed = $derived(parse(value));
-  const browsing = $derived(!parsed.pastName);
-  const matches = $derived(browsing ? search(catalog, parsed.name) : []);
+  // A verb other than "add" followed by a space: the rest of the line is its argument.
+  const call = $derived(splitVerb(value));
+  const browsing = $derived(!call && !parsed.pastName);
+  // While typing a name, verbs that start with it are listed first (in their own "Commands" group).
+  const verbEntries = $derived(browsing ? matchVerbs(parsed.name).map((v): CommandEntry => ({ type: v.verb, label: v.usage, category: 'Commands', description: v.description, params: {}, autonomous: false, verb: true })) : []);
+  const matches = $derived(browsing ? [...verbEntries, ...search(catalog, parsed.name)] : []);
   // Grouped by category, with a header per group. With nothing typed, in the top bar menus' order; while
   // typing, the group holding the best match comes first (so Enter still adds the most likely effect).
   const CATEGORY_ORDER = ['Deform', 'Generate', 'Effect', 'Style', 'Glitch', 'Filters', 'Utils'];
   const groups = $derived.by(() => {
     const byCategory = new Map<string, CommandEntry[]>();
     for (const m of matches) byCategory.set(m.category, [...(byCategory.get(m.category) ?? []), m]);
-    const rank = (c: string) => (CATEGORY_ORDER.indexOf(c) + 1 || CATEGORY_ORDER.length + 1);
+    const rank = (c: string) => (c === 'Commands' ? 0 : CATEGORY_ORDER.indexOf(c) + 1 || CATEGORY_ORDER.length + 1);
     const entries = [...byCategory.entries()];
     if (!parsed.name.trim()) entries.sort(([a], [b]) => rank(a) - rank(b));
     return entries.map(([category, items]) => ({ category, items }));
   });
   // The options in display order: what ↑↓ and Enter walk through.
   const ordered = $derived(groups.flatMap((g) => g.items));
-  const entry = $derived(browsing ? null : resolve(catalog, parsed.name));
+  const entry = $derived(browsing || call ? null : resolve(catalog, parsed.name));
   const highlighted = $derived(ordered[Math.min(active, ordered.length - 1)] ?? null);
   const given = $derived(new Map(parsed.args.filter((a) => a.includes('=')).map((a) => [(a.split('=')[0] ?? '').toLowerCase(), a.slice(a.indexOf('=') + 1)])));
   const typing = $derived(parsed.last.includes('=') ? '' : parsed.last.toLowerCase());
@@ -49,8 +54,37 @@
 
   // Where the command lands: the active node (its name is the prompt), or a new object for generators.
   const target = $derived(editor.activeNode);
-  const pending = $derived(open && !disabled ? (entry ?? highlighted) : null);
-  const promptText = $derived(disabled ? '' : pending?.autonomous ? 'New object' : target ? target.name : 'No selection');
+  const pending = $derived(open && !disabled && !call ? (entry ?? (highlighted?.verb ? null : highlighted)) : null);
+
+  // ── Verbs
+  const verbInfo = $derived(call ? VERBS.find((v) => v.verb === call.verb)! : null);
+  // set/key: the selected effect, or the selected object.
+  const paramTarget = $derived(call && (call.verb === 'set' || call.verb === 'key') ? editor.paramTarget() : null);
+  const verbTokens = $derived(call ? tokenize(call.rest) : []);
+  const verbGiven = $derived(new Map(verbTokens.map((t) => [(t.split('=')[0] ?? '').toLowerCase(), t.includes('=') ? t.slice(t.indexOf('=') + 1) : ''])));
+  const verbTyping = $derived(call && !/\s$/.test(value) ? (verbTokens[verbTokens.length - 1] ?? '').toLowerCase() : '');
+  // select/goto/export: a list to choose from, filtered by what is typed.
+  const fps = $derived(editor.animation?.fps ?? 30);
+  const duration = $derived(editor.animation?.duration ?? 3);
+  const markers = $derived(editor.animation?.markers ?? []);
+  const choices = $derived.by((): { value: string; label: string; detail: string }[] => {
+    if (!call) return [];
+    const q = call.rest.trim().toLowerCase();
+    if (call.verb === 'select') return matchNames(editor.namedItems(), call.rest).map((x) => ({ value: x.id, label: x.label, detail: x.detail }));
+    if (call.verb === 'goto') {
+      const all = [
+        { value: 'start', label: 'start', detail: '0 s' },
+        { value: 'end', label: 'end', detail: `${duration} s` },
+        ...markers.map((m) => ({ value: m.name, label: m.name, detail: `marker · ${m.t.toFixed(2)} s` })),
+      ];
+      return all.filter((c) => !q || c.label.toLowerCase().startsWith(q));
+    }
+    if (call.verb === 'export') return EXPORT_FORMATS.filter((f) => !q || f.format.startsWith(q)).map((f) => ({ value: f.format, label: f.format, detail: `${f.label} · ${f.detail}` }));
+    return [];
+  });
+  const choice = $derived(choices[Math.min(active, choices.length - 1)] ?? null);
+
+  const promptText = $derived(disabled ? '' : paramTarget ? paramTarget.label : pending?.autonomous ? 'New object' : target ? target.name : 'No selection');
   // Tell the stack which effect is about to be added, so it marks where it will go.
   $effect(() => {
     editor.commandPreview = pending && !pending.autonomous && !blocker(pending) ? pending.type : null;
@@ -59,7 +93,7 @@
 
   /** Why it can't be added here (null: it can). */
   function blocker(e: CommandEntry): string | null {
-    if (e.autonomous) return null;
+    if (e.autonomous || e.verb) return null;
     const node = editor.activeNode;
     if (!node) return 'Select an object first, then run the command again.';
     if (editor.isLocked(node.id)) return 'The selected object is locked.';
@@ -89,7 +123,7 @@
 
   $effect(() => {
     if (!open) return;
-    announce = error ?? (browsing ? `${matches.length} effect${matches.length === 1 ? '' : 's'}` : entry ? `${entry.label}: ${Object.keys(entry.params).length} parameters` : '');
+    announce = error ?? (call ? `${call.verb}: ${verbInfo?.usage ?? ''}` : browsing ? `${matches.length} result${matches.length === 1 ? '' : 's'}` : entry ? `${entry.label}: ${Object.keys(entry.params).length} parameters` : '');
   });
 
   function edit(text: string) {
@@ -100,9 +134,60 @@
     open = true;
   }
 
+  function done(command: string, message: string) {
+    if (history[history.length - 1] !== command) history.push(command);
+    historyAt = null;
+    value = '';
+    error = null;
+    open = false;
+    announce = message;
+  }
+
+  /** Runs set, key, select, goto or export. Errors stay on the line, with the fix. */
+  function runVerb(command: string, v: NonNullable<ReturnType<typeof splitVerb>>) {
+    if (v.verb === 'set' || v.verb === 'key') {
+      const t = editor.paramTarget();
+      if (!t) return void (error = 'Select an object or an effect first (click it, or: select <name>).');
+      if (editor.activeNode && editor.isLocked(editor.activeNode.id)) return void (error = 'The selected object is locked.');
+      const a = parseAssignments(v.verb, v.rest, t.params, t.label);
+      if (!a.ok) return void (error = a.error);
+      for (const [k, val] of Object.entries(a.values)) t.set(k, val);
+      const names = [...Object.keys(a.values), ...a.bare];
+      if (v.verb === 'key') {
+        for (const k of names) editor.keyHere(t.track(k));
+        editor.timelineOpen = true;
+        return done(command, `Keyed ${names.join(', ')} at ${editor.time.toFixed(2)} s`);
+      }
+      return done(command, `Set ${names.join(', ')} on ${t.label}`);
+    }
+    if (v.verb === 'select') {
+      if (!choice) return void (error = v.rest.trim() ? `Nothing called "${v.rest.trim()}".` : 'Type a name, e.g. select Comet.');
+      editor.selected = choice.value;
+      return done(command, `Selected ${choice.label}`);
+    }
+    if (v.verb === 'goto') {
+      let at = parseTime(v.rest, { fps, duration, markers });
+      if (!at.ok && choice) at = parseTime(choice.value, { fps, duration, markers });
+      if (!at.ok) return void (error = at.error);
+      editor.playing = false;
+      editor.setTime(at.t);
+      return done(command, `At ${at.t.toFixed(2)} s`);
+    }
+    const q = v.rest.trim().toLowerCase();
+    const format = (EXPORT_FORMATS.find((f) => f.format === q)?.format ?? choice?.value) as ExportFormat | undefined;
+    if (!format) return void (error = `Export as svg, png, mp4, animsvg, lottie or json.`);
+    if (!editor.exporter) return void (error = 'Export is not available here.');
+    done(command, `Exporting ${format}`);
+    editor.exporter(format);
+  }
+
   function run(text = value) {
     let command = text;
+    const v = splitVerb(text);
+    if (v) return runVerb(text, v);
     if (browsing) {
+      // A verb in the list: Enter (like Tab) types it, ready for its argument.
+      if (highlighted?.verb && text === value) return edit(`${highlighted.type} `);
       if (!highlighted) {
         error = parsed.name ? `No effect matches "${parsed.name}".` : 'Type an effect name, e.g. twist angle=45.';
         return;
@@ -144,7 +229,7 @@
         input.blur();
       }
     } else if (e.key === 'Tab' && !e.shiftKey && value.trim()) {
-      const next = complete(catalog, value, highlighted);
+      const next = call ? completeVerb() : browsing && highlighted?.verb ? `${highlighted.type} ` : complete(catalog, value, highlighted);
       if (next && next !== value) {
         e.preventDefault();
         edit(next);
@@ -162,7 +247,18 @@
       e.preventDefault();
       open = true;
       active = (active + (e.key === 'ArrowDown' ? 1 : -1) + ordered.length) % ordered.length;
+    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && call && choices.length) {
+      e.preventDefault();
+      open = true;
+      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length;
     }
+  }
+
+  /** Tab with a verb: the parameter name (set/key) or the highlighted choice (select/goto/export). */
+  function completeVerb(): string | null {
+    if (!call) return null;
+    if (call.verb === 'set' || call.verb === 'key') return paramTarget ? completeParam(call.verb, value, paramTarget.params) : null;
+    return choice ? `${call.verb} ${choice.label}` : null;
   }
 
   const optionId = (type: string) => `command-option-${type}`;
@@ -194,7 +290,7 @@
                 title={why ?? undefined}
                 onpointerenter={() => (active = i)}
                 onpointerdown={(e) => e.preventDefault()}
-                onclick={() => run(m.type)}
+                onclick={() => (m.verb ? edit(`${m.type} `) : run(m.type))}
               >
                 <span class="name">{m.type}</span>
                 <span class="label">{m.label.toLowerCase().replace(/\s+/g, '') === m.type ? '' : m.label}</span>
@@ -212,6 +308,53 @@
         {:else}
           <p class="empty">No effect matches "{parsed.name}". Try part of a name: wave, round, clone…</p>
         {/if}
+        </div>
+      {:else if call && verbInfo}
+        <div class="entry">
+          <div class="detail">
+            <p class="head"><strong>{call.verb}</strong><span class="category">{verbInfo.usage}</span></p>
+            <p>{verbInfo.description}</p>
+          </div>
+          {#if call.verb === 'set' || call.verb === 'key'}
+            {#if paramTarget}
+              <table>
+                <tbody>
+                  {#each Object.entries(paramTarget.params) as [name, spec] (name)}
+                    {@const set = verbGiven.get(name.toLowerCase())}
+                    {@const current = paramTarget.value(name)}
+                    <tr data-current={verbTyping && name.toLowerCase().startsWith(verbTyping.split('=')[0] ?? '') ? true : undefined} data-set={set !== undefined || undefined} data-off={!typable(spec) || undefined}>
+                      <th scope="row">{name}</th>
+                      <td>{describeParam(spec)}</td>
+                      <td class="value">{set ? `= ${set}` : typable(spec) && (typeof current !== 'object' || current === null) ? JSON.stringify(current) : ''}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            {:else}
+              <p class="empty">Select an object or an effect first (click it, or: select &lt;name&gt;).</p>
+            {/if}
+          {:else if choices.length}
+            <div id={listId} class="list choices" bind:this={list} role="listbox" aria-label={call.verb}>
+              {#each choices as c, i (c.value)}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div
+                  id={optionId(`${call.verb}-${i}`)}
+                  class="option"
+                  role="option"
+                  tabindex="-1"
+                  aria-selected={i === active}
+                  onpointerenter={() => (active = i)}
+                  onpointerdown={(e) => e.preventDefault()}
+                  onclick={() => { active = i; run(); }}
+                >
+                  <span class="name">{c.label}</span>
+                  <span class="label">{c.detail}</span>
+                </div>
+              {/each}
+            </div>
+          {:else if call.verb !== 'goto'}
+            <p class="empty">Nothing matches "{call.rest.trim()}".</p>
+          {/if}
         </div>
       {:else if entry}
         <div class="entry">
@@ -236,7 +379,7 @@
         <p class="empty">No effect called "{parsed.name}". Tab completes names.</p>
       {/if}
       {#if error}<p class="error" role="alert">{error}</p>{/if}
-      <p class="keys">⏎ add · Tab complete · ↑↓ choose · Esc close</p>
+      <p class="keys">{call ? '⏎ run' : '⏎ add'} · Tab complete · ↑↓ choose · Esc close</p>
     </div>
   {/if}
   <span class="prompt" title={target && !pending?.autonomous ? `Adds to ${target.name}` : undefined}>{promptText} ›</span>
@@ -244,16 +387,16 @@
     bind:this={input}
     type="text"
     role="combobox"
-    aria-label={target ? `Command line: add an effect to ${target.name}, e.g. twist angle=45` : 'Command line: select an object to add effects, or add a generator'}
-    aria-expanded={open && browsing && matches.length > 0}
+    aria-label={target ? `Command line: add an effect to ${target.name}, e.g. twist angle=45, or set, key, select, goto, export` : 'Command line: select an object to add effects, or use select, goto, export'}
+    aria-expanded={open && ((browsing && matches.length > 0) || choices.length > 0)}
     aria-controls={listId}
     aria-autocomplete="list"
-    aria-activedescendant={open && browsing && highlighted ? optionId(highlighted.type) : undefined}
+    aria-activedescendant={open && browsing && highlighted ? optionId(highlighted.type) : open && call && choice ? optionId(`${call.verb}-${choices.indexOf(choice)}`) : undefined}
     aria-invalid={error ? true : undefined}
     autocomplete="off"
     spellcheck="false"
     {disabled}
-    placeholder={disabled ? 'Open or create a scene to add effects' : target ? 'Add an effect: twist angle=45' : 'Select an object to add effects, or add a generator: randomwave'}
+    placeholder={disabled ? 'Open or create a scene to add effects' : target ? 'Add an effect (twist angle=45), or: set · key · select · goto · export' : 'Select an object to add effects, or: select · goto · export · randomwave'}
     {value}
     oninput={(e) => edit(e.currentTarget.value)}
     onfocus={() => (open = true)}
@@ -355,6 +498,7 @@
   .browse .empty { grid-column: 1 / -1; }
   .detail.side { overflow-y: auto; border-top: 0; border-left: var(--sv-border-1) solid var(--sv-rule-strong); }
   .list { max-height: 100%; padding: 0 0 var(--sv-space-2); overflow-y: auto; overscroll-behavior: contain; }
+  .list.choices { max-height: calc(var(--sv-size-row) * 8); }
   /* Group header: sticks to the top while its group scrolls under it. */
   .group-head {
     position: sticky;
