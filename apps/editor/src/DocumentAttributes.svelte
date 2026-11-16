@@ -68,8 +68,8 @@
         : 'The document fits whatever is drawn, with a small margin. Fix a size to export a frame (a video size, a post…).'}
     </p>
   </Section>
-  <Section title="Randomness">
-    <ParamRow label="Seed generator" for="scene-seed-generator">
+  <Section title="Seed generator">
+    <ParamRow label="Seed" for="scene-seed-generator">
       <NumberField id="scene-seed-generator" value={editor.seedGenerator} min={0} max={2147483647} step={1} onchange={(v) => editor.setSeedGenerator(v)} />
     </ParamRow>
     <div class="actions">
