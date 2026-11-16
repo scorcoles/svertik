@@ -38,6 +38,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   spherize: one(() => import('./spherize'), 'spherize'),
   spikes: one(() => import('./spikes'), 'spikes'),
   taper: one(() => import('./taper'), 'taper'),
+  gather: one(() => import('./gather'), 'gather'),
   transform: one(() => import('./transform'), 'transform'),
   twist: one(() => import('./twist'), 'twist'),
   wave: one(() => import('./wave'), 'wave'),

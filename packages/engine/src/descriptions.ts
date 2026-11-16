@@ -10,6 +10,7 @@ export const effectDescriptions: Record<string, string> = {
   twist: 'A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius.',
   bend: 'Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. Positive angles bend the ends down (∩), negative ones up (∪).',
   bones: 'A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.',
+  gather: 'Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom. Straight lines across the axis stay straight, so a row of bars becomes a fan whose spacing drifts (weaves, moiré, fake perspective). Strokes keep their width.',
   taper: 'Narrows (or widens) one end: the width across the axis changes along it.',
   shear: 'Slants the drawing: X shifts with the height and Y with the width, around the center.',
   wave: 'Makes the drawing wavy: moves each point across the direction of the wave.',

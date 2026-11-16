@@ -34,6 +34,10 @@ type Expr =
 
 const FUNCTIONS: Record<string, (args: number[]) => number> = {
   abs: ([x]) => Math.abs(x!),
+  atan: ([x]) => Math.atan(x!),
+  atan2: ([y, x]) => Math.atan2(y!, x!),
+  // Radians → degrees: angle parameters are in degrees, trig functions in radians.
+  deg: ([x]) => (x! * 180) / Math.PI,
   ceil: ([x]) => Math.ceil(x!),
   clamp: ([x, lo, hi]) => Math.min(hi!, Math.max(lo!, x!)),
   cos: ([x]) => Math.cos(x!),
@@ -48,7 +52,7 @@ const FUNCTIONS: Record<string, (args: number[]) => number> = {
   tan: ([x]) => Math.tan(x!),
 };
 const ARITY: Record<string, [number, number]> = {
-  abs: [1, 1], ceil: [1, 1], clamp: [3, 3], cos: [1, 1], floor: [1, 1], lerp: [3, 3], 'scene.countDown': [1, 1],
+  abs: [1, 1], atan: [1, 1], atan2: [2, 2], deg: [1, 1], ceil: [1, 1], clamp: [3, 3], cos: [1, 1], floor: [1, 1], lerp: [3, 3], 'scene.countDown': [1, 1],
   random: [2, 3], max: [1, Infinity], min: [1, Infinity], pow: [2, 2], round: [1, 1], sin: [1, 1], sqrt: [1, 1], tan: [1, 1],
 };
 const SCENE_VARIABLES = {
@@ -117,6 +121,7 @@ function parse(source: string): Expr {
     if (op === '+' || op === '-') { take(); return { kind: 'unary', op, value: unary() }; }
     return power();
   }
+  // Signs bind tighter than * and /, looser than ^ (so -2 ^ 2 is -4, and 3 * -x works).
   function multiply(): Expr {
     let left = unary();
     while (peek() === '*' || peek() === '/' || peek() === '%') {
@@ -231,9 +236,9 @@ export function hasTextExpressions(value: unknown): value is string {
 /** True when a scene contains a formula (used to treat it as time-driven animation). */
 export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>, points = false) => Object.values(params ?? {}).some(v => isNumericExpression(v) || (points && Array.isArray(v) && v.some(isNumericExpression)));
-  const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params) || stackHas(m.children));
+  const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params, true) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
-    (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
+    (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
   return Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }
 
@@ -293,12 +298,13 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
     }
   };
   const stack = (items: SceneNode['stack']) => {
-    for (const item of items) { params(item.params); stack(item.children ?? []); }
+    // Effect and shape params may hold a formula per point component ([{ $expr }, 1]), like Mouse Instance's.
+    for (const item of items) { params(item.params, true); stack(item.children ?? []); }
   };
   const nodes = (items: SceneNode[]) => {
     for (const node of items) {
       if (node.kind === 'shape') {
-        params(node.params);
+        params(node.params, true);
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
           // Dynamic values such as clocks can change the string width as digits are added. Pin the
           // evaluated copy to its typographic left edge so the readout grows to the right without
