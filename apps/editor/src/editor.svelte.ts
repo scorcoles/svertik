@@ -609,6 +609,16 @@ export class Editor {
   collapsed = $state<string[]>([]);
   showOriginal = $state(false);
   showWire = $state(false);
+  /** Temporarily freeze scene time without removing animation data from the document. */
+  #animationDisabled = $state(false);
+  get animationDisabled() { return this.#animationDisabled; }
+  set animationDisabled(disabled: boolean) {
+    this.#animationDisabled = disabled;
+    if (disabled) {
+      this.playing = false;
+      this.timelineOpen = false;
+    }
+  }
   /** Ver el borde del documento (lo que se exporta). Se recuerda en este navegador. */
   #showBounds = $state(readPref('svertik.bounds') !== 'off');
   get showBounds() {
@@ -713,8 +723,8 @@ export class Editor {
     return this.#timelineOpen;
   }
   set timelineOpen(open: boolean) {
-    this.#timelineOpen = open;
-    if (open) {
+    this.#timelineOpen = open && !this.animationDisabled;
+    if (this.#timelineOpen) {
       this.#codeOpen = false;
       this.notesOpen = false;
     }
@@ -722,7 +732,9 @@ export class Editor {
   /** Modo Play: la escena a pantalla completa, sin herramientas, con el reproductor del código exportado. */
   presenting = $state(false);
   time = $state(0);
-  playing = $state(false);
+  #playing = $state(false);
+  get playing() { return this.#playing; }
+  set playing(on: boolean) { this.#playing = !!on && !this.animationDisabled; }
   /** Fuentes que se pueden elegir en Text (las incluidas y, si se pidieron, las del sistema). */
   fonts = $state<string[]>([]);
   /** Sube cada vez que llega una fuente: el lienzo vuelve a dibujar el texto. */
@@ -1877,6 +1889,7 @@ export class Editor {
   }
   /** Ir a un instante: escribe en la escena el valor de cada pista (sin historial). */
   setTime(t: number) {
+    if (this.animationDisabled) return;
     const anim = this.animation;
     const d = anim?.duration ?? 3;
     this.time = Math.max(0, Math.min(d, t));

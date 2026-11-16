@@ -665,12 +665,16 @@
           </span>
         {/if}
       </div>
-      <div class="status-group" role="group" aria-label="Time"><TimeControls {editor} /></div>
+      {#if !editor.animationDisabled}
+        <div class="status-group" role="group" aria-label="Time"><TimeControls {editor} /></div>
+      {/if}
       <div class="status-actions status-group" role="group" aria-label="Panels">
         <ViewMenu {editor} />
         <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
-        <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
+        {#if !editor.animationDisabled}
+          <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
+        {/if}
         {@render diagnosticsToggle()}
       </div>
     {:else}

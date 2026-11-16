@@ -7,18 +7,28 @@
   let { editor }: { editor: Editor } = $props();
   let open = $state(false);
 
-  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides';
-  const options: { key: Key; label: string; hint?: string }[] = [
-    { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
-    { key: 'showWire', label: 'Wire', hint: 'Outlines only' },
-    { key: 'onionSkin', label: 'Onion skin', hint: 'Frames before (blue) and after (green)' },
-    { key: 'showBounds', label: 'Bounds', hint: 'Document edge: what exports and plays' },
-    { key: 'hideOutside', label: 'Hide outside', hint: 'Clip artwork to the document bounds' },
-    { key: 'showGrid', label: 'Grid', hint: 'Square grid; its step follows the zoom' },
-    { key: 'showRulers', label: 'Rulers', hint: 'Drag out of them to add a guide' },
-    { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
-    { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to edges, centers and the document' },
+  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled';
+  const groups: { heading: string; options: { key: Key; label: string; hint?: string }[] }[] = [
+    { heading: 'Display', options: [
+      { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
+      { key: 'showWire', label: 'Wire', hint: 'Outlines only' },
+    ] },
+    { heading: 'Document', options: [
+      { key: 'showBounds', label: 'Bounds', hint: 'Document edge: what exports and plays' },
+      { key: 'hideOutside', label: 'Hide outside', hint: 'Clip artwork to the document bounds' },
+    ] },
+    { heading: 'Animation', options: [
+      { key: 'onionSkin', label: 'Onion skin', hint: 'Frames before (blue) and after (green)' },
+      { key: 'animationDisabled', label: 'Disable animation', hint: 'Freeze scene time and hide the timeline' },
+    ] },
+    { heading: 'Workspace', options: [
+      { key: 'showGrid', label: 'Grid', hint: 'Square grid; its step follows the zoom' },
+      { key: 'showRulers', label: 'Rulers', hint: 'Drag out of them to add a guide' },
+      { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
+      { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to edges, centers and the document' },
+    ] },
   ];
+  const options = groups.flatMap((group) => group.options);
   const total = options.length + 1;
   const on = $derived(options.filter((o) => editor[o.key]).length + Number(editor.showEffectMenus && !editor.commandInEffectsSlot));
 </script>
@@ -28,24 +38,26 @@
     View <span class="count">{on}/{total}</span> {open ? '▾' : '▴'}
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
-    <DropdownMenu.Content class="sv-menu sv-view-menu" side="top" align="end" sideOffset={4}>
-      <DropdownMenu.Group>
-      <DropdownMenu.GroupHeading class="sv-menu-heading">View · not exported</DropdownMenu.GroupHeading>
-      {#each options as o (o.key)}
-        <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} checked={editor[o.key]} onCheckedChange={(v) => (editor[o.key] = v)}>
-          {#snippet children({ checked })}
-            <span class="box" data-checked={checked || undefined} aria-hidden="true">
-              {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
-            </span>
-            <span class="text">{o.label}{#if o.hint}<span class="hint">{o.hint}</span>{/if}</span>
-          {/snippet}
-        </DropdownMenu.CheckboxItem>
+    <DropdownMenu.Content class="sv-menu sv-view-menu" style="--sv-menu-width: 280px" side="top" align="end" sideOffset={4}>
+      {#each groups as group, i (group.heading)}
+        {#if i > 0}<DropdownMenu.Separator class="sv-menu-rule" />{/if}
+        <DropdownMenu.Group>
+          <DropdownMenu.GroupHeading class="sv-menu-heading">{group.heading}</DropdownMenu.GroupHeading>
+          {#each group.options as o (o.key)}
+            <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} checked={editor[o.key]} onCheckedChange={(v) => (editor[o.key] = v)}>
+              {#snippet children({ checked })}
+                <span class="box" data-checked={checked || undefined} aria-hidden="true">
+                  {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
+                </span>
+                <span class="text">{o.label}{#if o.hint}<span class="hint">{o.hint}</span>{/if}</span>
+              {/snippet}
+            </DropdownMenu.CheckboxItem>
+          {/each}
+        </DropdownMenu.Group>
       {/each}
-      </DropdownMenu.Group>
-      <!-- Interface option is included in the total count above. -->
       <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Group>
-        <DropdownMenu.GroupHeading class="sv-menu-heading">Interface</DropdownMenu.GroupHeading>
+        <DropdownMenu.GroupHeading class="sv-menu-heading">Top bar</DropdownMenu.GroupHeading>
         <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} disabled={editor.commandInEffectsSlot} checked={editor.showEffectMenus && !editor.commandInEffectsSlot} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
           {#snippet children({ checked })}
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
@@ -73,7 +85,6 @@
   :global(.sv-view-trigger[data-state='open']) { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
   :global(.sv-view-trigger:disabled) { opacity: 0.4; cursor: default; }
   .count { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; }
-  :global(.sv-view-menu) { width: 240px; }
   /* Each option says what it does in a second line (tooltips were not enough). */
   :global(.sv-view-menu .sv-menu-item) { height: auto; min-height: 24px; padding-block: var(--sv-space-4); }
   .text { display: flex; flex-direction: column; }

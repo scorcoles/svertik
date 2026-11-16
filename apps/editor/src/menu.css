@@ -6,7 +6,7 @@
   max-height: min(var(--bits-dropdown-menu-content-available-height, calc(100dvh - 16px)), calc(100dvh - 16px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  width: 220px;
+  width: var(--sv-menu-width, 220px);
   padding: var(--sv-space-4) 0;
   font-family: var(--sv-font-mono);
   font-size: var(--sv-font-size-11);
