@@ -20,6 +20,11 @@ export interface ExpressionContext {
   custom: Record<string, number>;
 }
 
+export interface SceneExpressionValues extends ExpressionContext {
+  /** Zero-based duration cycle; it keeps increasing when the scene has Infinite enabled. */
+  cycle: number;
+}
+
 type Expr =
   | { kind: 'number'; value: number }
   | { kind: 'variable'; name: string }
@@ -232,29 +237,25 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   return Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }
 
-/** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
-export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number } = {}): SceneV1 {
-  if (!sceneHasExpressions(scene)) return scene;
-  const out = structuredClone(scene) as SceneV1;
-  const time = out.at ?? 0;
-  const fps = out.animation?.fps ?? 30;
-  const duration = sceneDuration(out);
-  const context: ExpressionContext = {
+/** Resolve the live values exposed to expressions, without evaluating every object parameter. */
+export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0): SceneExpressionValues {
+  const fps = scene.animation?.fps ?? 30;
+  const duration = sceneDuration(scene);
+  const context: SceneExpressionValues = {
     time,
-    randomSalt: options.randomSalt ?? 0,
+    randomSalt: 0,
     frame: Math.floor(time * fps + 1e-9),
     fps,
     duration,
     progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
-    seedGenerator: Math.max(0, Math.round(Number.isFinite(Number(out.seedGenerator)) ? Number(out.seedGenerator) : 1)),
-    custom: Object.fromEntries(Object.entries(out.custom ?? {}).flatMap(([key, value]) => {
+    cycle: duration > 0 ? Math.max(0, Math.floor(time / duration)) : 0,
+    seedGenerator: Math.max(0, Math.round(Number.isFinite(Number(scene.seedGenerator)) ? Number(scene.seedGenerator) : 1)),
+    custom: Object.fromEntries(Object.entries(scene.custom ?? {}).flatMap(([key, value]) => {
       const n = customNumber(value);
       return n === null ? [] : [[key, n]];
     })),
   };
-  // Resolve custom variable formulas in dependency order, so declarations can refer forward to one another.
-  // Cycles and missing references fall back to each variable's stored safe value.
-  const pending = new Map(Object.entries(out.custom ?? {}).filter((entry): entry is [string, NumericExpression] => isNumericExpression(entry[1])));
+  const pending = new Map(Object.entries(scene.custom ?? {}).filter((entry): entry is [string, NumericExpression] => isNumericExpression(entry[1])));
   while (pending.size) {
     let resolved = false;
     for (const [key, formula] of pending) {
@@ -263,12 +264,23 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
         pending.delete(key);
         resolved = true;
       } catch {
-        // Another custom variable may resolve this reference on a later pass.
+        // A dependency may be declared after this variable; retry once it is resolved.
       }
     }
     if (!resolved) break;
   }
   for (const [key, formula] of pending) context.custom[key] = formula.fallback;
+  return context;
+}
+
+/** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
+export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number } = {}): SceneV1 {
+  if (!sceneHasExpressions(scene)) return scene;
+  const out = structuredClone(scene) as SceneV1;
+  const time = out.at ?? 0;
+  const fps = out.animation?.fps ?? 30;
+  const duration = sceneDuration(out);
+  const context: ExpressionContext = { ...evaluateSceneVariables(out, time), randomSalt: options.randomSalt ?? 0 };
   const params = (values?: Record<string, unknown>, points = false) => {
     if (!values) return;
     const one = (value: NumericExpression) => {

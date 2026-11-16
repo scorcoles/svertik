@@ -2,7 +2,7 @@
   // Modo Play: la escena a pantalla completa, sin herramientas, sobre el color del lienzo. Usa el mismo
   // reproductor que el código exportado (línea de tiempo, hover, clic, enter, «reducir movimiento»):
   // lo que se ve aquí es lo que verá la web. Esc (o la ×) vuelve al editor.
-  import { builtins, createEngine, createPlayer, type SceneV1 } from '@svertik/engine';
+  import { builtins, createEngine, createPlayer, evaluateSceneVariables, type SceneV1 } from '@svertik/engine';
   import { downloadFrame } from './capture';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
@@ -20,7 +20,11 @@
   onMount(() => {
     const scene = $state.snapshot(editor.scene) as SceneV1;
     meter = createFpsMeter(document.body);
-    const player = svg ? createPlayer(createEngine(builtins), svg, scene, { onFrame: ({ ms }) => meter?.frame(ms) }) : null;
+    const player = svg ? createPlayer(createEngine(builtins), svg, scene, { onFrame: ({ ms, t }) => {
+      meter?.frame(ms);
+      const values = evaluateSceneVariables(scene, t);
+      meter?.variables({ cycle: values.cycle, time: values.time, frame: values.frame, fps: values.fps, duration: values.duration, progress: values.progress, seedGenerator: values.seedGenerator }, values.custom);
+    } }) : null;
     const t = setTimeout(() => (hint = false), 2200);
     const initialControls = setTimeout(() => { if (!pointerInControlsZone) hideControls(); }, 500);
     return () => {
@@ -120,7 +124,7 @@
     </button>
     <button type="button" onclick={close} aria-label="Back to the editor (Esc)" title="Back to the editor (Esc)"><Icon name="close" /></button>
   </div>
-  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for performance'}</p>
+  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for debug'}</p>
 </div>
 
 <style>

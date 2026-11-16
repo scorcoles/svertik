@@ -47,7 +47,7 @@ const say = (text: string, ms = 2400) => {
 };
 
 async function start(m: typeof import('@svertik/engine/player')) {
-  const { createEngine, createPlayer, prepareScene, effectTypes, sceneEffectTypes } = m;
+  const { createEngine, createPlayer, prepareScene, effectTypes, sceneEffectTypes, evaluateSceneVariables } = m;
   const hash = location.hash.match(/^#[ps]=(.+)$/);
   if (!hash) return say('No scene in this link.', 0);
   const state = await decodeState(hash[1]!);
@@ -65,7 +65,11 @@ async function start(m: typeof import('@svertik/engine/player')) {
   // Rendimiento: D o ?debug en la URL.
   const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
-  createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms }) => meter.frame(ms) });
+  createPlayer(createEngine(effects), stage, scene, { onFrame: ({ ms, t }) => {
+    meter.frame(ms);
+    const values = evaluateSceneVariables(scene, t);
+    meter.variables({ cycle: values.cycle, time: values.time, frame: values.frame, fps: values.fps, duration: values.duration, progress: values.progress, seedGenerator: values.seedGenerator }, values.custom);
+  } });
   capture.disabled = false;
   video.disabled = false;
   let exportController: AbortController | null = null;
