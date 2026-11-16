@@ -549,21 +549,43 @@ export function createDocumentEvaluator(
       const info = nodes.get(id);
       if (!info) continue;
       // A later generator (for example Mirror on a Mouse Instance collection) can move
-      // filtered shapes beyond their source node's original box. Size the filter from
-      // every final shape carrying it so the browser doesn't clip those generated copies.
+      // filtered shapes beyond their source node's original box. Keep each generated clone
+      // in its own filter region: unioning both sides of a Mirror makes every blur rasterize
+      // a huge mostly-empty rectangle on every frame.
       const filtered = shapes.filter((s) => s.wrap?.includes(id));
-      const b = filtered.length ? bounds({ viewBox: [0, 0, 0, 0], shapes: filtered }) : info.box;
-      const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
-      // Where the object is (its reference box with its matrix): zoned filters follow the object.
       const m = info.matrix, r = info.refs?.[''] ?? info.bounds;
       const scale = Math.hypot(m[0], m[1]);
-      const place = {
+      const placeFor = (region: [number, number, number, number]) => ({
         point: (fx: number, fy: number) => apply(m, [r.x + fx * r.width, r.y + fy * r.height]),
         size: Math.max(r.width, r.height) * scale,
         rotation: (Math.atan2(m[1], m[0]) * 180) / Math.PI,
         region,
-      };
-      (filters ??= {})[id] = { markup: f.markup(id, place), region };
+      });
+      if (!filtered.length) {
+        const b = info.box;
+        const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
+        (filters ??= {})[id] = { markup: f.markup(id, placeFor(region)), region };
+        continue;
+      }
+      const groups = new Map<number, Shape[]>();
+      for (const shape of filtered) {
+        const clone = shape.clone ?? 0;
+        const group = groups.get(clone) ?? [];
+        group.push(shape);
+        groups.set(clone, group);
+      }
+      const split = groups.size > 1;
+      for (const [clone, group] of groups) {
+        const filterId = split ? `${id}--copy-${clone}` : id;
+        if (split) {
+          shapes = shapes.map((shape) => shape.wrap?.includes(id) && (shape.clone ?? 0) === clone
+            ? { ...shape, wrap: shape.wrap.map((wrapper) => wrapper === id ? filterId : wrapper) }
+            : shape);
+        }
+        const b = bounds({ viewBox: [0, 0, 0, 0], shapes: group });
+        const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
+        (filters ??= {})[filterId] = { markup: f.markup(filterId, placeFor(region)), region };
+      }
     }
     // Inner ones: their area, that of the shapes that carry them (already in the document) plus their reach;
     // their place, the box of that part (in the node) with the node's matrix.

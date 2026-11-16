@@ -10,30 +10,69 @@ export interface FpsMeter {
 }
 
 export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
+  const panel = document.createElement('div');
+  const header = document.createElement('div');
+  const copy = document.createElement('button');
   const el = document.createElement('pre');
   el.setAttribute('aria-hidden', 'true');
-  Object.assign(el.style, {
+  Object.assign(panel.style, {
     position: 'fixed',
     left: '12px',
     top: '12px',
     zIndex: '200',
-    margin: '0',
-    padding: '6px 8px',
-    font: '11px/1.5 ui-monospace, "JetBrains Mono", monospace',
-    color: '#ededed',
-    background: 'rgb(0 0 0 / 0.5)', // overlay.ink (literal: the player page has no tokens)
-    pointerEvents: 'none',
-    whiteSpace: 'pre',
     maxHeight: '75vh',
     overflow: 'hidden auto',
+    pointerEvents: 'none',
+    background: 'rgb(0 0 0 / 0.5)', // overlay.ink (literal: the player page has no tokens)
   });
-  el.hidden = !on;
-  parent.append(el);
+  Object.assign(header.style, {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    padding: '10px 8px 7px',
+  });
+  copy.type = 'button';
+  copy.textContent = 'Copy';
+  copy.title = 'Copy debug output';
+  copy.setAttribute('aria-label', 'Copy debug output');
+  Object.assign(copy.style, {
+    border: '0',
+    borderRadius: '0',
+    padding: '0',
+    color: '#ededed',
+    background: 'transparent',
+    font: '11px/1.5 ui-monospace, "JetBrains Mono", monospace',
+    pointerEvents: 'auto',
+    cursor: 'pointer',
+  });
+  Object.assign(el.style, {
+    margin: '0',
+    padding: '8px 8px 0',
+    font: '11px/1.5 ui-monospace, "JetBrains Mono", monospace',
+    color: '#ededed',
+    background: 'transparent',
+    whiteSpace: 'pre',
+    overflow: 'visible',
+  });
+  panel.hidden = !on;
+  header.append(copy);
+  panel.append(el, header);
+  parent.append(panel);
 
   let screen = 0, computed = 0, sum = 0, worst = 0, last = performance.now();
   let performanceText = '', variablesText = '';
   let lastVariableFrame: number | null = null;
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
   const render = () => { el.textContent = [performanceText, variablesText].filter(Boolean).join('\n\n'); };
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText([performanceText, variablesText].filter(Boolean).join('\n\n'));
+      copy.textContent = 'Copied';
+    } catch {
+      copy.textContent = 'Failed';
+    }
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => { copy.textContent = 'Copy'; }, 1200);
+  });
   let raf = requestAnimationFrame(function tick(now) {
     screen++;
     if (now - last >= 1000) {
@@ -71,12 +110,13 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
       variablesText = ['Scene', ...sceneLines, ...(customLines.length ? ['', 'Custom', ...customLines] : [])].join('\n');
       render();
     },
-    toggle(v = el.hidden) {
-      el.hidden = !v;
+    toggle(v = panel.hidden) {
+      panel.hidden = !v;
     },
     stop() {
       cancelAnimationFrame(raf);
-      el.remove();
+      clearTimeout(copyTimer);
+      panel.remove();
     },
   };
 }
