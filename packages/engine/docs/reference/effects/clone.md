@@ -33,6 +33,13 @@ Duplicates the drawing in a grid, concentric rings or a line, around the origina
 | `target` | node | `""` | id of another node | group: Object; label: Object |
 | `place` | enum | `"contour"` | `contour`, `vertices`, `inside` | not animatable; group: Object |
 | `seed` | seed | `1` | integer | group: Object |
+| `jitter` | point | `[0,0]` | [x, y], fractions of the box (0–1) | group: Variation; label: Position jitter |
+| `scaleMin` | number | `1` | min 0.05, max 4, step 0.01 | group: Variation; label: Scale min |
+| `scaleMax` | number | `1` | min 0.05, max 4, step 0.01 | group: Variation; label: Scale max |
+| `rotateJitter` | angle | `0` | degrees | group: Variation; label: Rotation jitter |
+| `randomColor` | boolean | `false` |  | not animatable; group: Variation; label: Random colour |
+| `colors` | palette | `["#26262a","#d8344f","#4458d8","#f0b82e","#e0608e"]` | non-empty array of #rrggbb colors | not animatable; only when `randomColor` is `true`; group: Variation; label: Colours |
+| `variationSeed` | seed | `1` | integer | group: Variation; label: Variation seed |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
 
@@ -75,7 +82,23 @@ Inside a node's `stack` (effects run top to bottom):
     "even": false,
     "target": "",
     "place": "contour",
-    "seed": 1
+    "seed": 1,
+    "jitter": [
+      0,
+      0
+    ],
+    "scaleMin": 1,
+    "scaleMax": 1,
+    "rotateJitter": 0,
+    "randomColor": false,
+    "colors": [
+      "#26262a",
+      "#d8344f",
+      "#4458d8",
+      "#f0b82e",
+      "#e0608e"
+    ],
+    "variationSeed": 1
   }
 }
 ```
