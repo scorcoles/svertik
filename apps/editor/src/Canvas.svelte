@@ -61,6 +61,23 @@
     items.forEach(visit);
     return found.slice(0, 4);
   }
+  const wirePalette = ['#22d3ee', '#2dd4bf', '#a3e635', '#facc15', '#fb923c', '#fb7185', '#e879f9', '#818cf8'];
+  function wireColors(scene: SceneV1) {
+    const colors = new Map<string, string>();
+    const visit = (items: SceneNode[]) => {
+      for (const node of items) {
+        const key = node.kind === 'object' ? 'svg' : node.kind === 'group' && node.composition ? 'composition' : node.kind === 'shape' ? node.shape : node.kind;
+        const category = node.stack?.[0]?.type ? `effect:${node.stack[0].type}` : key;
+        let hash = 0;
+        for (const char of category) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+        colors.set(node.id, wirePalette[hash % wirePalette.length]!);
+        if (node.children?.length) visit(node.children);
+        if (node.kind === 'group' && node.composition) visit(node.composition.scene.objects);
+      }
+    };
+    visit(scene.objects);
+    return colors;
+  }
   let dropping = $state(false);
   /**
    * Encuadre del lienzo, en coordenadas del documento. Se fija al abrir y con Fit (⇧1);
@@ -96,11 +113,14 @@
       }
       renderInto(result, doc.geometry);
       result.setAttribute('viewBox', viewBox.join(' '));
+      result.style.setProperty('--wire-width', `${1 / Math.max(view.zoom, 0.001)}px`);
+      const colors = wireColors(scene);
       // Escribiendo en un texto: su resultado (con efectos), atenuado debajo del campo.
       const editing = editor.editingText;
       const dimmed = new Set(dimmedNodes);
       for (const p of result.querySelectorAll<SVGElement>('path[data-node], image[data-node]')) {
         const id = p.getAttribute('data-node');
+        p.style.setProperty('--wire-color', colors.get(id ?? '') ?? '#22d3ee');
         p.style.opacity = editing && id === editing ? '0.25' : id && dimmed.has(id) ? '0.35' : '';
       }
       if (ghost) {
@@ -1707,8 +1727,9 @@
   .onion[data-side='after'] { filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4); }
   .wire :global(path) {
     fill: none !important;
-    stroke: var(--sv-text-secondary) !important;
-    stroke-width: 1px !important;
+    stroke: var(--wire-color, #22d3ee) !important;
+    stroke-width: var(--wire-width, 1px) !important;
+    opacity: 0.78;
     vector-effect: non-scaling-stroke;
   }
   .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-11); }
