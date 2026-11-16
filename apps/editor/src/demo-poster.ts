@@ -64,7 +64,7 @@ export function printPosterProject(seed = 7) {
   // Checker slabs: grey with a black square Halftone (45°, cells touching at the corners).
   const checker = (x: number, y: number, w: number, h: number, spacing = 9) => {
     rect(x, y, w, h, '#cfcfcf', null, 2, [], 'Checker ground');
-    rect(x, y, w, h, '#808080', null, 2, [mod('halftone', { spacing, angle: 45, min: 0.7071, max: 0.7071, shape: 'square', color: 'ink', ink: '#161616' })], 'Checker');
+    rect(x, y, w, h, '#808080', null, 2, [mod('halftone', { spacing, angle: 45, min: 0.7071, max: 0.7071, shape: 'square', color: 'ink', ink: '#161616', merge: true })], 'Checker');
   };
   checker(170, -1560, 900, 760);
   checker(-330, -230, 760, 820);

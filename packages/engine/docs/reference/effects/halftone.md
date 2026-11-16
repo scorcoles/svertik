@@ -20,6 +20,7 @@ A halftone screen: the drawing sampled on a rotated grid where each cell becomes
 | `jitter` | number | `0` | min 0, max 1, step 0.01 |  |
 | `seed` | seed | `1` | integer |  |
 | `offset` | point | `[0,0]` | [x, y], fractions of the box (0–1) |  |
+| `merge` | boolean | `false` |  | not animatable; label: Merge marks |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
 
@@ -46,7 +47,8 @@ Inside a node's `stack` (effects run top to bottom):
     "offset": [
       0,
       0
-    ]
+    ],
+    "merge": false
   }
 }
 ```

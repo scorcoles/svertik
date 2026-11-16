@@ -9,7 +9,8 @@ import { parseColor, toHex } from '../color';
  * `min`/`max`: mark size at the lightest/darkest tone (as a fraction of the cell). `shape`: the mark
  * (circle, square, diamond, line, ring). `color`: sampled from the drawing or a single ink colour.
  * `invert`: swap light and dark. `jitter`: random offset per cell (seeded). Runs of equal marks are
- * not merged (each is its own element); vector and sharp at any size.
+ * not merged (each is its own element, so Step, Color… can act mark by mark) unless `merge` is on: then the
+ * marks of each colour share one path, far lighter for big screens (a checker, a print texture).
  */
 export const halftone = defineModifier({
   type: 'halftone',
@@ -28,6 +29,7 @@ export const halftone = defineModifier({
     jitter: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Jitter', random: [0, 0.3] },
     seed: { type: 'seed', default: 1 },
     offset: { type: 'point', default: [0, 0], unit: 'fraction', step: 0.01, label: 'Offset', handle: false, random: false },
+    merge: { type: 'boolean', default: false, label: 'Merge marks', animatable: false, random: false },
   },
   apply(geo, p, ctx) {
     if (!(p.spacing >= 0.5) || !geo.shapes.length) return geo;
@@ -86,7 +88,16 @@ export const halftone = defineModifier({
         shapes.push({ style, subpaths, clone: n++ });
       }
     }
-    return { viewBox: geo.viewBox, shapes };
+    if (!p.merge) return { viewBox: geo.viewBox, shapes };
+    // Merge: one path per style (marks of the same colour and opacity), in first-seen order.
+    const byStyle = new Map<string, Shape>();
+    for (const s of shapes) {
+      const key = JSON.stringify(s.style);
+      const g = byStyle.get(key);
+      if (g) g.subpaths.push(...s.subpaths);
+      else byStyle.set(key, { style: s.style, subpaths: [...s.subpaths], clone: byStyle.size });
+    }
+    return { viewBox: geo.viewBox, shapes: [...byStyle.values()] };
   },
 });
 

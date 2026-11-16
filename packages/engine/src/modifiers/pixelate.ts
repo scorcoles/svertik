@@ -39,6 +39,8 @@ export const pixelate = defineModifier({
     const groups = new Map<string, { style: Style; subpaths: SubPath[] }>();
     for (let j = j0; j < j1; j++) {
       const cy = oy + (j + 0.5) * size;
+      // Scanline: where this row crosses each fill's outline, once per row (cells then test in O(1)).
+      for (const l of layers) l.row = l.fill ? crossings(l, cy) : undefined;
       let run: { key: string; style: Style; from: number } | null = null;
       const flush = (to: number) => {
         if (!run) return;
@@ -74,6 +76,44 @@ interface Layer {
   fill: { key: string; style: Style } | null;
   stroke: { key: string; style: Style; half: number } | null;
   lines: Vec2[][];
+  /** The current row's crossings (see `crossings`). */
+  row?: Row;
+}
+
+/**
+ * A row of the scanline: the outline's crossings sorted by x, and for each position the crossings still to
+ * its right (count and winding), so "is x inside?" is the same test as `insideFill` without walking edges.
+ * `at` advances as cells move right along the row.
+ */
+interface Row {
+  xs: number[];
+  rightCount: number[];
+  rightWind: number[];
+  at: number;
+}
+
+function crossings(l: Layer, y: number): Row {
+  const hits: [number, number][] = [];
+  for (const r of l.polys) {
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i]!, [xj, yj] = r[j]!;
+      if (yj <= y !== yi <= y) hits.push([xj + ((y - yj) * (xi - xj)) / (yi - yj), yi > yj ? 1 : -1]);
+    }
+  }
+  hits.sort((a, b) => a[0] - b[0]);
+  const n = hits.length;
+  const rightCount = new Array<number>(n + 1), rightWind = new Array<number>(n + 1);
+  rightCount[n] = 0;
+  rightWind[n] = 0;
+  for (let k = n - 1; k >= 0; k--) (rightCount[k] = rightCount[k + 1]! + 1), (rightWind[k] = rightWind[k + 1]! + hits[k]![1]);
+  return { xs: hits.map((h) => h[0]), rightCount, rightWind, at: 0 };
+}
+
+/** Inside the fill at `x` on the current row: crossings strictly to the right decide, as in `insideFill`. */
+function insideRow(row: Row, x: number, evenodd: boolean): boolean {
+  if (row.at > 0 && row.xs[row.at - 1]! > x) row.at = 0;
+  while (row.at < row.xs.length && row.xs[row.at]! <= x) row.at++;
+  return evenodd ? row.rightCount[row.at]! % 2 === 1 : row.rightWind[row.at]! !== 0;
 }
 
 /** A paint's colour: its own or, for a gradient, its first stop's. */
@@ -119,7 +159,7 @@ function colorAt(layers: Layer[], q: Vec2): { key: string; style: Style } | null
     const l = layers[n]!;
     if (q[0] < l.box[0] || q[0] > l.box[2] || q[1] < l.box[1] || q[1] > l.box[3]) continue;
     if (l.stroke && nearLines(l.lines, q, l.stroke.half)) return l.stroke;
-    if (l.fill && insideFill(l.polys, q, l.evenodd)) return l.fill;
+    if (l.fill && (l.row ? insideRow(l.row, q[0], l.evenodd) : insideFill(l.polys, q, l.evenodd))) return l.fill;
   }
   return null;
 }

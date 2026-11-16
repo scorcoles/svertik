@@ -566,6 +566,18 @@
     const raw = 64 / scale;
     const power = 10 ** Math.floor(Math.log10(raw));
     const step = [1, 2, 5, 10].map((n) => n * power).find((n) => n >= raw) ?? 10 * power;
+    // One layout read for the whole pass: asking the DOM per tick (and per grid line) forced a layout
+    // each time — hundreds per redraw on a tall document.
+    const toStage = (x: number, y: number): [number, number] => {
+      const p = new DOMPoint(x, y).matrixTransform(ctm);
+      return [p.x - rect.left, p.y - rect.top];
+    };
+    const inv = ctm.inverse();
+    const clientToDoc = (cx: number, cy: number): [number, number] => {
+      const p = new DOMPoint(cx, cy).matrixTransform(inv);
+      return [p.x, p.y];
+    };
+    const docToStage = toStage;
     const rulerTop = INSET.top;
     const x0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[0] ?? 0;
     const x1 = clientToDoc(rect.right, rect.top + rulerTop)?.[0] ?? 0;
@@ -583,14 +595,14 @@
       return out;
     };
     rulerTicks = { x: make(x0, x1, 'x'), y: make(y0, y1, 'y') };
-    rebuildGrid(rect, scale);
+    rebuildGrid(rect, scale, toStage, clientToDoc);
   }
 
   // ── Grid (View > Grid): document-aligned lines in stage pixels. The step is the smallest 1-2-5 step that
   // keeps lines at least GRID_MIN px apart on screen; every 5th (step 2…) or 10th line is a major one.
   const GRID_MIN = 12;
   let grid = $state<{ minor: string; major: string }>({ minor: '', major: '' });
-  function rebuildGrid(rect: DOMRect, scale: number) {
+  function rebuildGrid(rect: DOMRect, scale: number, docToStage: (x: number, y: number) => [number, number], clientToDoc: (x: number, y: number) => [number, number]) {
     if (!editor.showGrid) return void (grid = { minor: '', major: '' });
     const raw = GRID_MIN / scale;
     const power = 10 ** Math.floor(Math.log10(raw));

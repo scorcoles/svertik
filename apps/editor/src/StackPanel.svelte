@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ModifierInstance, SceneNode } from '@svertik/engine';
   import { IconButton, StackItem, type IconName } from '@svertik/ui';
+  import { tick } from 'svelte';
   import { canNest, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
@@ -27,16 +28,38 @@
     }
   }
 
+  const i_isLast = (row: HTMLElement) => {
+    const items = rows?.querySelectorAll<HTMLElement>('[role="treeitem"]');
+    return !!items && items[items.length - 1] === row;
+  };
+
   function treeKey(e: KeyboardEvent) {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
     if (!rows || !row || e.target !== row || e.altKey || e.metaKey || e.ctrlKey) return;
     if (e.key.length === 1 && /\S/.test(e.key) && e.key !== '/') {
       e.preventDefault();
       e.stopPropagation();
+      if (more) {
+        // Draw the rest first, then search (rows are created on the next tick).
+        showAll();
+        void tick().then(() => rows && typeAhead(e, row, [...rows.querySelectorAll<HTMLElement>('[role="treeitem"]')]));
+        return;
+      }
       typeAhead(e, row, [...rows.querySelectorAll<HTMLElement>('[role="treeitem"]')]);
       return;
     }
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+    if (e.key === 'End' && more) {
+      e.preventDefault();
+      showAll();
+      void tick().then(() => {
+        const last = [...(rows?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? [])].pop();
+        last?.click();
+        last?.focus();
+      });
+      return;
+    }
+    if (e.key === 'ArrowDown' && more && i_isLast(row)) shown += CHUNK;
     const items = [...rows.querySelectorAll<HTMLElement>('[role="treeitem"]')];
     const i = items.indexOf(row);
     const next = e.key === 'Home' ? items[0] : e.key === 'End' ? items[items.length - 1] : items[i + (e.key === 'ArrowUp' ? -1 : 1)];
@@ -45,6 +68,40 @@
     next.click();
     next.focus();
   }
+
+  // Long scenes: the top-level objects are drawn in batches of CHUNK as the list scrolls near its end
+  // (building a thousand rows up front cost about half a second). Selecting something further down, or
+  // Home/End and type-ahead, first extend the batch to reach it.
+  const CHUNK = 80;
+  let shown = $state(CHUNK);
+  let lastScene: unknown = null;
+  $effect(() => {
+    // A new document starts from the first batch again.
+    if (editor.scene !== lastScene) (lastScene = editor.scene), (shown = CHUNK);
+  });
+  const top = $derived(editor.scene ? editor.scene.objects.slice(0, shown) : []);
+  const more = $derived(editor.scene ? editor.scene.objects.length - top.length : 0);
+  const holds = (n: SceneNode, id: string): boolean =>
+    n.id === id || stackHolds(n.stack, id) || (n.children ?? []).some((c) => holds(c, id));
+  const stackHolds = (list: ModifierInstance[], id: string): boolean => list.some((m) => m.id === id || stackHolds(m.children ?? [], id));
+  $effect(() => {
+    const id = editor.selected;
+    const objects = editor.scene?.objects;
+    if (!id || !objects || objects.length <= shown) return;
+    const at = objects.findIndex((n) => holds(n, id));
+    if (at >= shown) shown = at + CHUNK;
+  });
+  let sentinel = $state<HTMLElement>();
+  $effect(() => {
+    if (!sentinel || !rows) return;
+    const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) shown += CHUNK; }, { root: rows, rootMargin: '200px' });
+    io.observe(sentinel);
+    return () => io.disconnect();
+  });
+  /** Draws every row (for Home/End and type-ahead, which must see the whole list). */
+  const showAll = () => {
+    if (editor.scene && shown < editor.scene.objects.length) shown = editor.scene.objects.length;
+  };
 
   // Keep the selection (including what was just added) in view in the stack.
   let rows = $state<HTMLElement>();
@@ -184,16 +241,18 @@
   {/each}
 {/snippet}
 
-{#snippet nodes(list: SceneNode[], depth: number)}
+{#snippet nodes(list: SceneNode[], depth: number, lockedAbove = false)}
   {#each list as n (n.id)}
     {@const open = !n.locked && !editor.isCollapsed(n.id)}
+    <!-- Locked here or by an ancestor, passed down the tree (asking the editor per row walked the whole scene each time). -->
+    {@const locked = lockedAbove || !!n.locked}
     <!-- A branch holds an object and everything under it, so the object's row can stick to the top while
          its modifiers scroll (the context isn't lost in a long stack). Nested objects stick below. -->
     <div class="branch" role="none" style:--depth={depth}>
     <div
       class="drag node"
       class:hidden-node={n.visible === false}
-      draggable={!editor.isLocked(n.id)}
+      draggable={!locked}
       data-drop={drop?.id === n.id ? drop.where : undefined}
       data-insert={insert?.id === n.id ? insert.where : undefined}
       ondragstart={(e) => { e.stopPropagation(); drag = { id: n.id, kind: 'node' }; e.dataTransfer?.setData('text/plain', n.id); }}
@@ -224,7 +283,7 @@
     </div>
     {#if open}
       {@render modifiers(n.stack, depth + 1)}
-      {#if n.children?.length && !(n.kind === 'group' && n.composition)}{@render nodes(n.children, depth + 1)}{/if}
+      {#if n.children?.length && !(n.kind === 'group' && n.composition)}{@render nodes(n.children, depth + 1, locked)}{/if}
     {/if}
     </div>
   {/each}
@@ -248,7 +307,10 @@
   </header>
   {#if editor.scene}
     <div class="rows" role="tree" aria-label="Objects and modifiers" tabindex="-1" bind:this={rows} onkeydown={treeKey}>
-      {@render nodes(editor.scene.objects, 0)}
+      {@render nodes(top, 0)}
+      {#if more}
+        <p class="more" bind:this={sentinel}>{more} more {more === 1 ? 'object' : 'objects'}…</p>
+      {/if}
     </div>
   {:else}
     {#if editor.showInfo}<div class="hint">
@@ -264,6 +326,7 @@
   header { display: flex; align-items: center; gap: var(--sv-space-4); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); flex: none; }
   .spacer { flex: 1; }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); margin-right: var(--sv-space-4); }
+  .more { margin: 0; padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); }
   .rows { overflow-y: auto; scroll-padding-top: var(--sv-size-row); }
   .drag { position: relative; }
   .drag.node { position: sticky; top: calc(var(--depth) * var(--sv-size-row)); z-index: calc(10 - var(--depth)); background: var(--sv-surface-panel); }

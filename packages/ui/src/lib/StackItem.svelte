@@ -73,6 +73,15 @@
     return true;
   }
 
+  // The row's buttons are built only while they can show (pointer over it, focus in it, selected or
+  // renaming): a stack of a thousand rows would otherwise create five thousand hidden buttons up front.
+  // At rest, one empty slot keeps their width, so the label doesn't reflow when they appear.
+  let hot = $state(false);
+  const active = $derived(hot || selected);
+  // Before the eye: rename, ungroup, remove. After it: the open lock. (Hidden eye and closed lock always show.)
+  const slotsBefore = $derived([onrename, onungroup, onremove].filter(Boolean).length);
+  const eyeSlot = $derived(!!onvisible && visible !== false);
+  const slotsAfter = $derived(onlock && !locked ? 1 : 0);
   let editing = $state(false);
   let input = $state<HTMLInputElement>();
   function startRename() {
@@ -104,6 +113,10 @@
   data-disabled={!enabled || undefined}
   style:--depth={depth}
   tabindex={(tabbable ?? selected) ? 0 : -1}
+  onpointerenter={() => (hot = true)}
+  onpointerleave={() => (hot = false)}
+  onfocusin={() => (hot = true)}
+  onfocusout={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) hot = false; }}
   onclick={onselect}
   onkeydown={(e) => {
     if (e.target !== e.currentTarget) return;
@@ -148,25 +161,28 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <span class="label" ondblclick={(e) => { e.stopPropagation(); startRename(); }}>{label}</span>
   {/if}
-  {#if onrename && !editing}
+  {#if !active && !editing && slotsBefore + (eyeSlot ? 1 : 0)}
+    <span class="slots" aria-hidden="true" style:--slots={slotsBefore + (eyeSlot ? 1 : 0)}></span>
+  {/if}
+  {#if (active || editing) && onrename && !editing}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove pencil" onclick={(e) => e.stopPropagation()}>
       <IconButton icon="pencil" label={`Rename ${label} (F2)`} tabindex={-1} onclick={startRename} />
     </span>
   {/if}
-  {#if onungroup}
+  {#if (active || editing) && onungroup}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove ungroup" onclick={(e) => e.stopPropagation()}>
       <IconButton icon="ungroup" label={`Ungroup ${label} (⇧⌘G)`} tabindex={-1} onclick={onungroup} />
     </span>
   {/if}
-  {#if onremove}
+  {#if (active || editing) && onremove}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove" onclick={(e) => e.stopPropagation()}>
       <IconButton icon="trash" label={`Remove ${label} (Delete)`} tabindex={-1} onclick={onremove} />
     </span>
   {/if}
-  {#if onvisible}
+  {#if onvisible && (active || editing || visible === false)}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="eye" data-off={visible === false || undefined} onclick={(e) => e.stopPropagation()}>
       <IconButton
@@ -177,7 +193,10 @@
       />
     </span>
   {/if}
-  {#if onlock}
+  {#if !active && !editing && slotsAfter}
+    <span class="slots" aria-hidden="true" style:--slots={slotsAfter}></span>
+  {/if}
+  {#if onlock && (active || editing || locked)}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove lock" data-locked={locked || undefined} onclick={(e) => e.stopPropagation()}>
       <IconButton icon={locked ? 'lock' : 'unlock'} label={locked ? `Unlock ${label}` : `Lock ${label}`} tabindex={-1} onclick={onlock} />
@@ -236,6 +255,8 @@
   .toggle { display: flex; visibility: hidden; }
   /* La papelera, solo al pasar o con foco: el resto del tiempo no hace ruido. */
   .remove { display: flex; margin-right: calc(var(--sv-space-2) * -1); visibility: hidden; }
+  /* The resting buttons' width (each 20 px with a -2 px margin), as one empty slot. */
+  .slots { flex: none; width: calc(var(--slots) * (20px - var(--sv-space-2) + var(--sv-space-6)) - var(--sv-space-6)); height: 20px; }
   .remove :global(.sv-icon-button) { width: 20px; height: 20px; }
   .remove :global(.sv-icon-button:hover) { color: var(--sv-signal-error); background: none; }
   .ungroup :global(.sv-icon-button:hover),
