@@ -104,7 +104,7 @@
             value={expression.$expr}
             aria-label={`${label} expression`}
             aria-invalid={expressionError ? 'true' : undefined}
-            title={expressionError ?? 'Use scene.time, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.custom.name; functions: min, max, clamp, lerp, sin, cos…'}
+            title={expressionError ?? 'Use scene.time, scene.cycle, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.custom.name; functions: min, max, clamp, lerp, sin, cos, random(min, max, seed?)…'}
             spellcheck="false"
             oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
             onkeydown={(e) => e.stopPropagation()}
@@ -300,7 +300,7 @@
     background: none;
     border: 0;
     font: inherit;
-    font-size: var(--sv-font-size-10);
+    font-size: 9px;
     line-height: 1;
     cursor: pointer;
   }

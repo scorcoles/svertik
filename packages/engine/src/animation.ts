@@ -50,6 +50,8 @@ export interface Animation {
   /** Duration in seconds. */
   duration: number;
   loop?: boolean;
+  /** Keep the scene clock running after duration; timeline tracks hold their duration sample. Overrides loop. */
+  infinite?: boolean;
   /** Starts by itself on load (yes by default). Without autoplay, only "play" interactions move it. */
   autoplay?: boolean;
   /** Frames per second keys snap to (24, 25, 30, 60…). */
@@ -200,7 +202,7 @@ export function sampleScene(scene: SceneV1, t: number): SceneV1 {
   for (const tr of anim?.tracks ?? []) {
     const target = readTarget(out, tr);
     if (isNumericExpression(target) || (tr.on === 'shape' && tr.param === 'text' && hasTextExpressions(target))) continue;
-    writeTarget(out, tr, trackValue(tr, t));
+    writeTarget(out, tr, trackValue(tr, anim?.infinite ? Math.min(t, anim.duration) : t));
   }
   // The time, for what is delayed (Effector's Delay): not saved, only used to evaluate.
   out.at = t;

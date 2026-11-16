@@ -645,7 +645,7 @@ export function effectorStacks(scene: SceneV1, byId: Map<string, SceneNode>): Ma
         const at = Math.max(0, scene.at - i * delay);
         for (const tr of tracks) {
           const m = tr.modifier ? findModifier(stack, tr.modifier) : null;
-          const v = trackValue(tr, at);
+          const v = trackValue(tr, scene.animation?.infinite ? Math.min(at, scene.animation.duration) : at);
           if (!m || v === undefined) continue;
           if (tr.param === 'enabled') m.enabled = !!v;
           else m.params = { ...m.params, [tr.param]: v };

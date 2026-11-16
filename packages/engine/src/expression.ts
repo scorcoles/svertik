@@ -1,3 +1,4 @@
+import { rng } from './random';
 import { customNumber, sceneDuration } from './scene';
 import type { SceneNode, SceneV1 } from './document';
 
@@ -14,6 +15,8 @@ export interface ExpressionContext {
   duration: number;
   progress: number;
   seedGenerator: number;
+  /** Host-provided implicit random salt (Mouse Instance birth index); explicit random seeds override it. */
+  randomSalt?: number;
   custom: Record<string, number>;
 }
 
@@ -41,10 +44,10 @@ const FUNCTIONS: Record<string, (args: number[]) => number> = {
 };
 const ARITY: Record<string, [number, number]> = {
   abs: [1, 1], ceil: [1, 1], clamp: [3, 3], cos: [1, 1], floor: [1, 1], lerp: [3, 3], 'scene.countDown': [1, 1],
-  max: [1, Infinity], min: [1, Infinity], pow: [2, 2], round: [1, 1], sin: [1, 1], sqrt: [1, 1], tan: [1, 1],
+  random: [2, 3], max: [1, Infinity], min: [1, Infinity], pow: [2, 2], round: [1, 1], sin: [1, 1], sqrt: [1, 1], tan: [1, 1],
 };
 const SCENE_VARIABLES = {
-  time: 'scene.time', frame: 'scene.frame', fps: 'scene.fps', duration: 'scene.duration', progress: 'scene.progress', seedGenerator: 'scene.seedGenerator',
+  cycle: 'scene.cycle', time: 'scene.time', frame: 'scene.frame', fps: 'scene.fps', duration: 'scene.duration', progress: 'scene.progress', seedGenerator: 'scene.seedGenerator',
 } as const;
 const parsed = new Map<string, Expr>();
 
@@ -89,7 +92,7 @@ function parse(source: string): Expr {
           if (!key || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(key)) throw new Error('Use a valid custom variable name after scene.custom.');
           return { kind: 'variable', name: `scene.custom.${key}` };
         }
-        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, frame, fps, duration, progress, seedGenerator, or custom.name.');
+        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, or custom.name.');
         return { kind: 'variable', name: SCENE_VARIABLES[field as keyof typeof SCENE_VARIABLES] };
       }
       if (token === 'pi' || token === 'e') return { kind: 'variable', name: token };
@@ -110,10 +113,10 @@ function parse(source: string): Expr {
     return power();
   }
   function multiply(): Expr {
-    let left = power();
+    let left = unary();
     while (peek() === '*' || peek() === '/' || peek() === '%') {
       const op = take() as '*' | '/' | '%';
-      left = { kind: 'binary', op, left, right: power() };
+      left = { kind: 'binary', op, left, right: unary() };
     }
     return left;
   }
@@ -149,7 +152,8 @@ function run(tree: Expr, context: ExpressionContext): number {
       if (!Object.hasOwn(context.custom, key)) throw new Error(`Unknown custom variable “${key}”.`);
       return context.custom[key]!;
     }
-    if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof Omit<ExpressionContext, 'custom'>];
+    if (tree.name === 'scene.cycle') return context.duration > 0 ? Math.max(0, Math.floor(context.time / context.duration)) : 0;
+    if (tree.name.startsWith('scene.')) return context[tree.name.slice(6) as keyof Omit<ExpressionContext, 'custom' | 'randomSalt'>];
     return tree.name === 'pi' ? Math.PI : Math.E;
   }
   if (tree.kind === 'unary') return tree.op === '-' ? -run(tree.value, context) : run(tree.value, context);
@@ -165,6 +169,17 @@ function run(tree: Expr, context: ExpressionContext): number {
     }
   }
   const args = tree.args.map((arg) => run(arg, context));
+  if (tree.name === 'random') {
+    if (!args.every(Number.isFinite) || !Number.isFinite(context.seedGenerator)) throw new Error('random() expects finite bounds and seed.');
+    // Hash both seeds rather than adding them: (base 1, salt 2) differs from (base 2, salt 1).
+    // String hashing also preserves fractional/negative salts instead of truncating to uint32.
+    let seed = 2166136261;
+    const key = `${context.seedGenerator}:${args[2] ?? context.randomSalt ?? 0}`;
+    for (let i = 0; i < key.length; i++) seed = Math.imul(seed ^ key.charCodeAt(i), 16777619);
+    const low = Math.min(args[0]!, args[1]!), high = Math.max(args[0]!, args[1]!);
+    const unit = rng(seed)();
+    return low * (1 - unit) + high * unit;
+  }
   if (tree.name === 'scene.countDown') return Math.max(0, Math.ceil(args[0]! - context.time));
   return FUNCTIONS[tree.name]!(args);
 }
@@ -210,15 +225,15 @@ export function hasTextExpressions(value: unknown): value is string {
 
 /** True when a scene contains a formula (used to treat it as time-driven animation). */
 export function sceneHasExpressions(scene: SceneV1): boolean {
-  const has = (params?: Record<string, unknown>) => Object.values(params ?? {}).some(isNumericExpression);
+  const has = (params?: Record<string, unknown>, points = false) => Object.values(params ?? {}).some(v => isNumericExpression(v) || (points && Array.isArray(v) && v.some(isNumericExpression)));
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
-    (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
+    (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
   return Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }
 
 /** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
-export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
+export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number } = {}): SceneV1 {
   if (!sceneHasExpressions(scene)) return scene;
   const out = structuredClone(scene) as SceneV1;
   const time = out.at ?? 0;
@@ -226,6 +241,7 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
   const duration = sceneDuration(out);
   const context: ExpressionContext = {
     time,
+    randomSalt: options.randomSalt ?? 0,
     frame: Math.floor(time * fps + 1e-9),
     fps,
     duration,
@@ -253,12 +269,15 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
     if (!resolved) break;
   }
   for (const [key, formula] of pending) context.custom[key] = formula.fallback;
-  const params = (values?: Record<string, unknown>) => {
+  const params = (values?: Record<string, unknown>, points = false) => {
     if (!values) return;
+    const one = (value: NumericExpression) => {
+      try { return evaluateExpression(value.$expr, context); }
+      catch { return value.fallback; }
+    };
     for (const [key, value] of Object.entries(values)) {
-      if (!isNumericExpression(value)) continue;
-      try { values[key] = evaluateExpression(value.$expr, context); }
-      catch { values[key] = value.fallback; }
+      if (isNumericExpression(value)) values[key] = one(value);
+      else if (points && Array.isArray(value)) values[key] = value.map(v => isNumericExpression(v) ? one(v) : v);
     }
   };
   const stack = (items: SceneNode['stack']) => {
@@ -290,6 +309,7 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
           });
         }
       }
+      if (node.kind === 'instance' && node.mouse) params(node.mouse, true);
       if (node.kind === 'group' && node.composition) { params(node.composition.params); params(node.composition.modulation?.params); }
       stack(node.stack);
       if (node.children?.length) nodes(node.children);

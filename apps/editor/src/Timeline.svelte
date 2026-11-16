@@ -49,7 +49,7 @@
   $effect(() => {
     const t = editor.time;
     if (!editor.playing || !area || zoom === 1) return;
-    const hx = x(t);
+    const hx = x(Math.min(t, duration));
     if (hx < area.scrollLeft || hx > area.scrollLeft + visible) area.scrollLeft = hx - visible * 0.1;
   });
   const snap = (t: number) => Math.round(t * fps) / fps;
@@ -223,11 +223,12 @@
     <IconButton icon="to-start" label="Go to start" onclick={() => editor.setTime(0)} />
     <IconButton icon="step-back" label="Previous frame" disabled={editor.time <= 0} onclick={() => editor.stepFrame(-1)} />
     <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause (Space)' : 'Play (Space)'} active={editor.playing} onclick={() => editor.togglePlayback()} />
-    <IconButton icon="step-forward" label="Next frame" disabled={editor.time >= lastFrame / fps - 1e-6} onclick={() => editor.stepFrame(1)} />
+    <IconButton icon="step-forward" label="Next frame" disabled={!anim?.infinite && editor.time >= lastFrame / fps - 1e-6} onclick={() => editor.stepFrame(1)} />
     <span class="time">{editor.time.toFixed(2)}<span class="dim"> / {duration.toFixed(2)} s</span></span>
     <span class="rule" aria-hidden="true"></span>
     <label class="field">Duration <NumberField value={duration} min={0.1} step={0.1} unit="s" width="64px" onchange={(v) => editor.setDuration(v)} /></label>
-    <label class="field"><Checkbox checked={anim?.loop !== false} label="Loop" onchange={(v) => editor.setLoop(v)} /> Loop</label>
+    <label class="field" title="Keep procedural time running after the timeline ends"><Checkbox checked={anim?.infinite === true} label="Infinite time" onchange={(v) => editor.setInfiniteTime(v)} /> Infinite</label>
+    <label class="field"><Checkbox disabled={anim?.infinite === true} checked={!anim?.infinite && anim?.loop !== false} label="Loop" onchange={(v) => editor.setLoop(v)} /> Loop</label>
     <label class="field" title="Off: the timeline only moves with “Play the timeline” interactions"><Checkbox checked={anim?.autoplay !== false} label="Autoplay" onchange={(v) => editor.setAutoplay(v)} /> Autoplay</label>
     {#if selectedKey}
       <span class="rule" aria-hidden="true"></span>
@@ -390,7 +391,7 @@
       {#if !anim?.tracks.length && editor.showInfo}
         <p class="empty">Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.</p>
       {/if}
-      <span class="head" style:left="{x(editor.time)}px" aria-hidden="true"></span>
+      <span class="head" style:left="{x(Math.min(editor.time, duration))}px" aria-hidden="true"></span>
       </div>
     </div>
   </div>

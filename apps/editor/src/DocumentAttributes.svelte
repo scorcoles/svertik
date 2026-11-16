@@ -1,6 +1,6 @@
 <script lang="ts">
   // Sin nada seleccionado: el documento. Su tamaño es lo que se exporta y lo que enseña el modo Play.
-  import { Button, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select, Slider } from '@svertik/ui';
+  import { Button, Checkbox, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { DOCUMENT_PALETTE, PALETTES, customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
   import { tick } from 'svelte';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
@@ -35,7 +35,7 @@
   const chips = $derived(current?.colors ?? editor.docColors);
   const own = $derived(!!current && !PALETTES.some((p) => p.name === current.name));
   let saving = $state('');
-  let sectionOpen = $state({ size: true, seed: true, canvas: true, palette: true, variables: true });
+  let sectionOpen = $state({ size: true, time: true, seed: true, canvas: true, palette: true, variables: true });
   const custom = $derived(editor.scene?.custom ?? {});
   // Variables: renaming in place (double-click the name) and the open range editors (min/max/step).
   let renaming = $state<string | null>(null);
@@ -99,7 +99,7 @@
     setVariable(name, empty ? base.value : base);
   }
   function setAllSections(open: boolean) {
-    sectionOpen = { size: open, seed: open, canvas: open, palette: open, variables: open };
+    sectionOpen = { size: open, time: open, seed: open, canvas: open, palette: open, variables: open };
   }
 </script>
 
@@ -149,6 +149,12 @@
         ? 'What is exported and shown in Play. Anything outside is cut off. Turn on Bounds (View, below) to see the edge.'
         : 'The document fits whatever is drawn, with a small margin. Fix a size to export a frame (a video size, a post…).'}
     </p>{/if}
+  </Section>
+  <Section title="Time" bind:open={sectionOpen.time}>
+    <ParamRow label="Infinite" for="doc-infinite-time">
+      <Checkbox id="doc-infinite-time" label="Infinite time" checked={editor.animation?.infinite === true} onchange={(value) => editor.setInfiniteTime(value)} />
+    </ParamRow>
+    {#if editor.animation?.infinite && editor.showInfo}<p class="note">The clock keeps running after the duration. Timeline tracks hold their final state. Use a composition with Loop for repeating animation.</p>{/if}
   </Section>
   <Section title="Seed generator" bind:open={sectionOpen.seed}>
     <ParamRow label="Seed" for="scene-seed-generator">
@@ -336,7 +342,7 @@
   .variable-expression:focus-within { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .variable-expression[data-invalid] { border-color: var(--sv-signal-error); }
   .expression-input { flex: 1; min-width: 0; padding: 0; color: var(--sv-text-primary); background: none; border: 0; outline: none; font: inherit; }
-  .expression-toggle { flex: none; width: 18px; height: 16px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; font: inherit; font-size: var(--sv-font-size-10); line-height: 1; cursor: pointer; }
+  .expression-toggle { flex: none; width: 18px; height: 16px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; font: inherit; font-size: 9px; line-height: 1; cursor: pointer; }
   .expression-toggle:hover { color: var(--sv-accent-fill); }
   .expression-error { position: absolute; z-index: 4; top: calc(100% + var(--sv-space-4)); left: 0; width: 100%; padding: var(--sv-space-4) var(--sv-space-6); box-sizing: border-box; color: var(--sv-signal-error); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }
   code { color: var(--sv-text-secondary); }

@@ -98,12 +98,13 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       if (n.kind === 'instance') {
         if (n.mouse) {
           checkParams(mouseParams, n.mouse, name(n) + ' Mouse Instance');
+          const numeric = (v: unknown) => (typeof v === 'number' && Number.isFinite(v)) || (isNumericExpression(v) && Number.isFinite(v.fallback));
           for (const [key, spec] of Object.entries(mouseParams)) {
             const v = n.mouse[key];
             if (v === undefined) continue;
-            if (spec.type === 'number' && (typeof v !== 'number' || !Number.isFinite(v))) errors.push(`${name(n)}: mouse ${key} must be a finite number`);
+            if (spec.type === 'number' && !numeric(v)) errors.push(`${name(n)}: mouse ${key} must be a finite number or numeric expression`);
             if (spec.type === 'enum' && !(spec.options as readonly unknown[]).includes(v)) errors.push(`${name(n)}: unknown mouse ${key}`);
-            if (spec.type === 'point' && (!Array.isArray(v) || v.length !== 2 || v.some(c => typeof c !== 'number' || !Number.isFinite(c)))) errors.push(`${name(n)}: mouse ${key} must be a numeric point`);
+            if (spec.type === 'point' && (!Array.isArray(v) || v.length !== 2 || v.some(c => !numeric(c)))) errors.push(`${name(n)}: mouse ${key} must be a numeric point`);
           }
         }
         if (typeof n.of !== 'string' || !n.of) warnings.push(`${name(n)}: is an instance of nothing ("of" is empty)`);
@@ -148,6 +149,9 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   checkNodes(scene.objects);
 
   for (const r of nodeRefs) if (!nodes.has(r.id)) warnings.push(`${r.from}: "${r.param}" points to "${r.id}", which does not exist`);
+
+  if (scene.animation?.infinite !== undefined && typeof scene.animation.infinite !== 'boolean') errors.push('animation.infinite must be a boolean');
+  if (scene.animation?.infinite && scene.animation.loop === true) warnings.push('Infinite time overrides scene Loop; use a looping composition for repeated playback');
 
   // Tracks: their node, their effect and their parameter.
   for (const tr of scene.animation?.tracks ?? []) {

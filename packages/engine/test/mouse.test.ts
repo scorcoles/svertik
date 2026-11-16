@@ -122,3 +122,74 @@ it('routes canvas events through the player and releases listeners on stop', () 
     expect(after.defaultPrevented).toBe(false);
   } finally { vi.unstubAllGlobals(); }
 });
+
+it('evaluates Mouse formulas at scene time per event and freezes each emitted copy', () => {
+  const expr = ($expr: string, fallback = 0) => ({ $expr, fallback });
+  const s = scene({
+    count: expr('2.9', 1), lifetime: expr('1 + scene.time / 180', 3),
+    scale: expr('scene.custom.size', 1), rotation: expr('10 * scene.cycle'),
+    offset: [expr('scene.time'), expr('-scene.custom.size')],
+  });
+  s.animation = { duration: 10, infinite: true, loop: false, tracks: [] };
+  s.custom = { size: expr('2 + scene.cycle / 18', 1) };
+  const before = JSON.stringify(s);
+  expect(validateScene(s)).toEqual({ errors: [], warnings: [] });
+  const m = createMouseInstances(s, () => 0.5);
+  m.event('click', [20, 30], 1000, 0, 180);
+  const first = copies(m.apply(s, 1000));
+  expect(first).toHaveLength(2);
+  expect(first[0]!.transform).toMatchObject({ x: 200, y: 27, scale: 3, rotation: 180 });
+  m.event('click', [20, 30], 1001, 0, 190);
+  const second = copies(m.apply(s, 1001));
+  expect(second).toHaveLength(4);
+  expect(second[0]!.transform?.rotation).toBe(190);
+  expect(second[2]!.transform?.rotation).toBe(180);
+  expect(copies(m.apply(s, 1002))).toHaveLength(2);
+  expect(JSON.stringify(s)).toBe(before);
+});
+
+it('uses formula fallbacks and safely caps counts, limits and invalid offset components', () => {
+  const s = scene({
+    count: { $expr: '1000', fallback: 1 }, limit: { $expr: '2', fallback: 100 },
+    rotation: { $expr: 'random(0, 1, 1 / 0)', fallback: 45 },
+    offset: [{ $expr: 'missing', fallback: 12 }, { $expr: '0 / 0', fallback: 8 }],
+    scale: { $expr: '1 / 0', fallback: Infinity },
+  });
+  const m = createMouseInstances(s, () => 0.5);
+  m.event('click', [0, 0], 0);
+  const out = copies(m.apply(s, 0));
+  expect(out).toHaveLength(2);
+  expect(out[0]!.transform).toMatchObject({ x: 12, y: 8, rotation: 45, scale: 1 });
+});
+
+it('evaluates formula rate and minimum distance before accepting movement', () => {
+  const s = scene({ event: 'move', rate: { $expr: '2', fallback: 20 }, distance: { $expr: '10', fallback: 0 } });
+  const m = createMouseInstances(s);
+  m.event('move', [0, 0], 0);
+  m.event('move', [20, 0], 0.1);
+  m.event('move', [5, 0], 0.5);
+  expect(copies(m.apply(s, 0.5))).toHaveLength(1);
+  m.event('move', [20, 0], 0.5);
+  expect(copies(m.apply(s, 0.5))).toHaveLength(2);
+});
+
+it('samples random() per copy and per emission, freezing each rotation, with explicit seeds remaining shared', () => {
+  const s = scene({ count: 3, lifetime: 0, rotation: { $expr: 'random(0, 90)', fallback: 0 } });
+  const m = createMouseInstances(s);
+  m.event('click', [0, 0], 0);
+  const first = copies(m.apply(s, 0)).map(n => n.transform!.rotation!);
+  expect(new Set(first).size).toBe(3);
+  for (const angle of first) { expect(angle).toBeGreaterThanOrEqual(0); expect(angle).toBeLessThan(90); }
+  m.event('click', [0, 0], 1);
+  const second = copies(m.apply(s, 1)).map(n => n.transform!.rotation!);
+  expect(new Set(second).size).toBe(6);
+  expect(second.slice(3)).toEqual(first);
+  expect(copies(m.apply(s, 100)).map(n => n.transform!.rotation!)).toEqual(second);
+  const replay = createMouseInstances(s);
+  replay.event('click', [0, 0], 0);
+  expect(copies(replay.apply(s, 0)).map(n => n.transform!.rotation!)).toEqual(first);
+  const seededScene = scene({ count: 3, rotation: { $expr: 'random(0, 90, 42)', fallback: 0 } });
+  const seeded = createMouseInstances(seededScene);
+  seeded.event('click', [0, 0], 0);
+  expect(new Set(copies(seeded.apply(seededScene, 0)).map(n => n.transform!.rotation)).size).toBe(1);
+});

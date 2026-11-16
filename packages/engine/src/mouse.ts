@@ -1,3 +1,4 @@
+import { evaluateSceneExpressions } from './expression';
 import { onlyFor, walkNodes } from './document';
 import { resolveParams, type ParamSchema } from './modifier';
 import type { GroupNode, InstanceNode, SceneNode, SceneV1 } from './scene';
@@ -5,17 +6,17 @@ import type { GroupNode, InstanceNode, SceneNode, SceneV1 } from './scene';
 export const mouseParams = {
   event: { type: 'enum', default: 'click', options: ['click', 'double-click', 'right-click', 'middle-click', 'move', 'wheel-up', 'wheel-down'], label: 'Event' },
   button: { type: 'enum', default: 'any', options: ['any', 'left', 'right', 'middle'], label: 'While pressed', showIf: { event: ['move'] } },
-  rate: { type: 'number', expression: false, default: 20, min: 0.1, max: 120, step: 1, label: 'Rate', unit: '/s' },
-  distance: { type: 'number', expression: false, default: 0, min: 0, max: 1000, step: 1, label: 'Min distance', unit: 'px', showIf: { event: ['move'] } },
-  count: { type: 'number', expression: false, default: 1, min: 1, max: 50, step: 1, label: 'Copies / event' },
-  lifetime: { type: 'number', expression: false, default: 3, min: 0, max: 120, step: 0.1, label: 'Life (0 = keep)', unit: 's' },
-  limit: { type: 'number', expression: false, default: 100, min: 1, max: 500, step: 1, label: 'Max copies' },
+  rate: { type: 'number', default: 20, min: 0.1, max: 120, step: 1, label: 'Rate', unit: '/s' },
+  distance: { type: 'number', default: 0, min: 0, max: 1000, step: 1, label: 'Min distance', unit: 'px', showIf: { event: ['move'] } },
+  count: { type: 'number', default: 1, min: 1, max: 50, step: 1, label: 'Copies / event' },
+  lifetime: { type: 'number', default: 3, min: 0, max: 120, step: 0.1, label: 'Life (0 = keep)', unit: 's' },
+  limit: { type: 'number', default: 100, min: 1, max: 500, step: 1, label: 'Max copies' },
   offset: { type: 'point', default: [0, 0], label: 'Offset' },
-  scale: { type: 'number', expression: false, default: 1, min: 0.01, max: 10, step: 0.01, label: 'Scale' },
-  rotation: { type: 'number', expression: false, default: 0, min: -360, max: 360, step: 1, label: 'Rotation', unit: '°' },
-  scatter: { type: 'number', expression: false, default: 0, min: 0, max: 1000, step: 1, label: 'Position variation', unit: 'px' },
-  scaleVariation: { type: 'number', expression: false, default: 0, min: 0, max: 1, step: 0.01, label: 'Scale variation' },
-  rotationVariation: { type: 'number', expression: false, default: 0, min: 0, max: 180, step: 1, label: 'Rotation variation', unit: '°' },
+  scale: { type: 'number', default: 1, min: 0.01, max: 10, step: 0.01, label: 'Scale' },
+  rotation: { type: 'number', default: 0, min: -360, max: 360, step: 1, label: 'Rotation', unit: '°' },
+  scatter: { type: 'number', default: 0, min: 0, max: 1000, step: 1, label: 'Position variation', unit: 'px' },
+  scaleVariation: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Scale variation' },
+  rotationVariation: { type: 'number', default: 0, min: 0, max: 180, step: 1, label: 'Rotation variation', unit: '°' },
 } satisfies ParamSchema;
 
 export type MouseEventKind = 'click' | 'double-click' | 'right-click' | 'middle-click' | 'move' | 'wheel-up' | 'wheel-down';
@@ -56,12 +57,31 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
     templates.set(g.id, local);
     return local;
   }
+  const paramsAt = (g: InstanceNode, sceneTime: number, birthIndex: number) => {
+    const evaluated = evaluateSceneExpressions({
+      version: 1, custom: scene.custom, seedGenerator: scene.seedGenerator,
+      animation: scene.animation ? { ...scene.animation, tracks: [], markers: undefined } : undefined, at: sceneTime,
+      objects: [{ ...g, stack: [], children: undefined }],
+    }, { randomSalt: birthIndex }).objects[0] as InstanceNode;
+    const safe = { ...evaluated.mouse };
+    for (const [key, spec] of Object.entries(mouseParams)) {
+      if (spec.type === 'number' && (typeof safe[key] !== 'number' || !Number.isFinite(safe[key]))) safe[key] = spec.default;
+    }
+    const offset = Array.isArray(safe.offset) ? safe.offset : [0, 0];
+    safe.offset = [0, 1].map(i => typeof offset[i] === 'number' && Number.isFinite(offset[i]) ? offset[i] : 0);
+    const p = resolveParams(mouseParams, safe);
+    p.distance = Math.max(0, p.distance);
+    p.scatter = Math.max(0, p.scatter);
+    p.scaleVariation = Math.max(0, Math.min(1, p.scaleVariation));
+    p.rotationVariation = Math.max(0, p.rotationVariation);
+    return p;
+  };
   return {
-    event(kind: MouseEventKind, point: [number, number], now: number, buttons = 0) {
+    event(kind: MouseEventKind, point: [number, number], now: number, buttons = 0, sceneTime = now) {
       if (!point.every(Number.isFinite) || !Number.isFinite(now)) return false;
       let handled = false;
       for (const g of generators) {
-        const p = resolveParams(mouseParams, g.mouse);
+        const p = paramsAt(g, sceneTime, serial + 1);
         if (p.event !== kind) continue;
         if (kind === 'move' && p.button !== 'any' && !(buttons & ({ left: 1, right: 2, middle: 4 }[p.button] ?? 0))) continue;
         const local = template(g);
@@ -75,11 +95,12 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
         const vary = (v: number) => (random() * 2 - 1) * v;
         for (let i = 0; i < Math.min(50, Math.max(1, Math.floor(p.count))); i++) {
           const id = unique(`@mouse-${g.id}-${++serial}`);
+          const birth = i === 0 ? p : paramsAt(g, sceneTime, serial);
           const copyStack = (items: SceneNode['stack']): SceneNode['stack'] => items.map(m => ({ ...m, id: `${id}::${m.id}`, ...(m.children ? { children: copyStack(m.children) } : {}) }));
-          st.copies.unshift({ born: now, life: Math.max(0, p.lifetime), node: {
+          st.copies.unshift({ born: now, life: Math.max(0, birth.lifetime), node: {
             kind: 'group', id, name: g.name, children: [], stack: copyStack(g.stack),
             opacity: g.opacity, blend: g.blend,
-            transform: { x: point[0] + p.offset[0]! + vary(p.scatter), y: point[1] + p.offset[1]! + vary(p.scatter), scale: Math.max(0.01, p.scale * (1 + vary(p.scaleVariation))), rotation: p.rotation + vary(p.rotationVariation) },
+            transform: { x: point[0] + birth.offset[0]! + vary(birth.scatter), y: point[1] + birth.offset[1]! + vary(birth.scatter), scale: Math.max(0.01, birth.scale * (1 + vary(birth.scaleVariation))), rotation: birth.rotation + vary(birth.rotationVariation) },
             composition: { scene: local, params: { time: 0, loop: 'hold' } },
           } });
         }

@@ -1275,3 +1275,23 @@ it('saves Full viewport as opt-in and restores the prior state with undo', () =>
   e.setFullViewport(false);
   expect(e.scene!.fullViewport).toBeUndefined();
 });
+
+it('keeps infinite editor time across duration, pause/resume and duration edits, with scene Loop disabled', () => {
+  const e = fresh();
+  e.setInfiniteTime(true);
+  e.setDuration(10);
+  e.setLoop(true);
+  expect(e.animation).toMatchObject({ infinite: true, loop: false, duration: 10 });
+  e.togglePlayback();
+  e.advancePlayback(180);
+  expect(e.time).toBe(180);
+  expect(e.playing).toBe(true);
+  e.togglePlayback();
+  e.togglePlayback();
+  expect(e.time).toBe(180);
+  e.setDuration(5);
+  expect(e.time).toBe(180);
+  e.setInfiniteTime(false);
+  expect(e.time).toBe(5);
+  expect(e.animation?.loop).toBe(false);
+});

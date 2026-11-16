@@ -845,3 +845,77 @@ The source's initial local position is aligned with the cursor; its scale, rotat
 **Document → Size → Full** (Full viewport) is off by default. Enable it to fill the complete viewport in Play/shared Play, without the usual presentation margins. The editor retains its saved document size, canvas margins and bounds as a reference. The saved document is stretched edge to edge along both axes (`preserveAspectRatio="none"`), so objects placed on its edges stay at the viewport edges. Different document/viewport aspect ratios stretch the artwork; there are no letterbox margins or cropped edges.
 
 The setting is saved as optional `SceneV1.fullViewport: true`. Document dimensions and geometry stay unchanged in the editor and in headless exports. Both the editor's full-screen Play and the shared-link Play size their SVG to the full viewport. Embedded pages should size their SVG to the intended viewport; `createPlayer` applies the same edge-to-edge mapping. Mouse Instance coordinates use the SVG screen transform, including this scaling.
+
+## Infinite time
+
+Enable **Document → Time → Infinite** or **Timeline → Infinite** for procedural/interactive scenes that should never stop. Infinite is off by default, persists as `animation.infinite: true`, and works in editor timeline playback, the editor's full-screen Play and shared-link Play. Scene Loop is disabled while Infinite is on: the elapsed clock advances beyond duration instead of wrapping. The configured duration and timeline stay available. After the first duration window, tracks hold their sample at the window's end; expression and procedural clocks keep running. Track repeats are evaluated within that first window and then held too.
+
+```json
+{
+  "version": 1,
+  "animation": { "duration": 10, "infinite": true, "loop": false, "fps": 30, "tracks": [] },
+  "custom": {
+    "variation": { "$expr": "scene.cycle", "fallback": 0 }
+  },
+  "objects": [
+    {
+      "kind": "shape", "id": "procedural-star", "name": "Procedural star",
+      "shape": "star",
+      "params": { "radius": { "$expr": "80 + sin(scene.time) * 20", "fallback": 80 } },
+      "stack": []
+    }
+  ]
+}
+```
+
+`scene.cycle` counts completed duration windows: `floor(scene.time / scene.duration)`, starting at zero (zero for non-positive duration). At time 180 in a 10-second scene, `scene.cycle` is 18. It works in numeric parameter expressions, custom formulas and text such as `Cycle {{scene.cycle}}`. The cycle counter does not restart playback. `scene.duration` stays 10 and `scene.progress` stays at 1 after 10 seconds, while `scene.time`, `scene.frame` and `scene.cycle` can continue increasing. With regular finite playback, cycle follows the sampled scene time; a normal scene loop resets that time, so this is not a cumulative counter of normal loops.
+
+To loop authored motion, use a composition with `params: { time: { "$expr": "scene.time", "fallback": 0 }, loop: "loop" }` inside the infinite parent. A child composition owns its remapped clock and duration: its own `scene.cycle` is based on that local time and may reset on a child loop. `loop: "hold"` still holds the child at its duration. Infinite does not override composition playback settings.
+
+The timeline ruler, key editing range and scrubber retain the configured duration. The playhead stays at the end after that window, while the elapsed counter continues. Pause/resume preserves elapsed time; Go to start resets it. Editing duration in Infinite mode preserves elapsed time and updates the cycle calculation. Turning Infinite off clamps editor time to duration and leaves Loop off. Enabling it stores `loop: false`; imported scenes with both flags set prefer Infinite and receive a validation warning.
+
+For headless use, `sampleScene(scene, 180)` sets elapsed `at: 180`, holds timeline tracks at duration, and allows the engine to resolve expressions at 180 seconds. Exporting SVG animations, PNG sequences or video still renders the finite interval specified by duration; Infinite neither starts an endless export nor captures live input. Reduced-motion playback retains the player's existing non-animating behavior.
+
+## Random in expressions (ƒx)
+
+`random(min, max, seed?)` returns a deterministic continuous random value. It is available wherever numeric expressions are accepted, in document custom variables and inside Text interpolation. It uses `scene.seedGenerator` as the base seed, combined with an optional numeric salt (third argument, default 0). Change the document seed with its dice to get a new result. Equal seed pairs reproduce the same result regardless of time, field evaluation order or seeking, including headless exports; no mutable random sequence is consumed.
+
+| Formula | Behavior |
+| --- | --- |
+| `random(0, 100)` | Stable until the document seed changes. |
+| `random(-10, 10, scene.cycle)` | Changes per duration window with Infinite time. |
+| `random(0, 100, scene.frame)` | Changes per frame. |
+| `random(0, 100, floor(scene.time * 2))` | Changes twice per second. |
+| `random(0, 100, scene.cycle + 1000)` | Separate variation from the same cycle counter. |
+| `floor(random(0, 6, scene.cycle)) + 1` | Integer from 1 to 6. |
+| `{{fixed(random(0, 100, scene.cycle), 2)}}` | Text interpolation with two decimal places. |
+
+The third argument supplements the document seed; it does not replace it. Identical seed/salt pairs produce correlated values in separate fields, so assign different salts for independent variation. Fractional and negative salts are supported without truncation. `random(100, 0)` normalizes the reversed bounds; equal bounds return that number. Values normally lie in `[min, max)`. All inputs must be finite; runtime errors use the numeric expression's `fallback`. This is part of the expression language, not `Math.random()` or JavaScript.
+
+Example numeric field: `{ "$expr": "random(40, 120, scene.cycle)", "fallback": 80 }`. A custom variable can store the same formula and be referenced with `scene.custom.name`. Compositions use their own/inherited seed and remapped local time, so their random variation follows their local `scene.frame`/`scene.cycle`.
+
+### Mouse Instance expressions
+
+All Mouse Instance numeric controls accept ƒx: Rate, Min distance, Copies / event, Life, Max copies, Scale, Rotation, Position variation, Scale variation and Rotation variation. Offset X and Offset Y each have a separate ƒx control; JSON keeps them in `mouse.offset: [x, y]`, with a number or numeric expression per component. Event, While pressed and source remain selectors.
+
+Formulas resolve when input arrives using the **parent scene's current playback clock**, fps, duration, cycle, document seed and custom variables. This is independent of browser uptime and of each copy's local animation clock. Rate, minimum distance, count and limit are sampled per input event. Birth properties (transform, lifetime and variation) are sampled separately for every generated copy, including copies from the same emission; each stores its own result. Later events reevaluate the configuration and do not change existing copies. Rate and distance formulas are evaluated before throttling input. The player uses the same clock for input sampling and frame rendering, including Infinite mode and finite scene loops.
+
+Example `mouse` configuration:
+
+```json
+{
+  "event": "click",
+  "count": { "$expr": "2 + scene.cycle", "fallback": 2 },
+  "lifetime": { "$expr": "scene.custom.life", "fallback": 3 },
+  "rotation": { "$expr": "random(-180, 180)", "fallback": 0 },
+  "scale": { "$expr": "random(0.5, 1.5, scene.frame + 1000)", "fallback": 1 },
+  "offset": [
+    { "$expr": "random(-20, 20, scene.frame + 2000)", "fallback": 0 },
+    { "$expr": "random(-20, 20, scene.frame + 3000)", "fallback": 0 }
+  ]
+}
+```
+
+Keep finite fallbacks. Invalid formulas use their fallback; invalid non-finite results/fallbacks use safe numeric defaults. Copies per event and Max copies are floored and capped at 50/500, Rate stays within 0.1–120/s, scale stays positive and life/distance/variation distances are non-negative. Scale variation stays within 0–1. A lifetime of zero keeps copies subject to the limit. `random(min, max)` inside Mouse Instance config uses an implicit deterministic birth-index salt, so each copy receives a fresh value, including several copies emitted by one event. Explicit third arguments override that salt: `random(0, 90, scene.cycle)` intentionally shares a value for that cycle; `random(..., scene.frame)` shares a value within the sampled scene frame. Outside Mouse Instance config, omitted seeds still default to 0 and remain stable. Runtime geometry is still temporary and saved formulas remain intact.
+
+Mouse random example: set Rotation to `random(0, 90)` to give each emitted cross a distinct angle that remains fixed after birth. Replaying the same accepted emission sequence with the same document seed reproduces those values. Other numeric birth properties and custom-variable random formulas evaluated for that config use the same per-copy context.

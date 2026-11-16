@@ -83,3 +83,21 @@ it.each([false, true])('full-screen editor Play maps the saved frame edge to edg
     expect(svg.getAttribute('viewBox')).toBe('-960 -540 1920 1080');
   } finally { await unmount(component); target.remove(); vi.unstubAllGlobals(); }
 });
+
+it('Document labels the mode Infinite and toggles it without changing duration', async () => {
+  const editor = new Editor();
+  editor.scene = { version: 1, objects: [], animation: { duration: 10, loop: true, tracks: [] } };
+  const target = document.createElement('div'); document.body.append(target);
+  const component = mount(DocumentAttributes, { target, props: { editor } });
+  try {
+    flushSync();
+    const label = target.querySelector('label[for="doc-infinite-time"]')!;
+    expect(label.textContent).toBe('Infinite');
+    const button = target.querySelector<HTMLButtonElement>('#doc-infinite-time')!;
+    button.click(); flushSync();
+    expect(editor.animation).toMatchObject({ infinite: true, loop: false, duration: 10 });
+    button.click(); flushSync();
+    expect(editor.animation?.infinite).toBeUndefined();
+    expect(editor.animation?.duration).toBe(10);
+  } finally { await unmount(component); target.remove(); }
+});

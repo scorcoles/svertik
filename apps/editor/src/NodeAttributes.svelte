@@ -1,5 +1,5 @@
 <script lang="ts">
-import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, placementOf, shapeRegistry, walkNodes, type Ease, type SceneNode } from '@svertik/engine';
+import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, placementOf, shapeRegistry, walkNodes, type Ease, type ParamSpec, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
   import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
@@ -56,6 +56,20 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
     ...Object.entries(shapeDef?.params ?? {}).filter(([n]) => shapeDef?.timeDriven && (n === 'fill' || n === 'direction')),
     ...Object.entries(shapeDef?.params ?? {}).filter(([n, s]) => s.group === 'Generator' && n !== 'direction'),
   ]);
+  const mouseFields = Object.entries(mouseParams).flatMap<[string, ParamSpec]>(([name, spec]) => name === 'offset'
+    ? [['offsetX', { type: 'number', default: 0, step: 1, label: 'Offset X', unit: 'px' }], ['offsetY', { type: 'number', default: 0, step: 1, label: 'Offset Y', unit: 'px' }]]
+    : [[name, spec]]);
+  const mouseValues = $derived(node.kind === 'instance' && node.mouse ? {
+    ...node.mouse, offsetX: (node.mouse.offset as unknown[] | undefined)?.[0] ?? 0, offsetY: (node.mouse.offset as unknown[] | undefined)?.[1] ?? 0,
+  } : {});
+  function setMouseField(name: string, value: unknown) {
+    if (node.kind !== 'instance' || !node.mouse) return;
+    if (name === 'offsetX' || name === 'offsetY') {
+      const offset = Array.isArray(node.mouse.offset) ? [...node.mouse.offset] : [0, 0];
+      offset[name === 'offsetX' ? 0 : 1] = value;
+      editor.setMouseParam(node.id, 'offset', offset);
+    } else editor.setMouseParam(node.id, name, value);
+  }
   const ACTIONS = [
     { value: 'tween', label: 'Change a value' },
     { value: 'play', label: 'Play the timeline' },
@@ -136,8 +150,8 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
         />
       </ParamRow>
       {#if node.mouse}
-        <ParamList params={Object.entries(mouseParams)} values={node.mouse} onchange={(name, value) => editor.setMouseParam(node.id, name, value)} />
-        <p class="note">Generate copies on the canvas in Play. Each copy starts its animation at zero. Life 0 keeps copies until the limit replaces the oldest.</p>
+        <ParamList params={mouseFields} values={mouseValues} onchange={setMouseField} />
+        <p class="note mouse-help">Generate copies on the canvas in Play. Each copy starts its animation at zero. Life 0 keeps copies until the limit replaces the oldest.</p>
       {/if}
       {#if node.of && !original}<p class="note">The original no longer exists: pick another one.</p>{/if}
       {#if original}
@@ -428,4 +442,5 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
   /* Multi-selection: one compact band, aligned with the header (no indented block leaving a gap). */
   .note { margin: 0; padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-secondary); font-size: var(--sv-font-size-11); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
+  .note.mouse-help { margin-bottom: var(--sv-space-12); }
 </style>

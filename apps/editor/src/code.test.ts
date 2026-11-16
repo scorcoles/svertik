@@ -84,3 +84,7 @@ it('exports static Full viewport scenes with the responsive player', () => {
   const s: SceneV1 = { version: 1, fullViewport: true, objects: [] };
   expect(exportJS(s, '')).toContain('createPlayer(engine, document.querySelector');
 });
+
+it('exports trackless Infinite scenes using the player', () => {
+  expect(exportJS({ version: 1, objects: [], animation: { duration: 10, infinite: true, loop: false, tracks: [] } }, '')).toContain('createPlayer(engine, document.querySelector');
+});

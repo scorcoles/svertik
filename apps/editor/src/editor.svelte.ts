@@ -1965,20 +1965,20 @@ export class Editor {
     if (this.animationDisabled) return;
     const anim = this.animation;
     const d = anim?.duration ?? 3;
-    this.time = Math.max(0, Math.min(d, t));
+    this.time = Math.max(0, Math.min(anim?.infinite ? Infinity : d, t));
     this.#applyTime();
   }
   /** Playback belongs to the editor, independently of which panels are open. */
   togglePlayback() {
     if (!this.scene) return;
-    if (!this.playing && this.time >= (this.animation?.duration ?? 3) - 1e-6) this.setTime(0);
+    if (!this.playing && !this.animation?.infinite && this.time >= (this.animation?.duration ?? 3) - 1e-6) this.setTime(0);
     this.playing = !this.playing;
   }
   advancePlayback(seconds: number) {
     if (!this.playing || !this.scene || seconds <= 0) return;
     const duration = this.animation?.duration ?? 3;
     let time = this.time + seconds;
-    if (time >= duration) {
+    if (!this.animation?.infinite && time >= duration) {
       if (this.animation?.loop !== false) time %= duration;
       else { time = duration; this.playing = false; }
     }
@@ -1987,7 +1987,7 @@ export class Editor {
   stepFrame(direction: -1 | 1) {
     this.playing = false;
     const fps = this.animation?.fps ?? 30;
-    const last = Math.floor((this.animation?.duration ?? 3) * fps + 1e-6);
+    const last = this.animation?.infinite ? Infinity : Math.floor((this.animation?.duration ?? 3) * fps + 1e-6);
     this.setTime(Math.max(0, Math.min(last, Math.round(this.time * fps) + direction)) / fps);
   }
   #applyTime() {
@@ -2002,11 +2002,19 @@ export class Editor {
     const anim = this.#ensureAnimation();
     anim.duration = Math.max(0.1, d);
     for (const marker of anim.markers ?? []) marker.t = Math.min(marker.t, anim.duration);
-    if (this.time > anim.duration) this.setTime(anim.duration);
+    if (!anim.infinite && this.time > anim.duration) this.setTime(anim.duration);
     this.record();
   }
+  setInfiniteTime(enabled: boolean) {
+    if (!this.scene) return;
+    const anim = this.#ensureAnimation();
+    if (enabled) { anim.infinite = true; anim.loop = false; }
+    else { delete anim.infinite; this.setTime(Math.min(this.time, anim.duration)); }
+    this.record(true);
+  }
   setLoop(loop: boolean) {
-    this.#ensureAnimation().loop = loop;
+    const anim = this.#ensureAnimation();
+    anim.loop = anim.infinite ? false : loop;
     this.record(true);
   }
   /** Repeticiones de una pista: cuántas veces (1, sin repetir; 0, sin parar) y cada cuánto (sin él, seguidas). */

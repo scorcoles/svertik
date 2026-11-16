@@ -194,7 +194,7 @@
     background: none;
     border: 0;
     font: inherit;
-    font-size: var(--sv-font-size-10);
+    font-size: 9px;
     line-height: 1;
     cursor: pointer;
   }

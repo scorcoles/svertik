@@ -302,7 +302,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const inter = createInteractions(() => scene);
   const mouse = createMouseInstances(scene);
   let mouseDirty = false;
-  const anim = scene.animation?.tracks.length || sceneHasExpressions(scene)
+  const anim = scene.animation?.infinite || scene.animation?.tracks.length || sceneHasExpressions(scene)
     ? scene.animation ?? { duration: sceneDuration(scene), loop: true, fps: 30, tracks: [] }
     : null;
   const autoplay = !!anim && anim.autoplay !== false;
@@ -314,20 +314,24 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   let frame = 0;
   const fps = anim?.fps ?? 30;
   let shown: number | null = null;
-  const draw = (now: number) => {
-    const dt = (now - last) / 1000;
-    last = now;
-    const moving = inter.step(reduce ? 1e6 : dt);
+  const clockAt = (now: number) => {
     let t = 0;
     if (anim && autoplay) {
       const e = (now - t0) / 1000;
-      t = reduce ? anim.duration : anim.loop === false ? Math.min(e, anim.duration) : e % anim.duration;
+      t = reduce ? anim.duration : anim.infinite ? e : anim.loop === false ? Math.min(e, anim.duration) : e % anim.duration;
     }
     // "play" interactions drive the playhead while they have one.
     const head = inter.playhead();
     if (anim && head !== null) t = head;
     // At the scene's pace: the time falls on its frame; if it's the same and nothing else moves, nothing is painted.
-    if (anim) t = Math.min(anim.duration, Math.floor(t * fps + 1e-6) / fps);
+    if (anim) t = Math.min(anim.infinite ? Infinity : anim.duration, Math.floor(t * fps + 1e-6) / fps);
+    return t;
+  };
+  const draw = (now: number) => {
+    const dt = (now - last) / 1000;
+    last = now;
+    const moving = inter.step(reduce ? 1e6 : dt);
+    const t = clockAt(now);
     if (t !== shown || moving || mouseDirty || mouse.active()) {
       const c0 = performance.now();
       live.update(mouse.apply(inter.apply(anim ? sampleScene(scene, t) : scene), now / 1000));
@@ -335,7 +339,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       shown = t;
       options.onFrame?.({ ms: performance.now() - c0, t });
     }
-    const keepGoing = (autoplay && !reduce && (anim!.loop !== false || t < anim!.duration)) || moving || mouse.active();
+    const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active();
     frame = keepGoing ? requestAnimationFrame(draw) : 0;
   };
   const wake = () => {
@@ -373,7 +377,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     const m = svg.getScreenCTM?.();
     if (!m) return false;
     const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
-    const handled = mouse.event(kind, [q.x, q.y], performance.now() / 1000, e.buttons);
+    const now = performance.now();
+    const handled = mouse.event(kind, [q.x, q.y], now / 1000, e.buttons, clockAt(now));
     if (handled) { mouseDirty = true; wake(); }
     return handled;
   };
