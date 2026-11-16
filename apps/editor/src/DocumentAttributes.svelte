@@ -6,6 +6,20 @@
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
 
   let { editor }: { editor: Editor } = $props();
+  const canPick = typeof window !== 'undefined' && 'EyeDropper' in window;
+  let pickingBackground = $state(false);
+  async function pickBackground() {
+    if (!canPick || pickingBackground) return;
+    pickingBackground = true;
+    try {
+      const EyeDropperApi = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+      editor.setCanvas((await new EyeDropperApi().open()).sRGBHex);
+    } catch {
+      // Cancelling the screen picker leaves the background unchanged.
+    } finally {
+      pickingBackground = false;
+    }
+  }
   const doc = $derived(editor.scene?.document ?? null);
   const PRESETS: [string, number, number][] = [
     ['16:9 · 1920×1080', 1920, 1080],
@@ -150,7 +164,10 @@
   <Section title="Canvas" bind:open={sectionOpen.canvas}>
     <ParamRow label="Background">
       <ColorField value={editor.canvas || DEFAULT_CANVAS} label="Canvas background" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
-      {#if editor.canvas}<Button label="Reset" title="Use the default canvas background" onclick={() => editor.setCanvas('')} />{/if}
+      <span class="background-actions">
+        <IconButton icon="eyedropper" label={canPick ? 'Pick document background from screen' : 'Screen color picker is not supported in this browser'} disabled={!canPick || pickingBackground} onclick={pickBackground} />
+        {#if editor.canvas}<IconButton icon="close" label="Use the default canvas background" onclick={() => editor.setCanvas('')} />{/if}
+      </span>
     </ParamRow>
     {#if editor.showInfo}<p class="note">For viewing only; it is not included in the exported SVG.</p>{/if}
   </Section>
@@ -267,6 +284,7 @@
 </div>
 
 <style>
+  .background-actions { display: inline-flex; align-items: center; gap: 0; }
   header { display: flex; align-items: center; gap: var(--sv-space-8); height: 28px; padding: 0 var(--sv-space-8); }
   h2 { margin: 0; font-size: var(--sv-font-size-11); color: var(--sv-text-primary); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
