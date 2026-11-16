@@ -845,9 +845,9 @@ The source's initial local position is aligned with the cursor; its scale, rotat
 
 ## Full viewport
 
-**Document → Size → Full** (Full viewport) is off by default. Enable it to fill the complete viewport in Play/shared Play, without the usual presentation margins. The editor retains its saved document size, canvas margins and bounds as a reference. The saved document is stretched edge to edge along both axes (`preserveAspectRatio="none"`), so objects placed on its edges stay at the viewport edges. Different document/viewport aspect ratios stretch the artwork; there are no letterbox margins or cropped edges.
+**Document → Size → Full** (Full viewport) is off by default. Enable it to fill the complete viewport in Play/shared Play, without the usual presentation margins. The editor retains its saved document size, canvas margins and bounds as a reference. **Fit** chooses how the document meets the screen, as CSS `object-fit`: **Contain** (default) shows all of it without distortion, with bands where the aspect ratios differ (`preserveAspectRatio="xMidYMid meet"`); **Cover** fills the screen without distortion and crops what overflows (`xMidYMid slice`); **Stretch** maps the document edge to edge on both axes and distorts it (`none`), so objects on its edges stay at the viewport edges.
 
-The setting is saved as optional `SceneV1.fullViewport: true`. Document dimensions and geometry stay unchanged in the editor and in headless exports. Both the editor's full-screen Play and the shared-link Play size their SVG to the full viewport. Embedded pages should size their SVG to the intended viewport; `createPlayer` applies the same edge-to-edge mapping. Mouse Instance coordinates use the SVG screen transform, including this scaling.
+The setting is saved as optional `SceneV1.fullViewport`: `true` (contain), `"cover"` or `"stretch"` (`"contain"` is also accepted). Document dimensions and geometry stay unchanged in the editor and in headless exports. Both the editor's full-screen Play and the shared-link Play size their SVG to the full viewport. Embedded pages should size their SVG to the intended viewport; `createPlayer` applies the same edge-to-edge mapping. Mouse Instance coordinates use the SVG screen transform, including this scaling.
 
 ## Infinite time
 
@@ -878,6 +878,10 @@ To loop authored motion, use a composition with `params: { time: { "$expr": "sce
 The timeline ruler, key editing range and scrubber retain the configured duration. The playhead stays at the end after that window, while the elapsed counter continues. Pause/resume preserves elapsed time; Go to start resets it. Editing duration in Infinite mode preserves elapsed time and updates the cycle calculation. Turning Infinite off clamps editor time to duration and leaves Loop off. Enabling it stores `loop: false`; imported scenes with both flags set prefer Infinite and receive a validation warning.
 
 For headless use, `sampleScene(scene, 180)` sets elapsed `at: 180`, holds timeline tracks at duration, and allows the engine to resolve expressions at 180 seconds. Exporting SVG animations, PNG sequences or video still renders the finite interval specified by duration; Infinite neither starts an endless export nor captures live input. Reduced-motion playback retains the player's existing non-animating behavior.
+
+## Re-seeding on a beat (`seedEvery`)
+
+`seedEvery: 1` on SceneV1 (seconds; 0 or absent = off; editor: **Document → Seed generator → Every**) gives `scene.seedGenerator` a new value each interval of scene time: the base seed plus 7919 per elapsed interval, so seeds offset by small numbers (`scene.seedGenerator + 10`) never collide across intervals. Everything linked to the generator (effect seeds, `random()`, layouts) changes on that beat, and the same time always gives the same seed, in Play and exports alike. Compositions without their own seed follow the parent's live seed. Combine it with `animation.infinite: true` for an endless sequence (a looping timeline repeats the sequence each loop). It makes the scene time-driven.
 
 ## Random in expressions (ƒx)
 

@@ -239,7 +239,21 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params, true) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
     (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
-  return Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
+  // A re-seeding generator changes the drawing over time too.
+  return (Number(scene.seedEvery) > 0) || Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
+}
+
+/**
+ * The seed expressions see at `time`: the document's Seed Generator, moved on one step per `seedEvery`
+ * seconds when that is set. Steps are far apart (a large prime), so seeds offset from it by small numbers
+ * (`scene.seedGenerator + 10`) never land on another interval's values.
+ */
+export function liveSeed(scene: Pick<SceneV1, 'seedGenerator' | 'seedEvery'>, time = 0): number {
+  const base = Math.max(0, Math.round(Number.isFinite(Number(scene.seedGenerator)) ? Number(scene.seedGenerator) : 1));
+  const every = Number(scene.seedEvery);
+  if (!(every > 0) || !Number.isFinite(time)) return base;
+  const tick = Math.max(0, Math.floor(time / every + 1e-9));
+  return (base + tick * 7919) % 2147483647;
 }
 
 /** Resolve the live values exposed to expressions, without evaluating every object parameter. */
@@ -254,7 +268,7 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
     duration,
     progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
     cycle: duration > 0 ? Math.max(0, Math.floor(time / duration)) : 0,
-    seedGenerator: Math.max(0, Math.round(Number.isFinite(Number(scene.seedGenerator)) ? Number(scene.seedGenerator) : 1)),
+    seedGenerator: liveSeed(scene, time),
     custom: Object.fromEntries(Object.entries(scene.custom ?? {}).flatMap(([key, value]) => {
       const n = customNumber(value);
       return n === null ? [] : [[key, n]];

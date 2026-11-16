@@ -11,7 +11,7 @@ export { setSVGImporter, hasSVGImporter, type SVGImporter } from './importer';
 // Las fuentes: una web que incruste el reproductor puede darle las suyas (con `registerFont`),
 // en vez de que se bajen de Fontsource.
 export { registerFont, fontKey, fontNames, hasFont } from './fonts';
-export { isScene, type SceneV1, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './scene';
+export { isScene, viewportFit, VIEWPORT_ASPECT, type ViewportFit, type SceneV1, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './scene';
 export { effectTypes } from './modifiers/manifest';
 // The heavy kernels (WebAssembly). `prepareScene` loads them when the scene needs them; this is for
 // whoever builds the engine by hand.

@@ -128,12 +128,32 @@ export function customNumber(v: unknown): number | null {
   return Math.min(v.max ?? Infinity, Math.max(v.min ?? -Infinity, v.value));
 }
 
+export type ViewportFit = 'contain' | 'cover' | 'stretch';
+
+/** How Play fits the document to a full viewport, or null when the scene is not full-viewport. */
+export function viewportFit(scene: Pick<SceneV1, 'fullViewport'>): ViewportFit | null {
+  const f = scene.fullViewport;
+  return f === true ? 'contain' : f === 'contain' || f === 'cover' || f === 'stretch' ? f : null;
+}
+
+/** The SVG `preserveAspectRatio` for a viewport fit. */
+export const VIEWPORT_ASPECT: Record<ViewportFit, string> = { contain: 'xMidYMid meet', cover: 'xMidYMid slice', stretch: 'none' };
+
 export interface SceneV1 {
   version: 1;
-  /** Stretch the saved document to fill the viewport during Play; editor geometry is unchanged. */
-  fullViewport?: boolean;
+  /**
+   * Fill the viewport during Play, like CSS object-fit: `contain` (whole document, no distortion; also what
+   * `true` means), `cover` (fills the screen, crops what overflows) or `stretch` (fills both axes, distorts).
+   * Editor geometry and exports are unchanged.
+   */
+  fullViewport?: boolean | ViewportFit;
   /** Global seed for effect expressions; nested compositions inherit it unless they override it. */
   seedGenerator?: number;
+  /**
+   * Re-seed every this many seconds of scene time (0 or absent: never). `scene.seedGenerator` then takes a new
+   * value per interval, so everything linked to it changes on a beat; still deterministic for a given time.
+   */
+  seedEvery?: number;
   /**
    * Optional numeric variables available as `scene.custom.name`: a number, an expression, or a number with a
    * range (`{ value, min?, max?, step? }`, shown as a slider in the editor; the value is clamped to it).

@@ -114,7 +114,7 @@ Composition clock fields support tracks with `on: "composition"`. Numeric time k
 
 An instance with `mouse: { event, rate?, distance?, button?, count?, lifetime?, limit?, offset?, scale?, rotation?, scatter?, scaleVariation?, rotationVariation? }` generates temporary copies from canvas input in `createPlayer`. Events: `click`, `double-click`, `right-click`, `middle-click`, `move`, `wheel-up`, `wheel-down`. `of` links its source (may be hidden). Each copy starts the source animation at zero. `lifetime: 0` retains copies up to `limit`; headless exports have no input/copies. Generators belong to the outer scene; compositions can be sources. See Mouse Instance in `docs/ENGINE_AND_EFFECTS.md`.
 
-`fullViewport: true` on SceneV1 stretches the saved document edge to edge across the viewport in both Play hosts (off/absent by default). `createPlayer` uses SVG `preserveAspectRatio="none"`; document coordinates, editor bounds and headless exports stay unchanged. If the viewport aspect ratio differs, the scene stretches independently along each axis.
+`fullViewport` on SceneV1 fills the whole viewport in both Play hosts (off/absent by default), fitted like CSS `object-fit`: `true` or `"contain"` shows the whole document without distortion (bands where the aspect ratio differs), `"cover"` fills the screen and crops the overflow, `"stretch"` fills both axes and distorts. `createPlayer` sets SVG `preserveAspectRatio` to `xMidYMid meet`, `xMidYMid slice` or `none`; document coordinates, editor bounds and headless exports stay unchanged.
 
 ## Infinite time and cycle
 
@@ -128,6 +128,10 @@ Set `animation: { duration: 10, infinite: true, loop: false, fps: 30, tracks: []
 - Enabling Infinite saves `infinite: true, loop: false`. Disabling it clamps editor time back to duration and leaves Loop off. Imported scenes with both `infinite: true` and `loop: true` use Infinite (validation warns).
 
 Example: `custom: { variation: { "$expr": "scene.cycle", "fallback": 0 } }` exposes a value that changes once per duration window without restarting the scene. Preserve scene notes when adding these controls, and always validate the scene.
+
+## Re-seeding on a beat (`seedEvery`)
+
+`seedEvery: 1` on SceneV1 (seconds; 0 or absent = off; editor: **Document → Seed generator → Every**) gives `scene.seedGenerator` a new value each interval of scene time: the base seed plus 7919 per elapsed interval, so seeds offset by small numbers (`scene.seedGenerator + 10`) never collide across intervals. Everything linked to the generator (effect seeds, `random()`, layouts) changes on that beat, and the same time always gives the same seed, in Play and exports alike. Compositions without their own seed follow the parent's live seed. Combine it with `animation.infinite: true` for an endless sequence (a looping timeline repeats the sequence each loop). It makes the scene time-driven.
 
 ## Deterministic random in ƒx
 

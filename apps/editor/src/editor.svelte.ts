@@ -30,6 +30,8 @@ import {
   toSVG,
   walkNodes,
   type Animation,
+  type ViewportFit,
+  viewportFit,
   type BlendMode,
   type Ease,
   type Track,
@@ -1304,10 +1306,28 @@ export class Editor {
     } else delete this.scene.document;
     this.record(commit);
   }
+  /** How Play fits the document to the screen in Full mode, or null when Full is off. */
+  get viewportFit(): ViewportFit | null { return this.scene ? viewportFit(this.scene) : null; }
   setFullViewport(enabled: boolean) {
     if (!this.scene) return;
     if (enabled) this.scene.fullViewport = true;
     else delete this.scene.fullViewport;
+    this.record(true);
+  }
+  /** Full mode's fit (contain is stored as `true`, the default). */
+  setViewportFit(fit: ViewportFit) {
+    if (!this.scene) return;
+    this.scene.fullViewport = fit === 'contain' ? true : fit;
+    this.record(true);
+  }
+  /** Seconds between automatic re-seeds (0: off). */
+  get seedEvery(): number { return Number(this.scene?.seedEvery) > 0 ? Number(this.scene!.seedEvery) : 0; }
+  setSeedEvery(value: number) {
+    if (!this.scene) return;
+    const every = Number.isFinite(value) && value > 0 ? Math.round(value * 1000) / 1000 : 0;
+    if (every === this.seedEvery) return;
+    if (every) this.scene.seedEvery = every;
+    else delete this.scene.seedEvery;
     this.record(true);
   }
   setSeedGenerator(value: number) {

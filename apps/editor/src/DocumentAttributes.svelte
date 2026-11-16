@@ -1,7 +1,7 @@
 <script lang="ts">
   // Sin nada seleccionado: el documento. Su tamaño es lo que se exporta y lo que enseña el modo Play.
   import { Button, Checkbox, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select, Slider } from '@svertik/ui';
-  import { DOCUMENT_PALETTE, PALETTES, customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
+  import { DOCUMENT_PALETTE, PALETTES, type ViewportFit, customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
   import { tick } from 'svelte';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
 
@@ -105,7 +105,7 @@
 
 <div class="doc">
   <header>
-    <h2>Document</h2><span class="meta">{editor.scene?.fullViewport ? 'viewport' : doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
+    <h2>Document</h2><span class="meta">{editor.viewportFit ? `viewport · ${editor.viewportFit}` : doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
     <IconButton icon="expand-all" label="Expand all document sections" onclick={() => setAllSections(true)} />
     <IconButton icon="collapse-all" label="Collapse all document sections" onclick={() => setAllSections(false)} />
   </header>
@@ -138,12 +138,18 @@
     {/if}
     <div class="full-viewport-row">
       <label for="doc-full-viewport">Full</label>
-      <input id="doc-full-viewport" type="checkbox" aria-label="Full viewport" title="Fill the available viewport in Play" checked={editor.scene?.fullViewport === true} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
+      <input id="doc-full-viewport" type="checkbox" aria-label="Full viewport" title="Fill the available viewport in Play" checked={!!editor.viewportFit} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
     </div>
+    {#if editor.viewportFit}
+      <ParamRow label="Fit">
+        <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. -->
+        <Segmented value={editor.viewportFit} label="Fit to the screen" options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' }, { value: 'stretch', label: 'Stretch' }]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
+      </ParamRow>
+    {/if}
     {#if doc}
       <div class="actions"><Button label="Fit to drawing" onclick={() => editor.fitDocument()} /></div>
     {/if}
-    {#if editor.scene?.fullViewport && editor.showInfo}<p class="note">In Play, stretch the document edge to edge across the viewport. The editor keeps its document size and bounds.</p>{/if}
+    {#if editor.viewportFit && editor.showInfo}<p class="note">In Play, the document fills the screen edge to edge: Contain shows all of it (bands where the shape differs), Cover fills it and crops the overflow, Stretch fills both axes and distorts. The editor and exports keep the document size.</p>{/if}
     {#if editor.showInfo}<p class="note">
       {doc
         ? 'What is exported and shown in Play. Anything outside is cut off. Turn on Bounds (View, below) to see the edge.'
@@ -162,9 +168,14 @@
       <!-- The dice, as on effects: a new random seed (everything linked to the generator changes with it). -->
       <IconButton icon="dice" label="New random seed" onclick={() => editor.setSeedGenerator(Math.floor(Math.random() * 100000))} />
     </ParamRow>
+    <ParamRow label="Every" for="scene-seed-every">
+      <!-- Re-seed on a beat (scene time, so it plays the same in Play and exports); 0 = keep this seed. -->
+      <NumberField id="scene-seed-every" value={editor.seedEvery} min={0} step={0.1} unit="s" onchange={(v) => editor.setSeedEvery(v)} />
+    </ParamRow>
     <div class="actions">
       <Button label="Link all seeds" title="Link numeric effect seeds to this generator, preserving their current differences" onclick={() => editor.linkSeedsToGenerator()} />
     </div>
+    {#if editor.showInfo}<p class="note">Every: a new seed each that many seconds while it plays (0 = off). With a looping timeline the sequence repeats each loop; turn on Infinite time to keep getting new ones.</p>{/if}
     {#if editor.showInfo}<p class="note">Linked effect seeds vary together while keeping their relative offsets. In the poster demo, changing this seed also rebuilds its layout.</p>{/if}
   </Section>
   <Section title="Canvas" bind:open={sectionOpen.canvas}>

@@ -1,5 +1,5 @@
 import { createMouseInstances, type MouseEventKind } from './mouse';
-import { sceneDuration } from './scene';
+import { sceneDuration, VIEWPORT_ASPECT, viewportFit } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
 // - tween: a value goes to another with its duration and curve, and comes back (on leave, or the next click);
@@ -307,7 +307,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     : null;
   const autoplay = !!anim && anim.autoplay !== false;
   const originalAspectRatio = svg.getAttribute('preserveAspectRatio');
-  if (scene.fullViewport) svg.setAttribute('preserveAspectRatio', 'none');
+  const fit = viewportFit(scene);
+  if (fit) svg.setAttribute('preserveAspectRatio', VIEWPORT_ASPECT[fit]);
   const live = engine.mount(svg, anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene);
   const t0 = performance.now();
   let last = t0;
@@ -429,7 +430,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       cancelAnimationFrame(frame);
       io?.disconnect();
       mouse.clear();
-      if (scene.fullViewport) {
+      if (fit) {
         if (originalAspectRatio === null) svg.removeAttribute('preserveAspectRatio');
         else svg.setAttribute('preserveAspectRatio', originalAspectRatio);
       }

@@ -2,7 +2,7 @@ import { seedMouseColors } from './mouse-color-seeds';
 import { signalSchemas } from './modifiers/signal-schemas';
 import { waveform, wiggleSignal, pulseSignal, shakeSignal } from './modifiers/time-signal';
 import { sampleScene } from './animation';
-import { evaluateSceneExpressions } from './expression';
+import { evaluateSceneExpressions, liveSeed } from './expression';
 import { effectorStacks, walkNodes } from './document';
 import { resolveParams, type ModifierDef, type ParamSchema } from './modifier';
 import { sceneDuration, type ClockModulation, type SceneNode, type SceneV1 } from './scene';
@@ -56,7 +56,8 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
     const localTime = compositionTime(scene.at ?? 0, sceneDuration(source), node.composition.params, node.composition.modulation);
     const local = evaluateSceneExpressions({
       ...sampleScene(source, localTime),
-      seedGenerator: source.seedGenerator ?? scene.seedGenerator ?? 1,
+      // Without its own seed, a composition takes the parent's live one (it follows a re-seeding parent).
+      seedGenerator: source.seedGenerator ?? liveSeed(scene, scene.at ?? 0),
       at: localTime,
     }, { randomSalt: localRandomSalt });
     const byId = new Map([...walkNodes(local.objects)].map(({ node }) => [node.id, node]));

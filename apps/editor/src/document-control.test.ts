@@ -67,9 +67,16 @@ it('Full affects only Play and preserves the editor frame, margins and bounds', 
 
 import Presenter from './Presenter.svelte';
 
-it.each([false, true])('full-screen editor Play maps the saved frame edge to edge only with Full (%s)', async full => {
+// Full fits like CSS object-fit: true = contain (no distortion), cover crops, stretch distorts.
+it.each([
+  [false, null],
+  [true, 'xMidYMid meet'],
+  ['cover', 'xMidYMid slice'],
+  ['stretch', 'none'],
+] as const)('full-screen editor Play fits the saved frame to the viewport only with Full (%s)', async (fullViewport, aspect) => {
+  const full = fullViewport !== false;
   const editor = new Editor();
-  editor.scene = { version: 1, fullViewport: full, document: { width: 1920, height: 1080 }, objects: [] };
+  editor.scene = { version: 1, fullViewport, document: { width: 1920, height: 1080 }, objects: [] };
   const target = document.createElement('div');
   document.body.append(target);
   vi.stubGlobal('requestAnimationFrame', () => 1);
@@ -79,7 +86,7 @@ it.each([false, true])('full-screen editor Play maps the saved frame edge to edg
     flushSync();
     const svg = target.querySelector('svg.stage')!;
     expect(svg.classList.contains('full-viewport')).toBe(full);
-    expect(svg.getAttribute('preserveAspectRatio')).toBe(full ? 'none' : null);
+    expect(svg.getAttribute('preserveAspectRatio')).toBe(aspect);
     expect(svg.getAttribute('viewBox')).toBe('-960 -540 1920 1080');
   } finally { await unmount(component); target.remove(); vi.unstubAllGlobals(); }
 });

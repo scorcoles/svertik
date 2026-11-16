@@ -53,7 +53,7 @@ async function start(m: typeof import('@svertik/engine/player')) {
   const state = await decodeState(hash[1]!);
   if (!state) return say('No scene in this link.', 0);
   const scene = state.scene;
-  stage.classList.toggle('full-viewport', scene.fullViewport === true);
+  stage.classList.toggle('full-viewport', !!m.viewportFit(scene));
   sceneName = state.name;
   document.title = `${state.name} · svertik`;
   if (state.canvas) document.body.style.background = state.canvas;
