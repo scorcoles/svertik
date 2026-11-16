@@ -142,6 +142,7 @@ export function printPosterProject(seed = 7) {
 
   const scene: SceneV1 = {
     version: 1,
+    seedGenerator: seed,
     document: { width: W, height: H },
     notes: 'Print Poster demo: a 1200×4800 glitch print made only of primitives and stock effects (Clone grids, a square Halftone for the checker, Gradient, Wave ribbons with Pixelate, offset copies for the glitch). Generated from a seed in demo-poster.ts.',
     objects: objects.reverse(),

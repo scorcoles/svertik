@@ -107,6 +107,8 @@ export type SceneNode = ObjectNode | ShapeNode | GroupNode | InstanceNode | Effe
 
 export interface SceneV1 {
   version: 1;
+  /** Global seed for effect expressions; nested compositions inherit it unless they override it. */
+  seedGenerator?: number;
   /** User notes about the scene; editor metadata, ignored by rendering and SVG export. */
   notes?: string;
   /** Editor ruler guides in document coordinates; ignored by rendering and SVG export. */

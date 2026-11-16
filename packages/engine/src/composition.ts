@@ -51,7 +51,11 @@ export function expandCompositions(scene: SceneV1, registry: Map<string, Modifie
     if (!node.composition) return { ...node, children: expand(node.children) };
     const source = node.composition.scene;
     const localTime = compositionTime(scene.at ?? 0, sceneDuration(source), node.composition.params, node.composition.modulation);
-    const local = evaluateSceneExpressions({ ...sampleScene(source, localTime), at: localTime });
+    const local = evaluateSceneExpressions({
+      ...sampleScene(source, localTime),
+      seedGenerator: source.seedGenerator ?? scene.seedGenerator ?? 1,
+      at: localTime,
+    });
     const byId = new Map([...walkNodes(local.objects)].map(({ node }) => [node.id, node]));
     const extra = effectorStacks(local, byId);
     const bake = (items: SceneNode[]): SceneNode[] => items.map(n => ({ ...n, stack: [...(n.stack ?? []), ...(extra.get(n.id) ?? [])], ...(n.children ? { children: bake(n.children) } : {}), ...(n.kind === 'effector' ? { visible: false } : {}) } as SceneNode));

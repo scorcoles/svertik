@@ -13,11 +13,12 @@ export interface ExpressionContext {
   fps: number;
   duration: number;
   progress: number;
+  seedGenerator: number;
 }
 
 type Expr =
   | { kind: 'number'; value: number }
-  | { kind: 'variable'; name: `scene.${'time' | 'frame' | 'fps' | 'duration' | 'progress'}` | 'pi' | 'e' }
+  | { kind: 'variable'; name: `scene.${'time' | 'frame' | 'fps' | 'duration' | 'progress' | 'seedGenerator'}` | 'pi' | 'e' }
   | { kind: 'unary'; op: '+' | '-'; value: Expr }
   | { kind: 'binary'; op: '+' | '-' | '*' | '/' | '%' | '^' | '**'; left: Expr; right: Expr }
   | { kind: 'call'; name: string; args: Expr[] };
@@ -42,7 +43,7 @@ const ARITY: Record<string, [number, number]> = {
   max: [1, Infinity], min: [1, Infinity], pow: [2, 2], round: [1, 1], sin: [1, 1], sqrt: [1, 1], tan: [1, 1],
 };
 const SCENE_VARIABLES = {
-  time: 'scene.time', frame: 'scene.frame', fps: 'scene.fps', duration: 'scene.duration', progress: 'scene.progress',
+  time: 'scene.time', frame: 'scene.frame', fps: 'scene.fps', duration: 'scene.duration', progress: 'scene.progress', seedGenerator: 'scene.seedGenerator',
 } as const;
 const parsed = new Map<string, Expr>();
 
@@ -217,6 +218,7 @@ export function evaluateSceneExpressions(scene: SceneV1): SceneV1 {
     fps,
     duration,
     progress: duration > 0 ? Math.max(0, Math.min(1, time / duration)) : 0,
+    seedGenerator: Math.max(0, Math.round(Number.isFinite(Number(out.seedGenerator)) ? Number(out.seedGenerator) : 1)),
   };
   const params = (values?: Record<string, unknown>) => {
     if (!values) return;

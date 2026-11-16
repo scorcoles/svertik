@@ -52,6 +52,7 @@ import {
   type Palette,
   type ParamSchema,
 } from '@svertik/engine';
+import { printPosterProject } from './demo-poster';
 import { DEFAULT_SCRIPT } from './code';
 import { decodeState, encodeState, MAX_HASH } from './share';
 
@@ -66,6 +67,7 @@ export const DEFAULT_FILL = '#333333';
 
 export const DEFAULT_DOCUMENT = { width: 1400, height: 900 };
 const newScene = (objects: SceneNode[] = []): SceneV1 => ({ version: 1, document: { ...DEFAULT_DOCUMENT }, objects });
+const normalizeSeedGenerator = (value: number) => Math.max(0, Math.min(0x7fffffff, Math.round(Number.isFinite(value) ? value : 1)));
 
 /** Modificadores que aceptan otros colgados (y los aplican a su manera). */
 /** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
@@ -228,6 +230,18 @@ export class Editor {
       scene = n.composition.scene;
     }
     return scene;
+  }
+  /** Current scene seed, inherited from its parent composition until locally overridden. */
+  get seedGenerator(): number {
+    let scene = this.#rootScene;
+    let seed = normalizeSeedGenerator(scene?.seedGenerator ?? 1);
+    for (const id of this.compositionPath) {
+      const node = scene && locateNode(scene.objects, id)?.node;
+      if (!node || node.kind !== 'group' || !node.composition) break;
+      scene = node.composition.scene;
+      if (scene.seedGenerator !== undefined) seed = normalizeSeedGenerator(scene.seedGenerator);
+    }
+    return seed;
   }
   set scene(value: SceneV1 | null) {
     let scene = this.#rootScene;
@@ -1232,6 +1246,58 @@ export class Editor {
       this.scene.document = { width: Math.max(1, r(width)), height: Math.max(1, r(height)), ...(x ? { x: r(x) } : {}), ...(y ? { y: r(y) } : {}) };
     } else delete this.scene.document;
     this.record(commit);
+  }
+  setSeedGenerator(value: number) {
+    if (!this.scene) return;
+    const seed = normalizeSeedGenerator(value);
+    if (seed === this.seedGenerator && this.scene.seedGenerator !== undefined) return;
+    this.scene.seedGenerator = seed;
+    // The poster's randomness is baked into its generated objects rather than effect params.
+    // Keep the demo responsive to the document seed while it is still the opened demo.
+    if (this.demoOrigin === 'poster') {
+      const generated = printPosterProject(seed);
+      this.scene.objects = generated.scene.objects;
+      this.selected = null;
+      this.also = [];
+    }
+    this.record(true);
+  }
+  /** Link every numeric seed in this scene to its scene seed, retaining its current value as an offset. */
+  linkSeedsToGenerator(): number {
+    const active = this.scene;
+    if (!active) return 0;
+    let linked = 0;
+    const linkParams = (params: Record<string, unknown> | undefined, baseSeed: number) => {
+      const seed = params?.seed;
+      if (!params || typeof seed !== 'number' || !Number.isFinite(seed)) return;
+      const offset = Math.round(seed - baseSeed);
+      params.seed = {
+        $expr: offset === 0 ? 'scene.seedGenerator' : `scene.seedGenerator ${offset > 0 ? '+' : '-'} ${Math.abs(offset)}`,
+        fallback: seed,
+      };
+      linked++;
+    };
+    const linkScene = (scene: SceneV1, inheritedSeed: number) => {
+      const baseSeed = normalizeSeedGenerator(scene.seedGenerator ?? inheritedSeed);
+      const linkStack = (items: SceneNode['stack']) => {
+        for (const item of items) { linkParams(item.params, baseSeed); linkStack(item.children ?? []); }
+      };
+      const linkNodes = (items: SceneNode[]) => {
+        for (const node of items) {
+          if (node.kind === 'shape') linkParams(node.params, baseSeed);
+          linkStack(node.stack);
+          if (node.children?.length) linkNodes(node.children);
+          if (node.kind === 'group' && node.composition) {
+            linkParams(node.composition.modulation?.params, baseSeed);
+            linkScene(node.composition.scene, baseSeed);
+          }
+        }
+      };
+      linkNodes(scene.objects);
+    };
+    linkScene(active, this.seedGenerator);
+    if (linked) this.record(true);
+    return linked;
   }
   /** Documento del tamaño de lo dibujado y centrado en ello (sin mover nada). */
   fitDocument() {

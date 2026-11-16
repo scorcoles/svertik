@@ -68,6 +68,15 @@
         : 'The document fits whatever is drawn, with a small margin. Fix a size to export a frame (a video size, a post…).'}
     </p>
   </Section>
+  <Section title="Randomness">
+    <ParamRow label="Seed generator" for="scene-seed-generator">
+      <NumberField id="scene-seed-generator" value={editor.seedGenerator} min={0} max={2147483647} step={1} onchange={(v) => editor.setSeedGenerator(v)} />
+    </ParamRow>
+    <div class="actions">
+      <Button label="Link all seeds" title="Link numeric effect seeds to this generator, preserving their current differences" onclick={() => editor.linkSeedsToGenerator()} />
+    </div>
+    <p class="note">Linked effect seeds vary together while keeping their relative offsets. In the poster demo, changing this seed also rebuilds its layout.</p>
+  </Section>
   <Section title="Canvas">
     <ParamRow label="Background">
       <ColorField value={editor.canvas || DEFAULT_CANVAS} label="Canvas background" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
