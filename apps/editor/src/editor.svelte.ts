@@ -1155,6 +1155,15 @@ export class Editor {
     this.record();
   }
 
+  /** Set related shape parameters as one undoable edit (used by linked controls). */
+  setShapeParams(id: string, values: Record<string, unknown>) {
+    if (this.isLocked(id)) return;
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'shape') return;
+    Object.assign(at.node.params, values);
+    this.record();
+  }
+
   #parameterChanged(target: TrackTarget, value: unknown) {
     const expression = isNumericExpression(value) || (target.on === 'shape' && target.param === 'text' && hasTextExpressions(value));
     if (expression) {

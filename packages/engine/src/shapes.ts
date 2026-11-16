@@ -88,24 +88,35 @@ export const rectangle = defineShape({
   params: {
     width: { type: 'number', default: 160, min: 1, step: 1, unit: 'px', pair: 'height' },
     height: { type: 'number', default: 120, min: 1, step: 1, unit: 'px' },
-    radius: { type: 'number', default: 0, min: 0, step: 1, unit: 'px' },
+    radius: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Radius', showIf: { linkCorners: ['true'] } },
+    linkCorners: { type: 'boolean', default: true, label: 'Link corners', animatable: false },
+    radiusTopLeft: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Top left', showIf: { linkCorners: ['false'] } },
+    radiusTopRight: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Top right', showIf: { linkCorners: ['false'] } },
+    radiusBottomRight: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Bottom right', showIf: { linkCorners: ['false'] } },
+    radiusBottomLeft: { type: 'number', default: 0, min: 0, step: 1, unit: 'px', label: 'Bottom left', showIf: { linkCorners: ['false'] } },
     ...style,
   },
-  build({ width: w, height: h, radius }) {
-    const r = Math.min(radius, w / 2, h / 2);
+  build({ width: w, height: h, radius, linkCorners, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft }) {
+    const raw = linkCorners
+      ? [radius, radius, radius, radius]
+      : [radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft];
+    const [tl0, tr0, br0, bl0] = raw.map((r) => Math.max(0, Number(r) || 0)) as [number, number, number, number];
+    // Match CSS border-radius behavior: scale all corners together if adjacent radii do not fit.
+    const factor = Math.min(1, w / Math.max(1e-9, tl0 + tr0), w / Math.max(1e-9, bl0 + br0), h / Math.max(1e-9, tl0 + bl0), h / Math.max(1e-9, tr0 + br0));
+    const [tl, tr, br, bl] = [tl0, tr0, br0, bl0].map((r) => r * factor) as [number, number, number, number];
     const x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = h / 2;
-    if (r <= 0) return [closed([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])];
-    const k = 0.5522847498 * r;
-    const start: Vec2 = [x0 + r, y0];
+    const curve = (from: Vec2, to: Vec2, radius: number, c1: Vec2, c2: Vec2): Cubic => radius <= 0 ? line(from, to) : { c1, c2, p: to };
+    const k = 0.5522847498;
+    const start: Vec2 = [x0 + tl, y0];
     const segs: Cubic[] = [
-      line([x0 + r, y0], [x1 - r, y0]),
-      { c1: [x1 - r + k, y0], c2: [x1, y0 + r - k], p: [x1, y0 + r] },
-      line([x1, y0 + r], [x1, y1 - r]),
-      { c1: [x1, y1 - r + k], c2: [x1 - r + k, y1], p: [x1 - r, y1] },
-      line([x1 - r, y1], [x0 + r, y1]),
-      { c1: [x0 + r - k, y1], c2: [x0, y1 - r + k], p: [x0, y1 - r] },
-      line([x0, y1 - r], [x0, y0 + r]),
-      { c1: [x0, y0 + r - k], c2: [x0 + r - k, y0], p: [x0 + r, y0] },
+      line(start, [x1 - tr, y0]),
+      curve([x1 - tr, y0], [x1, y0 + tr], tr, [x1 - tr + tr * k, y0], [x1, y0 + tr - tr * k]),
+      line([x1, y0 + tr], [x1, y1 - br]),
+      curve([x1, y1 - br], [x1 - br, y1], br, [x1, y1 - br + br * k], [x1 - br + br * k, y1]),
+      line([x1 - br, y1], [x0 + bl, y1]),
+      curve([x0 + bl, y1], [x0, y1 - bl], bl, [x0 + bl - bl * k, y1], [x0, y1 - bl + bl * k]),
+      line([x0, y1 - bl], [x0, y0 + tl]),
+      curve([x0, y0 + tl], start, tl, [x0, y0 + tl - tl * k], [x0 + tl - tl * k, y0]),
     ];
     return [{ start, segs, closed: true }];
   },

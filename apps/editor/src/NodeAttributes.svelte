@@ -23,6 +23,23 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   function setPosition(position: [number, number]) {
     editor.setNodePosition(node.id, position, positionSpace);
   }
+  function setShapeParam(name: string, value: unknown) {
+    if (node.kind === 'shape' && node.shape === 'rectangle' && name === 'linkCorners') {
+      if (value) editor.setShapeParams(node.id, { radius: Number(node.params.radiusTopLeft ?? node.params.radius ?? 0), linkCorners: true });
+      else {
+        const radius = Number(node.params.radius ?? 0);
+        editor.setShapeParams(node.id, {
+          radiusTopLeft: radius,
+          radiusTopRight: radius,
+          radiusBottomRight: radius,
+          radiusBottomLeft: radius,
+          linkCorners: false,
+        });
+      }
+      return;
+    }
+    editor.setShapeParam(node.id, name, value);
+  }
   // El slider se amplía por octavas para que siga siendo útil en escalas grandes.
   const scaleSliderMax = $derived(p.scale <= 16 ? 16 : 2 ** (Math.floor(Math.log2(p.scale)) + 1));
   const kindLabel = $derived(node.kind === 'group' ? node.composition ? 'composition' : `group · ${node.children.length}` : node.kind === 'shape' ? `${node.shape}` : node.kind === 'instance' ? 'instance' : node.kind === 'effector' ? `effector · ${node.targets.length}` : node.packed ? 'pack' : 'object');
@@ -140,10 +157,10 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   {#if node.kind === 'shape' && shapeDef}
     {#if shapeMain.length || isText}
       <Section title={shapeDef.label}>
-        <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+        <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
         {#if isText}
           <FontField {editor} {node} />
-          <ParamList swatches={editor.docColors} params={afterFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={(n, v) => editor.setShapeParam(node.id, n, v)} />
+          <ParamList swatches={editor.docColors} params={afterFont} values={node.params} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
         {/if}
       </Section>
     {/if}
