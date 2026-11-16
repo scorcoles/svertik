@@ -607,13 +607,22 @@ export class Editor {
   also = $state<string[]>([]);
   /** Nodos plegados en la pila. */
   collapsed = $state<string[]>([]);
-  showOriginal = $state(false);
-  showWire = $state(false);
+  #showOriginal = $state(readPref('svertik.original') === 'on');
+  get showOriginal() { return this.#showOriginal; }
+  set showOriginal(on: boolean) { this.#showOriginal = on; writePref('svertik.original', on ? 'on' : 'off'); }
+  #showWire = $state(readPref('svertik.wire') === 'on');
+  get showWire() { return this.#showWire; }
+  set showWire(on: boolean) { this.#showWire = on; writePref('svertik.wire', on ? 'on' : 'off'); }
+  /** Show explanatory copy in inspector panels; enabled by default and remembered in this browser. */
+  #showInfo = $state(readPref('svertik.showInfo') !== 'off');
+  get showInfo() { return this.#showInfo; }
+  set showInfo(on: boolean) { this.#showInfo = on; writePref('svertik.showInfo', on ? '' : 'off'); }
   /** Temporarily freeze scene time without removing animation data from the document. */
-  #animationDisabled = $state(false);
+  #animationDisabled = $state(readPref('svertik.animation-disabled') === 'on');
   get animationDisabled() { return this.#animationDisabled; }
   set animationDisabled(disabled: boolean) {
     this.#animationDisabled = disabled;
+    writePref('svertik.animation-disabled', disabled ? 'on' : '');
     if (disabled) {
       this.playing = false;
       this.timelineOpen = false;

@@ -387,7 +387,7 @@
       {/each}
         {/if}
       {/each}
-      {#if !anim?.tracks.length}
+      {#if !anim?.tracks.length && editor.showInfo}
         <p class="empty">Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.</p>
       {/if}
       <span class="head" style:left="{x(editor.time)}px" aria-hidden="true"></span>

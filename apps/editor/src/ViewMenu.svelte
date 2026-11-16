@@ -7,7 +7,7 @@
   let { editor }: { editor: Editor } = $props();
   let open = $state(false);
 
-  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled';
+  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled' | 'showInfo';
   const groups: { heading: string; options: { key: Key; label: string; hint?: string }[] }[] = [
     { heading: 'Display', options: [
       { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
@@ -26,6 +26,7 @@
       { key: 'showRulers', label: 'Rulers', hint: 'Drag out of them to add a guide' },
       { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
       { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to edges, centers and the document' },
+      { key: 'showInfo', label: 'Show info', hint: 'Show help and descriptions in the panels' },
     ] },
   ];
   const options = groups.flatMap((group) => group.options);
@@ -49,7 +50,7 @@
                 <span class="box" data-checked={checked || undefined} aria-hidden="true">
                   {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
                 </span>
-                <span class="text">{o.label}{#if o.hint}<span class="hint">{o.hint}</span>{/if}</span>
+                <span class="text">{o.label}{#if editor.showInfo && o.hint}<span class="hint">{o.hint}</span>{/if}</span>
               {/snippet}
             </DropdownMenu.CheckboxItem>
           {/each}
@@ -63,7 +64,7 @@
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
               {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
             </span>
-            <span class="text">Effect menus<span class="hint">Top bar menus; all are also in /</span></span>
+            <span class="text">Effect menus{#if editor.showInfo}<span class="hint">Top bar menus; all are also in /</span>{/if}</span>
           {/snippet}
         </DropdownMenu.CheckboxItem>
       </DropdownMenu.Group>

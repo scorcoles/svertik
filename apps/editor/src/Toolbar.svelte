@@ -78,6 +78,7 @@
     <Icon name="play" /> Play
   </button>
   <ExportMenu
+    {editor}
     disabled={!editor.scene}
     onexportsvg={onexport}
     {onexportpng}

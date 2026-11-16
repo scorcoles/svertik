@@ -177,7 +177,7 @@
     </div>
     {#if m.children && open}
       {@render modifiers(m.children, depth + 1)}
-      {#if m.children.length === 0}
+      {#if m.children.length === 0 && editor.showInfo}
         <p class="empty" style:--depth={depth + 1}>Drop or add a modifier here</p>
       {/if}
     {/if}
@@ -251,10 +251,10 @@
       {@render nodes(editor.scene.objects, 0)}
     </div>
   {:else}
-    <div class="hint">
+    {#if editor.showInfo}<div class="hint">
       <p>No source yet.</p>
       <p class="dim">Draw, import or open a demo to start stacking&nbsp;modifiers.</p>
-    </div>
+    </div>{/if}
   {/if}
 </section>
 

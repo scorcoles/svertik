@@ -2,8 +2,10 @@
   // The only place to export from (the svertik menu no longer repeats it). Each format says what it keeps.
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
+  import type { Editor } from './editor.svelte';
 
   interface Props {
+    editor: Editor;
     disabled: boolean;
     onexportsvg: () => void;
     onexportpng: () => void;
@@ -12,7 +14,7 @@
     onexportlottie: () => void;
     oncopyjson: () => void;
   }
-  let { disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
+  let { editor, disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
 
   type Item = { label: string; icon: IconName; hint: string; run: () => void } | 'sep';
   const items: Item[] = $derived([
@@ -38,7 +40,7 @@
         {:else}
           <DropdownMenu.Item class="sv-menu-item" onSelect={it.run}>
             <Icon name={it.icon} />
-            <span class="label">{it.label}<span class="hint">{it.hint}</span></span>
+            <span class="label">{it.label}{#if editor.showInfo}<span class="hint">{it.hint}</span>{/if}</span>
           </DropdownMenu.Item>
         {/if}
       {/each}

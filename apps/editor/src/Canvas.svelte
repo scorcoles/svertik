@@ -1520,7 +1520,7 @@
           <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'x'))} />
           <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'y'))} />
         {:else}
-          <span class="arrange-note">⇧-click another object to align</span>
+          {#if editor.showInfo}<span class="arrange-note">⇧-click another object to align</span>{/if}
         {/if}
         <span class="rule" aria-hidden="true"></span>
         <IconButton icon="flip-h" label="Flip horizontally" title={undefined} onclick={() => editor.flip('x')} />
@@ -1536,7 +1536,7 @@
         <IconButton icon="order-forward" label="Bring forward (⌘])" title={undefined} onclick={() => editor.reorder('forward')} />
         <IconButton icon="order-backward" label="Send backward (⌘[)" title={undefined} onclick={() => editor.reorder('backward')} />
         <IconButton icon="order-back" label="Send to back (⇧⌘[)" title={undefined} onclick={() => editor.reorder('back')} />
-        {#if arrangeHint}<p class="arrange-hint" aria-hidden="true">{arrangeHint}</p>{/if}
+        {#if arrangeHint && editor.showInfo}<p class="arrange-hint" aria-hidden="true">{arrangeHint}</p>{/if}
       </div>
     {/if}
     {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}

@@ -56,7 +56,7 @@
       <IconButton icon="zero" label="Set values to zero" onclick={() => editor.zero()} />
       <IconButton icon="dice" label="Randomize (R)" onclick={() => editor.randomize()} />
     </header>
-    {#if editor.currentParent}
+    {#if editor.showInfo && editor.currentParent}
       <p class="note">
         {editor.currentParent.type === 'wiggle' && m.type === 'transform'
           ? 'Wiggle rotates and scales around this Transform pivot. Drag the Pivot handle to change its center of action.'
@@ -68,13 +68,13 @@
             ? 'Per element: where it starts (In) or ends (Out). Centers are each element’s own.'
           : 'Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).'}
       </p>
-    {:else if m.type === 'physics'}
+    {:else if editor.showInfo && m.type === 'physics'}
       <p class="note">Simulates the children of this group as rigid bodies. Add Rigid body to a child to set its initial velocity, spin or make it immovable. Add a hollow filled path as an immovable body to make an arena.</p>
-    {:else if m.type === 'rigidbody'}
+    {:else if editor.showInfo && m.type === 'rigidbody'}
       <p class="note">Sets this child’s initial motion for a Physics group or Gravity. Immovable bodies stay fixed and can be used as colliders.</p>
-    {:else if def.kind === 'filter'}
+    {:else if editor.showInfo && def.kind === 'filter'}
       <p class="note">Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.</p>
-    {:else if m.children}
+    {:else if editor.showInfo && m.children}
       <p class="note">
         {m.type === 'rgbsplit'
           ? 'Two colored copies, shifted. Modifiers nested under it apply only to the copies: add Blur to soften them, Step to spread them by element. Select it and add, or drop modifiers onto it.'
@@ -126,7 +126,7 @@
   {:else if editor.currentNode}
     {#key editor.currentNode.id}<NodeAttributes {editor} node={editor.currentNode} {onreplace} />{/key}
   {:else if editor.scene}
-    <p class="empty">Select an object or modifier to edit its parameters. Document settings are in the Document tab.</p>
+    {#if editor.showInfo}<p class="empty">Select an object or modifier to edit its parameters. Document settings are in the Document tab.</p>{/if}
   {/if}
 </section>
 

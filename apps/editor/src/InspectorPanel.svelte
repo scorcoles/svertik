@@ -101,7 +101,7 @@
     <div id="inspector-panel-document" class="panel document-panel" role="tabpanel" aria-labelledby="inspector-tab-document">
       {#if editor.scene}
         <DocumentAttributes {editor} />
-      {:else}
+      {:else if editor.showInfo}
         <div class="empty"><p>No document yet.</p><p>Import or create a scene to edit its size and palette.</p></div>
       {/if}
     </div>

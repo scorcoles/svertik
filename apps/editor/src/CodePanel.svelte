@@ -146,7 +146,7 @@
     {/snippet}
   </Tabs>
   <div class="head-extra">
-    <span class="hint">{hints[tab]}</span>
+    {#if editor.showInfo}<span class="hint">{hints[tab]}</span>{/if}
     <span class="spacer"></span>
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
     <IconButton

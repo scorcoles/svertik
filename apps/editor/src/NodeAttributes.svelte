@@ -96,7 +96,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
   {/if}
 </header>
 <div class="params">
-  {#if editor.selectedNodes.length > 1}<p class="note">{editor.selectedNodes.length} selected · scale applies to all, around their shared center</p>{/if}
+  {#if editor.showInfo && editor.selectedNodes.length > 1}<p class="note">{editor.selectedNodes.length} selected · scale applies to all, around their shared center</p>{/if}
   {#if node.kind === 'group' && node.composition}
     <Section title="Composition">
       <div class="actions"><Button label="Open composition" onclick={() => editor.openComposition(node.id)} /></div>
@@ -341,7 +341,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
     <div class="presets">
       <Button label="+ Add interaction" onclick={() => editor.addInteraction(node.id)} />
     </div>
-    <p class="note">Hover: does it while the pointer is over, undoes it when it leaves. Click: toggles (Play restarts, Seed rolls a new one). Enter: when the drawing scrolls into view. Pointer: a value follows the mouse (or the finger) over the drawing. Try it with ▶ Play (bottom bar).</p>
+    {#if editor.showInfo}<p class="note">Hover: does it while the pointer is over, undoes it when it leaves. Click: toggles (Play restarts, Seed rolls a new one). Enter: when the drawing scrolls into view. Pointer: a value follows the mouse (or the finger) over the drawing. Try it with ▶ Play (bottom bar).</p>{/if}
   </Section>
   <Section title="Animate">
     <div class="presets">
@@ -349,7 +349,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
         <Button label={name.charAt(0).toUpperCase() + name.slice(1)} onclick={() => editor.applyPreset(name)} />
       {/each}
     </div>
-    <p class="note">Letters, copies, tiles or pieces arrive one after another (Fall: they leave). Adds a Stagger with two keyframes; tweak it like anything else.</p>
+    {#if editor.showInfo}<p class="note">Letters, copies, tiles or pieces arrive one after another (Fall: they leave). Adds a Stagger with two keyframes; tweak it like anything else.</p>{/if}
   </Section>
   {/if}
   <div class="actions">
@@ -378,7 +378,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
     {/if}
     <Button label="Remove" onclick={() => editor.remove(node.id)} />
   </div>
-  <p class="note">
+  {#if editor.showInfo}<p class="note">
     {node.kind === 'group' && node.composition
       ? 'A nested scene with its own timeline. Open composition to edit its objects; Release composition turns it into a regular group and transfers its contents, animation and interactions here.'
       : node.kind === 'object' && node.packed
@@ -392,7 +392,7 @@ import { BLEND_MODES, EASES, apply, compositionParams, hasTextExpressions, place
         ? 'Physics on this group simulates its children together. Add Rigid body to a child to set its initial motion or make it an immovable collider.'
         : 'Effects on a group apply to all its children together; Step treats each child as an element. Blend applies to each child.'
       : 'Effects below apply only to it. Drag it on the canvas to move it.'}
-  </p>
+  </p>{/if}
 </div>
 
 <style>

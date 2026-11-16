@@ -87,11 +87,11 @@
         <Button label="Fit to drawing" onclick={() => editor.fitDocument()} />
       </div>
     {/if}
-    <p class="note">
+    {#if editor.showInfo}<p class="note">
       {doc
         ? 'What is exported and shown in Play. Anything outside is cut off. Turn on Bounds (View, below) to see the edge.'
         : 'The document fits whatever is drawn, with a small margin. Fix a size to export a frame (a video size, a post…).'}
-    </p>
+    </p>{/if}
   </Section>
   <Section title="Seed generator" bind:open={sectionOpen.seed}>
     <ParamRow label="Seed" for="scene-seed-generator">
@@ -100,14 +100,14 @@
     <div class="actions">
       <Button label="Link all seeds" title="Link numeric effect seeds to this generator, preserving their current differences" onclick={() => editor.linkSeedsToGenerator()} />
     </div>
-    <p class="note">Linked effect seeds vary together while keeping their relative offsets. In the poster demo, changing this seed also rebuilds its layout.</p>
+    {#if editor.showInfo}<p class="note">Linked effect seeds vary together while keeping their relative offsets. In the poster demo, changing this seed also rebuilds its layout.</p>{/if}
   </Section>
   <Section title="Canvas" bind:open={sectionOpen.canvas}>
     <ParamRow label="Background">
       <ColorField value={editor.canvas || DEFAULT_CANVAS} label="Canvas background" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
       {#if editor.canvas}<Button label="Reset" title="Use the default canvas background" onclick={() => editor.setCanvas('')} />{/if}
     </ParamRow>
-    <p class="note">For viewing only; it is not included in the exported SVG.</p>
+    {#if editor.showInfo}<p class="note">For viewing only; it is not included in the exported SVG.</p>{/if}
   </Section>
   <Section title="Palette" bind:open={sectionOpen.palette}>
     <ParamRow label="Palette">
@@ -139,9 +139,9 @@
       />
       <Button label="Save" disabled={!saving.trim() || !editor.docColors.length} onclick={save} />
     </ParamRow>
-    <p class="note">The chosen palette shows in every color picker. Save keeps this document's colors as a palette of your own, in this browser.</p>
+    {#if editor.showInfo}<p class="note">The chosen palette shows in every color picker. Save keeps this document's colors as a palette of your own, in this browser.</p>{/if}
   </Section>
-  <p class="hint">Select an object or a modifier to edit it. Drop more SVGs to add objects.</p>
+  {#if editor.showInfo}<p class="hint">Select an object or a modifier to edit it. Drop more SVGs to add objects.</p>{/if}
   <div class="custom-block">
     <h2>Custom Variables</h2>
     {#if Object.keys(custom).length}
@@ -183,7 +183,7 @@
           </div>
       {/each}
     {:else}
-      <p class="note">No custom variables. Add one to use it in expressions as <code>scene.custom.name</code>.</p>
+      {#if editor.showInfo}<p class="note">No custom variables. Add one to use it in expressions as <code>scene.custom.name</code>.</p>{/if}
     {/if}
     <div class="variable-add-block">
       <label for="custom-variable-new">Add custom variable</label>
@@ -200,7 +200,7 @@
         <span class="variable-action"><IconButton icon="plus" label="Add variable" disabled={!validVariableName} onclick={addVariable} /></span>
       </div>
     </div>
-    <p class="custom-help">Use <code>scene.custom.name</code> in numeric expressions. Variables can reference each other, for example <code>scene.custom.rows * 2</code>. They are stored in this scene's JSON under <code>custom</code>; expression values include a fallback for missing or circular references.</p>
+    {#if editor.showInfo}<p class="custom-help">Use <code>scene.custom.name</code> in numeric expressions. Variables can reference each other, for example <code>scene.custom.rows * 2</code>. They are stored in this scene's JSON under <code>custom</code>; expression values include a fallback for missing or circular references.</p>{/if}
   </div>
 </div>
 
