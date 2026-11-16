@@ -1,5 +1,6 @@
 import { cubicAt, line, mapSubPaths, splitCubic, type Cubic, type SubPath, type Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
+import { rng } from '../random';
 
 /**
  * Rounds the corners: at every point where the path changes direction sharply, it cuts the two incoming
@@ -16,10 +17,15 @@ export const roundcorners = defineModifier({
     radius: { type: 'number', default: 12, min: 0, max: 500, step: 0.5, unit: 'px', label: 'Radius', sliderCurve: 'quadratic', random: [2, 60] },
     limit: { type: 'number', default: 180, min: 0, max: 180, step: 1, unit: '°', label: 'Angle limit', ramp: false, neutral: 180 },
     shape: { type: 'enum', default: 'round', options: ['round', 'chamfer'] as const, animatable: false, label: 'Shape' },
+    corners: { type: 'enum', default: 'all', options: ['all', 'random'] as const, animatable: false, label: 'Corners' },
+    seed: { type: 'seed', default: 1 },
   },
   apply(geo, p) {
     if (p.radius <= 0) return geo;
-    return mapSubPaths(geo, (sp) => roundSubPath(sp, p.radius, p.limit, p.shape === 'chamfer'));
+    return mapSubPaths(geo, (sp, source) => {
+      const random = rng((p.seed >>> 0) ^ Math.imul((source.clone ?? 0) + 1, 0x9e3779b1));
+      return roundSubPath(sp, p.radius, p.limit, p.shape === 'chamfer', p.corners === 'random' ? random : undefined);
+    });
   },
 });
 
@@ -33,7 +39,7 @@ interface Seg {
   len: number;
 }
 
-function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: boolean): SubPath {
+function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: boolean, randomCorner?: () => number): SubPath {
   // Segments with their start point; zero-length ones dropped. A closed path ends at its start.
   const segs: Seg[] = [];
   let p0 = sp.start;
@@ -50,6 +56,7 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
   const turnLimit = Math.PI - (Math.max(0, Math.min(180, limitDeg)) * Math.PI) / 180;
   const turns: number[] = new Array(n).fill(0);
   for (let k = sp.closed ? 0 : 1; k < n; k++) {
+    if (randomCorner && randomCorner() >= 0.58) continue;
     const a = segs[(k - 1 + n) % n]!, b = segs[k]!;
     const t = angleBetween(endTangent(a), startTangent(b));
     if (t > MIN_TURN && t >= turnLimit - EPS) turns[k] = t;
@@ -60,8 +67,10 @@ function roundSubPath(sp: SubPath, radius: number, limitDeg: number, chamfer: bo
   const room = (i: number, otherEnd: number) => segs[i]!.len * (turns[otherEnd] ? 0.5 : 1) * 0.999;
   const cut: number[] = turns.map((t, k) => {
     if (!t) return 0;
-    const want = radius * Math.tan(Math.min(t, Math.PI - 1e-3) / 2);
     const prev = (k - 1 + n) % n;
+    // Keep a corner's radius within half of either adjacent side, independent of its neighbours.
+    const cornerRadius = Math.min(radius, segs[prev]!.len / 2, segs[k]!.len / 2);
+    const want = cornerRadius * Math.tan(Math.min(t, Math.PI - 1e-3) / 2);
     return Math.min(want, room(prev, prev), room(k, (k + 1) % n));
   });
 

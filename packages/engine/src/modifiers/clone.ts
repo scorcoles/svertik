@@ -18,7 +18,11 @@ export const clone = defineModifier({
     count: { type: 'number', default: 6, min: 1, max: 256, step: 1, label: 'Count', ramp: false, random: [3, 16], showIf: { mode: ['radial', 'linear', 'object'] } },
     columns: { type: 'number', default: 3, min: 1, max: 256, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic', pair: 'rows', random: [2, 8] },
     rows: { type: 'number', default: 3, min: 1, max: 256, step: 1, group: 'Grid', ramp: false, sliderCurve: 'quadratic', random: [2, 8] },
-    spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false, linkable: true },
+    spacing: { type: 'point', default: [1.1, 1.1], unit: 'fraction', group: 'Grid', label: 'Spacing', handle: false, linkable: true, showIf: { packLarge: ['off'] } },
+    packLarge: { type: 'enum', default: 'off', options: ['off', '2x2'] as const, group: 'Grid', label: 'Pack large copies', animatable: false },
+    largeRatio: { type: 'number', default: 0.16, min: 0, max: 0.5, step: 0.01, group: 'Grid', label: 'Big / normal', ramp: false, showIf: { packLarge: ['2x2'] } },
+    gridSeed: { type: 'seed', default: 1, group: 'Grid', label: 'Seed', showIf: { packLarge: ['2x2'] } },
+    gap: { type: 'number', default: 12, min: 0, max: 500, step: 1, unit: 'px', group: 'Grid', label: 'Gap', showIf: { packLarge: ['2x2'] } },
     radius: { type: 'number', default: 1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', ramp: false },
     rings: { type: 'number', default: 1, min: 1, max: 64, step: 1, group: 'Radial', label: 'Rings', ramp: false, sliderCurve: 'quadratic' },
     ringSpacing: { type: 'number', default: 1.1, min: 0, max: 5, step: 0.01, unit: 'fraction', group: 'Radial', label: 'Ring spacing', ramp: false },
@@ -45,8 +49,39 @@ export const clone = defineModifier({
     if (p.mode === 'grid') {
       const cols = Math.max(1, Math.round(p.columns));
       const rows = Math.max(1, Math.round(p.rows));
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
+      if (p.packLarge === '2x2') {
+        // Shuffle candidate cells so large tiles are spread through the grid, then reserve
+        // their 2×2 footprint before placing another copy. Unreserved cells become normal tiles.
+        const rand = rng(p.gridSeed);
+        const cells = Array.from({ length: cols * rows }, (_, i) => [i % cols, Math.floor(i / cols)] as const);
+        for (let i = cells.length - 1; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          [cells[i], cells[j]] = [cells[j]!, cells[i]!];
+        }
+        const occupied = new Set<string>();
+        const has = (c: number, r: number) => occupied.has(`${c},${r}`);
+        const add = (c: number, r: number, scale: number, cellWidth = 1, cellHeight = 1) => {
+          const gx = c + (cellWidth - 1) / 2;
+          const gy = r + (cellHeight - 1) / 2;
+          copies.push({ dx: (gx - (cols - 1) / 2) * (W + p.gap), dy: (gy - (rows - 1) / 2) * (H + p.gap), rot: 0, scale });
+        };
+        const targetLarge = Math.round((cols * rows * p.largeRatio) / (1 + 3 * p.largeRatio));
+        let largeCount = 0;
+        for (const [c, r] of cells) {
+          if (has(c, r)) continue;
+          const canFitLarge = c + 1 < cols && r + 1 < rows && !has(c + 1, r) && !has(c, r + 1) && !has(c + 1, r + 1);
+          if (canFitLarge && largeCount < targetLarge) {
+            occupied.add(`${c},${r}`); occupied.add(`${c + 1},${r}`);
+            occupied.add(`${c},${r + 1}`); occupied.add(`${c + 1},${r + 1}`);
+            add(c, r, 2, 2, 2);
+            largeCount++;
+          } else {
+            occupied.add(`${c},${r}`);
+            add(c, r, 1);
+          }
+        }
+      } else {
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
           copies.push({ dx: (c - (cols - 1) / 2) * p.spacing[0] * W, dy: (r - (rows - 1) / 2) * p.spacing[1] * H, rot: 0, scale: 1 });
         }
       }

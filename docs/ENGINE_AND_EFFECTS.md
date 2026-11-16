@@ -334,6 +334,8 @@ Move path vertices without altering vector topology.
     - `radius` (number, def 12, max 200, px)
     - `mode` (`"round" | "chamfer"`, def `"round"`)
     - `limit` (angle, def 180, deg): Only corners sharper than this interior angle are rounded.
+    - `corners` (`"all" | "random"`, def `"all"`): Random selects a stable subset per clone using `seed`.
+    - `seed` (seed, def 1): Controls the per-clone corner selection.
 
 14. **`melt`**: Downward dripping deformation weighted towards bottom coordinates.
     - `amount` (number, def 0.3, fraction)
@@ -708,6 +710,8 @@ For a regular pattern, create a small Cross, apply **Clone → Grid**, then **Ma
 `apps/editor/public/demos/cross-fill.svrtk` is an editable regular-grid example on an 800×650 document. Size and Width belong to the source Cross; Columns, Rows and Spacing belong to Clone; the triangle controls the mask.
 
 Clone Grid sliders support up to **64 columns × 64 rows**, with a quadratic slider curve for finer control at small counts. Columns and Rows can be linked to change proportionally. Count is hidden in Grid: the total is Columns × Rows.
+
+Grid can optionally pack large 2×2 copies. Set **Pack large copies** to `2x2`, then set **Big / normal** to the desired share of large tiles and choose a seed. The generator reserves each large copy's four cells before placing the remaining normal copies, so the generated grid copies do not overlap. Spacing is at least one source width/height while packing is enabled. Each copy stays a separate element and can be varied with Range, Step or other effectors.
 
 
 ### Clone: concentric radial rings

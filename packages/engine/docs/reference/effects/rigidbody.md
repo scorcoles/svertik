@@ -8,9 +8,9 @@ Initial linear velocity and spin for a child inside a Physics group (or Gravity)
 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
-| `velocity` | point | `[0,0]` | [x, y], px | unit: px; only when `immovable` is `false`; group: Motion; label: Initial velocity |
-| `spin` | number | `0` | step 1 | unit: °/s; only when `immovable` is `false`; group: Motion |
-| `immovable` | boolean | `false` |  | group: Body |
+| `velocity` | point | `[0,0]` | [x, y], px | unit: px |
+| `spin` | number | `0` | step 1 | unit: °/s |
+| `immovable` | boolean | `false` |  |  |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
 

@@ -10,7 +10,12 @@ A rectangle, with optional rounded corners.
 | --- | --- | --- | --- | --- |
 | `width` | number | `160` | min 1, step 1 | unit: px |
 | `height` | number | `120` | min 1, step 1 | unit: px |
-| `radius` | number | `0` | min 0, step 1 | unit: px |
+| `radius` | number | `0` | min 0, step 1 | unit: px; only when `linkCorners` is `true` |
+| `linkCorners` | boolean | `true` |  | not animatable; label: Link corners |
+| `radiusTopLeft` | number | `0` | min 0, step 1 | unit: px; only when `linkCorners` is `false`; label: Top left |
+| `radiusTopRight` | number | `0` | min 0, step 1 | unit: px; only when `linkCorners` is `false`; label: Top right |
+| `radiusBottomRight` | number | `0` | min 0, step 1 | unit: px; only when `linkCorners` is `false`; label: Bottom right |
+| `radiusBottomLeft` | number | `0` | min 0, step 1 | unit: px; only when `linkCorners` is `false`; label: Bottom left |
 | `fill` | boolean | `true` |  | not animatable; group: Style |
 | `fillColor` | color | `"#d9d9d9"` | #rrggbb | group: Style; label: Fill color |
 | `stroke` | boolean | `false` |  | not animatable; group: Style |
@@ -37,6 +42,11 @@ Parameters can be animated with a track `{ on: "shape", param: "<name>" }`.
     "width": 160,
     "height": 120,
     "radius": 0,
+    "linkCorners": true,
+    "radiusTopLeft": 0,
+    "radiusTopRight": 0,
+    "radiusBottomRight": 0,
+    "radiusBottomLeft": 0,
     "fill": true,
     "fillColor": "#d9d9d9",
     "stroke": false,

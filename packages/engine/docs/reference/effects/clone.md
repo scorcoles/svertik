@@ -2,7 +2,7 @@
 
 `type: "clone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Duplicates the drawing in a grid, concentric rings or a line, around the original. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element.
+Duplicates the drawing in a grid, concentric rings or a line, around the original. Grid can pack 2×2 large copies by reserving their cells, so the copies do not overlap; Big / normal sets their share and Seed shuffles their placement. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element.
 
 ## Parameters
 
@@ -13,6 +13,9 @@ Duplicates the drawing in a grid, concentric rings or a line, around the origina
 | `columns` | number | `3` | min 1, max 256, step 1 | group: Grid |
 | `rows` | number | `3` | min 1, max 256, step 1 | group: Grid |
 | `spacing` | point | `[1.1,1.1]` | [x, y], fractions of the box (0–1) | group: Grid |
+| `packLarge` | enum | `"off"` | `off`, `2x2` | not animatable; group: Grid; label: Pack large copies |
+| `largeRatio` | number | `0.16` | min 0, max 0.5, step 0.01 | only when `packLarge` is `2x2`; group: Grid; label: Big / normal |
+| `gridSeed` | seed | `1` | integer | only when `packLarge` is `2x2`; group: Grid; label: Seed |
 | `radius` | number | `1` | min 0, max 5, step 0.01 | fraction of the drawing size; group: Radial |
 | `rings` | number | `1` | min 1, max 64, step 1 | group: Radial |
 | `ringSpacing` | number | `1.1` | min 0, max 5, step 0.01 | fraction of the drawing size; group: Radial; label: Ring spacing |
@@ -45,6 +48,9 @@ Inside a node's `stack` (effects run top to bottom):
       1.1,
       1.1
     ],
+    "packLarge": "off",
+    "largeRatio": 0.16,
+    "gridSeed": 1,
     "radius": 1,
     "rings": 1,
     "ringSpacing": 1.1,
