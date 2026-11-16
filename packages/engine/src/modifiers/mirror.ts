@@ -26,8 +26,8 @@ export const mirror = defineModifier({
     const reflected = mapPoints(geo, ([x, y]) => (horizontal ? [2 * line - x, y] : [x, 2 * line - y]));
     // Each half, a different element (for Step and Color): the original on even numbers, the reflection on odd ones.
     const shapes = [
-      ...(p.original !== 'transform' ? geo.shapes.map((s) => ({ ...s, clone: (s.clone ?? 0) * 2 })) : []),
-      ...reflected.shapes.map((s) => ({ ...s, clone: (s.clone ?? 0) * 2 + 1 })),
+      ...(p.original !== 'transform' ? geo.shapes.map((s) => ({ ...s, clone: (s.clone ?? 0) * 2, filterRegion: `${s.filterRegion ?? ''}0` })) : []),
+      ...reflected.shapes.map((s) => ({ ...s, clone: (s.clone ?? 0) * 2 + 1, filterRegion: `${s.filterRegion ?? ''}1` })),
     ];
     const out: Geometry = { viewBox: geo.viewBox, shapes };
     return { ...out, viewBox: fitViewBox(geo.viewBox, bounds(out)) };

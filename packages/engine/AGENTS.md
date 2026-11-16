@@ -15,12 +15,12 @@ import { builtins, createEngine, validateScene, type SceneV1 } from '@svertik/en
 
 const scene: SceneV1 = {
   version: 1,
-  custom?: Record<string, number | { $expr: string, fallback: number }>, // expression variables: scene.custom.name
+  custom: { density: 0.65 }, // expression variables: scene.custom.name
   document: { width: 800, height: 450 },
   objects: [
     {
       kind: 'shape', id: 'star-1', name: 'Star', shape: 'star',
-      params: { radius: 120, points: 5, fillColor: '#09fdd1' },
+      params: { radius: { $expr: 'scene.custom.density * 120', fallback: 78 }, points: 5, fillColor: '#09fdd1' },
       stack: [{ id: 'twist-1', type: 'twist', params: { angle: 60 } }],
     },
   ],

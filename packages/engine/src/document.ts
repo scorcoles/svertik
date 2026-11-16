@@ -553,6 +553,7 @@ export function createDocumentEvaluator(
       // in its own filter region: unioning both sides of a Mirror makes every blur rasterize
       // a huge mostly-empty rectangle on every frame.
       const filtered = shapes.filter((s) => s.wrap?.includes(id));
+      const hasMirrorBranches = filtered.some((shape) => shape.filterRegion !== undefined);
       const m = info.matrix, r = info.refs?.[''] ?? info.bounds;
       const scale = Math.hypot(m[0], m[1]);
       const placeFor = (region: [number, number, number, number]) => ({
@@ -561,24 +562,24 @@ export function createDocumentEvaluator(
         rotation: (Math.atan2(m[1], m[0]) * 180) / Math.PI,
         region,
       });
-      if (!filtered.length) {
+      if (!filtered.length || !hasMirrorBranches) {
         const b = info.box;
         const region: [number, number, number, number] = [b.x - f.pad, b.y - f.pad, b.width + 2 * f.pad, b.height + 2 * f.pad];
         (filters ??= {})[id] = { markup: f.markup(id, placeFor(region)), region };
         continue;
       }
-      const groups = new Map<number, Shape[]>();
+      const groups = new Map<string, Shape[]>();
       for (const shape of filtered) {
-        const clone = shape.clone ?? 0;
-        const group = groups.get(clone) ?? [];
+        const branch = shape.filterRegion ?? '';
+        const group = groups.get(branch) ?? [];
         group.push(shape);
-        groups.set(clone, group);
+        groups.set(branch, group);
       }
-      const split = groups.size > 1;
-      for (const [clone, group] of groups) {
-        const filterId = split ? `${id}--copy-${clone}` : id;
+      const split = [...groups.keys()].some(Boolean) && groups.size > 1;
+      for (const [branch, group] of groups) {
+        const filterId = split ? `${id}--mirror-${branch || 'root'}` : id;
         if (split) {
-          shapes = shapes.map((shape) => shape.wrap?.includes(id) && (shape.clone ?? 0) === clone
+          shapes = shapes.map((shape) => shape.wrap?.includes(id) && (shape.filterRegion ?? '') === branch
             ? { ...shape, wrap: shape.wrap.map((wrapper) => wrapper === id ? filterId : wrapper) }
             : shape);
         }

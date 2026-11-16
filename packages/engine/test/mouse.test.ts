@@ -360,11 +360,12 @@ it('expands source filter bounds to include copies reflected by a collector effe
   }).sort((a, b) => a - b);
   expect(centers).toEqual([-100, 100]);
   const svg = engine.toSVG(frame);
-  const filter = svg.match(/<filter[^>]*x="([^"]+)"[^>]*width="([^"]+)"/);
-  expect(filter).not.toBeNull();
-  const x = Number(filter![1]), width = Number(filter![2]);
-  expect(x).toBeLessThan(-100);
-  expect(x + width).toBeGreaterThan(100);
+  const regions = [...svg.matchAll(/<filter[^>]*id="([^"]*@mouse[^\"]*)"[^>]*x="([^"]+)"[^>]*width="([^"]+)"/g)]
+    .map(match => [Number(match[2]), Number(match[2]) + Number(match[3])] as const);
+  expect(regions).toHaveLength(2);
+  expect(regions.every(([left, right]) => right - left < 100)).toBe(true);
+  expect(regions.some(([left, right]) => right < 0 && left < -100)).toBe(true);
+  expect(regions.some(([left, right]) => left > 0 && right > 100)).toBe(true);
 });
 
 it('processes the generator stack in order on the complete placed result', () => {

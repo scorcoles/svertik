@@ -33,6 +33,8 @@ export interface Shape {
   style: Style;
   /** Copy number given by Clone (for effectors like Step). */
   clone?: number;
+  /** Mirror branch path, used to keep generated filters' raster regions local. */
+  filterRegion?: string;
   /** Runtime input emission, shared by copies from one Mouse event. */
   emission?: number;
   /** Internal tag for keeping a parent's nested shapes in one time signal. */
