@@ -7,7 +7,7 @@ export * from './modifier';
 export * from './units';
 export { createEngine, type Engine, type StackInput, type ModifierInstance } from './engine';
 export * from './document';
-export { outlineNode, packNode, unpackNode } from './pack';
+export { hasMissingPacks, outlineNode, packNode, restorePacks, stripPackGeometry, unpackNode } from './pack';
 export { attachSources, detachSources, missingSources, resolveSources } from './sources';
 export { toLottie, type LottieExport } from './lottie';
 export { toAnimatedSVG, type AnimatedSVGExport } from './animsvg';

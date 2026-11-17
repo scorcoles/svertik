@@ -174,3 +174,66 @@ export function outlineNode(scene: SceneV1, id: string): { removed: number } | n
   }
   return { removed };
 }
+
+// ── Saving packs without their result
+// A pack that keeps its original doesn't need its frozen geometry in the file: it is derived from the
+// original. Saved projects leave it out (`stripPackGeometry`) and evaluation rebuilds it (`restorePacks`).
+
+/** The packs in a scene and in its compositions (each composition is its own scope). */
+function* packsOf(scene: SceneV1): Generator<{ scene: SceneV1; node: ObjectNode }> {
+  for (const { node } of walkNodes(scene.objects)) {
+    if (node.kind === 'object' && node.packed) yield { scene, node };
+    if (node.kind === 'group' && node.composition) yield* packsOf(node.composition.scene);
+  }
+}
+
+/** A pack that has to be rebuilt: it has no geometry but keeps its original. */
+const missing = (node: ObjectNode) => !!node.packed && !node.packed.geometry && !!node.packed.original;
+
+/** Whether some pack in the scene (or its compositions) lacks its geometry and can rebuild it. */
+export function hasMissingPacks(scene: SceneV1): boolean {
+  for (const { node } of packsOf(scene)) if (missing(node)) return true;
+  return false;
+}
+
+/** A copy of the scene without the geometry of the packs that keep their original (to save it). */
+export function stripPackGeometry(scene: SceneV1): SceneV1 {
+  let found = false;
+  for (const { node } of packsOf(scene)) if (node.packed?.geometry && node.packed.original) found = true;
+  if (!found) return scene;
+  const out = clone(scene);
+  for (const { node } of packsOf(out)) if (node.packed?.original) delete node.packed.geometry;
+  return out;
+}
+
+/**
+ * Rebuilds, in place, the geometry of the packs that lack it: the original goes back in a copy of its
+ * scope, without the pack's own placement or effects, and is packed again. Like packing in the editor,
+ * it is evaluated without a playback time. `cache` (by pack key and original) avoids redoing it every frame.
+ * Returns how many packs it rebuilt.
+ */
+export function restorePacks(scene: SceneV1, evaluate: (scene: SceneV1) => DocumentResult, cache?: Map<string, Geometry>): number {
+  let count = 0;
+  for (const { scene: scope, node } of [...packsOf(scene)]) {
+    if (!missing(node)) continue;
+    const pack = node.packed!;
+    const cacheKey = `${pack.key}\n${JSON.stringify(pack.original)}`;
+    let geometry = cache?.get(cacheKey);
+    if (!geometry) {
+      const work = clone(scope);
+      delete work.at;
+      const at = locate(work.objects, node.id);
+      if (!at) continue;
+      const original = clone(pack.original!);
+      original.id = node.id;
+      at.list[at.index] = original;
+      // Other packs without geometry in the copy are rebuilt by `evaluate` as it needs them.
+      const doc = evaluate(work);
+      geometry = packNode(work, node.id, doc, pack.key)?.node.packed?.geometry ?? { viewBox: [0, 0, 0, 0], shapes: [] };
+      cache?.set(cacheKey, geometry);
+    }
+    pack.geometry = clone(geometry);
+    count++;
+  }
+  return count;
+}

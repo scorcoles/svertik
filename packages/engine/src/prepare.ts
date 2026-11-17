@@ -42,14 +42,18 @@ export function sceneEffectTypes(scene: SceneV1): string[] {
 /** Does the scene have text? (then it needs a font, and opentype.js with it) */
 export function sceneHasText(scene: SceneV1): boolean {
   const walk = (nodes: SceneNode[]): boolean =>
-    nodes.some((node) => (node.kind === 'shape' && node.shape === 'text') || (!!node.children?.length && walk(node.children)) || (node.kind === 'group' && !!node.composition && walk(node.composition.scene.objects)));
+    nodes.some((node) => (node.kind === 'shape' && node.shape === 'text') || (!!node.children?.length && walk(node.children)) || (node.kind === 'group' && !!node.composition && walk(node.composition.scene.objects)) || rebuilds(node, walk));
   return walk(scene.objects);
 }
+
+/** A pack saved without its geometry is rebuilt from its original: what the original needs counts too. */
+const rebuilds = (node: SceneNode, walk: (nodes: SceneNode[]) => boolean) =>
+  node.kind === 'object' && !!node.packed && !node.packed.geometry && !!node.packed.original && walk([node.packed.original]);
 
 /** Does the scene bring the markup of an SVG? (then it needs the importer) */
 export function sceneNeedsImporter(scene: SceneV1): boolean {
   const walk = (nodes: SceneNode[]): boolean =>
-    nodes.some((node) => (node.kind === 'object' && !node.packed) || (!!node.children?.length && walk(node.children)) || (node.kind === 'group' && !!node.composition && walk(node.composition.scene.objects)));
+    nodes.some((node) => (node.kind === 'object' && !node.packed) || (!!node.children?.length && walk(node.children)) || (node.kind === 'group' && !!node.composition && walk(node.composition.scene.objects)) || rebuilds(node, walk));
   return walk(scene.objects);
 }
 

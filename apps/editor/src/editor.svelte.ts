@@ -20,6 +20,8 @@ import {
   detachSources,
   missingSources,
   unpackNode,
+  restorePacks,
+  stripPackGeometry,
   linearOf,
   readTarget,
   sampleScene,
@@ -1705,6 +1707,11 @@ export class Editor {
     this.#applyTime();
     this.record(true);
   }
+  /** Los paquetes guardados sin geometría la recuperan de su original (el código exportado la necesita). */
+  #restorePacks(scene: SceneV1) {
+    const engine = (this.#packEngine ??= createEngine(builtins));
+    restorePacks(scene, (s) => engine.evaluateDocument(s));
+  }
   /** Desempaqueta: vuelve el original, con lo que se haya movido el paquete y sus efectos encima. */
   unpack(id = this.activeNode?.id ?? null) {
     if (!this.scene || !id) return;
@@ -2090,7 +2097,7 @@ export class Editor {
     const engine = (this.#packEngine ??= createEngine(builtins));
     const doc = engine.evaluateDocument($state.snapshot(scene) as SceneV1);
     const baked = packNode(scene, group.id, doc, uid());
-    if (!baked?.node.packed) return;
+    if (!baked?.node.packed?.geometry) return;
     baked.node.source = toSVG(baked.node.packed.geometry, { precision: 3 });
     delete baked.node.packed;
     this.selected = group.id;
@@ -2935,7 +2942,8 @@ export class Editor {
 
   projectFile(): string | null {
     if (!this.scene) return null;
-    const scene = $state.snapshot(this.#rootScene) as SceneV1;
+    // Packs keep their original: their frozen geometry is rebuilt on open, it isn't saved.
+    const scene = stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1);
     return compactJSON({
       svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script,
       embedSources: this.embedSources ? undefined : false,
@@ -2980,6 +2988,7 @@ export class Editor {
     this.compositionPath = [];
     this.#compositionViews = [];
     this.demoOrigin = null;
+    this.#restorePacks(scene);
     this.scene = scene;
     // Las primitivas, con todos sus parámetros (los que falten, por defecto): el panel los necesita.
     for (const { node } of walkNodes(this.scene.objects)) {
@@ -3013,7 +3022,7 @@ export class Editor {
     }
     this.flush();
     const state = this.#history[this.#index];
-    const encoded = await encodeState({ scene: $state.snapshot(this.#rootScene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    const encoded = await encodeState({ scene: stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1), name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     const fits = encoded.length < MAX_HASH;
     history.replaceState(null, '', `${location.pathname}${location.search}${fits ? `#s=${encoded}` : ''}`);
     this.#inURL = fits ? state : undefined;
@@ -3048,6 +3057,7 @@ export class Editor {
     const scene = state.scene;
     this.compositionPath = [];
     this.#compositionViews = [];
+    this.#restorePacks(scene);
     this.scene = scene;
     this.name = state.name.replace(/\.svg$/i, '');
     this.missingSvgs = missingSources(scene);

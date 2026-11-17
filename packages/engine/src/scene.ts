@@ -64,7 +64,11 @@ export interface ObjectNode extends NodeBase {
  */
 export interface Pack {
   key: string;
-  geometry: Geometry;
+  /**
+   * The frozen result. Saved projects leave it out when `original` is there: evaluation rebuilds it
+   * from the original (see `restorePacks`).
+   */
+  geometry?: Geometry;
   /** Without it (in exported code, for instance), the pack can't be unpacked. */
   original?: SceneNode;
   at: { x: number; y: number };

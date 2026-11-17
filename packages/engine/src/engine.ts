@@ -8,6 +8,7 @@ import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 import { evaluateSceneExpressions } from './expression';
+import { hasMissingPacks, restorePacks } from './pack';
 
 export interface ModifierInstance {
   /** Stable id: animation tracks refer to it. */
@@ -200,7 +201,17 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   }
 
   const documents = createDocumentEvaluator(runStack, filtersOf, { maskOf });
-  const evaluateDocument = (scene: SceneV1) => documents.evaluate(expandCompositions(evaluateSceneExpressions(scene), registry));
+  // Packs saved without their geometry are rebuilt from their original, with an evaluator of their own
+  // (so the scene's caches keep the scene's nodes) and once per pack.
+  const packDocuments = createDocumentEvaluator(runStack, filtersOf, { maskOf });
+  const packCache = new Map<string, Geometry>();
+  const withPacks = (scene: SceneV1) => {
+    if (!hasMissingPacks(scene)) return scene;
+    const out = structuredClone(scene);
+    restorePacks(out, (s) => packDocuments.evaluate(expandCompositions(evaluateSceneExpressions(withPacks(s)), registry)), packCache);
+    return out;
+  };
+  const evaluateDocument = (scene: SceneV1) => documents.evaluate(expandCompositions(evaluateSceneExpressions(withPacks(scene)), registry));
   const flat = (scene: SceneV1) => evaluateDocument(scene).geometry;
 
   return {

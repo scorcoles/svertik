@@ -16,6 +16,7 @@ import { sceneHasExpressions } from './expression';
 import type { DocumentResult, SceneNode, SceneV1 } from './document';
 import { apply as applyMat, invert } from './matrix';
 import type { Engine } from './engine';
+import { restorePacks } from './pack';
 import { mountCanvas, type Renderer } from './canvas';
 
 export type Trigger = 'hover' | 'click' | 'enter' | 'pointer';
@@ -312,6 +313,8 @@ export interface PlayerOptions {
 
 export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1, options: PlayerOptions = {}) {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Packs saved without their geometry get it back once, here, instead of on every frame.
+  restorePacks(scene, (s) => engine.evaluateDocument(s));
   const inter = createInteractions(() => scene);
   const mouse = createMouseInstances(scene);
   let mouseDirty = false;

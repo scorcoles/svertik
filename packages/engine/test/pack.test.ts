@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, outlineNode, packNode, unpackNode, type SceneV1 } from '../src';
+import { builtins, createEngine, hasMissingPacks, outlineNode, packNode, restorePacks, stripPackGeometry, unpackNode, type SceneV1 } from '../src';
 
 const scene = (): SceneV1 => ({
   version: 1,
@@ -110,5 +110,39 @@ describe('convert to outlines', () => {
   it('an object (not a primitive) is not converted', () => {
     const s = scene();
     expect(outlineNode(s, 'g')).toBeNull();
+  });
+});
+
+describe('packs saved without their geometry', () => {
+  it('are left out of the saved scene and rebuilt the same on evaluation', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    packNode(s, 'star', e.evaluateDocument(s), 'k1');
+    const before = e.evaluateDocument(s);
+    const saved = stripPackGeometry(s);
+    expect(JSON.stringify(saved)).not.toContain('"geometry"');
+    // The scene itself keeps it (the editor goes on drawing from it).
+    expect(JSON.stringify(s)).toContain('"geometry"');
+    const loaded = JSON.parse(JSON.stringify(saved)) as SceneV1;
+    expect(hasMissingPacks(loaded)).toBe(true);
+    const fresh = createEngine(builtins);
+    expect(round(strip(fresh.evaluateDocument(loaded).geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
+    // Rebuilt in place, the same as the packed one; the pack's own moves and effects stay on top.
+    expect(restorePacks(loaded, (x) => fresh.evaluateDocument(x))).toBe(1);
+    expect(hasMissingPacks(loaded)).toBe(false);
+    const g = loaded.objects[0]!;
+    if (g.kind !== 'group') throw new Error();
+    g.children[0]!.transform = { ...g.children[0]!.transform, rotation: 30 };
+    g.children[0]!.stack.push({ id: 'w', type: 'wave', params: {} });
+    const moved = JSON.parse(JSON.stringify(stripPackGeometry(loaded))) as SceneV1;
+    expect(round(strip(fresh.evaluateDocument(moved).geometry.shapes))).toEqual(round(strip(fresh.evaluateDocument(loaded).geometry.shapes)));
+  });
+
+  it('a pack without its original keeps its geometry', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    const r = packNode(s, 'star', e.evaluateDocument(s), 'k1')!;
+    delete r.node.packed!.original;
+    expect(stripPackGeometry(s)).toBe(s);
   });
 });

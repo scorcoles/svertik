@@ -1,5 +1,5 @@
 // Lo que sale del editor: SVG plano y JSON de la escena (el JS lo arma code.ts).
-import type { SceneV1 } from '@svertik/engine';
+import { stripPackGeometry, type SceneV1 } from '@svertik/engine';
 
 /**
  * JSON that stays readable without ballooning: anything whose one-line form fits in `width` characters
@@ -29,7 +29,8 @@ export function compactJSON(value: unknown, width = 100, indent = ''): string {
   return `{\n${entries.map(([k, v]) => `${inner}${JSON.stringify(k)}: ${compactJSON(v, width, inner)}`).join(',\n')}\n${indent}}`;
 }
 
-export const sceneJSON = (scene: SceneV1) => compactJSON(scene);
+/** The scene as JSON, without what it can rebuild (the geometry of packs that keep their original). */
+export const sceneJSON = (scene: SceneV1) => compactJSON(stripPackGeometry(scene));
 
 export function download(name: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
