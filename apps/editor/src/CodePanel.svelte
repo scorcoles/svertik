@@ -99,11 +99,34 @@
     }
   });
 
+  /** The scene in `text` if it is JSON rather than JavaScript: a bare scene or a project file. */
+  function asJSONScene(text: string): unknown {
+    if (!text.trimStart().startsWith('{')) return null;
+    try {
+      const value = JSON.parse(text) as { svertik?: unknown; scene?: unknown } | null;
+      return value && value.svertik === 'project' ? value.scene : value;
+    } catch {
+      return null;
+    }
+  }
+
   let jsTimer: ReturnType<typeof setTimeout> | undefined;
   let lastRun = '';
   function onJS(text: string) {
     clearTimeout(jsTimer);
     jsTimer = setTimeout(() => {
+      // A scene or project pasted as plain JSON (a recipe, an export) is applied as it is, as in the JSON tab.
+      const json = asJSONScene(text);
+      if (json) {
+        try {
+          editor.applyScene(validate(json));
+          error = null;
+          onactivity('Applied JSON scene');
+        } catch (e) {
+          error = { message: e instanceof Error ? e.message : String(e), line: null, stack: e instanceof Error ? e.stack : undefined };
+        }
+        return;
+      }
       editor.setScript(extractScript(text));
       lastRun = text;
       runner.run(text);

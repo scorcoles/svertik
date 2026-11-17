@@ -45,8 +45,9 @@ export class Runner {
     const url = URL.createObjectURL(new Blob([WORKER], { type: 'text/javascript' }));
     const w = new Worker(url);
     URL.revokeObjectURL(url);
+    // The worker answers each run once (a scene or an error): after that it is quiet, not stuck.
     w.onmessage = (e: MessageEvent<RunnerMessage>) => {
-      this.#feed();
+      this.idle();
       this.#onmessage(e.data);
     };
     this.#worker = w;
