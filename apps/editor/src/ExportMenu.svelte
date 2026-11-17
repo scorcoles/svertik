@@ -15,6 +15,7 @@
     oncopyjson: () => void;
   }
   let { editor, disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
+  const hidden = $derived(editor.layers.filter((l) => l.visible === false).map((l) => l.name));
 
   type Item = { label: string; icon: IconName; hint: string; run: () => void } | 'sep';
   const items: Item[] = $derived([
@@ -34,6 +35,10 @@
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
     <DropdownMenu.Content class="sv-menu sv-export-menu" align="end" sideOffset={6}>
+      {#if hidden.length}
+        <!-- Hidden layers stay in the .svrtk file but are left out of every export. -->
+        <p class="layers-note">{hidden.length === 1 ? `Layer “${hidden[0]}” is hidden: it is left out of SVG, PNG, video and Lottie (the JSON keeps it).` : `${hidden.length} hidden layers are left out of SVG, PNG, video and Lottie (the JSON keeps them).`}</p>
+      {/if}
       {#each items as it, i (i)}
         {#if it === 'sep'}
           <DropdownMenu.Separator class="sv-export-sep" />
@@ -69,6 +74,7 @@
   :global(.sv-export-trigger:disabled) { color: var(--sv-text-muted); background: none; border-color: var(--sv-rule-strong); cursor: default; filter: none; }
   .caret { font-size: var(--sv-font-size-10); font-weight: normal; }
   .label { flex: 1; display: flex; flex-direction: column; }
+  .layers-note { margin: 0; padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   :global(.sv-export-menu) { min-width: 280px; }
   :global(.sv-export-menu .sv-menu-item) { height: auto; min-height: 24px; padding-block: var(--sv-space-4); }
   .hint { color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }

@@ -168,7 +168,7 @@ Every node in `objects` includes:
 |---|---|---|
 | `shape` | `shape: string`, `params: Record<string, unknown>` | Parametric vector primitive (`rectangle`, `ellipse`, `polygon`, `star`, `line`, `spiral`, `text`, `cross`, `pawn`). |
 | `object` | `source: string` | Raw SVG string imported directly (`<svg viewBox="...">...</svg>`). |
-| `group` | `children: SceneNode[]` | Container for child nodes. The group's `stack` acts upon all children as individual elements. |
+| `group` | `children: SceneNode[]`, `layer?: boolean` | Container for child nodes. The group's `stack` acts upon all children as individual elements. With `layer: true` it is a layer (see Layers). |
 | `instance` | `of: string` | Dynamic live copy of another node (`of` specifies the target node `id`). Inherits source effects while adding its own independent transform and stacked modifiers. |
 | `effector` | `targets: string[]`, `delay?: number` | Invisible utility node. Injects its own `stack` into each target node separately. `delay` (seconds) staggers the animation timing per target. |
 
@@ -760,6 +760,24 @@ Like Oscillate and Wiggle, these are effector containers with non-effector child
 - **Shake** (`shake`) is a single decaying seeded disturbance. `start` (default 0 seconds), `duration` (default 1 second), `frequency` (default 8 Hz), `amplitude` (default 1), `decay` (default 2; higher settles faster), `seed` (default 1). It is exactly neutral before Start and at/after Start + Duration. `perElement` defaults false so the object moves as one body; enabling it gives independent signals, local pivots and an `elementDelay` (default 0.04 seconds per element). Default child: Transform x 12, y 8, rotation 3°. Shake does not repeat by itself; loop/remap its Time expression to repeat hits.
 
 The shared **Rhythm** demo (`apps/editor/public/demos/rhythm-crosses.svrtk`) pulses five crosses and sends one delayed impact through them at 2 seconds, without keyframes.
+
+### Layers — splitting a scene into work zones
+
+A layer is a top-level `group` with `layer: true`. When a scene uses layers, **every** top-level object is a layer and the objects live in their `children`; layers are never nested. The first layer is drawn in front, like any `objects` list. A scene without layers is one implicit layer: existing files need no change.
+
+Layers only organize: no effects, transform, opacity or blend (validation warns if they carry any; opacity/blend would apply per object, not to the layer as a whole). `visible: false` keeps the layer in the `.svrtk`/JSON but leaves it out of rendering and every export (SVG, PNG, video, Lottie). `locked: true` locks everything inside it in the editor. Ids stay unique across the whole scene, so references (Instance, Mask, Mouse target…) work across layers. A Mouse Instance inside a layer draws its copies at the front of that layer. Each composition's scene has its own layers.
+
+```json
+{
+  "version": 1,
+  "objects": [
+    { "kind": "group", "id": "layer-ui", "name": "UI", "layer": true, "stack": [], "children": [ { "kind": "shape", "id": "title", "name": "Title", "shape": "text", "params": { "text": "Hello" }, "stack": [] } ] },
+    { "kind": "group", "id": "layer-bg", "name": "Background", "layer": true, "visible": false, "stack": [], "children": [ { "kind": "shape", "id": "sky", "name": "Sky", "shape": "rectangle", "params": { "width": "100%", "height": "100%" }, "stack": [] } ] }
+  ]
+}
+```
+
+In the editor, the Layers panel (above the Stack) adds, renames, reorders, hides, locks and deletes layers; the Stack lists only the active layer, new objects go into it, and "Move to…" sends the selection to another layer. Selecting an object on the canvas activates its layer.
 
 ### Compositions — nested scenes and local clocks
 

@@ -84,7 +84,11 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
     }
   };
 
-  const checkNodes = (list: SceneNode[]) => {
+  const checkNodes = (list: SceneNode[], root = false) => {
+    if (root && list.some((n) => n?.kind === 'group' && n.layer)) {
+      const loose = list.filter((n) => !(n?.kind === 'group' && n.layer));
+      if (loose.length) warnings.push(`With layers, every top-level object must be a layer: ${loose.map((n) => `"${n?.name ?? n?.id}"`).join(', ')} ${loose.length === 1 ? 'is' : 'are'} outside any layer`);
+    }
     for (const n of list) {
       if (!n || typeof n.id !== 'string') {
         errors.push('Every object needs a string id');
@@ -127,6 +131,13 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
       n.stack ??= [];
       checkStack(n.stack, n, name(n));
+      if (n.kind === 'group' && n.layer) {
+        if (!root) errors.push(`${name(n)}: a layer must be a top-level object of its scene, not nested`);
+        if (n.composition) errors.push(`${name(n)}: a layer cannot be a composition`);
+        if (n.stack.length) warnings.push(`${name(n)}: layers have no effects; its stack is still applied`);
+        if (n.transform && Object.keys(n.transform).length) warnings.push(`${name(n)}: layers have no transform; it is still applied`);
+        if ((n.opacity !== undefined && n.opacity !== 1) || (n.blend && n.blend !== 'normal')) warnings.push(`${name(n)}: layer opacity and blend apply to each object, not to the layer as a whole`);
+      }
       if (n.kind === 'group') {
         if (n.composition) {
           if (n.children?.length) errors.push(`${name(n)}: a composition stores its objects in composition.scene, not children`);
@@ -148,7 +159,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
     }
   };
-  checkNodes(scene.objects);
+  checkNodes(scene.objects, true);
 
   for (const r of nodeRefs) if (!nodes.has(r.id)) warnings.push(`${r.from}: "${r.param}" points to "${r.id}", which does not exist`);
 

@@ -3,6 +3,8 @@
   import Attributes from './Attributes.svelte';
   import DocumentAttributes from './DocumentAttributes.svelte';
   import StackPanel from './StackPanel.svelte';
+  import LayersPanel from './LayersPanel.svelte';
+  import PanelHeader from './PanelHeader.svelte';
 
   let { editor, onreplace, active = $bindable<'stack' | 'document'>('stack') }: { editor: Editor; onreplace: () => void; active?: 'stack' | 'document' } = $props();
 
@@ -76,8 +78,11 @@
   </div>
 
   {#if active === 'stack'}
-    <div id="inspector-panel-stack" class="panel stack-panel" role="tabpanel" aria-labelledby="inspector-tab-stack" bind:this={column} style:--stack-share="{share}%">
+    <!-- Stack, Properties and Layers, top to bottom; each one folds. The divider sizes Stack against
+         Properties while both are open; with Properties folded, Stack takes the room. -->
+    <div id="inspector-panel-stack" class="panel stack-panel" role="tabpanel" aria-labelledby="inspector-tab-stack" bind:this={column} style:--stack-share="{editor.propertiesOpen ? share : 100}%">
       <StackPanel {editor} />
+      {#if editor.stackOpen && editor.propertiesOpen}
       <!-- Focusable divider (ARIA window splitter pattern): it is interactive. -->
       <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
       <div
@@ -95,7 +100,14 @@
         ondblclick={() => setShare(50)}
         onkeydown={splitKey}
       ></div>
-      <Attributes {editor} {onreplace} />
+      {/if}
+      <section class="properties" class:open={editor.propertiesOpen} aria-label="Properties">
+        <PanelHeader title="Properties" open={editor.propertiesOpen} ontoggle={(v) => (editor.propertiesOpen = v)} controls="properties-body" />
+        {#if editor.propertiesOpen}
+          <div id="properties-body" class="properties-body"><Attributes {editor} {onreplace} /></div>
+        {/if}
+      </section>
+      {#if editor.showLayers}<LayersPanel {editor} />{/if}
     </div>
   {:else}
     <div id="inspector-panel-document" class="panel document-panel" role="tabpanel" aria-labelledby="inspector-tab-document">
@@ -128,6 +140,11 @@
   .tabs button:focus-visible { outline-offset: -2px; }
   .panel { flex: 1; min-height: 0; overflow-y: auto; }
   .stack-panel { display: flex; flex-direction: column; overflow: hidden; }
+  .properties { display: flex; flex-direction: column; flex: none; min-height: 0; border-top: var(--sv-border-1) solid var(--sv-rule-default); }
+  .properties.open { flex: 1; }
+  /* The divider already draws the rule between Stack and Properties. */
+  .split + .properties { border-top: 0; }
+  .properties-body { display: flex; flex: 1; min-height: 0; }
   /* The divider: the usual 1 px rule, with a 7 px grab area. */
   .split {
     position: relative;

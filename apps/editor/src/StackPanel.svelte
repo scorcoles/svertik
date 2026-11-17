@@ -3,6 +3,7 @@
   import { IconButton, StackItem, type IconName } from '@svertik/ui';
   import { tick } from 'svelte';
   import { canNest, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
+  import PanelHeader from './PanelHeader.svelte';
 
   let { editor }: { editor: Editor } = $props();
 
@@ -79,14 +80,15 @@
     // A new document starts from the first batch again.
     if (editor.scene !== lastScene) (lastScene = editor.scene), (shown = CHUNK);
   });
-  const top = $derived(editor.scene ? editor.scene.objects.slice(0, shown) : []);
-  const more = $derived(editor.scene ? editor.scene.objects.length - top.length : 0);
+  // With layers, the stack lists the active layer's objects.
+  const top = $derived(editor.scene ? editor.root.slice(0, shown) : []);
+  const more = $derived(editor.scene ? editor.root.length - top.length : 0);
   const holds = (n: SceneNode, id: string): boolean =>
     n.id === id || stackHolds(n.stack, id) || (n.children ?? []).some((c) => holds(c, id));
   const stackHolds = (list: ModifierInstance[], id: string): boolean => list.some((m) => m.id === id || stackHolds(m.children ?? [], id));
   $effect(() => {
     const id = editor.selected;
-    const objects = editor.scene?.objects;
+    const objects = editor.scene ? editor.root : undefined;
     if (!id || !objects || objects.length <= shown) return;
     const at = objects.findIndex((n) => holds(n, id));
     if (at >= shown) shown = at + CHUNK;
@@ -100,7 +102,7 @@
   });
   /** Draws every row (for Home/End and type-ahead, which must see the whole list). */
   const showAll = () => {
-    if (editor.scene && shown < editor.scene.objects.length) shown = editor.scene.objects.length;
+    if (editor.scene && shown < editor.root.length) shown = editor.root.length;
   };
 
   // Keep the selection (including what was just added) in view in the stack.
@@ -278,7 +280,7 @@
         onrename={n.locked ? undefined : (name) => editor.setNode(n.id, 'name', name, true)}
         locked={!!n.locked}
         onlock={() => editor.toggleLock(n.id)}
-        tabbable={editor.isSelected(n.id) || (!editor.selected && n.id === editor.scene?.objects[0]?.id)}
+        tabbable={editor.isSelected(n.id) || (!editor.selected && n.id === editor.root[0]?.id)}
       />
     </div>
     {#if open}
@@ -289,10 +291,8 @@
   {/each}
 {/snippet}
 
-<section class="stack" aria-label="Stack">
-  <header>
-    {#if editor.scene}<span class="count">{editor.objectCount} {editor.objectCount === 1 ? 'object' : 'objects'}</span>{/if}
-    <span class="spacer" aria-hidden="true"></span>
+<section class="stack" aria-label="Stack" class:folded={!editor.stackOpen}>
+  <PanelHeader title="Stack" open={editor.stackOpen} ontoggle={(v) => (editor.stackOpen = v)} controls="stack-rows" detail={editor.scene ? `${editor.objectCount} ${editor.objectCount === 1 ? 'object' : 'objects'}` : undefined}>
     <IconButton icon="expand-all" label="Expand all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
     <IconButton icon="collapse-all" label="Collapse all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
     <IconButton
@@ -304,9 +304,11 @@
     <IconButton icon="group" label="Group (⌘G)" disabled={!editor.activeNode} onclick={() => editor.group()} />
     <!-- Add: opens the command line with "add " typed (every effect is there, searchable). -->
     <IconButton icon="plus" label="Add modifier (/)" disabled={!editor.scene} onclick={() => editor.openCommand('add ')} />
-  </header>
-  {#if editor.scene}
-    <div class="rows" role="tree" aria-label="Objects and modifiers" tabindex="-1" bind:this={rows} onkeydown={treeKey}>
+  </PanelHeader>
+  {#if !editor.stackOpen}
+    <!-- Folded: only the header. -->
+  {:else if editor.scene}
+    <div id="stack-rows" class="rows" role="tree" aria-label="Objects and modifiers" tabindex="-1" bind:this={rows} onkeydown={treeKey}>
       {@render nodes(top, 0)}
       {#if more}
         <p class="more" bind:this={sentinel}>{more} more {more === 1 ? 'object' : 'objects'}…</p>
@@ -323,9 +325,7 @@
 <style>
   /* Max height comes from the inspector's divider (--stack-share); a short stack takes only what it needs. */
   .stack { display: flex; flex-direction: column; min-height: 0; max-height: var(--stack-share, 50%); padding-bottom: var(--sv-space-4); }
-  header { display: flex; align-items: center; gap: var(--sv-space-4); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); flex: none; }
-  .spacer { flex: 1; }
-  .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); margin-right: var(--sv-space-4); }
+  .stack.folded { padding-bottom: 0; }
   .more { margin: 0; padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); }
   .rows { overflow-y: auto; scroll-padding-top: var(--sv-size-row); }
   .drag { position: relative; }

@@ -162,6 +162,10 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
   weights existed: the editor still has it, but only the editor.
 - The editor is at the project's site; a scene can be opened there to check it visually.
 
+### Layers
+
+`{ kind: "group", layer: true, children: [...] }` at the top of a scene is a layer. With layers, every top-level object is one; they are never nested and carry no stack, transform, opacity or blend (validation warns or errors). Hidden (`visible: false`): kept in the file, not drawn or exported. A Mouse Instance inside a layer materializes its copies at the front of that layer. A scene without layers is one implicit layer.
+
 ### Compositions
 
 A group with `composition` stores a nested SceneV1; keep its `children` empty. Nested IDs/references are scoped to that scene. The engine samples its local clock (`time`, `start`, `speed`, `offset`, `reverse`, `loop`) and namespaces its rendered nodes. Repeated IDs in different compositions are valid. `validateScene` recursively checks nested scopes and rejects cycles/depth >32. `prepareScene` and font discovery include nested scenes. Numeric clock expressions run in the parent; child expressions/effects run locally. See `docs/ENGINE_AND_EFFECTS.md` for editor usage and current interaction/cropping limitations.

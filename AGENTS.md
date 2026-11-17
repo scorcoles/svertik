@@ -105,6 +105,10 @@ Example shared controls in scene JSON:
 }
 ```
 
+## Layers
+
+A layer is a top-level `kind: "group"` with `layer: true` and its objects in `children`. When a scene has layers, every top-level object must be a layer (never nested, never a composition). Layers carry no effects, transform, opacity or blend. `visible: false` keeps the layer in the file but leaves it out of rendering and all exports. A scene without layers is one implicit layer. IDs stay unique across layers, so references work between them. See Layers in `docs/ENGINE_AND_EFFECTS.md`.
+
 ## Compositions
 
 Store a composition as a `kind: "group"` with `children: []` and `composition: { scene: SceneV1, params?: { time, start, speed, offset, reverse, loop, frameRate }, modulation?: { type, params } }`. The nested scene owns its IDs, notes, document, animation and interactions. References stay inside that scope. `time` normally stores `{ "$expr": "scene.time", "fallback": 0 }` and is evaluated in the parent; descendants use the remapped local clock. `loop` is `hold`, `loop` or `pingpong`. Do not put stored objects in both `children` and `composition.scene.objects`. See the Compositions section of `docs/ENGINE_AND_EFFECTS.md` for the current interaction/cropping limitations.

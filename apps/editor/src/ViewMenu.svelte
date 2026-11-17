@@ -7,7 +7,7 @@
   let { editor }: { editor: Editor } = $props();
   let open = $state(false);
 
-  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled' | 'showInfo';
+  type Key = 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled' | 'showInfo' | 'showLayers';
   const groups: { heading: string; options: { key: Key; label: string; hint?: string }[] }[] = [
     { heading: 'Display', options: [
       { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
@@ -27,6 +27,7 @@
       { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
       { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to edges, centers and the document' },
       { key: 'showInfo', label: 'Show info', hint: 'Show help and descriptions in the panels' },
+      { key: 'showLayers', label: 'Layers panel', hint: 'Below the properties; its × closes it' },
     ] },
   ];
   const options = groups.flatMap((group) => group.options);

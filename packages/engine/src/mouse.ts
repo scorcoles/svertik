@@ -36,6 +36,12 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
     }
   };
   collect(scene.objects);
+  // A generator inside a layer draws its copies in that layer (at its front), not over every layer.
+  const layerOf = new Map<string, string>();
+  for (const root of scene.objects) {
+    if (root.kind !== 'group' || !root.layer) continue;
+    for (const { node } of walkNodes(root.children)) if (node.kind === 'instance' && node.mouse) layerOf.set(node.id, root.id);
+  }
   const byId = new Map([...walkNodes(scene.objects)].map(({ node }) => [node.id, node]));
   const state = new Map<string, { last: number; point: [number, number]; copies: { born: number; node: GroupNode; life: number }[] }>();
   const occupied = new Set(byId.keys());
@@ -134,7 +140,18 @@ export function createMouseInstances(scene: SceneV1, random = Math.random) {
       });
       const ids = new Set(generators.map(g => g.id));
       const strip = (nodes: SceneNode[]): SceneNode[] => nodes.filter(n => !ids.has(n.id)).map(n => n.children?.length ? { ...n, children: strip(n.children) } : n);
-      return { ...frame, objects: [...collectors, ...strip(frame.objects)] };
+      const inLayer = new Map<string, GroupNode[]>();
+      const atRoot: GroupNode[] = [];
+      for (const c of collectors) {
+        const layer = layerOf.get(c.id);
+        if (layer) inLayer.set(layer, [...(inLayer.get(layer) ?? []), c]);
+        else atRoot.push(c);
+      }
+      const objects = strip(frame.objects).map((n) => {
+        const own = inLayer.get(n.id);
+        return own && n.kind === 'group' ? { ...n, children: [...own, ...n.children] } : n;
+      });
+      return { ...frame, objects: [...atRoot, ...objects] };
     },
     active: () => [...state.values()].some(s => s.copies.length > 0),
     enabled: generators.length > 0,

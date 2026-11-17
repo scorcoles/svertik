@@ -77,6 +77,12 @@ export interface ClockModulation { type: 'oscillate' | 'wiggle' | 'pulse' | 'sha
 
 export interface GroupNode extends NodeBase {
   kind: 'group';
+  /**
+   * A layer: a top-level group that only organizes the scene's objects (no effects, transform, opacity
+   * or blend). Hidden, it is not drawn or exported. Layers go only in a scene's `objects`, never nested;
+   * when a scene has layers, every top-level object is one.
+   */
+  layer?: boolean;
   /** Runtime element identity and emission for generated collections. */
   elementIndex?: number;
   eventIndex?: number;

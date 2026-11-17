@@ -603,10 +603,148 @@ export class Editor {
   set selected(id: string | null) {
     if (id && this.scene) {
       const owner = locateNode(this.scene.objects, id)?.node ?? locateModifier(this.scene, id)?.owner;
+      if (owner?.kind === 'group' && owner.layer) {
+        // A layer is not selected like an object: it becomes the active one.
+        this.#activeLayer = owner.id;
+        this.#selected = null;
+        this.also = [];
+        return;
+      }
       if (owner && this.isLocked(owner.id)) return;
+      const layer = owner ? this.layerOf(owner.id) : null;
+      if (layer) this.#activeLayer = layer.id;
     }
     this.#selected = id;
     this.also = [];
+  }
+
+  // ── Layers: top-level groups with `layer: true` that split the scene's objects, so one zone can be
+  // worked on while the others are hidden or locked. A scene without them is one implicit layer.
+
+  #activeLayer = $state<string | null>(null);
+  /** The scene's layers, front first (empty: the scene is one implicit layer). */
+  get layers(): GroupNode[] {
+    return (this.scene?.objects ?? []).filter((n): n is GroupNode => n.kind === 'group' && !!n.layer);
+  }
+  /** The layer new objects go to (the last one picked, or the front one). */
+  get activeLayer(): GroupNode | null {
+    const layers = this.layers;
+    return layers.find((l) => l.id === this.#activeLayer) ?? layers[0] ?? null;
+  }
+  /** The top-level list the stack shows and new objects go to: the active layer's, or the scene's. */
+  get root(): SceneNode[] {
+    return this.activeLayer?.children ?? this.scene?.objects ?? [];
+  }
+  /** The layer that holds a node (its top-level ancestor, if that is a layer). */
+  layerOf(id: string): GroupNode | null {
+    if (!this.scene) return null;
+    let at = locateNode(this.scene.objects, id);
+    while (at?.parent) at = locateNode(this.scene.objects, at.parent.id);
+    return at?.node.kind === 'group' && at.node.layer ? at.node : null;
+  }
+  /** Adds at the front of the active layer. A hidden layer is shown; a locked one refuses. */
+  addToRoot(...nodes: SceneNode[]): boolean {
+    if (!this.scene) return false;
+    const layer = this.activeLayer;
+    if (layer?.locked) {
+      this.notice = `Layer “${layer.name}” is locked: unlock it or pick another layer.`;
+      return false;
+    }
+    if (layer && layer.visible === false) layer.visible = undefined;
+    this.root.unshift(...nodes);
+    return true;
+  }
+  setActiveLayer(id: string) {
+    if (!this.layers.some((l) => l.id === id)) return;
+    this.#activeLayer = id;
+    // The selection stays only if it is in that layer.
+    if (this.#selected && this.layerOf(this.activeNode?.id ?? this.#selected)?.id !== id) this.selected = null;
+  }
+  /**
+   * A new layer in front of the active one. The first time, the scene's objects become "Layer 1", so a
+   * scene always has at least one layer once layers are used.
+   */
+  addLayer() {
+    if (!this.scene) return;
+    if (!this.layers.length) {
+      this.scene.objects = [{ kind: 'group', id: `layer-${uid()}`, name: 'Layer 1', layer: true, children: this.scene.objects, stack: [] }];
+    }
+    const taken = new Set(this.layers.map((l) => l.name));
+    let n = this.layers.length + 1;
+    while (taken.has(`Layer ${n}`)) n++;
+    const layer: GroupNode = { kind: 'group', id: `layer-${uid()}`, name: `Layer ${n}`, layer: true, children: [], stack: [] };
+    const at = this.activeLayer ? this.scene.objects.indexOf(this.activeLayer) : 0;
+    this.scene.objects.splice(Math.max(0, at), 0, layer);
+    this.#activeLayer = layer.id;
+    this.selected = null;
+    this.record(true);
+  }
+  /** Deletes a layer and its objects (undo brings them back). The last layer stays. */
+  removeLayer(id: string) {
+    if (!this.scene || this.layers.length <= 1) return;
+    const i = this.scene.objects.findIndex((n) => n.id === id);
+    const layer = this.scene.objects[i];
+    if (!layer || layer.kind !== 'group' || !layer.layer || layer.locked) return;
+    if (this.#selected && this.layerOf(this.activeNode?.id ?? this.#selected)?.id === id) this.selected = null;
+    this.scene.objects.splice(i, 1);
+    if (this.#activeLayer === id) this.#activeLayer = (this.scene.objects[i] ?? this.scene.objects[i - 1])?.id ?? null;
+    this.record(true);
+  }
+  renameLayer(id: string, name: string) {
+    const layer = this.layers.find((l) => l.id === id);
+    if (!layer || !name.trim()) return;
+    layer.name = name.trim();
+    this.record(true);
+  }
+  /** Hidden layers are kept in the file but not drawn or exported. Locked layers can still be hidden. */
+  setLayerVisible(id: string, visible: boolean) {
+    const layer = this.layers.find((l) => l.id === id);
+    if (!layer) return;
+    layer.visible = visible ? undefined : false;
+    if (!visible && this.#selected && this.layerOf(this.activeNode?.id ?? this.#selected)?.id === id) this.selected = null;
+    this.record(true);
+  }
+  /** One step towards the front (-1) or the back (1). */
+  moveLayer(id: string, dir: -1 | 1) {
+    if (!this.scene) return;
+    const list = this.scene.objects;
+    const i = list.findIndex((n) => n.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j]!, list[i]!];
+    this.record(true);
+  }
+  /** Moves the selected objects to the front of another layer (keeping their order), in one undo step. */
+  moveSelectionToLayer(id: string) {
+    const target = this.layers.find((l) => l.id === id);
+    if (!this.scene || !target || target.locked) return;
+    const moving = this.selectedNodes.filter((n) => !this.isLocked(n.id) && this.layerOf(n.id)?.id !== id);
+    if (!moving.length) return;
+    // Layers have no transform: a node keeps its place on the page when it changes layer, as long as
+    // it moves with its own transform (nested nodes take their groups' placement along).
+    const located = moving.map((n) => ({ n, at: locateNode(this.scene!.objects, n.id)!, info: this.infos.get(n.id) })).filter((x) => x.at);
+    const order = [...walkNodes(this.scene.objects)].map((x) => x.node.id);
+    located.sort((a, b) => order.indexOf(a.n.id) - order.indexOf(b.n.id));
+    for (const { n, at, info } of located) {
+      const i = at.list.indexOf(n);
+      if (i >= 0) at.list.splice(i, 1);
+      const nested = !!at.parent && !(at.parent.kind === 'group' && at.parent.layer);
+      if (nested && info) {
+        const p = placementOf(n), b = info.bounds, c = [b.x + b.width / 2, b.y + b.height / 2];
+        const rel = info.matrix, pv = pivotPoint(b, p.pivot), flip = p.flipX ? -1 : 1;
+        n.transform = {
+          ...p,
+          x: rel[4] - pv[0] + c[0]! + rel[0] * pv[0] + rel[2] * pv[1],
+          y: rel[5] - pv[1] + c[1]! + rel[1] * pv[0] + rel[3] * pv[1],
+          rotation: Math.atan2(rel[1] * flip, rel[0] * flip) * 180 / Math.PI,
+          scale: Math.hypot(rel[0], rel[1]),
+        };
+      }
+    }
+    if (target.visible === false) target.visible = undefined;
+    target.children.unshift(...located.map((x) => x.n));
+    this.#activeLayer = id;
+    this.record(true);
   }
   /** Más nodos seleccionados (⇧ + clic), además del principal: para alinear, distribuir, mover juntos… */
   also = $state<string[]>([]);
@@ -615,6 +753,20 @@ export class Editor {
   #showOriginal = $state(readPref('svertik.original') === 'on');
   get showOriginal() { return this.#showOriginal; }
   set showOriginal(on: boolean) { this.#showOriginal = on; writePref('svertik.original', on ? 'on' : 'off'); }
+  // Inspector panels: Stack, Properties and Layers fold; the Layers panel is off until the View menu
+  // turns it on (its × closes it again).
+  #stackOpen = $state(readPref('svertik.panel.stack') !== 'off');
+  get stackOpen() { return this.#stackOpen; }
+  set stackOpen(on: boolean) { this.#stackOpen = on; writePref('svertik.panel.stack', on ? 'on' : 'off'); }
+  #propertiesOpen = $state(readPref('svertik.panel.properties') !== 'off');
+  get propertiesOpen() { return this.#propertiesOpen; }
+  set propertiesOpen(on: boolean) { this.#propertiesOpen = on; writePref('svertik.panel.properties', on ? 'on' : 'off'); }
+  #layersOpen = $state(readPref('svertik.panel.layers') !== 'off');
+  get layersOpen() { return this.#layersOpen; }
+  set layersOpen(on: boolean) { this.#layersOpen = on; writePref('svertik.panel.layers', on ? 'on' : 'off'); }
+  #showLayers = $state(readPref('svertik.panel.layersShown') === 'on');
+  get showLayers() { return this.#showLayers; }
+  set showLayers(on: boolean) { this.#showLayers = on; writePref('svertik.panel.layersShown', on ? 'on' : 'off'); }
   #showWire = $state(readPref('svertik.wire') === 'on');
   get showWire() { return this.#showWire; }
   set showWire(on: boolean) { this.#showWire = on; writePref('svertik.wire', on ? 'on' : 'off'); }
@@ -922,7 +1074,7 @@ export class Editor {
 
   /** Selecciona todas las capas raíz; los grupos incluyen sus hijos sin seleccionarlos por duplicado. */
   selectAll() {
-    const ids = this.scene?.objects.filter((node) => !node.locked).map((node) => node.id) ?? [];
+    const ids = this.scene ? this.root.filter((node) => !node.locked).map((node) => node.id) : [];
     this.#selected = ids[0] ?? null;
     this.also = ids.slice(1);
     this.tool = null;
@@ -980,8 +1132,8 @@ export class Editor {
       this.#history = [];
       this.#index = -1;
     } else {
-      // Lo nuevo, arriba de la lista: delante de todo.
-      this.scene.objects.unshift(node);
+      // Lo nuevo, arriba de la lista: delante de todo (en la capa activa).
+      if (!this.addToRoot(node)) return;
     }
     this.selected = node.id;
     this.record(true);
@@ -1017,7 +1169,8 @@ export class Editor {
     } else {
       // Dentro del grupo seleccionado, si lo hay; arriba de la lista (delante).
       const g = this.currentNode?.kind === 'group' && !this.currentNode.composition ? this.currentNode : null;
-      (g ? g.children : this.scene.objects).unshift(node);
+      if (g) g.children.unshift(node);
+      else if (!this.addToRoot(node)) return;
     }
     this.selected = node.id;
     this.tool = null;
@@ -1063,7 +1216,7 @@ export class Editor {
       of: source && source.kind !== 'effector' && !(source.kind === 'instance' && source.mouse) ? source.id : '',
       mouse: {}, stack: [],
     };
-    this.scene.objects.unshift(node);
+    if (!this.addToRoot(node)) return;
     this.selected = node.id;
     this.record(true);
   }
@@ -1087,7 +1240,7 @@ export class Editor {
     let name = 'Effector';
     for (let i = 2; taken.has(name); i++) name = `Effector ${i}`;
     const node: EffectorNode = { kind: 'effector', id: `effector-${uid()}`, name, targets, stack: [] };
-    this.scene.objects.unshift(node);
+    if (!this.addToRoot(node)) return;
     this.selected = node.id;
     this.record(true);
   }
@@ -1113,7 +1266,7 @@ export class Editor {
       params: { ...resolveParams(def.params), strokeWidth: 2 },
       stack: [{ id: `connect-${uid()}`, type: 'connect', enabled: true, params: { ...resolveParams(cdef.params), from: from ?? '', to: to ?? '' } }],
     };
-    this.scene.objects.unshift(node);
+    if (!this.addToRoot(node)) return;
     this.selected = node.stack[0]!.id;
     this.record(true);
   }
@@ -1595,7 +1748,7 @@ export class Editor {
     const target = groupId ? locateNode(this.scene.objects, groupId)?.node : null;
     if (groupId && (!target || target.kind === 'effector' || (target.kind === 'group' && target.composition))) return;
     if (target && !target.children) target.children = [];
-    const list = target ? target.children! : this.scene.objects;
+    const list = target ? target.children! : this.root;
     const info = this.infos.get(id);
     const parentInfo = target ? this.infos.get(target.id) : null;
     let placement: Partial<ReturnType<typeof placementOf>> | null = null;
@@ -2325,7 +2478,8 @@ export class Editor {
       // Encima del primer seleccionado (en su lista), o arriba del todo.
       const first = this.selectedNodes[0];
       const at = first ? locateNode(this.scene.objects, first.id) : null;
-      (at ? at.list : this.scene.objects).splice(at ? at.index : 0, 0, ...items);
+      if (at) at.list.splice(at.index, 0, ...items);
+      else if (!this.addToRoot(...items)) return false;
     }
     // Match old and fresh IDs throughout the copied subtrees, including nested effects.
     const nodeIds = new Map<string, string>();
