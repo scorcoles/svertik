@@ -2,6 +2,7 @@
 // The schema is the source of truth: it builds the UI, validates the JSON and says what can be animated.
 
 import type { Bounds, Geometry } from './geometry';
+import type { Mat } from './matrix';
 
 interface ParamBase {
   label?: string;
@@ -90,6 +91,14 @@ export interface ModifierContext {
   trail?: TrailLookup;
   /** This effect's own input at other scene times: only for those that ask for it (`history`). */
   history?: HistoryLookup;
+  /** Only for effects an Effector node adds: where this stack sits in the scene, to measure there (Field). */
+  scene?: SceneSpace;
+}
+
+/** A stack's place in the scene: `world` takes its coordinates to the scene's; `frame` is the document box. */
+export interface SceneSpace {
+  world: Mat;
+  frame: Bounds;
 }
 
 /**

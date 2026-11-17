@@ -170,7 +170,7 @@ Every node in `objects` includes:
 | `object` | `source: string`, `href?: string` | Raw SVG string imported directly (`<svg viewBox="...">...</svg>`). With `href` and an empty `source`, the SVG lives outside the project (see below). |
 | `group` | `children: SceneNode[]`, `layer?: boolean` | Container for child nodes. The group's `stack` acts upon all children as individual elements. With `layer: true` it is a layer (see Layers). |
 | `instance` | `of: string` | Dynamic live copy of another node (`of` specifies the target node `id`). Inherits source effects while adding its own independent transform and stacked modifiers. |
-| `effector` | `targets: string[]`, `delay?: number` | Invisible utility node. Injects its own `stack` into each target node separately. `delay` (seconds) staggers the animation timing per target. |
+| `effector` | `targets: string[]`, `delay?: number` | Invisible utility node. Injects its own `stack` into each target node separately. `delay` (seconds) staggers the animation timing per target. A `field` in its stack measures in the scene instead: `center`, `width`, `height` and `distance` are fractions of the document (1000 × 1000 at the origin without one), shared by all targets, so objects outside the field are left alone. Targets inside transformed groups are measured in their group's coordinates. |
 
 ### Project files and external SVGs
 
@@ -197,7 +197,7 @@ Many advanced procedural effects operate on collections of **individual elements
 The **Effector** modifiers (`step`, `stagger`, `range`, `field`, `explosion`, `color`) distribute procedural values across elements:
 - `step`: Multiplies child modifier parameters by the element index (0, 1, 2...).
 - `range`: Selects a sliding window of elements (e.g. animate a wave sweeping across characters).
-- `field`: Attenuates child modifier strength according to physical spatial proximity to a geometric field (circle, plane, box).
+- `field`: Attenuates child modifier strength according to where each element is relative to a geometric field (ellipse, plane, box). `contain` picks the test: `center` (default), `full` (entirely inside) or `partial` (touching).
 - `explosion`: Propels elements outward from a blast centre with spin, displacement, and scaling.
 
 > [!WARNING]
@@ -533,7 +533,7 @@ Distribute modifier evaluation across elements. All container effectors accept n
     - `start` (number, def 0, 0..1), `end` (number, def 1, 0..1), `offset` (number, def 0, -1..1), `smoothness` (number, def 0.2, 0..1)
 
 43. **`field`**: Geometric falloff selector. Modulates child modifiers based on spatial distance to a field center.
-    - `shape` (`"circle" | "plane" | "box"`, def `"circle"`), `center` (point, def [0.5, 0.5], fraction), `size` (number, def 0.4, fraction), `softness` (number, def 0.3, 0..1), `invert` (boolean, def false)
+    - `shape` (`"circle" | "linear" | "box"`, def `"circle"`), `center` (point, def [0.5, 0.5], fraction), `width` / `height` (circle and box, def 0.7, fraction of the drawing size; turned by `angle`), `distance` (linear, def 0.35, fraction), `contain` (`"center" | "full" | "partial"`, def `"center"`), `softness` (number, def 0.5, 0..1), `angle` (degrees), `invert` (boolean, def false), `amount` (0..1), `unit` (`"elements" | "words" | "lines"`). From an Effector node, fractions are of the document.
 
 44. **`explosion`**: Detonates elements outward from a blast centre.
     - `amount` (number, def 0, 0 to 1): Main blast progress.

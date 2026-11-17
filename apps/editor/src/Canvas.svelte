@@ -460,7 +460,16 @@
   });
 
   /** El nodo dueño del efecto seleccionado: su caja de referencia y su matriz al documento. */
-  const ownerInfo = () => (editor.activeNode ? nodes.get(editor.activeNode.id) : undefined);
+  const ownerInfo = (): NodeInfo | undefined => {
+    const node = editor.activeNode;
+    const info = node ? nodes.get(node.id) : undefined;
+    // A Field in an Effector node is a place in the scene: it measures on the document, not on a target.
+    const effect = editor.currentParent ?? editor.current;
+    if (!info || node?.kind !== 'effector' || effect?.type !== 'field') return info;
+    const d = editor.scene?.document;
+    const frame = d ? { x: (d.x ?? 0) - d.width / 2, y: (d.y ?? 0) - d.height / 2, width: d.width, height: d.height } : { x: -500, y: -500, width: 1000, height: 1000 };
+    return { ...info, matrix: [1, 0, 0, 1, 0, 0], bounds: frame, refs: {} };
+  };
   /**
    * La caja sobre la que mide el efecto seleccionado (sus fracciones): la del nodo o, si va detrás de un
    * Clone o un Mirror, la de lo que estos generan. Dentro de Step o Range, la de su padre.

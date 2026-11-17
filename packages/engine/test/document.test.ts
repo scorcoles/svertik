@@ -654,3 +654,30 @@ describe('bevel, thicken and tone filters', () => {
     expect(svgWith('tone', { mode: 'invert' })).toMatch(/tableValues="1 0"/);
   });
 });
+
+describe('Field in an Effector node', () => {
+  // Two squares 100 px wide at x = -300 and x = 300 in an 800 × 200 document.
+  const fills = (params: Record<string, unknown>) => {
+    const sq = (id: string, x: number) => ({ kind: 'shape' as const, id, name: id, shape: 'rectangle', transform: { x, y: 0 }, params: { width: 100, height: 100, fill: true, fillColor: '#ffffff' }, stack: [] });
+    const doc = engine().evaluateDocument({ version: 1, document: { width: 800, height: 200 }, objects: [
+      { kind: 'effector', id: 'fx', name: 'fx', targets: ['a', 'b'], stack: [{ id: 'f', type: 'field', params: { shape: 'box', width: 0.2, height: 0.2, softness: 0, ...params }, children: [{ id: 'k', type: 'color', params: { mode: 'solid', color: '#ff0000' } }] }] },
+      sq('a', -300), sq('b', 300),
+    ] });
+    return ['a', 'b'].map((id) => doc.geometryOf(id)?.shapes[0]?.style.fill);
+  };
+
+  it('is one place in the scene: objects outside it are left alone', () => {
+    expect(fills({ center: [0.5, 0.5] })).toEqual(['#ffffff', '#ffffff']);
+    expect(fills({ center: [0.125, 0.5] })).toEqual(['#ff0000', '#ffffff']);
+    expect(fills({ center: [0.875, 0.5] })).toEqual(['#ffffff', '#ff0000']);
+  });
+
+  it('contain: centre, all of it (full) or any part of it (partial)', () => {
+    // The field spans x -320…-160: the centre of a (-300) is in, its left edge (-350) is not.
+    expect(fills({ center: [0.2, 0.5], contain: 'center' })).toEqual(['#ff0000', '#ffffff']);
+    expect(fills({ center: [0.2, 0.5], contain: 'full' })).toEqual(['#ffffff', '#ffffff']);
+    // x -270…-110: only a's right edge (-250) is in.
+    expect(fills({ center: [0.2625, 0.5], contain: 'center' })).toEqual(['#ffffff', '#ffffff']);
+    expect(fills({ center: [0.2625, 0.5], contain: 'partial' })).toEqual(['#ff0000', '#ffffff']);
+  });
+});

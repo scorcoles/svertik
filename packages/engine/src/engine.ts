@@ -6,7 +6,7 @@ import { sampleScene } from './animation';
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
-import { resolveParams, type HistoryLookup, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
+import { resolveParams, type HistoryLookup, type ModifierContext, type SceneSpace, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 import { evaluateSceneExpressions } from './expression';
 import { hasMissingPacks, restorePacks } from './pack';
@@ -21,6 +21,10 @@ export interface ModifierInstance {
   params?: Record<string, unknown>;
   /** Modifiers nested in this one (Step applies them copy by copy). */
   children?: ModifierInstance[];
+  /** Runtime only, never saved: added by an Effector node, so it measures in the scene (see `scene`). */
+  space?: 'scene';
+  /** Runtime only, never saved: the scene placement the document gives a `space: 'scene'` effect. */
+  scene?: SceneSpace;
 }
 
 /**
@@ -142,7 +146,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
     stack.forEach((inst, i) => {
       if (refs) refs[inst.id] = ref;
-      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
+      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? [], inst.scene ?? 0]);
       const cached = memo?.steps[i];
       if (reuse && cached && cached.key === key && !cached.dynamic) {
         geo = cached.geo;
@@ -160,7 +164,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
           // What depends on its past is redone every time (the past can change without its input changing).
           const own = def.history ? history?.(inst) : undefined;
           if (own) dynamic = true;
-          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own }));
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}) }));
           if (def.reframe) {
             const b = bounds(geo);
             if (b.width > 0 || b.height > 0) ref = b;

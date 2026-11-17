@@ -71,7 +71,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Shake](effects/shake.md) | `shake` | A seeded one-shot impact that loses strength and returns exactly to neutral at Duration. |
 | [Stagger](effects/stagger.md) | `stagger` | Each element makes its own transition, with its curve, a little after the previous one. |
 | [Range](effects/range.md) | `range` | Range selector: picks which elements (letters, words, lines, copies, tiles…) get the nested effects, and how much, by their order. |
-| [Field](effects/field.md) | `field` | Field selector: the nested effects act more or less on each element depending on where its centre is relative to a shape (circle, plane or box). |
+| [Field](effects/field.md) | `field` | Field selector: the nested effects act more or less on each element depending on where it is relative to a shape (ellipse, plane or box). |
 | [Explosion](effects/explosion.md) | `explosion` | Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. |
 | [Gravity](effects/gravity.md) | `gravity` | Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion or Rigid body. |
 | [Physics](effects/physics.md) | `physics` | A deterministic 2D rigid-body simulation for a group. |

@@ -8,7 +8,7 @@ import { buildShape, shapeRegistry } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import { findModifier, sampleScene, trackValue } from './animation';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
-import type { HistoryLookup, TrailLookup } from './modifier';
+import type { HistoryLookup, SceneSpace, TrailLookup } from './modifier';
 import { gradientDefs, styleAttrs, toPathData } from './render';
 import {
   type BlendMode,
@@ -385,12 +385,22 @@ export function createDocumentEvaluator(
         return shapes.map((s) => ({ ...s, wrap: [node.id, ...(s.wrap ?? [])] }));
       };
 
+      // The document box, centred on (x, y); without a document, 1000 × 1000 at the origin (as percentages).
+      const doc = scene.document;
+      const sceneFrame = doc ? { x: (doc.x ?? 0) - doc.width / 2, y: (doc.y ?? 0) - doc.height / 2, width: doc.width, height: doc.height } : { x: -500, y: -500, width: 1000, height: 1000 };
       // Returns the node's geometry in its parent's coordinates.
       const evalNode = (node: SceneNode, parentMatrix: Mat): Shape[] => {
         seen.add(node.id);
         if (node.kind === 'effector' || (node.kind === 'instance' && node.mouse)) return [];
-        const stack = stackOf(node);
+        let stack = stackOf(node);
         const p = placementOf(node);
+        // Effects from an Effector node measure in the scene: they get this node's place in it.
+        // A node inside a group only knows its place in the group (the group's own placement comes later).
+        const inScene = (world: Mat) => {
+          if (!stack.some((m) => m.space === 'scene')) return;
+          const space: SceneSpace = { world, frame: sceneFrame };
+          stack = stack.map((m) => (m.space === 'scene' ? { ...m, scene: space } : m));
+        };
         if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {
           // Instance: its source is the original's result (without its placement). If not computed yet in
           // this pass, the previous pass's, and another pass is asked for.
@@ -413,6 +423,30 @@ export function createDocumentEvaluator(
           }
           const childShapes: Shape[] = [];
           for (let i = (node.children?.length ?? 0) - 1; i >= 0; i--) childShapes.push(...evalNode(node.children![i]!, IDENTITY));
+          // A shape sized in percentages depends on the document: its size is part of the key.
+          const unitDoc = node.kind === 'shape' && hasPercent(node.params) ? (scene.document ?? null) : null;
+          const sk = node.kind === 'instance' ? instSrc!.key : node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, unitDoc && [unitDoc.width, unitDoc.height]]);
+          let src = sources.get(node.id);
+          if (!src || src.key !== sk) {
+            src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? (node.source ? importSVG(node.source) : { viewBox: [0, 0, 0, 0], shapes: [] })) : buildShape(node.shape, node.params, { document: scene.document }) };
+            sources.set(node.id, src);
+          }
+          const ref = bounds(src.geo);
+          // An imported object is centred on the origin (or on its own origin point if it has one: Text with an anchor).
+          // Dynamic shapes with an explicit origin can change bounds over time. Scaling around that
+          // moving box's centre makes the origin drift, so use it as the default pivot.
+          const origin = src.geo.origin;
+          const dynamicText = node.kind === 'shape' && node.shape === 'text' && typeof node.params.updateRate === 'number';
+          const anchoredDynamicShape = node.kind === 'shape' && (dynamicText || shapeRegistry.get(node.shape)?.timeDriven) && origin;
+          const originPivot: [number, number] | undefined = anchoredDynamicShape && node.transform?.pivot === undefined
+            ? [
+                ref.width ? (origin[0] - ref.x) / ref.width : 0.5,
+                ref.height ? (origin[1] - ref.y) / ref.height : 0.5,
+              ]
+            : undefined;
+          const m = placementMatrix(originPivot ? { ...p, pivot: originPivot } : p, ref, [0, 0], origin);
+          const world = multiply(parentMatrix, m);
+          inScene(world);
           const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.image])) : '';
           // Text depends on the registered fonts: when a new one arrives, it is drawn again.
           const key =
@@ -428,16 +462,7 @@ export function createDocumentEvaluator(
             for (const [id, h] of entry.deps) seenDeps.push({ owner: node.id, id, h });
           }
           if (!entry || !fresh) {
-            // A shape sized in percentages depends on the document: its size is part of the key.
-            const unitDoc = node.kind === 'shape' && hasPercent(node.params) ? (scene.document ?? null) : null;
-            const sk = node.kind === 'instance' ? instSrc!.key : node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, unitDoc && [unitDoc.width, unitDoc.height]]);
-            let src = sources.get(node.id);
-            if (!src || src.key !== sk) {
-              src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? (node.source ? importSVG(node.source) : { viewBox: [0, 0, 0, 0], shapes: [] })) : buildShape(node.shape, node.params, { document: scene.document }) };
-              sources.set(node.id, src);
-            }
             const source = src.geo;
-            const ref = bounds(source);
             const local = childShapes;
             const combinedSource: Geometry = local.length ? { ...source, shapes: [...source.shapes, ...local].map((shape) => ({ ...shape, signalGroup: 0 })) } : source;
             const before = asked;
@@ -451,21 +476,6 @@ export function createDocumentEvaluator(
             asked = asked || before;
             cache.set(node.id, entry);
           }
-          const ref = bounds(entry.source);
-          // An imported object is centred on the origin (or on its own origin point if it has one: Text with an anchor).
-          // Dynamic shapes with an explicit origin can change bounds over time. Scaling around that
-          // moving box's centre makes the origin drift, so use it as the default pivot.
-          const origin = entry.source.origin;
-          const dynamicText = node.kind === 'shape' && node.shape === 'text' && typeof node.params.updateRate === 'number';
-          const anchoredDynamicShape = node.kind === 'shape' && (dynamicText || shapeRegistry.get(node.shape)?.timeDriven) && origin;
-          const originPivot: [number, number] | undefined = anchoredDynamicShape && node.transform?.pivot === undefined
-            ? [
-                ref.width ? (origin[0] - ref.x) / ref.width : 0.5,
-                ref.height ? (origin[1] - ref.y) / ref.height : 0.5,
-              ]
-            : undefined;
-          const m = placementMatrix(originPivot ? { ...p, pivot: originPivot } : p, ref, [0, 0], origin);
-          const world = multiply(parentMatrix, m);
           const placed = transformGeo(entry.result, m);
           for (const child of node.children ?? []) if (nodes.has(child.id)) reparent(child, world);
           for (const { node: child } of walkNodes(node.children ?? [])) {
@@ -491,6 +501,11 @@ export function createDocumentEvaluator(
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
         const frame = node.composition?.scene.document;
         const ref = frame ? { x: (frame.x ?? 0) - frame.width / 2, y: (frame.y ?? 0) - frame.height / 2, width: frame.width, height: frame.height } : bounds(inner);
+        const c = centerOf(ref);
+        // Grouping moves nothing: the group's centre stays where it is.
+        const m = placementMatrix(p, ref, c);
+        const world = multiply(parentMatrix, m);
+        inScene(world);
         let refs: StackRefs = {};
         let result = inner;
         if (stack.length) {
@@ -512,10 +527,6 @@ export function createDocumentEvaluator(
             asked = asked || before;
           }
         }
-        const c = centerOf(ref);
-        // Grouping moves nothing: the group's centre stays where it is.
-        const m = placementMatrix(p, ref, c);
-        const world = multiply(parentMatrix, m);
         // The children are already in group coordinates: their real matrix is the group's times theirs.
         for (const child of node.children) if (nodes.has(child.id)) reparent(child, world);
         results.set(node.id, result);
@@ -726,7 +737,8 @@ export function effectorStacks(scene: SceneV1, byId: Map<string, SceneNode>): Ma
           else m.params = { ...m.params, [tr.param]: v };
         }
       }
-      out.set(id, [...(out.get(id) ?? []), ...stack]);
+      // They measure in the scene, not on each target's own box (a Field is one place for all of them).
+      out.set(id, [...(out.get(id) ?? []), ...stack.map((m) => ({ ...m, space: 'scene' as const }))]);
       i++;
     }
   }

@@ -343,7 +343,8 @@ export function reelProject() {
 
           // Acto 2.
           { id: 'r-grid-op', node: 'grid', on: 'node', param: 'opacity', keys: [k(0, 0, 'hold'), k(3.1, 1, 'hold'), k(6.25, 1, 'ease-in'), k(6.8, 0)] },
-          { id: 'r-grid-reveal', node: 'grid', on: 'modifier', modifier: 'grid-reveal', param: 'radius', keys: [k(3.1, 0.02, 'ease-out'), k(4, 1.1)] },
+          { id: 'r-grid-reveal-w', node: 'grid', on: 'modifier', modifier: 'grid-reveal', param: 'width', keys: [k(3.1, 0.04, 'ease-out'), k(4, 2.2)] },
+          { id: 'r-grid-reveal-h', node: 'grid', on: 'modifier', modifier: 'grid-reveal', param: 'height', keys: [k(3.1, 0.04, 'ease-out'), k(4, 2.2)] },
           { id: 'r-grid-wave', node: 'grid', on: 'modifier', modifier: 'grid-wave', param: 'center', keys: [k(4, [-0.25, 0.25], 'ease-in-out'), k(5, [1.25, 0.5], 'ease-in-out'), k(6, [-0.25, 0.75])] },
           { id: 'r-grid-boom', node: 'grid', on: 'modifier', modifier: 'grid-boom', param: 'amount', keys: [k(6.05, 0, 'expo-out'), k(6.85, 1)] },
 
