@@ -135,6 +135,31 @@ export const ellipseShape = defineShape({
   build: ({ width, height }) => [ellipse(width / 2, height / 2)],
 });
 
+/** A ring: two exact circles, the inner one the other way round, so it cuts the hole with any fill rule. */
+export const donut = defineShape({
+  type: 'donut',
+  label: 'Donut',
+  params: {
+    radius: { type: 'number', default: 80, min: 1, step: 1, unit: 'px', label: 'Outer radius' },
+    innerRadius: { type: 'number', default: 45, min: 0, step: 1, unit: 'px', label: 'Inner radius' },
+    ...style,
+  },
+  build: ({ radius, innerRadius }) => {
+    const r = Math.max(1, radius);
+    const inner = Math.min(Math.max(0, innerRadius), r);
+    // Without a hole (or with no ring left) it is just a circle.
+    if (inner <= 0 || inner >= r) return [ellipse(r, r)];
+    return [ellipse(r, r), reversed(ellipse(inner, inner))];
+  },
+});
+
+/** The same closed path, travelled the other way. */
+function reversed(sp: SubPath): SubPath {
+  const pts = [sp.start, ...sp.segs.map((g) => g.p)];
+  const segs: Cubic[] = sp.segs.map((g, i) => ({ c1: g.c2, c2: g.c1, p: pts[i]! })).reverse();
+  return { start: pts[pts.length - 1]!, segs, closed: sp.closed };
+}
+
 const ring = (n: number, r: (i: number) => number, rotation: number): Vec2[] =>
   Array.from({ length: n }, (_, i) => {
     const a = ((rotation - 90) * Math.PI) / 180 + (i * 2 * Math.PI) / n;
@@ -598,7 +623,7 @@ const randomBarParts = (width: number, height: number, count: number, amplitude:
 export const autonomousGenerators = [randomWave, randomBars];
 
 // The pawn, always last (it is the test shape).
-export const shapes = [rectangle, ellipseShape, polygon, star, cross, arrow, lineShape, spiral, text, pawn];
+export const shapes = [rectangle, ellipseShape, donut, polygon, star, cross, arrow, lineShape, spiral, text, pawn];
 export const shapeRegistry = new Map<string, ShapeDef>([...shapes, ...autonomousGenerators].map((s) => [s.type, s as ShapeDef]));
 
 /** A primitive's geometry, with its style. */

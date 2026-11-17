@@ -94,7 +94,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 
 | `kind` | Extra fields | What it is |
 | --- | --- | --- |
-| `shape` | `shape`, `params` | A primitive (rectangle, ellipse, polygon, star, line, spiral, text, cross, arrow, pawn). See `docs/reference/shapes/`. |
+| `shape` | `shape`, `params` | A primitive (rectangle, ellipse, donut, polygon, star, line, spiral, text, cross, arrow, pawn). See `docs/reference/shapes/`. |
 | `object` | `source` | An imported SVG (its markup as a string). |
 | `group` | `children`, optional `composition: { scene, params }` | Children drawn together; the group's stack applies to all of them at once (each child is an element). |
 | `instance` | `of` | A live copy of another node's result (with its effects), with its own transform and effects on top. |

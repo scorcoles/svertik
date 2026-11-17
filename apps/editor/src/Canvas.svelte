@@ -349,7 +349,8 @@
   }
   function keydown(e: KeyboardEvent) {
     if (typing(e) || !editor.scene || editor.presenting) return;
-    if (e.key === 'Escape' && editor.tool) { penPoints = []; editor.tool = null; e.preventDefault(); }
+    if (e.key === 'Escape' && donutPicking) { donutPicking(); e.preventDefault(); }
+    else if (e.key === 'Escape' && editor.tool) { penPoints = []; editor.tool = null; e.preventDefault(); }
     else if (e.key === 'Enter' && editor.tool === 'pen' && penPoints.length >= 2) { e.preventDefault(); finishPen(); }
     else if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) { editor.tool = null; }
     else if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey && !shortcutBlocked(e)) {
@@ -914,7 +915,7 @@
   /** Parámetros y centro (en el documento) de una primitiva dibujada de `a` a `b`. */
   function sized(type: string, a: [number, number], b: [number, number], square: boolean) {
     let dx = b[0] - a[0], dy = b[1] - a[1];
-    if (square && type !== 'line') dx = dy = Math.max(Math.abs(dx), Math.abs(dy)) * Math.sign(dx || 1);
+    if ((square || type === 'donut') && type !== 'line') dx = dy = Math.max(Math.abs(dx), Math.abs(dy)) * Math.sign(dx || 1);
     const center = { x: a[0] + dx / 2, y: a[1] + dy / 2 };
     const r2 = (n: number) => Math.max(1, Math.round(n));
     const params: Record<string, unknown> =
@@ -926,6 +927,8 @@
             ? { length: r2(Math.abs(dx)), width: r2(Math.abs(dy) / 3) }
           : type === 'cross'
             ? { size: r2(Math.max(Math.abs(dx), Math.abs(dy))), width: r2(Math.max(Math.abs(dx), Math.abs(dy)) * 0.2) }
+          : type === 'donut'
+            ? { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2), innerRadius: r2(Math.max(Math.abs(dx), Math.abs(dy)) * 0.28) }
           : type === 'pawn'
             ? { height: r2(Math.max(Math.abs(dy), Math.abs(dx) * (200 / 120))) }
             : type === 'text'
@@ -935,7 +938,7 @@
   }
 
   /** La forma que se está dibujando: trazado y estilo, ya colocada en el documento. */
-  let draft = $state<{ d: string; fill: string; stroke?: string; width?: string; x: number; y: number } | null>(null);
+  let draft = $state<{ d: string; fill: string; stroke?: string; width?: string; x: number; y: number; inner?: number } | null>(null);
   let penPoints = $state<{ x: number; y: number; hx: number; hy: number }[]>([]);
   let penPreview = $derived(penPoints.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${penPoints[i - 1]!.hx} ${penPoints[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' '));
   function finishPen() {
@@ -986,11 +989,50 @@
       // Un clic: a su tamaño por defecto, centrada donde se hizo clic.
       if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return editor.addShape(type, {}, { x: start[0], y: start[1] });
       const { params, center } = sized(type, start, end, ev.shiftKey);
+      // Donut: the outer circle is drawn; now the pointer sets the hole and a click fixes it.
+      if (type === 'donut') return pickDonutInner(Number(params.radius), center);
       editor.addShape(type, params, center);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
+
+  /**
+   * Second step of drawing a Donut: its inner circle, highlighted, follows the pointer (its distance to
+   * the centre) until a click fixes it. Escape cancels the donut.
+   */
+  let donutPicking: (() => void) | null = null;
+  function pickDonutInner(radius: number, center: { x: number; y: number }) {
+    const show = (inner: number) => {
+      const shape = buildShape('donut', { radius, innerRadius: inner }).shapes[0]!;
+      const st = shape.style;
+      draft = { d: toPathData(shape), fill: st.fill ?? 'none', stroke: st.stroke, width: st['stroke-width'], x: center.x, y: center.y, inner };
+    };
+    const innerAt = (ev: PointerEvent) => {
+      const p = clientToDoc(ev.clientX, ev.clientY);
+      return p ? Math.min(radius, Math.max(0, Math.round(Math.hypot(p[0] - center.x, p[1] - center.y)))) : (draft?.inner ?? 0);
+    };
+    const move = (ev: PointerEvent) => show(innerAt(ev));
+    const down = (ev: PointerEvent) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const inner = innerAt(ev);
+      stop();
+      editor.addShape('donut', { radius, innerRadius: inner }, center);
+    };
+    const stop = () => {
+      draft = null;
+      donutPicking = null;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerdown', down, true);
+    };
+    donutPicking = stop;
+    show(Math.round(radius * 0.56));
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerdown', down, true);
+  }
+  $effect(() => () => donutPicking?.());
 
   /** Doble clic en la herramienta: la primitiva, a su tamaño por defecto, en el centro de lo que se ve. */
   function centerShape(type: string) {
@@ -1213,6 +1255,56 @@
   let gizmoActive = $state(false);
   let gizmoHover = $state(false);
 
+  // ── Donut: a handle for its inner radius (right after drawing it, and whenever it is selected).
+  /** A number param as drawn: a formula counts as its fallback. */
+  const drawnNumber = (v: unknown, fallback: number) =>
+    typeof v === 'number' ? v : v && typeof v === 'object' && typeof (v as { fallback?: unknown }).fallback === 'number' ? (v as { fallback: number }).fallback : fallback;
+  /** Where the inner radius handle sits, in local coordinates: on the hole's edge, up and to the right. */
+  const DONUT_ANGLE = -Math.PI / 4;
+  let donutScreen = $state<{ x: number; y: number } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const n = editor.activeNode;
+    const ok = n?.kind === 'shape' && n.shape === 'donut' && !editor.current && !editor.isLocked(n.id);
+    const inner = ok ? drawnNumber(n.params.innerRadius, 45) : 0;
+    const frame = requestAnimationFrame(() => {
+      const info = ok ? nodes.get(n.id) : undefined;
+      const q = info && docToStage(...apply(info.matrix, [Math.cos(DONUT_ANGLE) * inner, Math.sin(DONUT_ANGLE) * inner]));
+      donutScreen = q ? { x: q[0], y: q[1] } : null;
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+  function dragDonutInner(e: PointerEvent) {
+    const n = editor.activeNode;
+    if (space || n?.kind !== 'shape' || n.shape !== 'donut' || !stage) return;
+    e.preventDefault();
+    e.stopPropagation();
+    takeFocus();
+    const el = e.currentTarget as Element;
+    el.setPointerCapture(e.pointerId);
+    const outer = drawnNumber(n.params.radius, 80);
+    const r = stage.getBoundingClientRect();
+    gizmoActive = true;
+    const move = (ev: PointerEvent) => {
+      const info = nodes.get(n.id);
+      const d = clientToDoc(ev.clientX, ev.clientY);
+      if (!info || !d) return;
+      const local = apply(invert(info.matrix), d);
+      const inner = Math.min(outer, Math.max(0, Math.round(Math.hypot(local[0], local[1]))));
+      editor.setShapeParam(n.id, 'innerRadius', inner);
+      gesture = { text: `Inner radius ${inner}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+    };
+    const up = () => {
+      gizmoActive = false;
+      gesture = null;
+      editor.flush();
+      el.removeEventListener('pointermove', move as EventListener);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move as EventListener);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
   /** Del puntero a coordenadas locales del nodo dueño del efecto. */
   const toLocalNode = (clientX: number, clientY: number): Vec2 | null => {
     const info = ownerInfo();
@@ -1353,6 +1445,7 @@
           <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true">
             <path d={draft.d} transform="translate({draft.x} {draft.y})" fill={draft.fill} stroke={draft.stroke} stroke-width={draft.width} stroke-linejoin="round" stroke-linecap="round" />
             <path class="outline" d={draft.d} transform="translate({draft.x} {draft.y})" />
+            {#if draft.inner !== undefined}<circle class="inner" cx={draft.x} cy={draft.y} r={draft.inner} />{/if}
           </svg>
         {/if}
         {#if penPoints.length}
@@ -1522,6 +1615,20 @@
           ></button>
         {/each}
       {/if}
+      {#if donutScreen && !editor.tool}
+        <button
+          type="button"
+          class="gizmo-handle"
+          data-handle="Inner radius"
+          style:left="{donutScreen.x}px"
+          style:top="{donutScreen.y}px"
+          title="Inner radius"
+          aria-label="Inner radius"
+          onpointerdown={dragDonutInner}
+          onpointerenter={() => (gizmoHover = true)}
+          onpointerleave={() => (gizmoHover = false)}
+        ></button>
+      {/if}
       {#each handles as h (h.name)}
         <button
           type="button"
@@ -1682,6 +1789,7 @@
   .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }
   .bounds .frame[data-auto] { stroke: var(--sv-text-muted); stroke-dasharray: 4 4; }
   .draft .outline { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .draft .inner { fill: none; stroke: var(--sv-accent-fill); stroke-width: 2.5px; vector-effect: non-scaling-stroke; }
   .stage[data-panning] { cursor: grabbing; }
   .view { position: absolute; inset: 48px 48px 56px; transform-origin: 0 0; }
   .view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }

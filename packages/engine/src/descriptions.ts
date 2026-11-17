@@ -84,6 +84,7 @@ export const effectDescriptions: Record<string, string> = {
 export const shapeDescriptions: Record<string, string> = {
   rectangle: 'A rectangle, with optional rounded corners. Each radius is capped at half the shorter side of the rectangle, then adjacent corners are scaled together if needed to fit.',
   ellipse: 'An ellipse (a circle when width and height match).',
+  donut: 'A ring: a circle of Outer radius with a round hole of Inner radius, both exact curves. Inner radius 0 (or not smaller than the outer one) leaves a plain circle. Stretch the object for an elliptical ring.',
   polygon: 'A regular polygon with any number of sides.',
   star: 'A star with any number of points and an inner radius (2 points make a needle or a diamond).',
   line: 'A straight line, by length and angle. Stroke only by default.',

@@ -25,7 +25,7 @@ export const transform = defineModifier({
     moved.shapes = moved.shapes.map((shape) => {
       if (!shape.impulse) return shape;
       const [x, y] = shape.impulse.velocity;
-      return { ...shape, impulse: { velocity: [x * c - y * s, x * s + y * c], spin: shape.impulse.spin } };
+      return { ...shape, impulse: { ...shape.impulse, velocity: [x * c - y * s, x * s + y * c] } };
     });
     return moved;
   },

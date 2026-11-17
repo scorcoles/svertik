@@ -89,7 +89,7 @@ const transformGeo = (geo: Geometry, m: Mat): Geometry => {
   moved.shapes = moved.shapes.map((shape) => {
     if (!shape.impulse) return shape;
     const [x, y] = shape.impulse.velocity;
-    return { ...shape, impulse: { velocity: [m[0] * x + m[2] * y, m[1] * x + m[3] * y], spin: shape.impulse.spin * (m[0] * m[3] - m[1] * m[2] < 0 ? -1 : 1) } };
+    return { ...shape, impulse: { ...shape.impulse, velocity: [m[0] * x + m[2] * y, m[1] * x + m[3] * y], spin: shape.impulse.spin * (m[0] * m[3] - m[1] * m[2] < 0 ? -1 : 1) } };
   });
   return moved;
 };
