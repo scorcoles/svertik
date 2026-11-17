@@ -7,6 +7,8 @@ export interface FpsMeter {
   variables(scene: Record<string, number>, custom: Record<string, number>): void;
   /** What painted the last frame, and the renderer chosen (shown, and selectable when `onRenderer` is given). */
   renderer(painted: 'svg' | 'canvas', chosen: RendererChoice): void;
+  /** Whether Wire is on (underlines its button). */
+  wire(on: boolean): void;
   toggle(on?: boolean): void;
   /** Is the panel showing? (a player only needs to track the pointer while it is) */
   visible(): boolean;
@@ -18,7 +20,12 @@ export type RendererChoice = 'auto' | 'svg' | 'canvas';
 export interface FpsMeterOptions {
   /** Switch the player's renderer from the panel (Auto / SVG / Canvas buttons). */
   onRenderer?: (renderer: RendererChoice) => void;
+  /** Toggle Wire (outlines only) from the panel, next to the renderer buttons. */
+  onWire?: () => void;
 }
+
+/** Frame time health, by average ms per computed frame: up to 16 (60 fps), up to 33 (30 fps), slower. */
+const HEALTH = { good: '#4ade80', fair: '#fb923c', bad: '#f87171' };
 
 export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMeterOptions = {}): FpsMeter {
   const panel = document.createElement('div');
@@ -81,6 +88,17 @@ export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMete
       choices.append(b);
     }
   }
+  // Wire: a toggle of its own (it paints in SVG whatever the renderer), set apart by a rule.
+  const wireButton = document.createElement('button');
+  if (options.onWire) {
+    wireButton.type = 'button';
+    wireButton.textContent = 'Wire';
+    wireButton.title = 'Wire: outlines only (W)';
+    wireButton.setAttribute('aria-pressed', 'false');
+    Object.assign(wireButton.style, { border: '0', borderLeft: '1px solid rgba(237, 237, 237, 0.3)', borderRadius: '0', padding: '0 0 0 10px', color: '#ededed', background: 'transparent', font: '11px/1.5 ui-monospace, "JetBrains Mono", monospace', pointerEvents: 'auto', cursor: 'pointer', opacity: '0.6' });
+    wireButton.addEventListener('click', () => options.onWire?.());
+    choices.append(wireButton);
+  }
   header.append(choices, copy);
   panel.append(el, header);
   parent.append(panel);
@@ -117,6 +135,15 @@ export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMete
       ].join('\n');
       render();
       el.style.color = avg > 33 ? 'var(--sv-signal-error)' : avg > 16 ? 'var(--sv-signal-warning)' : 'var(--sv-text-primary)';
+      // The renderer painting now, coloured by how it keeps up: green fine, orange so-so, red slow.
+      // A second without computed frames (a still scene) keeps the last verdict.
+      if (computed) {
+        const health = avg > 33 ? HEALTH.bad : avg > 16 ? HEALTH.fair : HEALTH.good;
+        for (const [value, b] of choiceButtons) {
+          b.style.color = value === painted ? health : '#ededed';
+          b.style.opacity = value === painted || value === chosen ? '1' : '0.6';
+        }
+      }
       screen = computed = sum = worst = 0;
       last = now;
     }
@@ -151,7 +178,12 @@ export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMete
         b.setAttribute('aria-pressed', String(on));
       }
     },
-    toggle(v = panel.hidden) {
+    wire(on) {
+      wireButton.style.opacity = on ? '1' : '0.6';
+      wireButton.style.textDecoration = on ? 'underline' : 'none';
+      wireButton.setAttribute('aria-pressed', String(on));
+    },
+        toggle(v = panel.hidden) {
       panel.hidden = !v;
     },
     visible: () => !panel.hidden,

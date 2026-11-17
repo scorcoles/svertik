@@ -21,7 +21,7 @@
   onMount(() => {
     const scene = $state.snapshot(editor.scene) as SceneV1;
     let player: ReturnType<typeof createPlayer> | null = null;
-    meter = createFpsMeter(document.body, false, { onRenderer: (r) => player?.setRenderer(r) });
+    meter = createFpsMeter(document.body, false, { onRenderer: (r) => player?.setRenderer(r), onWire: () => wire?.toggle() });
     player = svg ? createPlayer(createEngine(builtins), svg, scene, { renderer: 'auto', pointer: () => meter?.visible() ?? false, onFrame: ({ ms, t, pointer, runtime, painted }) => {
       meter?.frame(ms);
       meter?.renderer(painted, player?.renderer() ?? 'auto');
@@ -29,7 +29,7 @@
       meter?.variables(describeSceneVariables(values, pointer, runtime), values.custom);
     } }) : null;
     // W: Wire (outlines only), as in the canvas.
-    const wire = svg ? installWire(svg, scene, { onChange: (on) => (wireOn = on) }) : null;
+    const wire = svg ? installWire(svg, scene, { onChange: (on) => { wireOn = on; meter?.wire(on); } }) : null;
     const t = setTimeout(() => (hint = false), 2200);
     const initialControls = setTimeout(() => { if (!pointerInControlsZone) hideControls(); }, 500);
     return () => {

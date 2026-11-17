@@ -414,8 +414,10 @@
     space = false;
     if (!spacePanned && !shortcutBlocked(e) && editor.scene && !editor.presenting) editor.togglePlayback();
   }
+  /** The canvas takes keyboard focus (arrows, shortcuts), leaving any inspector field it was in. */
+  const takeFocus = () => stage?.focus({ preventScroll: true });
   function pointerdown(e: PointerEvent) {
-    if (e.button === 0 && !shortcutBlocked(e)) stage?.focus({ preventScroll: true });
+    if (e.button === 0 && !shortcutBlocked(e)) takeFocus();
     if (!(space || e.button === 1)) return pick(e);
     e.preventDefault();
     if (space) spacePanned = true;
@@ -771,6 +773,10 @@
     if (!node || !info || !stage || space) return;
     e.preventDefault();
     e.stopPropagation();
+    // Cancelling the pointerdown keeps focus where it was (an inspector field…): take it, so the
+    // arrow keys move the object just scaled or rotated, not the last effect handle.
+    takeFocus();
+    arrowTarget = null;
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     const multiple = editor.selectedNodes.length > 1;
@@ -876,6 +882,8 @@
     if (!node || !info || space) return;
     e.preventDefault();
     e.stopPropagation();
+    takeFocus();
+    arrowTarget = null;
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     const b = info.bounds;
@@ -1217,6 +1225,7 @@
     if (space || !m) return;
     e.preventDefault();
     e.stopPropagation();
+    takeFocus();
     const el = e.currentTarget as Element;
     el.setPointerCapture(e.pointerId);
     const from = toLocal(e.clientX, e.clientY);
@@ -1253,6 +1262,7 @@
     if (space) return;
     e.preventDefault();
     e.stopPropagation();
+    takeFocus();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     grabbing = h.name;
