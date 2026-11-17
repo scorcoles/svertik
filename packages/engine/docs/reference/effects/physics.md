@@ -2,7 +2,7 @@
 
 `type: "physics"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-A deterministic 2D rigid-body simulation for a group. Add Rigid body to individual children to set their initial velocity, spin, or make them immovable. Acceleration, friction, restitution and static solid targets are optional; zero acceleration and friction preserve motion between elastic collisions. Filled paths, including holes, form colliders; strokes do not.
+A deterministic 2D rigid-body simulation for a group. Add Rigid body to individual children to set their initial velocity, spin, or make them immovable. Acceleration, friction, restitution and static solid targets are optional; zero acceleration and friction preserve motion between elastic collisions. Filled paths, including holes, form colliders; strokes do not. When its input changes pieces over time (an animated Mosaic, an Explosion), each new piece takes over from the body it comes from, with its position, angle and speed, instead of the simulation starting over.
 
 ## Parameters
 

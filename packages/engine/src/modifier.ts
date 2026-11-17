@@ -88,6 +88,22 @@ export interface ModifierContext {
    * current one if the scene is not at a time of its animation; null if not known yet.
    */
   trail?: TrailLookup;
+  /** This effect's own input at other scene times: only for those that ask for it (`history`). */
+  history?: HistoryLookup;
+}
+
+/**
+ * What an effect with `history` sees of its past: its input (and its own parameters, resolved) at another
+ * scene time. The engine evaluates the scene at that time with the stack cut right before the effect, so
+ * the answer is the same whether the scene plays, jumps or exports.
+ */
+export interface HistoryLookup {
+  /** This effect in this scene, apart from the time: what is kept under it holds while it doesn't change. */
+  key: string;
+  /** The scene time now, in seconds. */
+  now: number;
+  /** Input and parameters at scene time `t` (seconds); null if it can't be known. */
+  at(t: number): { geo: Geometry; params: Record<string, unknown> } | null;
 }
 
 export type TrailLookup = (id: string, length: number, samples: number) => [number, number][] | null;
@@ -106,6 +122,11 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
    * filters) in a `<mask>` made from another object. See modifiers/mask.ts.
    */
   mask?: boolean;
+  /**
+   * Reads its own input at other times (`ctx.history`): Physics, to know when its pieces changed. Slower,
+   * since the scene is evaluated at those times too; while doing so the stack stops right before it.
+   */
+  history?: boolean;
   /** Family (to group them in the menus even when their kinds differ): 'glitch', 'utils'. */
   family?: string;
   params: P;

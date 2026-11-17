@@ -11,7 +11,8 @@ export interface CollisionBody {
   impulse?: Impulse;
   fixed?: boolean;
 }
-interface State { x: number; y: number; angle: number; vx: number; vy: number; omega: number }
+/** A body's state: where its centre is, its angle, and how fast both change. */
+export interface State { x: number; y: number; angle: number; vx: number; vy: number; omega: number }
 interface Box { x0: number; y0: number; x1: number; y1: number }
 interface Axis { x: number; y: number; min: number; max: number }
 interface Polygon { points: Vec2[]; box: Box; axes: Axis[] }
@@ -172,12 +173,15 @@ function cells(box: Box, size: number, visit: (key: string) => void) {
   for (let x = Math.floor(box.x0 / size); x <= Math.floor(box.x1 / size); x++) for (let y = Math.floor(box.y0 / size); y <= Math.floor(box.y1 / size); y++) visit(`${x}:${y}`);
 }
 
-function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: number, acceleration: Vec2, time: number, friction: number, bounce: number, collide: boolean, contactDamping: number): FallPose[] {
+function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: number, acceleration: Vec2, time: number, friction: number, bounce: number, collide: boolean, contactDamping: number, start?: (State | undefined)[]): State[] {
   const cs = Math.cos(rotation), sn = Math.sin(rotation);
-  const key = [floor?.[0], floor?.[1], rotation, ...acceleration, friction, bounce, collide, contactDamping].join('|');
+  const key = [floor?.[0], floor?.[1], rotation, ...acceleration, friction, bounce, collide, contactDamping, JSON.stringify(start ?? null)].join('|');
   let replay = world.replay;
   if (!replay || replay.key !== key) {
-    const initial = world.bodies.map(({ body, fixed, impulse }): State => {
+    const initial = world.bodies.map(({ body, fixed, impulse }, i): State => {
+      // A body that takes over from another (Physics, when its pieces change) starts where that one left off.
+      const given = start?.[i];
+      if (given) return { ...given };
       const [vx, vy] = fixed ? [0, 0] : impulse?.velocity ?? [0, 0];
       return floor
         ? { x: (body.center[0] - floor[0]) * cs + (body.center[1] - floor[1]) * sn, y: -(body.center[0] - floor[0]) * sn + (body.center[1] - floor[1]) * cs, angle: -rotation, vx: vx * cs + vy * sn, vy: -vx * sn + vy * cs, omega: fixed ? 0 : impulse?.spin ?? 0 }
@@ -312,15 +316,28 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
   replay.latest = { step: whole, states };
   const fraction = time - whole / HZ;
   if (fraction > 1e-12) states = advance(states, fraction);
+  return states;
+}
+
+const posesOf = (states: State[], floor: Vec2 | null, rotation: number): FallPose[] => {
+  const cs = Math.cos(rotation), sn = Math.sin(rotation);
   return states.map((s) => floor
     ? ({ x: floor[0] + s.x * cs - s.y * sn, y: floor[1] + s.x * sn + s.y * cs, angle: s.angle + rotation })
     : ({ x: s.x, y: s.y, angle: s.angle }));
-}
+};
 
 export function fallWorld(world: CollisionWorld, floor: Vec2, rotation: number, gravity: number, time: number, friction: number, bounce: number, collide: boolean): FallPose[] {
-  return simulateWorld(world, floor, rotation, [0, gravity], time, friction, bounce, collide, 1);
+  return posesOf(simulateWorld(world, floor, rotation, [0, gravity], time, friction, bounce, collide, 1), floor, rotation);
 }
 
 export function physicsWorld(world: CollisionWorld, acceleration: Vec2, time: number, friction: number, bounce: number, collide: boolean): FallPose[] {
-  return simulateWorld(world, null, 0, acceleration, time, friction, bounce, collide, 0);
+  return posesOf(simulateWorld(world, null, 0, acceleration, time, friction, bounce, collide, 0), null, 0);
+}
+
+/**
+ * Physics without a floor, as full states (in the world's coordinates): `start` gives the state some bodies
+ * begin in (the others, at rest where they are, with their impulse). The poses are the states' x, y and angle.
+ */
+export function physicsStates(world: CollisionWorld, acceleration: Vec2, time: number, friction: number, bounce: number, collide: boolean, start?: (State | undefined)[]): State[] {
+  return simulateWorld(world, null, 0, acceleration, time, friction, bounce, collide, 0, start);
 }

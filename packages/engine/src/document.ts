@@ -8,7 +8,7 @@ import { buildShape, shapeRegistry } from './shapes';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import { findModifier, sampleScene, trackValue } from './animation';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
-import type { TrailLookup } from './modifier';
+import type { HistoryLookup, TrailLookup } from './modifier';
 import { gradientDefs, styleAttrs, toPathData } from './render';
 import {
   type BlendMode,
@@ -55,6 +55,8 @@ export interface DocumentResult {
   geometry: Geometry;
   /** The result of a node (with its effects), in the document; without its opacity or blend. */
   geometryOf(id: string): Geometry | null;
+  /** What a node's stack produced, in the node's own coordinates (before its placement). */
+  resultOf(id: string): Geometry | null;
   /** The source of each object, placed in the document (to show it as a ghost). */
   sources: Geometry;
   nodes: Map<string, NodeInfo>;
@@ -143,7 +145,17 @@ const union = (boxes: Bounds[]): Bounds => {
 };
 
 export interface DocumentEvaluator {
-  evaluate(scene: SceneV1): DocumentResult;
+  evaluate(scene: SceneV1, past?: PastScenes): DocumentResult;
+}
+
+/**
+ * The scene at other times, for effects that read their past (`history`): `at(t)` evaluates it at scene time
+ * `t` (with their stacks cut before them) and gives the result and the scene as evaluated; `key`, the scene
+ * apart from the time.
+ */
+export interface PastScenes {
+  key(): string;
+  at(t: number): { doc: DocumentResult; scene: SceneV1 } | null;
 }
 
 /** Geometry of another node, already in the coordinates of the stack asking for it (or null if not known yet). */
@@ -157,9 +169,14 @@ export type TargetLookup = (id: string) => Geometry | null;
  * and, if any asked, another one with what came out of the first. Those nodes are not cached.
  */
 export function createDocumentEvaluator(
-  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup) => Geometry,
+  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined) => Geometry,
   filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
-  options: { trails?: boolean; maskOf?: (stack: ModifierInstance[]) => { source: string; mode: string; invert: boolean; whole?: boolean } | null } = {},
+  options: {
+    trails?: boolean;
+    maskOf?: (stack: ModifierInstance[]) => { source: string; mode: string; invert: boolean; whole?: boolean } | null;
+    /** Shortens every stack (to evaluate the past of effects with `history`: up to right before them). */
+    cut?: (stack: ModifierInstance[]) => ModifierInstance[];
+  } = {},
 ): DocumentEvaluator {
   const maskOf = options.maskOf ?? (() => null);
   // Trails (Trace): the scene evaluated at earlier times, with another evaluator (without trails, so it
@@ -197,7 +214,7 @@ export function createDocumentEvaluator(
   /** What came out last time (matrix and geometry of each node): the first pass starts from there. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
 
-  function evaluate(scene: SceneV1): DocumentResult {
+  function evaluate(scene: SceneV1, past?: PastScenes): DocumentResult {
     const resolution = scene.resolution ?? 0.01;
     // El tiempo sin envolver: cuando la animación vuelve a empezar (el bucle), el tiempo sigue
     // creciendo, para que la estela pueda seguir el recorrido a través de la vuelta. Un salto
@@ -234,8 +251,34 @@ export function createDocumentEvaluator(
     const stackOf = (node: SceneNode) => {
       const more = extra.get(node.id);
       const own = node.stack ?? [];
-      return more ? [...own, ...more] : own;
+      const all = more ? [...own, ...more] : own;
+      return options.cut ? options.cut(all) : all;
     };
+    /**
+     * An effect's input in the past: the node's result at that time, with the stack cut before it.
+     * `used` is told when an effect asks for it (that node is then redone every time).
+     */
+    const historyFor = (nodeId: string, used?: () => void) =>
+      past
+        ? (inst: ModifierInstance): HistoryLookup => {
+            used?.();
+            return {
+              key: `${past.key()}|${nodeId}|${inst.id}`,
+              now: scene.at ?? 0,
+              at(t) {
+                const then = past.at(t);
+                const geo = then?.doc.resultOf(nodeId);
+                if (!then || !geo) return null;
+                // Its parameters then (the time of Physics, for instance), in that scene's node and effectors.
+                const nodesThen = new Map<string, SceneNode>();
+                for (const { node } of walkNodes(then.scene.objects)) nodesThen.set(node.id, node);
+                const node = nodesThen.get(nodeId);
+                const stackThen = node ? [...node.stack, ...(effectorStacks(then.scene, nodesThen).get(nodeId) ?? [])] : [];
+                return { geo, params: stackThen.find((m) => m.id === inst.id)?.params ?? inst.params ?? {} };
+              },
+            };
+          }
+        : undefined;
     /** From the previous pass: matrix and result (in the document) of each node. */
     let known = last;
     // Fingerprint of the geometry of each known node (computed once per pass).
@@ -402,7 +445,7 @@ export function createDocumentEvaluator(
             const deps: [string, number][] = [];
             const refs: StackRefs = {};
             usedTrail = false;
-            const computed = runStack(combinedSource, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id));
+            const computed = runStack(combinedSource, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id), historyFor(node.id));
             const result = local.length ? { ...computed, shapes: computed.shapes.map(({ signalGroup: _signalGroup, ...shape }) => shape) } : computed;
             entry = { key, source, result, dynamic: asked, deps, refs, volatile: usedTrail };
             asked = asked || before;
@@ -461,8 +504,10 @@ export function createDocumentEvaluator(
           } else {
             const before = asked;
             asked = false;
-            result = runStack(inner, stack, ref, resolution, lookupFor(node.id), undefined, refs);
-            if (!asked) groupCache.set(node.id, { key: gkey, result, refs });
+            // What reads its past is redone each time: the past can change while the input now doesn't.
+            let reads = false;
+            result = runStack(inner, stack, ref, resolution, lookupFor(node.id), undefined, refs, undefined, historyFor(node.id, () => (reads = true)));
+            if (!asked && !reads) groupCache.set(node.id, { key: gkey, result, refs });
             else groupCache.delete(node.id);
             asked = asked || before;
           }
@@ -648,7 +693,8 @@ export function createDocumentEvaluator(
       }
       (filters ??= {})[id] = { markup, region, kind: 'mask' };
     }
-    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf };
+    const resultOf = (id: string) => finalResults.get(id) ?? null;
+    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf, resultOf };
   }
 
   return { evaluate };

@@ -1,11 +1,12 @@
 import { expandCompositions } from './composition';
 // The scene (what is saved and exported as JSON) and the engine that evaluates it.
 
-import { createDocumentEvaluator, type DocumentResult, type SceneV1 } from './document';
+import { createDocumentEvaluator, type DocumentResult, type PastScenes, type SceneV1 } from './document';
+import { sampleScene } from './animation';
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
-import { resolveParams, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
+import { resolveParams, type HistoryLookup, type ModifierContext, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
 import { evaluateSceneExpressions } from './expression';
 import { hasMissingPacks, restorePacks } from './pack';
@@ -134,7 +135,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * effects haven't changed, they are reused (animating the last of the stack doesn't redo the ones above).
    * A step that looks at another object is not reused (the other may have changed).
    */
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup): Geometry {
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined): Geometry {
     // Subdivision follows the size of the source; the reference box changes after an effect that reframes.
     const res = Math.max(ref.width, ref.height) * resolution || 1;
     let reuse = !!memo && memo.base === geo && memo.resolution === resolution;
@@ -156,7 +157,10 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: unknown modifier "${inst.type}"`);
         if (def.kind !== 'filter' && !def.mask) {
-          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children) }));
+          // What depends on its past is redone every time (the past can change without its input changing).
+          const own = def.history ? history?.(inst) : undefined;
+          if (own) dynamic = true;
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own }));
           if (def.reframe) {
             const b = bounds(geo);
             if (b.width > 0 || b.height > 0) ref = b;
@@ -211,7 +215,51 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     restorePacks(out, (s) => packDocuments.evaluate(expandCompositions(evaluateSceneExpressions(withPacks(s)), registry)), packCache);
     return out;
   };
-  const evaluateDocument = (scene: SceneV1) => documents.evaluate(expandCompositions(evaluateSceneExpressions(withPacks(scene)), registry));
+  // The past, for effects that read it (`history`): the scene at other times, with every stack cut right
+  // before them (so they see their input, and don't ask for their own past again). Kept per time while the
+  // scene, apart from its time, doesn't change: while playing, each frame adds one time at most.
+  const cut = (stack: ModifierInstance[]) => {
+    const i = stack.findIndex((m) => m.enabled !== false && registry.get(m.type)?.history);
+    return i < 0 ? stack : stack.slice(0, i);
+  };
+  const pastDocuments = createDocumentEvaluator(runStack, filtersOf, { maskOf, trails: false, cut });
+  const pastCache = { key: '', at: new Map<number, { doc: DocumentResult; scene: SceneV1 }>() };
+  const pastOf = (raw: SceneV1): PastScenes => {
+    let key: string | undefined;
+    const { at: _now, ...base } = raw;
+    return {
+      // Animated values count at time 0: the editor writes the current ones into the scene as it plays.
+      key: () => (key ??= hashText(JSON.stringify(sampleScene(base as SceneV1, 0), (k, v) => (k === 'at' ? undefined : v)))),
+      at(t) {
+        const k = this.key();
+        if (pastCache.key !== k) pastCache.key = k, pastCache.at.clear();
+        let hit = pastCache.at.get(t);
+        if (!hit) {
+          const then = expandCompositions(evaluateSceneExpressions({ ...sampleScene(base as SceneV1, t), at: t }), registry);
+          hit = { doc: pastDocuments.evaluate(then), scene: then };
+          pastCache.at.set(t, hit);
+          if (pastCache.at.size > 2000) pastCache.at.delete(pastCache.at.keys().next().value!);
+        }
+        return hit;
+      },
+    };
+  };
+  const usesHistory = (scene: SceneV1) => {
+    const types = new Set([...registry.values()].filter((d) => d.history).map((d) => d.type));
+    if (!types.size) return false;
+    const text = JSON.stringify(scene);
+    return [...types].some((t) => text.includes(`"type":"${t}"`));
+  };
+  /** A short fingerprint of a long text (FNV-1a). */
+  const hashText = (text: string) => {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+    return (h >>> 0).toString(36) + ':' + text.length;
+  };
+  const evaluateDocument = (scene: SceneV1) => {
+    const raw = withPacks(scene);
+    return documents.evaluate(expandCompositions(evaluateSceneExpressions(raw), registry), usesHistory(raw) ? pastOf(raw) : undefined);
+  };
   const flat = (scene: SceneV1) => evaluateDocument(scene).geometry;
 
   return {

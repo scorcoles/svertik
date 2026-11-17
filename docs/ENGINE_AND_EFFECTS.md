@@ -675,6 +675,8 @@ A general rigid-body simulation for the children of a group. Add **Physics** to 
 
 Rigid Body's `velocity` is the child’s initial `[x, y]` velocity in px/s; `spin` is its initial angular velocity in degrees/s. Filled contours, including interior holes, are used for collisions; open paths and stroke thickness are ignored. The simulation uses deterministic 120 Hz steps and is seekable and exportable. For a circular arena, use a hollow filled shape as an immovable child or select it under `solids`.
 
+**When the pieces change.** If what enters Physics changes over time (a Mosaic on a child whose rows are animated, an Explosion that starts, children that appear), the simulation does not start over with the new pieces. Physics reads its own input in the past (the engine evaluates the scene at earlier times with the stack cut right before Physics, on a quarter-second grid refined to the exact 120 Hz step of each change) and simulates stretch by stretch: at each change, every new piece starts where the earlier body it comes from was (the one of the same object that overlaps it most at rest), with its angle, its spin and the speed of that point of the body. A piece with no origin starts at rest where it is, with its own Rigid body impulse. The result is the same playing, jumping or exporting; the first jump far into a long simulation costs one evaluation of the scene per sample. A re-cut that crosses earlier cuts (Mosaic recuts the whole source, not its pieces) gives each new piece the motion of the earlier piece it overlaps most. Changes in shape that keep the same pieces don't start a stretch. Effects that read their past declare `history: true` and receive `ctx.history`.
+
 
 ### Rope (`rope`)
 
