@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bounds, builtins, createEngine, mapPoints, onlyFor, validateScene, type Geometry, type SceneV1, type Vec2 } from '../src';
-import { collisionBody, fallWorld } from '../src/modifiers/gravity-collisions';
+import { collisionBody, fallWorld, physicsWorld } from '../src/modifiers/gravity-collisions';
 
 const stacked = '<svg viewBox="0 0 40 110"><rect width="40" height="40"/><rect y="70" width="40" height="40"/></svg>';
 const input = (time: number, collisions = true) => ({ source: stacked, stack: [{ id: 'g', type: 'gravity', params: { time, collisions, bounce: 0, friction: 0.8, floor: [0.5, 1.5] } }] });
@@ -46,6 +46,29 @@ describe('gravity collisions', () => {
     expect(poses[0]!.x).toBeLessThan(-40);
     expect(poses[1]!.x).toBeGreaterThan(40);
     expect(poses[0]!.x + poses[1]!.x).toBeCloseTo(0, 6);
+  });
+  it('contacts never add energy: fracture pieces hitting a ring', () => {
+    const e = createEngine(builtins);
+    const scene = (objects: SceneV1['objects']): SceneV1 => ({ version: 1, objects });
+    const star = e.evaluateDocument(scene([{ kind: 'shape', id: 's', name: 'Star', shape: 'star', params: { radius: 124, points: 5, inner: 0.45, fill: true }, transform: { x: 111.2, y: 84.66 },
+      stack: [{ id: 'c', type: 'crack', params: { growth: 0.4, length: 1.23, width: 0, impact: [0.497, 0.563], seed: 1 } }] }])).geometry;
+    const ring = e.evaluateStack({ source: '<svg viewBox="-376 -376 752 752"><path fill-rule="evenodd" d="M-376 0A376 376 0 1 0 376 0A376 376 0 1 0 -376 0ZM-294 0A294 294 0 1 0 294 0A294 294 0 1 0 -294 0Z"/></svg>', stack: [] });
+    const pieces = [...new Set(star.shapes.map((sh) => sh.clone))].map((clone) => {
+      const geo = { ...star, shapes: star.shapes.filter((sh) => sh.clone === clone).map((sh) => ({ ...sh, impulse: { velocity: [132, -588] as Vec2, spin: 0 } })) };
+      return collisionBody(geo, undefined, false, 4.5, true)!;
+    });
+    expect(pieces.length).toBeGreaterThan(2);
+    const world = { bodies: [...pieces, collisionBody(ring, undefined, true, 4.5, true)!] };
+    const energy = () => {
+      const states = (world as unknown as { replay: { latest: { states: { vx: number; vy: number; omega: number }[] } } }).replay.latest.states;
+      return world.bodies.reduce((sum, { body, fixed }, i) => fixed ? sum : sum + body.mass * (states[i]!.vx ** 2 + states[i]!.vy ** 2 + body.inertia * states[i]!.omega ** 2), 0);
+    };
+    physicsWorld(world, [0, 0], 0, 0, 1, true);
+    const start = energy();
+    for (const t of [0.5, 1, 2]) {
+      physicsWorld(world, [0, 0], t, 0, 1, true);
+      expect(energy()).toBeLessThanOrEqual(start * (1 + 1e-6));
+    }
   });
   it('uses the selected target as a fixed solid in owner coordinates', () => {
     const scene = targetScene(platform);

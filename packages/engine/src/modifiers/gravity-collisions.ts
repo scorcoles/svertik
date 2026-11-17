@@ -187,6 +187,9 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
   }
   const size = Math.max(...world.bodies.filter((b) => !b.fixed).map((b) => Math.sqrt(b.body.inertia)), 1);
   const slop = size * 0.0001;
+  // Slow approaches don't bounce: bodies resting against each other (pieces of a fracture, a stack) stay in contact
+  // instead of trading tiny rebounds. Without acceleration the floor of size × 0.5/s keeps it above zero.
+  const restitutionThreshold = Math.max(Math.sqrt(Math.hypot(...acceleration) * size) * 0.05, size * 0.5);
   // Static solids never change during one replay: keep transformed convex parts in a spatial hash.
   let fixed = world.fixedIndex;
   const fixedKey = [floor?.[0], floor?.[1], rotation].join('|');
@@ -225,7 +228,7 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
         const avx = a.state.vx - a.state.omega * (y - a.state.y), avy = a.state.vy + a.state.omega * (x - a.state.x);
         const bvx = b ? b.state.vx - b.state.omega * (y - b.state.y) : 0, bvy = b ? b.state.vy + b.state.omega * (x - b.state.x) : 0;
         const closing = (bvx - avx) * nx + (bvy - avy) * ny;
-        contacts.push({ a, b, nx, ny, x, y, depth, normal: 0, tangent: 0, target: closing < -Math.sqrt(Math.hypot(...acceleration) * size) * 0.05 ? -closing * bounce : 0 });
+        contacts.push({ a, b, nx, ny, x, y, depth, normal: 0, tangent: 0, target: closing < -restitutionThreshold ? -closing * bounce : 0 });
       }
     };
     for (const a of placed) if (a.im && floor) {
@@ -269,6 +272,11 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
       }
       for (const [b, list] of hits) for (const hit of list.sort((a, b) => b.depth - a.depth).slice(0, 4)) add(a, b, hit.nx, hit.ny, hit.depth, hit.points);
     }
+    // Contacts are passive: they may lose energy but never create it. Simultaneous restitution in chains of
+    // contacts (a light piece between a heavy one and a wall) can, so the bodies involved are scaled back.
+    const involved = [...new Set(contacts.flatMap((c) => c.b ? [c.a, c.b] : [c.a]))].filter((p) => p.im);
+    const energy = () => involved.reduce((sum, { state, im, ii }) => sum + (state.vx ** 2 + state.vy ** 2) / im + state.omega ** 2 / ii, 0);
+    const energyBefore = energy();
     for (let iteration = 0; iteration < 12; iteration++) for (const contact of contacts) {
       const { a, b, nx, ny, x, y } = contact;
       const rx = x - a.state.x, ry = y - a.state.y, sx = b ? x - b.state.x : 0, sy = b ? y - b.state.y : 0;
@@ -284,6 +292,11 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
       const tangentMass = a.im + (b?.im ?? 0) + (rx * ty - ry * tx) ** 2 * a.ii + (sx * ty - sy * tx) ** 2 * (b?.ii ?? 0);
       const tangent = Math.max(-friction * normal, Math.min(friction * normal, contact.tangent - relative(tx, ty) / tangentMass));
       apply(tangent - contact.tangent, tx, ty); contact.tangent = tangent;
+    }
+    const after = energy();
+    if (after > energyBefore * (1 + 1e-9) && after > 0) {
+      const k = Math.sqrt(energyBefore / after);
+      for (const { state } of involved) { state.vx *= k; state.vy *= k; state.omega *= k; }
     }
     const touching = new Set(contacts.flatMap((c) => c.b ? [c.a.index, c.b.index] : [c.a.index]));
     if (contactDamping) for (const i of touching) if (!world.bodies[i]!.fixed) states[i]!.omega *= Math.exp(-contactDamping * dt);

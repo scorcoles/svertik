@@ -13,7 +13,6 @@ interface Branch {
 
 /**
  * Cracks: branching lines born from an impact point.
- * - lines: painted on top, as a new stroke-only shape (the shape isn't touched);
  * - cut: cut out as gaps of `width` px;
  * - shatter: cut out, and each loose piece moves away from the impact `separation` px (each piece, an element).
  * `growth` trims by "time", so animating it grows the crack without changing its drawing.
@@ -23,14 +22,13 @@ export const crack = defineModifier({
   label: 'Crack',
   kind: 'generator',
   params: {
-    mode: { type: 'enum', default: 'cut', options: ['lines', 'cut', 'shatter'] as const, animatable: false },
+    mode: { type: 'enum', default: 'cut', options: ['cut', 'shatter'] as const, animatable: false },
     growth: { type: 'number', default: 1, min: 0, max: 1, step: 0.01 },
     cracks: { type: 'number', default: 5, min: 1, max: 16, step: 1, ramp: false },
     length: { type: 'number', default: 0.6, min: 0, max: 2, step: 0.01, unit: 'fraction' },
     branching: { type: 'number', default: 0.35, min: 0, max: 1, step: 0.01 },
     jagged: { type: 'number', default: 0.4, min: 0, max: 1, step: 0.01 },
-    width: { type: 'number', default: 1, min: 0, max: 10, step: 0.1, unit: 'px', group: 'Style', ramp: false },
-    color: { type: 'color', default: '#000000', group: 'Style' },
+    width: { type: 'number', default: 1, min: 0, max: 10, step: 0.1, unit: 'px', ramp: false },
     separation: { type: 'number', default: 6, min: 0, max: 80, step: 0.5, unit: 'px', group: 'Shatter', label: 'Separation' },
     impact: { type: 'point', default: [0.4, 0.35], unit: 'fraction', group: 'Impact', label: 'Point' },
     seed: { type: 'seed', default: 1, group: 'Impact' },
@@ -54,10 +52,9 @@ export const crack = defineModifier({
       if (!found) return geo;
       origin = found;
     }
-    // When cutting, cracks carry on across gaps (they cut where there is material); when painting, they don't.
-    const cutting = p.mode !== 'lines';
+    // Cracks carry on across gaps (they cut where there is material), up to a margin around the drawing.
     const box = { x0: b.x - size * 0.05, y0: b.y - size * 0.05, x1: b.x + b.width + size * 0.05, y1: b.y + b.height + size * 0.05 };
-    const within = (q: Vec2) => (cutting ? q[0] >= box.x0 && q[0] <= box.x1 && q[1] >= box.y0 && q[1] <= box.y1 : inside(q));
+    const within = (q: Vec2) => q[0] >= box.x0 && q[0] <= box.x1 && q[1] >= box.y0 && q[1] <= box.y1;
 
     const rand = rng(p.seed);
     const step = size * 0.025;
@@ -118,13 +115,7 @@ export const crack = defineModifier({
     }
     if (!subpaths.length) return geo;
 
-    if (cutting) return cut(geo, subpaths, p, origin, ctx.resolution);
-
-    const cracks: Shape = {
-      subpaths,
-      style: { fill: 'none', stroke: p.color, 'stroke-width': String(p.width), 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
-    };
-    return { viewBox: geo.viewBox, shapes: [...geo.shapes, cracks] };
+    return cut(geo, subpaths, p, origin, ctx.resolution);
   },
 });
 

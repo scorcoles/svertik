@@ -2,20 +2,19 @@
 
 `type: "crack"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Branching cracks from an impact point. `lines` draws them on top; `cut` cuts them as gaps of `width` px; `shatter` cuts them and pushes each loose piece away from the impact (each piece, an element).
+Branching cracks from an impact point. `cut` cuts them as gaps of `width` px; `shatter` cuts them and pushes each loose piece away from the impact (each piece, an element).
 
 ## Parameters
 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
-| `mode` | enum | `"cut"` | `lines`, `cut`, `shatter` | not animatable |
+| `mode` | enum | `"cut"` | `cut`, `shatter` | not animatable |
 | `growth` | number | `1` | min 0, max 1, step 0.01 |  |
 | `cracks` | number | `5` | min 1, max 16, step 1 |  |
 | `length` | number | `0.6` | min 0, max 2, step 0.01 | fraction of the drawing size |
 | `branching` | number | `0.35` | min 0, max 1, step 0.01 |  |
 | `jagged` | number | `0.4` | min 0, max 1, step 0.01 |  |
-| `width` | number | `1` | min 0, max 10, step 0.1 | unit: px; group: Style |
-| `color` | color | `"#000000"` | #rrggbb | group: Style |
+| `width` | number | `1` | min 0, max 10, step 0.1 | unit: px |
 | `separation` | number | `6` | min 0, max 80, step 0.5 | unit: px; group: Shatter |
 | `impact` | point | `[0.4,0.35]` | [x, y], fractions of the box (0–1) | group: Impact; label: Point |
 | `seed` | seed | `1` | integer | group: Impact |
@@ -38,7 +37,6 @@ Inside a node's `stack` (effects run top to bottom):
     "branching": 0.35,
     "jagged": 0.4,
     "width": 1,
-    "color": "#000000",
     "separation": 6,
     "impact": [
       0.4,

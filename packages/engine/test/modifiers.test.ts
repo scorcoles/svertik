@@ -102,49 +102,35 @@ describe('engine', () => {
 
 describe('crack', () => {
   const run = (params: Record<string, unknown>) =>
-    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'crack', params: { mode: 'lines', ...params } }] });
+    createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'crack', params }] });
+  const holes = (geo: ReturnType<typeof run>) => geo.shapes.flatMap((s) => s.subpaths).length;
 
   it('cut: cuts the cracks as gaps (no stroke shape on top); shatter: separates the pieces', () => {
     const cut = run({ mode: 'cut', width: 2 });
     expect(cut.shapes.every((s) => s.style.stroke !== '#000000')).toBe(true);
     // There are gaps: more subpaths (or pieces) than the whole square.
-    expect(cut.shapes.flatMap((s) => s.subpaths).length).toBeGreaterThan(1);
+    expect(holes(cut)).toBeGreaterThan(1);
     const shatter = run({ mode: 'shatter', width: 2, separation: 10 });
     expect(shatter.shapes.map((s) => s.clone)).toEqual(shatter.shapes.map((_, i) => i));
     const b = bounds(shatter);
     expect(b.width).toBeGreaterThan(60);
   });
 
-  it('adds a stroke-only shape on top and leaves the original alone', () => {
-    const geo = run({});
-    expect(geo.shapes).toHaveLength(2);
-    expect(geo.shapes[1]!.style).toMatchObject({ fill: 'none', stroke: '#000000' });
-    expect(bounds({ ...geo, shapes: [geo.shapes[0]!] })).toEqual({ x: 20, y: 20, width: 60, height: 60 });
+  it('cutting leaves the outline where it was', () => {
+    expect(bounds(run({ width: 2 }))).toEqual({ x: 20, y: 20, width: 60, height: 60 });
   });
 
-  it('the cracks stay inside the shape', () => {
-    const b = bounds({ ...run({ length: 2, cracks: 12 }), shapes: [run({ length: 2, cracks: 12 }).shapes[1]!] });
-    expect(b.x).toBeGreaterThanOrEqual(20 - 1e-6);
-    expect(b.y).toBeGreaterThanOrEqual(20 - 1e-6);
-    expect(b.x + b.width).toBeLessThanOrEqual(80 + 1e-6);
-    expect(b.y + b.height).toBeLessThanOrEqual(80 + 1e-6);
-  });
-
-  it('growth 0 draws nothing; growing does not change the drawing, only how much shows', () => {
-    expect(run({ growth: 0 }).shapes).toHaveLength(1);
-    const half = run({ growth: 0.5 }).shapes[1]!;
-    const full = run({ growth: 1 }).shapes[1]!;
-    expect(half.subpaths.length).toBeLessThanOrEqual(full.subpaths.length);
-    expect(half.subpaths[0]!.start).toEqual(full.subpaths[0]!.start);
-    expect(half.subpaths[0]!.segs[0]!.p).toEqual(full.subpaths[0]!.segs[0]!.p);
+  it('growth 0 cuts nothing; more growth cuts more', () => {
+    expect(holes(run({ growth: 0 }))).toBe(1);
+    expect(holes(run({ growth: 0.5, width: 2 }))).toBeLessThanOrEqual(holes(run({ growth: 1, width: 2 })));
   });
 
   it('impact outside the shape: no cracks', () => {
-    expect(run({ impact: [-1, -1] }).shapes).toHaveLength(1);
+    expect(holes(run({ impact: [-1, -1] }))).toBe(1);
   });
 
   it('is deterministic with the seed', () => {
-    const svg = (seed: number) => toSVG(createEngine(builtins).evaluateStack({ source: square, stack: [{ id: 'c', type: 'crack', params: { seed } }] }));
+    const svg = (seed: number) => toSVG(run({ seed }));
     expect(svg(2)).toBe(svg(2));
     expect(svg(2)).not.toBe(svg(3));
   });
@@ -306,7 +292,7 @@ describe('distortions', () => {
 
 describe('dice', () => {
   it('randomizes within the ranges and is reproducible with the same randomness', async () => {
-    const { randomizeParams, rng, spherize, clone, crack } = await import('../src');
+    const { randomizeParams, rng, spherize, clone } = await import('../src');
     const a = randomizeParams(spherize.params, resolveParams(spherize.params), rng(5));
     const b = randomizeParams(spherize.params, resolveParams(spherize.params), rng(5));
     expect(a).toEqual(b);
@@ -315,9 +301,8 @@ describe('dice', () => {
     const [cx, cy] = a.center as [number, number];
     expect(cx).toBeGreaterThanOrEqual(0.2);
     expect(cy).toBeLessThanOrEqual(0.8);
-    // Clone's mode and Crack's colour are not randomized.
+    // Clone's mode is not randomized.
     expect(randomizeParams(clone.params, resolveParams(clone.params), rng(1)).mode).toBe('grid');
-    expect(randomizeParams(crack.params, resolveParams(crack.params), rng(1)).color).toBe('#000000');
   });
 });
 
