@@ -390,7 +390,7 @@ export function createDocumentEvaluator(
             const sk = node.kind === 'instance' ? instSrc!.key : node.kind === 'object' ? (node.packed ? `pack:${node.packed.key}` : node.source) : JSON.stringify([node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, unitDoc && [unitDoc.width, unitDoc.height]]);
             let src = sources.get(node.id);
             if (!src || src.key !== sk) {
-              src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? importSVG(node.source)) : buildShape(node.shape, node.params, { document: scene.document }) };
+              src = { key: sk, geo: node.kind === 'instance' ? instSrc!.geo : node.kind === 'object' ? (node.packed?.geometry ?? (node.source ? importSVG(node.source) : { viewBox: [0, 0, 0, 0], shapes: [] })) : buildShape(node.shape, node.params, { document: scene.document }) };
               sources.set(node.id, src);
             }
             const source = src.geo;

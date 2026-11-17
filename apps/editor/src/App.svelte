@@ -10,12 +10,13 @@
   import { DEFAULT_CANVAS, Editor, locateModifier, locateNode } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
   import { DEMOS, type DemoName } from './demo-catalog';
-  import { download, sceneJSON } from './exporters';
+  import { canPickFiles, download, saveProjectFile, sceneJSON } from './exporters';
   import InspectorPanel from './InspectorPanel.svelte';
   import Presenter from './Presenter.svelte';
   import Timeline from './Timeline.svelte';
   import TimeControls from './TimeControls.svelte';
   import UnsavedDialog from './UnsavedDialog.svelte';
+  import MissingSvgsDialog from './MissingSvgsDialog.svelte';
   import ShortcutsDialog from './ShortcutsDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import NotesPanel from './NotesPanel.svelte';
@@ -257,11 +258,18 @@
       editor.load(svg, file.name);
       return;
     }
+    // An SVG the open project is waiting for (saved without embedding it) fills its objects instead of being added.
+    if (editor.missingSvgs.some((href) => href.replace(/^.*[\\/]/, '') === file.name)) {
+      await attachSvgs([file]);
+      return;
+    }
     const text = await file.text();
-    // Un proyecto (.svrtk, o el JSON de una escena): se abre entero. Si no, es un SVG que se añade.
+    // A project (JSON, or a bare scene's JSON; .svrtk too): it opens whole. Otherwise it is an SVG to add.
     if (/\.(svrtk|json)$/i.test(file.name) || /^\s*\{/.test(text)) {
       guard(() => {
         if (editor.openProject(text)) {
+          projectHandle = null;
+          missingDismissed = false;
           recordActivity('Opened project');
           say(`Opened ${file.name}`);
         } else editor.error = 'That file is not a svertik project.';
@@ -271,13 +279,44 @@
     reportSvgImport(text, 'Imported SVG');
     editor.load(text, file.name);
   }
-  function saveProject() {
+  // SVGs a project keeps outside: the dialog asks for them once per opened project.
+  let missingDismissed = $state(false);
+  async function attachSvgs(files: File[]) {
+    const texts = new Map<string, string>();
+    for (const file of files) texts.set(file.name, await file.text());
+    const found = editor.attachSvgFiles(texts);
+    const left = editor.missingSvgs.length;
+    say(found ? `Attached ${found} SVG${found === 1 ? '' : 's'}${left ? `, ${left} still missing` : ''}` : 'Those SVGs are not the ones this project needs');
+  }
+  // The file this project was saved to (Chrome, Edge): ⌘S writes into it again; Save as picks another.
+  let projectHandle: FileSystemFileHandle | null = null;
+  /** Saves the project; resolves false if the user cancelled the file picker or writing failed. */
+  async function saveProject(as = false): Promise<boolean> {
     const text = editor.projectFile();
-    if (!text) return;
-    const name = `${editor.name}.svrtk`;
-    download(name, text, 'application/json');
-    editor.markSaved();
-    say(`Saved ${name}`);
+    if (!text) return false;
+    try {
+      const saved = await saveProjectFile(text, `${editor.name}.json`, as ? null : projectHandle);
+      if (!saved) return false;
+      if (saved !== 'downloaded') {
+        projectHandle = saved;
+        // The name chosen in the picker becomes the project's name.
+        const picked = saved.name.replace(/\.(svrtk|json)$/i, '');
+        if (picked && picked !== editor.name) {
+          editor.name = picked;
+          // The name is part of the file: write it again with the new one.
+          const renamed = editor.projectFile();
+          if (renamed) await saveProjectFile(renamed, saved.name, saved);
+        }
+      }
+      editor.markSaved();
+      const file = saved === 'downloaded' ? `${editor.name}.json` : saved.name;
+      say(editor.embedSources ? `Saved ${file}` : `Saved ${file} without its SVGs: keep them next to it`);
+      return true;
+    } catch (error) {
+      console.error('svertik: could not save the project', error);
+      say('Could not save the project');
+      return false;
+    }
   }
   // Lo que cambia de archivo (nuevo, abrir un proyecto, una demo) pregunta antes si hay cambios sin guardar.
   let pending = $state<(() => void) | null>(null);
@@ -285,10 +324,11 @@
     if (editor.dirty) pending = run;
     else run();
   }
-  function resolvePending(save: boolean) {
+  async function resolvePending(save: boolean) {
     const run = pending;
     pending = null;
-    if (save) saveProject();
+    // Cancelling the save keeps the current document open.
+    if (save && !(await saveProject())) return;
     run?.();
   }
   // Sustituir el SVG del objeto seleccionado (desde sus atributos).
@@ -366,6 +406,7 @@
     const demo = DEMOS.find((item) => item.which === which);
     if (!demo) return;
     if (editor.openProject(JSON.stringify(demo.create()))) {
+      projectHandle = null;
       recordActivity('Opened demo', which);
       editor.demoOrigin = demo.which;
       editor.selected = null;
@@ -449,7 +490,7 @@
       else editor.undo();
     } else if (mod && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      saveProject();
+      void saveProject(e.shiftKey);
     } else if (mod && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       fileInput.click();
@@ -591,7 +632,8 @@
   <Toolbar
     {editor}
     onimport={() => fileInput.click()}
-    onsave={saveProject}
+    onsave={() => saveProject()}
+    onsaveas={canPickFiles() ? () => saveProject(true) : undefined}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
@@ -599,7 +641,7 @@
     onexportlottie={exportLottie}
     onexportanimsvg={exportAnimatedSVG}
     ondemo={openDemo}
-    onnew={() => guard(() => editor.returnToStart())}
+    onnew={() => guard(() => { projectHandle = null; editor.returnToStart(); })}
   />
   <main class:panel-maximized={panelMaximized}>
     {#if !panelMaximized}<ModifierRail {editor} {placeAtCenter} />{/if}
@@ -689,7 +731,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    accept=".svg,image/svg+xml,.png,image/png,.webp,image/webp,.jpg,.jpeg,image/jpeg,.svrtk,.json,application/json"
+    accept=".svg,image/svg+xml,.png,image/png,.webp,image/webp,.jpg,.jpeg,image/jpeg,.json,application/json,.svrtk"
     multiple
     hidden
     onchange={async (e) => {
@@ -712,6 +754,7 @@
   {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
   {#if report}<ExportReport {...report} onclose={() => (report = null)} />{/if}
   {#if editor.showShortcuts}<ShortcutsDialog onclose={() => (editor.showShortcuts = false)} />{/if}
+  {#if editor.missingSvgs.length && !missingDismissed && !pending}<MissingSvgsDialog files={editor.missingSvgs} onfiles={(files) => void attachSvgs(files)} onclose={() => (missingDismissed = true)} />{/if}
   {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}
   {#if videoExport}
     <div class="video-export">

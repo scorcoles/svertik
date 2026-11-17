@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { generateDocs } from './docs';
 import { describeEffects, describeScene, frameTimes, loadInput, registerBundledFonts, registerFontFile, renderPNG, renderSVG } from './lib';
 
-const HELP = `svertik: draws svertik projects (.svrtk, JSON or SVG) without opening the editor.
+const HELP = `svertik: draws svertik projects (JSON or SVG) without opening the editor.
 
   svertik render <input> [-o out.svg|out.png]
       --time <s>          animation time (default 0)

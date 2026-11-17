@@ -16,7 +16,7 @@ An experiment by [VERTIK](https://www.vertik.net).
 - **Utils:** Instance (live copy of another object, with its own placement and stacked effects), Effector (applies its stack to other objects separately, with staggered delay), Follow Path (rigidly tracks another object's path), Connector (dynamic line between two objects following them, with arrows), Tracer (motion trail of an object during animation), and Look At (rotates an object to face another).
 - **Primitives** (rectangle, ellipse, polygon, star, line, spiral, pawn) and **Text** converted to vector outlines (one piece per letter).
 - **Animation:** keyframes on any value, easing curves (including back, elastic, bounce), and letter entrance presets.
-- **`.svrtk` Projects:** save (⌘S) and reopen (⌘O or dragging the file). Export to SVG and PNG. The "svertik" menu includes built-in demos.
+- **JSON projects:** save (⌘S, ⇧⌘S to save as) and reopen (⌘O or dragging the file). Imported SVGs go inside the file, or, with **Document → SVGs** off, stay next to it as separate files. Export to SVG and PNG. The "svertik" menu includes built-in demos.
 - **Strictly SVG:** exports pure, standard SVG.
 
 ## Getting Started
@@ -34,9 +34,9 @@ pnpm size       # what the player weighs, and what a given scene weighs
 ## Terminal CLI
 
 ```bash
-pnpm svertik render project.svrtk -o poster.png --scale 3 --background '#0d0d10'
-pnpm svertik render project.svrtk --frames frames/   # full animation as PNG frames
-pnpm svertik info project.svrtk
+pnpm svertik render project.json -o poster.png --scale 3 --background '#0d0d10'
+pnpm svertik render project.json --frames frames/   # full animation as PNG frames
+pnpm svertik info project.json
 pnpm svertik effects --json                         # lists effects and parameters
 ```
 

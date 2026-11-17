@@ -146,6 +146,10 @@
         <input id="doc-clip" type="checkbox" aria-label="Clip to the document in Play" title="In Play, hide whatever lies outside the document" checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
       </div>
     {/if}
+    <div class="full-viewport-row">
+      <label for="doc-embed-svgs">SVGs</label>
+      <input id="doc-embed-svgs" type="checkbox" aria-label="Embed SVG files in the project" title="Save imported SVGs inside the project file. Off: the project keeps only their file names, and the SVGs stay next to it" checked={editor.embedSources} onchange={(event) => (editor.embedSources = event.currentTarget.checked)} />
+    </div>
     {#if editor.viewportFit}
       <ParamRow label="Fit">
         <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. -->

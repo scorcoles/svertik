@@ -93,7 +93,7 @@ meter?.renderer(painted, player?.renderer() ?? 'auto');
   }
   async function share() {
     const url = await editor.shareURL();
-    if (!url) return say('Too big for a link: save the project (.svrtk) and send the file');
+    if (!url) return say('Too big for a link: save the project (.json) and send the file');
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       try {
         await navigator.share({ title: editor.name, url });

@@ -16,6 +16,30 @@ const fresh = () => {
 };
 
 describe('Editor', () => {
+  it('groups a loose vector before adding Physics (it simulates the objects of a group)', () => {
+    const e = new Editor();
+    e.scene = { version: 1, objects: [{ kind: 'shape', id: 'ball', name: 'Ball', stack: [], shape: 'ellipse', params: { width: 40, height: 40 } }] };
+    e.selected = 'ball';
+    expect(e.canAdd('physics')).toBe(true);
+    e.add('physics');
+    const group = e.scene!.objects[0]!;
+    expect(group.kind).toBe('group');
+    expect(group.kind === 'group' && group.children.map((c) => c.id)).toEqual(['ball']);
+    expect(group.stack.map((m) => m.type)).toEqual(['physics']);
+    expect(e.notice).toMatch(/Grouped first/);
+    expect(group.name).toBe('Physics');
+    expect(group.kind === 'group' && group.children[0]!.stack.map((m) => m.type)).toEqual(['rigidbody']);
+  });
+  it('starts an empty Physics group when nothing is selected', () => {
+    const e = new Editor();
+    e.scene = { version: 1, objects: [{ kind: 'shape', id: 'ball', name: 'Ball', stack: [], shape: 'ellipse', params: { width: 40, height: 40 } }] };
+    e.selected = null;
+    e.add('physics');
+    const group = e.scene!.objects[0]!;
+    expect(group).toMatchObject({ kind: 'group', name: 'Physics', children: [] });
+    expect(group.stack.map((m) => m.type)).toEqual(['physics']);
+    expect(e.scene!.objects[1]!.id).toBe('ball');
+  });
   it.each([false, true])('edits canvas position with moving parent pivots (nested: %s)', (nested) => {
     const e = new Editor();
     e.scene = {
@@ -632,7 +656,7 @@ describe('presets de animación', () => {
   });
 });
 
-describe('proyecto .svrtk', () => {
+describe('proyecto JSON', () => {
   it('guardar y volver a abrir deja el documento igual (y vale el JSON de la escena a secas)', () => {
     const e = fresh();
     e.add('wave');
@@ -648,6 +672,32 @@ describe('proyecto .svrtk', () => {
     expect(other.scene!.objects.map((n) => [n.id, n.name, n.stack.map((m) => m.type)])).toEqual(e.scene!.objects.map((n) => [n.id, n.name, n.stack.map((m) => m.type)]));
     expect(new Editor().openProject(JSON.stringify(e.scene))).toBe(true);
     expect(new Editor().openProject('hola')).toBe(false);
+  });
+
+  it('sin incorporar los SVG: el archivo solo los nombra, al abrir se piden y al darlos se dibuja igual', () => {
+    const e = fresh();
+    const object = e.scene!.objects.find((n) => n.kind === 'object')!;
+    expect(object).toBeTruthy();
+    const svg = (object as { source: string }).source;
+    e.embedSources = false;
+    const file = e.projectFile()!;
+    expect(file).not.toContain('<svg');
+    expect(JSON.parse(file).embedSources).toBe(false);
+    const other = new Editor();
+    expect(other.openProject(file)).toBe(true);
+    expect(other.embedSources).toBe(false);
+    const href = (other.scene!.objects.find((n) => n.id === object.id) as { href: string }).href;
+    expect(other.missingSvgs).toEqual([href]);
+    expect(other.dirty).toBe(false);
+    expect(other.attachSvgFiles(new Map([['otro.svg', svg]]))).toBe(0);
+    expect(other.attachSvgFiles(new Map([[href, svg]]))).toBe(1);
+    expect(other.missingSvgs).toEqual([]);
+    expect(other.dirty).toBe(false);
+    const engine = createEngine(builtins);
+    expect(engine.toSVG(other.scene!)).toBe(engine.toSVG(e.scene!));
+    // Con la opción puesta de nuevo, el SVG vuelve dentro del archivo.
+    other.embedSources = true;
+    expect(other.projectFile()).toContain('<svg');
   });
 });
 

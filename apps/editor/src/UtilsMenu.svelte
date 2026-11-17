@@ -76,7 +76,7 @@
         Tracer
       </DropdownMenu.Item>
       {#each effects as type (type)}
-        <DropdownMenu.Item class="sv-menu-item" disabled={!editor.activeNode || !editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
+        <DropdownMenu.Item class="sv-menu-item" disabled={(!editor.activeNode && !(type === 'physics' && editor.scene)) || !editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
           <Icon name={type as IconName} />
           {registry.get(type)?.label}
         </DropdownMenu.Item>
@@ -85,7 +85,7 @@
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
-<input bind:this={compositionFile} type="file" accept=".svrtk,.json,application/json" hidden onchange={async (e) => {
+<input bind:this={compositionFile} type="file" accept=".json,application/json,.svrtk" hidden onchange={async (e) => {
   const file = e.currentTarget.files?.[0];
   if (file) editor.importComposition(await file.text(), file.name);
   e.currentTarget.value = '';

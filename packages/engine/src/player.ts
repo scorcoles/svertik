@@ -8,6 +8,7 @@ export { createEngine, type Engine, type StackInput } from './engine';
 export { createPlayer, type PlayerOptions } from './interactions';
 export { type Renderer } from './canvas';
 export { prepareScene, sceneEffectTypes, sceneHasText, sceneNeedsImporter } from './prepare';
+export { resolveSources, missingSources } from './sources';
 export { setSVGImporter, hasSVGImporter, type SVGImporter } from './importer';
 // Las fuentes: una web que incruste el reproductor puede darle las suyas (con `registerFont`),
 // en vez de que se bajen de Fontsource.

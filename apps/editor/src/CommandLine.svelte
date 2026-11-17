@@ -95,8 +95,8 @@
   function blocker(e: CommandEntry): string | null {
     if (e.autonomous || e.verb) return null;
     const node = editor.activeNode;
-    if (!node) return 'Select an object first, then run the command again.';
-    if (editor.isLocked(node.id)) return 'The selected object is locked.';
+    if (!node && !(e.type === 'physics' && editor.scene)) return 'Select an object first, then run the command again.';
+    if (node && editor.isLocked(node.id)) return 'The selected object is locked.';
     if (!editor.canAdd(e.type)) return `${e.label} does not work on raster images.`;
     return null;
   }

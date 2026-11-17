@@ -2,18 +2,22 @@
   import { autonomousGenerators } from '@svertik/engine';
   import { modifierTypes, registry, type Editor } from './editor.svelte';
   import GroupMenu from './GroupMenu.svelte';
+  import { categoryOf } from './command';
   import UtilsMenu from './UtilsMenu.svelte';
 
   let { editor }: { editor: Editor } = $props();
-  const of = (kind: string) => modifierTypes.filter((type) => registry.get(type)?.kind === kind && !registry.get(type)?.family);
-  const glitch = modifierTypes.filter((type) => registry.get(type)?.family === 'glitch');
+  // Each effect under its menu (categoryOf: its kind, or a menu of its own, like Rigid body in Effect).
+  const of = (menu: string) => modifierTypes.filter((type) => { const d = registry.get(type); return !!d && categoryOf(d) === menu; });
+  // Rigid body right after Physics: the two go together.
+  const effect = of('Effect').filter((type) => type !== 'rigidbody');
+  effect.splice(effect.indexOf('physics') + 1, 0, ...(registry.get('rigidbody') ? ['rigidbody'] : []));
   const groups = [
-    { label: 'Deform', icon: 'spherize', types: of('deformer') },
-    { label: 'Generate', icon: 'clone', types: [...of('generator'), ...autonomousGenerators.map((source) => source.type)] },
-    { label: 'Effect', icon: 'step', types: of('effector') },
-    { label: 'Style', icon: 'color', types: of('style') },
-    { label: 'Glitch', icon: 'glitch', types: glitch },
-    { label: 'Filters', icon: 'shadow', types: of('filter') },
+    { label: 'Deform', icon: 'spherize', types: of('Deform') },
+    { label: 'Generate', icon: 'clone', types: [...of('Generate'), ...autonomousGenerators.map((source) => source.type)] },
+    { label: 'Effect', icon: 'step', types: effect },
+    { label: 'Style', icon: 'color', types: of('Style') },
+    { label: 'Glitch', icon: 'glitch', types: of('Glitch') },
+    { label: 'Filters', icon: 'shadow', types: of('Filters') },
   ] as const;
 </script>
 

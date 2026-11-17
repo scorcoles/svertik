@@ -1,7 +1,7 @@
 # svertik Scene Recipes (Templates for AI Agents)
 
 > **Copy-pasteable JSON scene templates ready for headless rendering or engine scripting.**  
-> Every scene in this document complies with `SceneV1` and can be saved directly as `.json` or `.svrtk` and rendered via `pnpm svertik render <scene.json> -o out.svg`.
+> Every scene in this document complies with `SceneV1` and can be saved directly as `.json` and rendered via `pnpm svertik render <scene.json> -o out.svg`.
 
 ---
 

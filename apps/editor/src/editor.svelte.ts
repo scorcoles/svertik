@@ -16,6 +16,9 @@ import {
   hasTextExpressions,
   outlineNode,
   packNode,
+  attachSources,
+  detachSources,
+  missingSources,
   unpackNode,
   linearOf,
   readTarget,
@@ -56,6 +59,7 @@ import {
 } from '@svertik/engine';
 import { printPosterProject } from './demo-poster';
 import { DEFAULT_SCRIPT } from './code';
+import { compactJSON } from './exporters';
 import { decodeState, encodeState, MAX_HASH } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
@@ -523,7 +527,7 @@ export class Editor {
   importComposition(text: string, filename = 'Composition'): boolean {
     try {
       const data = JSON.parse(text); const scene = data?.svertik === 'project' ? data.scene : data;
-      if (!isScene(scene)) { this.notice = 'Choose a .svrtk project or scene JSON.'; return false; }
+      if (!isScene(scene)) { this.notice = 'Choose a project or scene JSON.'; return false; }
       const report = validateScene(scene, builtins);
       if (report.errors.length) { this.notice = report.errors.join('\n'); return false; }
       return !!this.createComposition(false, scene, data.name ?? filename.replace(/\.[^.]+$/, ''));
@@ -2548,7 +2552,8 @@ export class Editor {
   /** Raster objects support affine transforms, opacity, masks and SVG pixel filters. */
   canAdd(type: string) {
     const node = this.activeNode;
-    if (type === 'physics' && node?.kind !== 'group') return false;
+    // Physics simulates the children of a group: on anything else, `add` groups it first.
+    if (type === 'physics') return true;
     if (node?.kind !== 'object' || node.packed || !/<image\b/i.test(node.source)) return true;
     const def = registry.get(type);
     return type === 'transform' || type === 'opacity' || type === 'mask' || def?.kind === 'filter';
@@ -2579,6 +2584,32 @@ export class Editor {
     if (!this.canAdd(type)) { this.notice = 'This effect does not support raster images.'; return; }
     // Boolean con varios objetos seleccionados: primero se agrupan (Boolean trabaja con los hijos de un grupo).
     if (type === 'boolean' && this.selectedNodes.length > 1 && !this.current) this.group();
+    // Physics simulates the children of a group: a loose object (or several selected) goes into one first,
+    // and with nothing selected it starts an empty "Physics" group to put things in.
+    const grouped = type === 'physics' && !!this.activeNode && this.activeNode.kind !== 'group';
+    const started = type === 'physics' && !this.activeNode && !!this.scene;
+    if (grouped || started) {
+      const taken = new Set([...walkNodes(this.scene!.objects)].map((x) => x.node.name));
+      let name = 'Physics';
+      for (let i = 2; taken.has(name); i++) name = `Physics ${i}`;
+      if (grouped) {
+        this.group();
+        const g = this.activeNode;
+        if (g?.kind === 'group') {
+          g.name = name;
+          // Each object gets its Rigid body, to set how it starts (velocity, spin) or pin it (Immovable).
+          const body = registry.get('rigidbody');
+          if (body) for (const child of g.children) {
+            if (child.stack.some((m) => m.type === 'rigidbody')) continue;
+            child.stack.push({ id: `rigidbody-${uid()}`, type: 'rigidbody', enabled: true, params: { ...resolveParams(body.params) } });
+          }
+        }
+      } else {
+        const g: GroupNode = { kind: 'group', id: `group-${uid()}`, name, stack: [], children: [] };
+        if (!this.addToRoot(g)) return;
+        this.selected = g.id;
+      }
+    }
     const def = registry.get(type);
     const owner = this.activeNode;
     if (!this.scene || !def || !owner) return;
@@ -2605,6 +2636,8 @@ export class Editor {
     // Que se vea lo añadido: el nodo y el Step que lo recibe, desplegados.
     const host = at && containers.has(at.inst.type) ? at.inst.id : at?.parent?.id;
     this.collapsed = this.collapsed.filter((x) => x !== owner.id && x !== host);
+    if (grouped) this.notice = 'Grouped first: Physics simulates the objects inside a group.';
+    if (started) this.notice = 'A Physics group: put objects inside it to simulate them.';
     this.record(true);
   }
 
@@ -2843,7 +2876,7 @@ export class Editor {
     if (this.canRedo) this.#restore(this.#index + 1);
   }
 
-  // ── Proyecto: todo en un archivo (.svrtk) para guardarlo y volver a abrirlo
+  // ── Proyecto: todo en un archivo (.json) para guardarlo y volver a abrirlo
 
   /** El proyecto entero como texto: objetos (con sus SVG), pilas, animación, script, nombre y lienzo. */
   // ── Guardado: qué se perdería al empezar otro archivo
@@ -2862,6 +2895,8 @@ export class Editor {
   /** Vuelve a la pantalla inicial para abrir un proyecto o crear una escena nueva. */
   returnToStart() {
     this.scene = null;
+    this.missingSvgs = [];
+    this.embedSources = true;
     this.selected = null;
     this.also = [];
     this.playing = false;
@@ -2893,18 +2928,41 @@ export class Editor {
     this.markSaved();
   }
 
+  /** Whether the saved project carries its SVGs; off, objects keep only a file name (`href`) next to the project. */
+  embedSources = $state(true);
+  /** SVG files the open project points to but doesn't have yet (their objects draw nothing until attached). */
+  missingSvgs = $state<string[]>([]);
+
   projectFile(): string | null {
     if (!this.scene) return null;
-    return JSON.stringify(
-      { svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script, scene: $state.snapshot(this.#rootScene) },
-      null,
-      2,
-    );
+    const scene = $state.snapshot(this.#rootScene) as SceneV1;
+    return compactJSON({
+      svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script,
+      embedSources: this.embedSources ? undefined : false,
+      scene: this.embedSources ? scene : detachSources(scene).scene,
+    });
+  }
+
+  /**
+   * Fills in the SVGs the project keeps outside, by file name. Not an edit: undo history restarts from here
+   * and a saved project stays saved. Returns how many of the missing files it found.
+   */
+  attachSvgFiles(files: ReadonlyMap<string, string>): number {
+    if (!this.#rootScene || !this.missingSvgs.length) return 0;
+    const clean = !this.dirty;
+    const before = this.missingSvgs.length;
+    this.#rootScene = attachSources($state.snapshot(this.#rootScene) as SceneV1, files);
+    this.missingSvgs = missingSources(this.#rootScene);
+    this.#history = [];
+    this.#index = -1;
+    this.record(true);
+    if (clean) this.markSaved();
+    return before - this.missingSvgs.length;
   }
 
   /** Abre un proyecto guardado. Devuelve false si el texto no es un proyecto de svertik. */
   openProject(text: string): boolean {
-    let data: { svertik?: string; name?: string; canvas?: string; script?: string; scene?: unknown };
+    let data: { svertik?: string; name?: string; canvas?: string; script?: string; embedSources?: boolean; scene?: unknown };
     try {
       data = JSON.parse(text);
     } catch {
@@ -2931,6 +2989,8 @@ export class Editor {
     this.name = data.name ?? 'untitled';
     if (data.canvas) this.canvas = data.canvas;
     this.script = data.script ?? DEFAULT_SCRIPT;
+    this.missingSvgs = missingSources(this.scene);
+    this.embedSources = data.embedSources !== false && !this.missingSvgs.length;
     this.selected = this.scene.objects[0]?.id ?? null;
     this.time = 0;
     this.playing = false;
@@ -2968,7 +3028,7 @@ export class Editor {
 
   /**
    * Enlace para compartir: la escena en la URL, marcada para abrirse en el modo Play (#p=…).
-   * null si no cabe en un enlace (entonces, mejor el archivo .svrtk).
+   * null si no cabe en un enlace (entonces, mejor el archivo .json).
    */
   async shareURL(): Promise<string | null> {
     if (!this.scene) return null;
@@ -2990,6 +3050,7 @@ export class Editor {
     this.#compositionViews = [];
     this.scene = scene;
     this.name = state.name.replace(/\.svg$/i, '');
+    this.missingSvgs = missingSources(scene);
     if (state.script) this.script = state.script;
     if (state.canvas) this.canvas = state.canvas;
     this.selected = scene.objects[0]?.id ?? null;

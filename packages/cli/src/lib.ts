@@ -1,9 +1,11 @@
 // svertik without a browser: read projects, draw them to SVG or PNG and describe the effects.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { Resvg } from '@resvg/resvg-js';
 import { Window } from 'happy-dom';
 import {
+  attachSources,
   builtins,
   createEngine,
   effectDescriptions,
@@ -11,6 +13,7 @@ import {
   hasFont,
   initKernels,
   isScene,
+  missingSources,
   registerFont,
   sampleScene,
   sceneTrailWindow,
@@ -56,7 +59,10 @@ export interface Loaded {
   name: string;
 }
 
-/** An .svrtk, a scene's JSON or an SVG (which becomes an object without effects). */
+/**
+ * A project's JSON (or a bare scene's) or an SVG (which becomes an object without effects). SVGs the project
+ * keeps outside (`href`) are read next to the file.
+ */
 export function loadInput(text: string, fileName: string): Loaded {
   const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(svrtk|json|svg)$/i, '');
   if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
@@ -65,7 +71,15 @@ export function loadInput(text: string, fileName: string): Loaded {
   const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: unknown };
   const scene = data.svertik === 'project' ? data.scene : data;
   if (!isScene(scene)) throw new Error(`${fileName} is neither an svertik project nor an SVG`);
-  return { scene, name: data.name ?? base };
+  const missing = missingSources(scene);
+  if (!missing.length) return { scene, name: data.name ?? base };
+  const files = new Map<string, string>();
+  for (const href of missing) {
+    const path = resolve(dirname(fileName), href);
+    if (!existsSync(path)) throw new Error(`${fileName} uses ${href}, which is not next to it (${path})`);
+    files.set(href, readFileSync(path, 'utf8'));
+  }
+  return { scene: attachSources(scene, files), name: data.name ?? base };
 }
 
 /**

@@ -25,7 +25,7 @@
   {/if}
   <div class="drop-content">
     <span class="icon"><Icon name="import" /></span>
-    <strong>Drop an SVG or a .svrtk project here</strong>
+    <strong>Drop an SVG or a project (.json) here</strong>
     <span class="muted">or paste it (⌘V), or draw with the tools on the left</span>
     <DemoReel {ondemo} />
     <div class="start">

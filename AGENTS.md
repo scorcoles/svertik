@@ -17,7 +17,7 @@
 
 ### 1. Terminal CLI Execution
 
-Save any scene JSON or `.svrtk` file and render it headlessly:
+Save any scene or project JSON and render it headlessly:
 
 ```bash
 # Render a static scene to standard SVG
@@ -104,6 +104,10 @@ Example shared controls in scene JSON:
   ]
 }
 ```
+
+## Project files and external SVGs
+
+Projects are JSON (`{ svertik: "project", version: 1, name, script, embedSources?, scene }`, or a bare SceneV1). An object may keep its SVG outside: `source: ""` plus `href: "logo.svg"` (relative to the project file). The CLI reads it next to the file, the player fetches it relative to the JSON, and the editor asks for it on open. When generating scenes, embed `source` unless asked otherwise. See Project files in `docs/ENGINE_AND_EFFECTS.md`.
 
 ## Layers
 

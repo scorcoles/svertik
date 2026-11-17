@@ -34,14 +34,20 @@ const CATEGORY: Record<string, string> = {
   utils: 'Utils',
 };
 
+/**
+ * Effects shown in another menu than their kind's. Rigid body is a deformer in the engine (it tags its
+ * geometry), but it only means something under Physics, so it sits next to it, in Effect.
+ */
+const MENU_OF: Record<string, string> = { rigidbody: 'Effect' };
+
 /** The menu category a definition belongs to ("Deform"…), so the UI uses the same words as the top bar. */
-export const categoryOf = (d: { kind?: string; family?: string }) => CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other';
+export const categoryOf = (d: { type?: string; kind?: string; family?: string }) => (d.type && MENU_OF[d.type]) || (CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other');
 
 export function buildCatalog(defs: readonly DefLike[], autonomous: readonly DefLike[], descriptions: Record<string, string>): CommandEntry[] {
   const entry = (d: DefLike, isAuto: boolean): CommandEntry => ({
     type: d.type,
     label: d.label,
-    category: isAuto ? 'Generate' : CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other',
+    category: isAuto ? 'Generate' : categoryOf(d),
     description: descriptions[d.type] ?? '',
     params: d.params,
     autonomous: isAuto,

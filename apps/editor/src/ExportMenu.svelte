@@ -36,7 +36,7 @@
   <DropdownMenu.Portal>
     <DropdownMenu.Content class="sv-menu sv-export-menu" align="end" sideOffset={6}>
       {#if hidden.length}
-        <!-- Hidden layers stay in the .svrtk file but are left out of every export. -->
+        <!-- Hidden layers stay in the project file but are left out of every export. -->
         <p class="layers-note">{hidden.length === 1 ? `Layer “${hidden[0]}” is hidden: it is left out of SVG, PNG, video and Lottie (the JSON keeps it).` : `${hidden.length} hidden layers are left out of SVG, PNG, video and Lottie (the JSON keeps them).`}</p>
       {/if}
       {#each items as it, i (i)}

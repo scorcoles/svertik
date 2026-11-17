@@ -11,14 +11,16 @@
     onnew: () => void;
     onopen: () => void;
     onsave: () => void;
+    onsaveas?: () => void;
     ondemo: (which: DemoName) => void;
   }
-  let { editor, onnew, onopen, onsave, ondemo }: Props = $props();
+  let { editor, onnew, onopen, onsave, onsaveas, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: 'New scene', icon: 'plus', run: onnew, needs: true },
     { label: 'Open project or import SVG…', icon: 'import', key: '⌘O', run: onopen },
-    { label: 'Save project (.svrtk)', icon: 'save', key: '⌘S', run: onsave, needs: true },
+    { label: 'Save project', icon: 'save', key: '⌘S', run: onsave, needs: true },
+    ...(onsaveas ? [{ label: 'Save as…', icon: 'save' as const, key: '⇧⌘S', run: onsaveas, needs: true }] : []),
     'sep',
     { label: 'Keyboard shortcuts', icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },
   ]);

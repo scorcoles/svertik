@@ -38,8 +38,8 @@ const player = await play(escena, '#logo');   // o un elemento
 player.stop();                                 // para la animación
 ```
 
-`play` devuelve `{ scene, svg, refresh, stop }`. `loadScene(url)` lee una escena (un `.svrtk` o el JSON de
-la escena) y `mountAll()` reproduce todas las escenas marcadas de la página.
+`play` devuelve `{ scene, svg, refresh, stop }`. `loadScene(url)` lee una escena (el JSON de un proyecto o
+el de la escena, con los SVG que guarde aparte en `href`, relativos al JSON) y `mountAll()` reproduce todas las escenas marcadas de la página.
 
 ## La escena
 

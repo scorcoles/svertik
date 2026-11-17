@@ -21,7 +21,7 @@ Audiencia secundaria: **agentes de IA**. El motor tiene documentación en Markdo
 
 ## Product Purpose
 
-svertik es un editor SVG no destructivo. Una geometría de partida (SVG importado, primitiva o texto convertido a contornos) pasa por una pila de efectos que el motor recalcula en vivo, sin tocar nunca el original. Se anima con un timeline y se lleva a cualquier web tal cual: como SVG plano, como proyecto JSON (`.svrtk`) o como código del runtime/player que reproduce los efectos y la animación.
+svertik es un editor SVG no destructivo. Una geometría de partida (SVG importado, primitiva o texto convertido a contornos) pasa por una pila de efectos que el motor recalcula en vivo, sin tocar nunca el original. Se anima con un timeline y se lleva a cualquier web tal cual: como SVG plano, como proyecto JSON o como código del runtime/player que reproduce los efectos y la animación.
 
 Es un proyecto propio y open source (licencia MIT, © VERTIK), en alfa (0.0.2). Pronto tendrá dominio propio: svertik.com.
 
@@ -35,7 +35,7 @@ Es un proyecto propio y open source (licencia MIT, © VERTIK), en alfa (0.0.2). 
 ## Operating Context
 
 - Aplicación web solo para escritorio (Svelte 5 y Vite) con lienzo, panel de pila de efectos, inspector de atributos, timeline, panel de código, notas de escena y diagnósticos. La interfaz está en inglés.
-- Flujo de proyecto: guardar y abrir `.svrtk` (⌘S, ⌘O o arrastrando el archivo), demos integradas en el menú «svertik» y exportación a SVG, PNG, MP4 (un ciclo) y código.
+- Flujo de proyecto: guardar y abrir proyectos `.json` (⌘S, ⇧⌘S, ⌘O o arrastrando el archivo), demos integradas en el menú «svertik» y exportación a SVG, PNG, MP4 (un ciclo) y código.
 - Uso con atajos de teclado (zoom, encuadre, guardar…). Es una herramienta de sesiones largas de trabajo.
 - Herramientas hermanas del mismo monorepo: `apps/player` (página de demo del bundle incrustable), `apps/demos`, `packages/ui` (componentes Svelte sobre Bits UI, tokens desde Penpot, Storybook) y la CLI `svertik` (render a SVG/PNG/frames, esquema de efectos).
 
@@ -56,7 +56,7 @@ Es un proyecto propio y open source (licencia MIT, © VERTIK), en alfa (0.0.2). 
 ## Evidence on Hand
 
 - Documentación real: `README.md`, `AGENTS.md`, `docs/ENGINE_AND_EFFECTS.md`, `docs/SCENE_RECIPES.md` y referencias autogeneradas en `packages/engine/docs/reference/`.
-- Demos reales: 7 proyectos `.svrtk` en `apps/editor/public/demos/` (compositions-boom, cross-fill, gravity-circle, motion-crosses, particles, rhythm-crosses, time-remap-boom).
+- Demos reales: 7 proyectos `.json` en `apps/editor/public/demos/` (compositions-boom, cross-fill, gravity-circle, motion-crosses, particles, rhythm-crosses, time-remap-boom).
 - **No existen todavía:** usuarios públicos, testimonios, métricas de uso, prensa ni casos de estudio. Nada de eso debe inventarse.
 
 ## Product Principles

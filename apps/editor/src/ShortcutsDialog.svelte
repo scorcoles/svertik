@@ -13,6 +13,7 @@
         ['/  or  ⌘K', 'Command line: add an effect, or set, key, select, goto, export'],
         ['⌘O', 'Open project or import SVG'],
         ['⌘S', 'Save project'],
+        ['⇧⌘S', 'Save as…'],
         ['⌘Z  /  ⇧⌘Z', 'Undo / redo'],
         ['?', 'This sheet'],
       ],

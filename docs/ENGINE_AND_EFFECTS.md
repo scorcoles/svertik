@@ -167,10 +167,19 @@ Every node in `objects` includes:
 | `kind` | Additional Properties | Description |
 |---|---|---|
 | `shape` | `shape: string`, `params: Record<string, unknown>` | Parametric vector primitive (`rectangle`, `ellipse`, `polygon`, `star`, `line`, `spiral`, `text`, `cross`, `pawn`). |
-| `object` | `source: string` | Raw SVG string imported directly (`<svg viewBox="...">...</svg>`). |
+| `object` | `source: string`, `href?: string` | Raw SVG string imported directly (`<svg viewBox="...">...</svg>`). With `href` and an empty `source`, the SVG lives outside the project (see below). |
 | `group` | `children: SceneNode[]`, `layer?: boolean` | Container for child nodes. The group's `stack` acts upon all children as individual elements. With `layer: true` it is a layer (see Layers). |
 | `instance` | `of: string` | Dynamic live copy of another node (`of` specifies the target node `id`). Inherits source effects while adding its own independent transform and stacked modifiers. |
 | `effector` | `targets: string[]`, `delay?: number` | Invisible utility node. Injects its own `stack` into each target node separately. `delay` (seconds) staggers the animation timing per target. |
+
+### Project files and external SVGs
+
+The editor saves a project as JSON: `{ "svertik": "project", "version": 1, "name", "canvas"?, "script", "embedSources"?, "scene": SceneV1 }`. Every host also opens a bare SceneV1. By default imported SVGs are embedded in each object's `source`. With **Document → SVGs** off (`embedSources: false`), each object keeps `source: ""` and an `href`: a file name relative to the project (identical SVGs share one file; different ones never do, e.g. `logo.svg`, `logo-2.svg`).
+
+- **CLI:** reads each `href` next to the project file and fails naming the missing file.
+- **Player:** `loadScene(url)` fetches each `href` relative to the JSON's URL; inline `data-svertik-scene` resolves against the page.
+- **Editor:** opening such a project asks for the missing SVGs (choose them or drop them on the canvas, matched by file name). Until then those objects draw nothing and validation warns.
+- **API:** `detachSources(scene)` → `{ scene, files }`, `missingSources(scene)`, `attachSources(scene, files)`, `resolveSources(scene, read)`.
 
 ---
 
@@ -405,16 +414,18 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `samples` (number, def 24)
     - `mode` (`"smooth" | "polyline"`, def `"smooth"`)
 
-25. **`crack`**: Procedural branching fracture network radiating from an impact point.
-    - `center` (point, def [0.5, 0.5], fraction)
-    - `branches` (number, def 5, 2 to 16)
-    - `segments` (number, def 4, 1 to 10)
-    - `width` (number, def 2, px)
-    - `mode` (`"lines" | "cut" | "shatter"`, def `"lines"`):
-      - `"lines"`: Draws crack lines over geometry.
-      - `"cut"`: Slices gaps into shape.
-      - `"shatter"`: Cuts shards and drives them outward (each shard becomes an element).
-    - `spread` (number, def 20, px)
+25. **`crack`**: Procedural branching fracture network radiating from an impact point, cut out of the filled shapes.
+    - `mode` (`"cut" | "shatter"`, def `"cut"`, not animatable):
+      - `"cut"`: Cuts the cracks as gaps of `width` px.
+      - `"shatter"`: Cuts them and pushes each loose piece away from the impact `separation` px (each piece becomes an element).
+    - `growth` (number, def 1, 0 to 1): Trims the cracks by "time"; animate it to grow them.
+    - `cracks` (number, def 5, 1 to 16)
+    - `length` (number, def 0.6, fraction of the drawing size)
+    - `branching` (number, def 0.35, 0 to 1)
+    - `jagged` (number, def 0.4, 0 to 1)
+    - `width` (number, def 1, px)
+    - `separation` (number, def 6, px): Shatter only.
+    - `impact` (point, def [0.4, 0.35], fraction)
     - `seed` (seed, def 1)
 
 26. **`damage`**: Wear and tear with edge notches, perimeter fractures, and hole perforations.
@@ -708,7 +719,7 @@ For bursts, `motion: "impulse"` leaves particles at their birth positions and pa
 
 Count is capped at 512 live particles and reduced for complex source objects to a budget of roughly 100,000 segments per frame. Multiple paths of one particle share a clone tag, so following effectors operate on the whole particle. The source bounds are computed once per evaluation, and stream evaluation visits only live births rather than all past particles.
 
-Example: `apps/editor/public/demos/particles.svrtk` contains a circle stream and a two-colour rectangle stream on a 1280×900 canvas.
+Example: `apps/editor/public/demos/particles.json` contains a circle stream and a two-colour rectangle stream on a 1280×900 canvas.
 
 
 ### Editor: new document dimensions
@@ -725,7 +736,7 @@ In **Color**, select `solid` to assign a colour with the colour picker; Target c
 
 For a regular pattern, create a small Cross, apply **Clone → Grid**, then **Mask** with a triangle as its source. Make the grid cover the whole triangle and hide the triangle itself: hidden objects still work as masks. Enable **Whole elements** in Mask to discard boundary-crossing copies and keep every cross complete. With it off, the mask trims the crosses at the boundary. For a random distribution, use **Clone → Object → Inside** and select the triangle; this places particle centres inside it, and an additional Mask trims any arms crossing its border.
 
-`apps/editor/public/demos/cross-fill.svrtk` is an editable regular-grid example on an 800×650 document. Size and Width belong to the source Cross; Columns, Rows and Spacing belong to Clone; the triangle controls the mask.
+`apps/editor/public/demos/cross-fill.json` is an editable regular-grid example on an 800×650 document. Size and Width belong to the source Cross; Columns, Rows and Spacing belong to Clone; the triangle controls the mask.
 
 Clone Grid sliders support up to **64 columns × 64 rows**, with a quadratic slider curve for finer control at small counts. Columns and Rows can be linked to change proportionally. Count is hidden in Grid: the total is Columns × Rows.
 
@@ -750,7 +761,7 @@ Both are effector containers: nest Transform, Color, Opacity or another non-effe
 - **Oscillate** (`oscillate`): `wave` is `sine` (default), `triangle`, `square` or `saw`; each has a bipolar range −1 to 1.
 - **Wiggle** (`wiggle`): smooth bounded seeded noise, with `seed` (default 1). In Per element mode each element has an independent signal. Seeking, reverse playback and export are deterministic, without simulation history. Frequency zero freezes the signal at its phase.
 
-In the editor both start with a Transform child so they work immediately. The shared demo **Motion: oscillating and wiggling crosses** combines independent rotation/drift with a phased wave of position, scale and hue, without keyframes. Its editable file is `apps/editor/public/demos/motion-crosses.svrtk`.
+In the editor both start with a Transform child so they work immediately. The shared demo **Motion: oscillating and wiggling crosses** combines independent rotation/drift with a phased wave of position, scale and hue, without keyframes. Its editable file is `apps/editor/public/demos/motion-crosses.json`.
 
 ### Pulse and Shake — rhythm and impacts
 
@@ -759,13 +770,13 @@ Like Oscillate and Wiggle, these are effector containers with non-effector child
 - **Pulse** (`pulse`) uses the shared Time, Frequency, Amplitude, Offset, Phase, Per element and Element phase controls. Its signal is unipolar (0–1) before amplitude and offset. `attack` (default 0.1) and `decay` (default 0.4) are fractions of a cycle, with smooth transitions and rest for the remainder. If their sum exceeds 1, both are proportionally shortened to fit one period. Zero attack gives an immediate hit; zero decay returns immediately after the peak. Both zero produce rest. Frequency zero freezes at the specified phase. Default child: Transform scale 1.2.
 - **Shake** (`shake`) is a single decaying seeded disturbance. `start` (default 0 seconds), `duration` (default 1 second), `frequency` (default 8 Hz), `amplitude` (default 1), `decay` (default 2; higher settles faster), `seed` (default 1). It is exactly neutral before Start and at/after Start + Duration. `perElement` defaults false so the object moves as one body; enabling it gives independent signals, local pivots and an `elementDelay` (default 0.04 seconds per element). Default child: Transform x 12, y 8, rotation 3°. Shake does not repeat by itself; loop/remap its Time expression to repeat hits.
 
-The shared **Rhythm** demo (`apps/editor/public/demos/rhythm-crosses.svrtk`) pulses five crosses and sends one delayed impact through them at 2 seconds, without keyframes.
+The shared **Rhythm** demo (`apps/editor/public/demos/rhythm-crosses.json`) pulses five crosses and sends one delayed impact through them at 2 seconds, without keyframes.
 
 ### Layers — splitting a scene into work zones
 
 A layer is a top-level `group` with `layer: true`. When a scene uses layers, **every** top-level object is a layer and the objects live in their `children`; layers are never nested. The first layer is drawn in front, like any `objects` list. A scene without layers is one implicit layer: existing files need no change.
 
-Layers only organize: no effects, transform, opacity or blend (validation warns if they carry any; opacity/blend would apply per object, not to the layer as a whole). `visible: false` keeps the layer in the `.svrtk`/JSON but leaves it out of rendering and every export (SVG, PNG, video, Lottie). `locked: true` locks everything inside it in the editor. Ids stay unique across the whole scene, so references (Instance, Mask, Mouse target…) work across layers. A Mouse Instance inside a layer draws its copies at the front of that layer. Each composition's scene has its own layers.
+Layers only organize: no effects, transform, opacity or blend (validation warns if they carry any; opacity/blend would apply per object, not to the layer as a whole). `visible: false` keeps the layer in the project JSON but leaves it out of rendering and every export (SVG, PNG, video, Lottie). `locked: true` locks everything inside it in the editor. Ids stay unique across the whole scene, so references (Instance, Mask, Mouse target…) work across layers. A Mouse Instance inside a layer draws its copies at the front of that layer. Each composition's scene has its own layers.
 
 ```json
 {
@@ -781,7 +792,7 @@ In the editor, the Layers panel (above the Stack) adds, renames, reorders, hides
 
 ### Compositions — nested scenes and local clocks
 
-A composition is stored as a group with empty `children` and a `composition` containing its isolated SceneV1 and clock parameters. It stays a single selectable object in the parent; its child scene is expanded only for rendering. Local node/effect IDs can repeat in other compositions; references resolve within their own scene. Files remain SceneV1 JSON and `.svrtk` projects embed all nested scenes.
+A composition is stored as a group with empty `children` and a `composition` containing its isolated SceneV1 and clock parameters. It stays a single selectable object in the parent; its child scene is expanded only for rendering. Local node/effect IDs can repeat in other compositions; references resolve within their own scene. Files remain SceneV1 JSON and project files embed all nested scenes.
 
 ```json
 {
@@ -793,14 +804,14 @@ A composition is stored as a group with empty `children` and a `composition` con
 }
 ```
 
-- **Utils → Empty composition / Composition from selection / Import composition…**. Import accepts `.svrtk` and SceneV1 JSON without replacing the current project. A selection must share a parent; include linked objects/targets so references are not broken. Its tracks and interactions move into the child scene, retaining paint order and placement.
+- **Utils → Empty composition / Composition from selection / Import composition…**. Import accepts project JSON and SceneV1 JSON without replacing the current project. A selection must share a parent; include linked objects/targets so references are not broken. Its tracks and interactions move into the child scene, retaining paint order and placement.
 - Select the composition and use **Open composition** in the inspector. Its objects, document, notes and timeline are edited locally. The toolbar breadcrumbs return to ancestors and restore the parent playhead. Saving and undo/redo always retain the whole project, even while editing inside it.
 - `time` is evaluated in the parent scene; by default it follows parent time. `start` holds the first local frame until that parent time. `speed` multiplies elapsed time (0 freezes; negative plays backwards with a suitable offset). `offset` is added in seconds. `reverse` reverses the resulting local clock. `loop` is `hold` (clamp to the child duration), `loop`, or `pingpong`.
 - Local keyframes, numeric/text expressions, temporal effectors, Particles and Gravity receive this local clock. Numeric clock fields accept expressions for remapping. Each nested scene uses its own duration and FPS. Missing parent timelines derive a duration from their compositions.
 - Position, scale, rotation, opacity, blend and effect stacks act on the composition in the parent. The child document provides a stable transform frame, including empty scenes. Its frame does not crop content in this first version. Interactions of internal objects are retained and can be tested while the child is open; dispatching them from the parent is pending. Native masks/filters retain the existing group rendering semantics.
 - Cyclic or deeper-than-32 nesting is rejected. Existing document caches still reuse unchanged geometry/effect results; exporting SVG/PNG and sampled animation evaluates the same nested scene clocks.
 
-**Compositions: BOOM at two speeds** (`apps/editor/public/demos/compositions-boom.svrtk`) places two copies of the BOOM demo side by side at normal and 60% speed.
+**Compositions: BOOM at two speeds** (`apps/editor/public/demos/compositions-boom.json`) places two copies of the BOOM demo side by side at normal and 60% speed.
 
 ### Time Remap, clock signals, stop motion and markers
 
@@ -812,7 +823,7 @@ Composition numeric clock fields support tracks with `on: "composition"`: `time`
 
 `animation.markers` is an optional array of `{ id, name, t }` in scene-local seconds. Add markers at the playhead with the timeline flag button, rename/change time/remove them in the Markers list, and click their ruler flags to seek. The compact playback controls offer **Markers** jumps even with the timeline closed. A composition's **From marker** picker copies a child marker's time into Offset. Markers are scoped to each scene and preserved in projects, navigation and undo; shortening the timeline clamps them to its duration.
 
-**Time Remap: freeze and rewind BOOM** (`apps/editor/public/demos/time-remap-boom.svrtk`) demonstrates keyed clocks, a hold, reverse playback, a clock signal and 8-FPS stop motion across three staggered copies.
+**Time Remap: freeze and rewind BOOM** (`apps/editor/public/demos/time-remap-boom.json`) demonstrates keyed clocks, a hold, reverse playback, a clock signal and 8-FPS stop motion across three staggered copies.
 
 ### Scaling multiple selected objects
 

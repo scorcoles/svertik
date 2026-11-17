@@ -102,6 +102,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
         continue;
       }
       if (n.kind === 'object' && typeof n.source !== 'string' && !n.packed) errors.push(`${name(n)}: needs a source SVG`);
+      if (n.kind === 'object' && !n.source && !n.packed && n.href) warnings.push(`${name(n)}: its SVG "${n.href}" is not loaded (it draws nothing)`);
       if (n.kind === 'instance') {
         if (n.mouse) {
           checkParams(mouseParams, n.mouse, name(n) + ' Mouse Instance');

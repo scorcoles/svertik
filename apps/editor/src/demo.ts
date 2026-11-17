@@ -1,5 +1,5 @@
 import { type SceneNode, type SceneV1, type Track } from '@svertik/engine';
-import physicsSource from './demo-physics.svrtk?raw';
+import physicsSource from './demo-physics.json?raw';
 
 // La demo del menú: un proyecto pequeño que enseña texto, escalonados, curvas, copias y trazos que se dibujan.
 // 6 s en bucle: el círculo se dibuja, los puntos brotan con muelle, el título entra desde el centro,

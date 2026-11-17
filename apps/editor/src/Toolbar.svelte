@@ -11,6 +11,8 @@
     editor: Editor;
     onimport: () => void;
     onsave: () => void;
+    /** Only where the browser can pick files (Chrome, Edge). */
+    onsaveas?: () => void;
     oncopyjson: () => void;
     onexport: () => void;
     onexportpng: () => void;
@@ -20,7 +22,7 @@
     ondemo: (which: DemoName) => void;
     onnew: () => void;
   }
-  let { editor, onimport, onsave, oncopyjson, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, onsaveas, oncopyjson, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
   let fullscreen = $state(false);
   const toggleFullscreen = () => fullscreen ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.();
 </script>
@@ -29,8 +31,8 @@
 
 <header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {ondemo} />
-    <span class="alpha" title="Alpha: things change and may break. Save your work as a .svrtk project.">alpha</span>
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {ondemo} />
+    <span class="alpha" title="Alpha: things change and may break. Save your work as a project (.json).">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
       <input

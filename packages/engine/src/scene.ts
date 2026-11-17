@@ -46,7 +46,13 @@ export interface NodeBase {
 
 export interface ObjectNode extends NodeBase {
   kind: 'object';
+  /** The SVG itself. Empty when the project keeps it outside (see `href`) and it hasn't been loaded. */
   source: string;
+  /**
+   * Where the SVG lives when the project doesn't embed it: a file name or path relative to the project file
+   * (or a URL). Hosts load it into `source` before drawing (`resolveSources`); until then the object draws nothing.
+   */
+  href?: string;
   /** Pack: the frozen result of another node. `geometry` is drawn and nothing else is computed. */
   packed?: Pack;
 }

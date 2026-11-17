@@ -14,7 +14,7 @@
 // El bundle lleva el motor y nada más: los efectos de la escena se cargan cuando llegan (cada uno es
 // un trozo aparte), y las fuentes y el importador de SVG solo si la escena los necesita.
 
-import { createEngine, createPlayer, installWire, isScene, prepareScene, registerFont, type Renderer, type SceneV1, type WireOptions } from '@svertik/engine/player';
+import { createEngine, createPlayer, installWire, isScene, prepareScene, registerFont, resolveSources, type Renderer, type SceneV1, type WireOptions } from '@svertik/engine/player';
 
 export interface PlayOptions {
   /** Cuánto tardó cada fotograma calculado (para medir). */
@@ -52,14 +52,24 @@ function resolveSVG(target: string | Element): SVGSVGElement {
   return svg;
 }
 
-/** Carga una escena de un JSON (un .svrtk o el JSON de la escena). */
+/** Reads the SVGs a scene keeps outside (`href`), relative to `base` (the JSON's URL). */
+export function withSources(scene: SceneV1, base: string = document.baseURI): Promise<SceneV1> {
+  return resolveSources(scene, async (href) => {
+    const url = new URL(href, new URL(base, document.baseURI)).href;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`svertik: no se puede leer el SVG «${url}» (${res.status})`);
+    return res.text();
+  });
+}
+
+/** Carga una escena de un JSON (un proyecto o el JSON de la escena), con los SVG que tenga fuera. */
 export async function loadScene(url: string): Promise<SceneV1> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`svertik: no se puede leer «${url}» (${res.status})`);
   const data = (await res.json()) as { svertik?: string; scene?: unknown };
   const scene = (data.svertik === 'project' ? data.scene : data) as SceneV1;
   if (!isScene(scene)) throw new Error(`svertik: «${url}» no es una escena`);
-  return scene;
+  return withSources(scene, url);
 }
 
 /**
@@ -88,7 +98,7 @@ export async function mountAll(root: ParentNode = document): Promise<Playing[]> 
     const inline = el.getAttribute('data-svertik-scene');
     const url = el.getAttribute('data-svertik');
     try {
-      const scene = inline ? (JSON.parse(inline) as SceneV1) : await loadScene(url!);
+      const scene = inline ? await withSources(JSON.parse(inline) as SceneV1) : await loadScene(url!);
       out.push(await play(scene, el as Element));
     } catch (err) {
       console.error('svertik: no se pudo reproducir la escena', err);
