@@ -2,7 +2,7 @@
   // Modo Play: la escena a pantalla completa, sin herramientas, sobre el color del lienzo. Usa el mismo
   // reproductor que el código exportado (línea de tiempo, hover, clic, enter, «reducir movimiento»):
   // lo que se ve aquí es lo que verá la web. Esc (o la ×) vuelve al editor.
-  import { builtins, createEngine, createPlayer, describeSceneVariables, evaluateSceneVariables, installWire, type SceneV1 } from '@svertik/engine';
+  import { builtins, createEngine, createPlayer, describeSceneVariables, evaluateSceneVariables, installWire, walkNodes, type SceneV1 } from '@svertik/engine';
   import { downloadFrame } from './capture';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
@@ -21,10 +21,13 @@
   onMount(() => {
     const scene = $state.snapshot(editor.scene) as SceneV1;
     let player: ReturnType<typeof createPlayer> | null = null;
+    // As the editor counts them: every object but groups (and layers).
+    const objectCount = [...walkNodes(scene.objects)].filter((x) => x.node.kind !== 'group').length;
     meter = createFpsMeter(document.body, false, { onRenderer: (r) => player?.setRenderer(r), onWire: () => wire?.toggle() });
-    player = svg ? createPlayer(createEngine(builtins), svg, scene, { renderer: 'auto', pointer: () => meter?.visible() ?? false, onFrame: ({ ms, t, pointer, runtime, painted }) => {
+    player = svg ? createPlayer(createEngine(builtins), svg, scene, { renderer: 'auto', pointer: () => meter?.visible() ?? false, onFrame: ({ ms, t, pointer, runtime, painted, shapes }) => {
       meter?.frame(ms);
-      meter?.renderer(painted, player?.renderer() ?? 'auto');
+      meter?.counts(objectCount, shapes);
+meter?.renderer(painted, player?.renderer() ?? 'auto');
       const values = evaluateSceneVariables(scene, t);
       meter?.variables(describeSceneVariables(values, pointer, runtime), values.custom);
     } }) : null;

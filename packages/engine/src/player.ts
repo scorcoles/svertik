@@ -22,3 +22,4 @@ export { initKernels, kernels, type Kernels } from './kernels';
 // Frame sampling for deterministic video exports without loading the editor.
 export { sampleScene } from './animation';
 export { evaluateSceneVariables, describeSceneVariables } from './expression';
+export { walkNodes } from './document';

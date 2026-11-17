@@ -296,7 +296,7 @@ const nodeOf = (e: Event) => nodeOfEl(e.target);
  */
 export interface PlayerOptions {
   /** `pointer`: the live pointer (see `pointer` below), when it is being tracked. */
-  onFrame?: (info: { ms: number; t: number; pointer?: ScenePointer; runtime?: SceneRuntime; painted: 'svg' | 'canvas' }) => void;
+  onFrame?: (info: { ms: number; t: number; pointer?: ScenePointer; runtime?: SceneRuntime; painted: 'svg' | 'canvas'; /** Shapes drawn in the frame (clones and Mouse copies included). */ shapes: number }) => void;
   /**
    * Track the pointer for `onFrame` even if no formula reads `scene.mouse.*` (a debug panel does): `true`, or a
    * function that says when (it is asked on every pointer event, so a hidden panel costs no repaints). While it
@@ -404,7 +404,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       mouseDirty = false;
       pointerDirty = false;
       shown = t;
-      options.onFrame?.({ ms: performance.now() - c0, t, painted: live.onCanvas?.() ? 'canvas' : 'svg', ...(wantsPointer() ? { pointer: { ...pointerNow } } : {}), ...(wantsRuntime() ? { runtime: { ...runtimeNow } } : {}) });
+      options.onFrame?.({ ms: performance.now() - c0, t, painted: live.onCanvas?.() ? 'canvas' : 'svg', shapes: live.doc()?.geometry.shapes?.length ?? 0, ...(wantsPointer() ? { pointer: { ...pointerNow } } : {}), ...(wantsRuntime() ? { runtime: { ...runtimeNow } } : {}) });
     }
     const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active() || pointerBusy() || runtimeBusy();
     frame = keepGoing ? requestAnimationFrame(draw) : 0;

@@ -67,13 +67,16 @@ async function start(m: typeof import('@svertik/engine/player')) {
   const initial = asked === 'svg' || asked === 'canvas' ? asked : 'auto';
   let player: ReturnType<typeof createPlayer> | null = null;
   // Rendimiento: D o ?debug en la URL.
+  // As the editor counts them: every object but groups (and layers).
+  const objectCount = [...m.walkNodes(scene.objects)].filter((x) => x.node.kind !== 'group').length;
   const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'), { onRenderer: (r) => player?.setRenderer(r), onWire: () => wire.toggle() });
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
   // Wire (W, or ?wire in the URL): outlines only, as in the editor's canvas.
   const wire = m.installWire(stage, scene, { initial: new URLSearchParams(location.search).has('wire'), onChange: (on) => { document.body.classList.toggle('wire', on); meter.wire(on); } });
-  player = createPlayer(createEngine(effects), stage, scene, { renderer: initial, pointer: () => meter.visible(), onFrame: ({ ms, t, pointer, runtime, painted }) => {
+  player = createPlayer(createEngine(effects), stage, scene, { renderer: initial, pointer: () => meter.visible(), onFrame: ({ ms, t, pointer, runtime, painted, shapes }) => {
     meter.frame(ms);
-    meter.renderer(painted, player?.renderer() ?? initial);
+    meter.counts(objectCount, shapes);
+meter.renderer(painted, player?.renderer() ?? initial);
     const values = evaluateSceneVariables(scene, t);
     meter.variables(describeSceneVariables(values, pointer, runtime), values.custom);
   } });

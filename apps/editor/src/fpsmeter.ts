@@ -7,6 +7,8 @@ export interface FpsMeter {
   variables(scene: Record<string, number>, custom: Record<string, number>): void;
   /** What painted the last frame, and the renderer chosen (shown, and selectable when `onRenderer` is given). */
   renderer(painted: 'svg' | 'canvas', chosen: RendererChoice): void;
+  /** Objects in the scene, and shapes drawn in the last frame. */
+  counts(objects: number, shapes: number): void;
   /** Whether Wire is on (underlines its button). */
   wire(on: boolean): void;
   toggle(on?: boolean): void;
@@ -106,6 +108,7 @@ export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMete
   let screen = 0, computed = 0, sum = 0, worst = 0, last = performance.now();
   let performanceText = '', variablesText = '';
   let painted: 'svg' | 'canvas' | null = null, chosen: RendererChoice | null = null;
+  let objects: number | null = null, shapes = 0;
   let lastVariablesKey = '';
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   const render = () => { el.textContent = [performanceText, variablesText].filter(Boolean).join('\n\n'); };
@@ -132,6 +135,7 @@ export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMete
         `frame    ${avg.toFixed(1)} ms avg · ${worst.toFixed(1)} ms worst`,
         `engine   could do ~${budget} fps`,
         ...(painted ? [`renderer ${painted}${chosen === 'auto' ? ' (auto)' : ''}`] : []),
+        ...(objects !== null ? [`objects  ${objects} · ${shapes} shapes drawn`] : []),
       ].join('\n');
       render();
       el.style.color = avg > 33 ? 'var(--sv-signal-error)' : avg > 16 ? 'var(--sv-signal-warning)' : 'var(--sv-text-primary)';
@@ -177,6 +181,10 @@ export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMete
         b.style.textDecoration = on ? 'underline' : 'none';
         b.setAttribute('aria-pressed', String(on));
       }
+    },
+    counts(o, n) {
+      objects = o;
+      shapes = n;
     },
     wire(on) {
       wireButton.style.opacity = on ? '1' : '0.6';
