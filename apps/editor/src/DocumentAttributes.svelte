@@ -1,6 +1,6 @@
 <script lang="ts">
   // Sin nada seleccionado: el documento. Su tamaño es lo que se exporta y lo que enseña el modo Play.
-  import { Button, Checkbox, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select, Slider } from '@svertik/ui';
+  import { Button, Checkbox, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select, Slider, formulaField } from '@svertik/ui';
   import { DOCUMENT_PALETTE, PALETTES, type ViewportFit, customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
   import { tick } from 'svelte';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
@@ -253,6 +253,7 @@
                 title={expressionError ?? 'Use scene variables, scene.custom.name, and math functions such as min, max, sin and cos.'}
                 spellcheck="false"
                 oninput={(e) => setVariable(name, { ...expression, $expr: e.currentTarget.value })}
+                use:formulaField={{ label: name, commit: (next) => setVariable(name, { ...expression, $expr: next }) }}
                 onkeydown={(e) => e.stopPropagation()}
               />
               <button class="expression-toggle" type="button" aria-label={`Use a number for ${name}`} title="Switch to a number" onclick={() => setVariable(name, expression.fallback)}>ƒx</button>

@@ -12,6 +12,8 @@
   import PointField from './PointField.svelte';
   import Segmented from './Segmented.svelte';
   import Select from './Select.svelte';
+  import { groupOptions } from './types';
+  import { formulaField } from './formula-target.svelte';
   import Slider from './Slider.svelte';
 
   interface Props {
@@ -20,7 +22,8 @@
     value: unknown;
     onchange: (value: unknown) => void;
     /** Para los parámetros `node`: los objetos que se pueden elegir. */
-    nodes?: { id: string; label: string }[];
+    /** Objects to pick; `group` (their layer) shows them under a heading. */
+    nodes?: { id: string; label: string; group?: string }[];
     onselectnode?: (id: string) => void;
     /** Colores del documento, para las muestras del selector de color. */
     swatches?: string[];
@@ -66,16 +69,7 @@
   const expression = $derived(advanced && isNumericExpression(value) ? value : null);
   const numericFieldWidth = $derived(fieldWidth ?? (expression ? '132px' : '80px'));
   const expressionError = $derived(expression ? validateExpression(expression.$expr) : null);
-  // Nombres únicos para el desplegable (dos objetos pueden llamarse igual).
   const NONE = '— none —';
-  const nodeLabels = $derived.by(() => {
-    const seen = new Map<string, number>();
-    return nodes.map((n) => {
-      const k = (seen.get(n.label) ?? 0) + 1;
-      seen.set(n.label, k);
-      return { id: n.id, label: k > 1 ? `${n.label} (${k})` : n.label };
-    });
-  });
   const id = $derived(`param-${name}`);
   const label = $derived(spec.label ?? name.charAt(0).toUpperCase() + name.slice(1));
   // Iconos para opciones conocidas; el resto se muestra como texto.
@@ -87,8 +81,19 @@
     intersect: 'bool-intersect',
     exclude: 'bool-exclude',
   };
+  // Waveform icons only apply when every option of the enum is a waveform, so that
+  // 'square' or 'random' in other enums (stroke cap, stagger order...) stay as text.
+  const WAVE_ICONS: Record<string, IconName> = {
+    sine: 'wave-sine',
+    triangle: 'wave-triangle',
+    square: 'wave-square',
+    saw: 'wave-saw',
+    sawtooth: 'wave-saw',
+    random: 'wave-random',
+  };
+  const icons = $derived(spec.type === 'enum' && spec.options.every((o) => WAVE_ICONS[o]) ? WAVE_ICONS : ICONS);
   // Botones en vez de desplegable: con pocas opciones, o si todas tienen icono.
-  const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => ICONS[o])));
+  const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => icons[o])));
 </script>
 
 {#if spec.type === 'nodes'}
@@ -107,6 +112,7 @@
             title={expressionError ?? 'Use scene.time, scene.cycle, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.width, scene.height, scene.aspect, scene.dt, scene.scroll, scene.pixelRatio, scene.clock.hour/minute/second, scene.mouse.posX/posY/fracX/fracY/down/inside/velX/velY/downMs/rightDown/middleDown/clicks/clickMs/wheel, scene.custom.name; functions: min, max, clamp, lerp, sin, cos, random(min, max, seed?)…'}
             spellcheck="false"
             oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
+            use:formulaField={{ label, commit: (next) => onchange({ ...expression, $expr: next }) }}
             onkeydown={(e) => e.stopPropagation()}
           />
           {#if spec.type === 'number' && spec.unit && spec.unit !== 'fraction'}<span class="expression-unit">{spec.unit}</span>{/if}
@@ -160,7 +166,7 @@
       </span>
     {/if}
   {:else if spec.type === 'enum' && segmented}
-    <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: ICONS[o] }))} {onchange} />
+    <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: icons[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
     <Select value={value as string} options={spec.options} {label} {onchange} />
   {:else if spec.type === 'palette'}
@@ -182,10 +188,10 @@
     {/if}
   {:else if spec.type === 'node'}
     <Select
-      value={nodeLabels.find((n) => n.id === value)?.label ?? NONE}
-      options={[NONE, ...nodeLabels.map((n) => n.label)]}
+      value={nodes.some((n) => n.id === value) ? (value as string) : ''}
+      options={[{ value: '', label: NONE }, ...groupOptions(nodes)]}
       {label}
-      onchange={(v) => onchange(nodeLabels.find((n) => n.label === v)?.id ?? '')}
+      onchange={(v) => onchange(v)}
     />
   {:else if spec.type === 'text'}
     <!-- Se aplica al dejar de escribir un momento (cada pulsación rehace las letras). -->
@@ -200,6 +206,7 @@
         aria-label={label}
         oninput={(e) => onchange(e.currentTarget.value)}
         onkeydown={(e) => e.stopPropagation()}
+        use:formulaField={{ label, template: true, disabled: !spec.expression, commit: (next) => onchange(next) }}
       ></textarea>
       {#if spec.expression}
         <div class="text-live" role="group" aria-label="Insert a live value">

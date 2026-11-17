@@ -405,3 +405,77 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
   nodes(out.objects);
   return out;
 }
+
+/** One entry of the formula reference: what to type and what it gives. */
+export interface ExpressionReferenceEntry {
+  /** As typed in a formula: `scene.time`, `clamp(x, min, max)`. */
+  name: string;
+  about: string;
+}
+
+/** What each `scene.*` variable means, keyed like `describeSceneVariables` (`time`, `mouse.posX`…). */
+const VARIABLE_ABOUT: Record<string, string> = {
+  cycle: 'Completed duration windows, from 0 (keeps growing with Infinite time)',
+  time: 'Seconds since the start',
+  frame: 'Current frame number',
+  fps: 'Frames per second of the animation (default 30)',
+  duration: 'Length of the timeline, in seconds',
+  progress: 'Time / duration, from 0 to 1',
+  seedGenerator: 'The document seed (changes on each beat with Seed every)',
+  width: 'Document width in px (0 without a fixed document)',
+  height: 'Document height in px (0 without a fixed document)',
+  aspect: 'Width / height',
+  dt: 'Seconds since the previous frame (one frame in renders)',
+  scroll: 'How far the host page has scrolled, from 0 to 1',
+  pixelRatio: 'Screen pixel density',
+  'clock.hour': 'Real local hour (0 in renders and exports)',
+  'clock.minute': 'Real local minute (0 in renders and exports)',
+  'clock.second': 'Real local second, with fractions (0 in renders and exports)',
+  'mouse.posX': 'Pointer X in scene px',
+  'mouse.posY': 'Pointer Y in scene px',
+  'mouse.fracX': 'Pointer X across the document, from 0 to 1',
+  'mouse.fracY': 'Pointer Y across the document, from 0 to 1',
+  'mouse.down': '1 while the primary button is pressed',
+  'mouse.inside': '1 while the pointer is over the document',
+  'mouse.velX': 'Horizontal pointer speed in px/s (smoothed)',
+  'mouse.velY': 'Vertical pointer speed in px/s (smoothed)',
+  'mouse.downMs': 'Milliseconds the primary button has been held (the last press after release)',
+  'mouse.rightDown': '1 while the right button is pressed',
+  'mouse.middleDown': '1 while the middle button is pressed',
+  'mouse.clicks': 'Primary clicks so far',
+  'mouse.clickMs': 'Milliseconds since the last click (0 before any)',
+  'mouse.wheel': 'Accumulated wheel, 1 per 100 px (positive = down)',
+};
+
+const FUNCTION_ABOUT: Record<string, ExpressionReferenceEntry> = {
+  min: { name: 'min(a, b, …)', about: 'Smallest value' },
+  max: { name: 'max(a, b, …)', about: 'Largest value' },
+  clamp: { name: 'clamp(x, min, max)', about: 'x kept between min and max' },
+  lerp: { name: 'lerp(a, b, t)', about: 'From a (t = 0) to b (t = 1)' },
+  abs: { name: 'abs(x)', about: 'Absolute value' },
+  round: { name: 'round(x)', about: 'Nearest integer' },
+  floor: { name: 'floor(x)', about: 'Integer below' },
+  ceil: { name: 'ceil(x)', about: 'Integer above' },
+  sqrt: { name: 'sqrt(x)', about: 'Square root' },
+  pow: { name: 'pow(a, b)', about: 'a to the power of b (also a ^ b)' },
+  sin: { name: 'sin(x)', about: 'Sine, x in radians' },
+  cos: { name: 'cos(x)', about: 'Cosine, x in radians' },
+  tan: { name: 'tan(x)', about: 'Tangent, x in radians' },
+  atan: { name: 'atan(x)', about: 'Arc tangent, in radians' },
+  atan2: { name: 'atan2(y, x)', about: 'Angle of the point (x, y), in radians' },
+  deg: { name: 'deg(x)', about: 'Radians to degrees, for angle parameters' },
+  random: { name: 'random(min, max, seed?)', about: 'Reproducible random value; the seed varies it (e.g. scene.cycle)' },
+  'scene.countDown': { name: 'scene.countDown(seconds)', about: 'Whole seconds left until that time, never below 0' },
+};
+
+/**
+ * Everything a formula can use, for a reference panel: the `scene.*` variables in the order
+ * `describeSceneVariables` gives them (`key` is its name there), and the functions.
+ */
+export function expressionReference(): { variables: (ExpressionReferenceEntry & { key: string })[]; functions: ExpressionReferenceEntry[] } {
+  const keys = Object.keys(describeSceneVariables(evaluateSceneVariables({ version: 1, objects: [] })));
+  return {
+    variables: keys.map((key) => ({ key, name: `scene.${key}`, about: VARIABLE_ABOUT[key] ?? '' })),
+    functions: Object.keys(ARITY).map((fn) => FUNCTION_ABOUT[fn] ?? { name: fn, about: '' }),
+  };
+}

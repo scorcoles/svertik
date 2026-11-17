@@ -167,6 +167,12 @@ export const icons = {
   'move-here': 'M8 1.5v7 M5 5.5l3 3 3-3 M2.5 10.5h11v4h-11z',
   'axis-h': 'M1.5 8h13 M4 5.5l-2.5 2.5 2.5 2.5 M12 5.5l2.5 2.5-2.5 2.5',
   'axis-v': 'M8 1.5v13 M5.5 4l2.5-2.5 2.5 2.5 M5.5 12l2.5 2.5 2.5-2.5',
+  // Waveforms: one period across the icon (Oscillate's Wave, the Wave shape's Waveform).
+  'wave-sine': 'M1.5 8C3.7 3.3 5.8 3.3 8 8s4.3 4.7 6.5 0',
+  'wave-triangle': 'M1.5 8l3.25-3.5 6.5 7 3.25-3.5',
+  'wave-square': 'M1.5 11.5v-7h6.5v7h6.5v-7',
+  'wave-saw': 'M1.5 11.5l6.5-7v7l6.5-7v7',
+  'wave-random': 'M1.5 9.5h2.5v-5h2.5v7h2.5v-4h2.5v-3h2.5',
   up: 'M4 10l4-4 4 4',
   down: 'M4 6l4 4 4-4',
   trash: 'M2.5 4.5h11 M6.5 4.5v-2h3v2 M4 4.5l.5 9h7l.5-9',

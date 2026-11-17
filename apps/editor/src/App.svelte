@@ -19,6 +19,7 @@
   import ShortcutsDialog from './ShortcutsDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import NotesPanel from './NotesPanel.svelte';
+  import FxPanel from './FxPanel.svelte';
   import DiagnosticsPanel from './DiagnosticsPanel.svelte';
   import { formatBytes, inspectSvgComplexity, summarizeScene, svgComplexityWarnings, type SvgComplexity } from './debug-report';
   import Toolbar from './Toolbar.svelte';
@@ -608,12 +609,14 @@
       style:grid-template-rows={panelMaximized ? 'minmax(0, 1fr)' : [
           'minmax(0, 1fr)',
           ...(editor.notesOpen && editor.scene ? ['minmax(120px, 25%)'] : []),
+          ...(editor.fxOpen && editor.scene ? ['minmax(140px, 32%)'] : []),
           ...(diagnosticsOpen ? [profile.running || profile.samples.length ? 'minmax(180px, 34%)' : 'minmax(100px, 22%)'] : []),
           ...(editor.codeOpen && editor.scene ? ['6px', `${codeHeight}px`] : []),
           ...(editor.timelineOpen && editor.scene ? ['minmax(120px, 30%)'] : []),
         ].join(' ')}
     >
       {#if !panelMaximized}<Canvas {editor} {profileFrame} onprofileframe={onProfileFrame} onimport={() => fileInput.click()} onfile={openFile} ondemo={openDemo} bind:placeAtCenter bind:status={canvasStatus} ondiagnostic={(level, message, stack) => addDiagnostic('Canvas', level, message, stack)} />{/if}
+      {#if !panelMaximized && editor.fxOpen && editor.scene}<FxPanel {editor} onclose={() => (editor.fxOpen = false)} oncopy={copy} />{/if}
       {#if editor.notesOpen && editor.scene}<NotesPanel {editor} maximized={panelMaximized} onmaximize={togglePanelMaximized} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
       {#if diagnosticsOpen}<DiagnosticsPanel
         entries={diagnostics}
@@ -669,6 +672,7 @@
         <div class="status-group" role="group" aria-label="Time"><TimeControls {editor} /></div>
       {/if}
       <div class="status-actions status-group" role="group" aria-label="Panels">
+        <button type="button" class="fx" aria-pressed={editor.fxOpen} onclick={() => (editor.fxOpen = !editor.fxOpen)} title="Formula reference: variables and functions" disabled={!editor.scene}>ƒx {editor.fxOpen ? '▾' : '▴'}</button>
         <ViewMenu {editor} />
         <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
         <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>

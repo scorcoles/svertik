@@ -2,10 +2,11 @@
   import IconButton from './IconButton.svelte';
   import ParamRow from './ParamRow.svelte';
   import Select from './Select.svelte';
+  import { groupOptions } from './types';
 
   interface Props {
     value: string[];
-    nodes: { id: string; label: string }[];
+    nodes: { id: string; label: string; group?: string }[];
     label?: string;
     onadd: (id: string) => void;
     onremove: (id: string) => void;
@@ -13,28 +14,18 @@
   }
   let { value, nodes, label = '', onadd, onremove, onselect }: Props = $props();
   const ADD = '+ Add target';
-  const choices = $derived.by(() => {
-    const used = new Set([ADD]);
-    return nodes.map((node) => {
-      let name = node.label;
-      let suffix = 1;
-      while (used.has(name)) name = `${node.label} (${++suffix})`;
-      used.add(name);
-      return { id: node.id, label: name };
-    });
-  });
-  const free = $derived(choices.filter((node) => !value.includes(node.id)));
+  const free = $derived(nodes.filter((node) => !value.includes(node.id)));
 </script>
 
 {#each value as id, i (id)}
-  {@const target = choices.find((node) => node.id === id)}
+  {@const target = nodes.find((node) => node.id === id)}
   <ParamRow label={i === 0 ? label : ''}>
     <button class="target" type="button" disabled={!target || !onselect} onclick={() => target && onselect?.(id)}>{target?.label ?? 'missing object'}</button>
     <span class="mini"><IconButton icon="trash" label="Remove target" onclick={() => onremove(id)} /></span>
   </ParamRow>
 {/each}
 <ParamRow label={value.length ? '' : label || 'Add'}>
-  <Select value={ADD} options={[ADD, ...free.map((node) => node.label)]} label="Add target" onchange={(name) => { const target = free.find((node) => node.label === name); if (target) onadd(target.id); }} />
+  <Select value="" options={[{ value: '', label: ADD }, ...groupOptions(free)]} label="Add target" onchange={(id) => { if (id) onadd(id); }} />
 </ParamRow>
 
 <style>

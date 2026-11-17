@@ -1,7 +1,8 @@
 <script lang="ts">
 import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, placementOf, shapeRegistry, walkNodes, type Ease, type ParamSpec, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
-  import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider } from '@svertik/ui';
+  import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider, groupOptions } from '@svertik/ui';
+  import { layerOf } from './layer-of';
   import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
 
   interface Props {
@@ -47,7 +48,10 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   // Objetos importados: cuántas formas trae su SVG (para poder expandirlo en un objeto por forma).
   const shapes = $derived(node.kind === 'object' && !node.packed ? editor.shapeCount(node.source) : 0);
   // Instancia: de qué objeto (cualquiera menos ella misma).
-  const others = $derived(editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== node.id) : []);
+  const others = $derived(editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== node.id && !(n.kind === 'group' && n.layer)) : []);
+  // Object pickers group their choices under the layer of each object.
+  const layers = $derived(editor.scene ? layerOf(editor.scene.objects) : new Map<string, string>());
+  const sources = $derived(others.filter((n) => n.kind !== 'effector' && !(n.kind === 'instance' && n.mouse)).map((n) => ({ id: n.id, label: n.name, group: layers.get(n.id) })));
   const original = $derived(node.kind === 'instance' ? others.find((n) => n.id === node.of) : undefined);
   // Primitivas: sus parámetros (los de forma arriba; el estilo, en su sección).
   const shapeDef = $derived(node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined);
@@ -143,14 +147,14 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
     <Section title={node.mouse ? "Mouse Instance" : "Instance"}>
       <ParamRow label="Of">
         <Select
-          value={original?.name ?? '—'}
-          options={['—', ...others.filter(n => n.kind !== 'effector' && !(n.kind === 'instance' && n.mouse)).map((n) => n.name)]}
+          value={original ? original.id : ''}
+          options={[{ value: '', label: '—' }, ...groupOptions(sources)]}
           label="Of"
-          onchange={(v) => editor.setInstanceOf(node.id, others.find((n) => n.name === v)?.id ?? '')}
+          onchange={(id) => editor.setInstanceOf(node.id, id)}
         />
       </ParamRow>
       {#if node.mouse}
-        <ParamList params={mouseFields} values={mouseValues} nodes={others.filter(n => n.kind !== 'effector' && !(n.kind === 'instance' && n.mouse)).map(n => ({ id: n.id, label: n.name }))} onselectnode={(id) => (editor.selected = id)} onchange={setMouseField} />
+        <ParamList params={mouseFields} values={mouseValues} nodes={sources} onselectnode={(id) => (editor.selected = id)} onchange={setMouseField} />
         <p class="note mouse-help">Generate copies on the canvas in Play. Target restricts input to its closed shape, even when hidden. Each copy starts its animation at zero. Life 0 keeps copies until the limit replaces the oldest.</p>
       {/if}
       {#if node.of && !original}<p class="note">The original no longer exists: pick another one.</p>{/if}
@@ -164,7 +168,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   {/if}
   {#if node.kind === 'effector'}
     <Section title="Targets">
-      <NodeTargets value={node.targets} nodes={others.filter((n) => n.kind !== 'effector').map((n) => ({ id: n.id, label: n.name }))} onadd={(id) => editor.setEffectorTarget(node.id, id, true)} onremove={(id) => editor.setEffectorTarget(node.id, id, false)} onselect={(id) => (editor.selected = id)} />
+      <NodeTargets value={node.targets} nodes={others.filter((n) => n.kind !== 'effector').map((n) => ({ id: n.id, label: n.name, group: layers.get(n.id) }))} onadd={(id) => editor.setEffectorTarget(node.id, id, true)} onremove={(id) => editor.setEffectorTarget(node.id, id, false)} onselect={(id) => (editor.selected = id)} />
       <ParamRow label="Delay" for="eff-delay">
         <NumberField id="eff-delay" value={node.delay ?? 0} min={0} step={0.05} unit="s" onchange={(v) => editor.setEffectorDelay(node.id, v)} />
       </ParamRow>

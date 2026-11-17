@@ -884,6 +884,8 @@ export class Editor {
       this.timelineOpen = false;
     }
   }
+  /** Formula reference (ƒx): the variables and functions an expression can use. */
+  fxOpen = $state(false);
   /** Línea de tiempo: abierta, instante actual (s) y reproducción. */
   get timelineOpen() {
     return this.#timelineOpen;

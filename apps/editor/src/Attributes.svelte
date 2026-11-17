@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
   import { effectDescriptions, walkNodes, type ParamSpec } from '@svertik/engine';
+  import { layerOf } from './layer-of';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
   import { categoryOf } from './command';
@@ -24,8 +25,10 @@
   const keyOf = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState(target(param)));
   const onkey = (param: string) => editor.toggleKey(target(param));
   // Para los efectos que usan otro objeto: todos menos el dueño del efecto.
+  // Grouped by layer in the picker; the layers themselves are its headings, not choices.
+  const layers = $derived(editor.scene ? layerOf(editor.scene.objects) : new Map<string, string>());
   const others = $derived(
-    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id && (!['gravity', 'physics'].includes(m?.type ?? '') || (n.kind !== 'effector' && ![...walkNodes([n])].some(({ node }) => node.id === editor.activeNode?.id) && ![...walkNodes(editor.activeNode ? [editor.activeNode] : [])].some(({ node }) => node.id === n.id)))).map((n) => ({ id: n.id, label: n.name })) : [],
+    editor.scene ? [...walkNodes(editor.scene.objects)].map((x) => x.node).filter((n) => n.id !== editor.activeNode?.id && !(n.kind === 'group' && n.layer) && (!['gravity', 'physics'].includes(m?.type ?? '') || (n.kind !== 'effector' && ![...walkNodes([n])].some(({ node }) => node.id === editor.activeNode?.id) && ![...walkNodes(editor.activeNode ? [editor.activeNode] : [])].some(({ node }) => node.id === n.id)))).map((n) => ({ id: n.id, label: n.name, group: layers.get(n.id) })) : [],
   );
   const def = $derived(m ? registry.get(m.type) : undefined);
   // Sin grupo: arriba. Con grupo: secciones plegables, en el orden del esquema.
