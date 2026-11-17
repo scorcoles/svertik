@@ -5,16 +5,26 @@ export interface FpsMeter {
   /** Un fotograma calculado por el reproductor, con lo que tardó. */
   frame(ms: number): void;
   variables(scene: Record<string, number>, custom: Record<string, number>): void;
+  /** What painted the last frame, and the renderer chosen (shown, and selectable when `onRenderer` is given). */
+  renderer(painted: 'svg' | 'canvas', chosen: RendererChoice): void;
   toggle(on?: boolean): void;
   /** Is the panel showing? (a player only needs to track the pointer while it is) */
   visible(): boolean;
   stop(): void;
 }
 
-export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
+export type RendererChoice = 'auto' | 'svg' | 'canvas';
+
+export interface FpsMeterOptions {
+  /** Switch the player's renderer from the panel (Auto / SVG / Canvas buttons). */
+  onRenderer?: (renderer: RendererChoice) => void;
+}
+
+export function createFpsMeter(parent: HTMLElement, on = false, options: FpsMeterOptions = {}): FpsMeter {
   const panel = document.createElement('div');
   const header = document.createElement('div');
   const copy = document.createElement('button');
+  const choices = document.createElement('div');
   const el = document.createElement('pre');
   el.setAttribute('aria-hidden', 'true');
   Object.assign(panel.style, {
@@ -56,12 +66,28 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
     overflow: 'visible',
   });
   panel.hidden = !on;
-  header.append(copy);
+  // Renderer switch: the chosen one is underlined; the line in the text says what actually painted.
+  const choiceButtons = new Map<RendererChoice, HTMLButtonElement>();
+  Object.assign(choices.style, { display: 'flex', gap: '10px', marginRight: 'auto' });
+  if (options.onRenderer) {
+    for (const [value, label] of [['auto', 'Auto'], ['svg', 'SVG'], ['canvas', 'Canvas']] as const) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.title = value === 'auto' ? 'Renderer: canvas for heavy frames, SVG otherwise' : value === 'svg' ? 'Renderer: always SVG' : 'Renderer: always Canvas (frames with filters or masks stay SVG)';
+      Object.assign(b.style, { border: '0', borderRadius: '0', padding: '0', color: '#ededed', background: 'transparent', font: '11px/1.5 ui-monospace, "JetBrains Mono", monospace', pointerEvents: 'auto', cursor: 'pointer', opacity: '0.6' });
+      b.addEventListener('click', () => options.onRenderer?.(value));
+      choiceButtons.set(value, b);
+      choices.append(b);
+    }
+  }
+  header.append(choices, copy);
   panel.append(el, header);
   parent.append(panel);
 
   let screen = 0, computed = 0, sum = 0, worst = 0, last = performance.now();
   let performanceText = '', variablesText = '';
+  let painted: 'svg' | 'canvas' | null = null, chosen: RendererChoice | null = null;
   let lastVariablesKey = '';
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   const render = () => { el.textContent = [performanceText, variablesText].filter(Boolean).join('\n\n'); };
@@ -87,6 +113,7 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
         `computed ${Math.round(computed / s)} fps`,
         `frame    ${avg.toFixed(1)} ms avg · ${worst.toFixed(1)} ms worst`,
         `engine   could do ~${budget} fps`,
+        ...(painted ? [`renderer ${painted}${chosen === 'auto' ? ' (auto)' : ''}`] : []),
       ].join('\n');
       render();
       el.style.color = avg > 33 ? 'var(--sv-signal-error)' : avg > 16 ? 'var(--sv-signal-warning)' : 'var(--sv-text-primary)';
@@ -112,6 +139,17 @@ export function createFpsMeter(parent: HTMLElement, on = false): FpsMeter {
       const customLines = Object.entries(custom).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `scene.custom.${key} ${format(value)}`);
       variablesText = ['Scene', ...sceneLines, ...(customLines.length ? ['', 'Custom', ...customLines] : [])].join('\n');
       render();
+    },
+    renderer(now, choice) {
+      painted = now;
+      if (choice === chosen) return;
+      chosen = choice;
+      for (const [value, b] of choiceButtons) {
+        const on = value === choice;
+        b.style.opacity = on ? '1' : '0.6';
+        b.style.textDecoration = on ? 'underline' : 'none';
+        b.setAttribute('aria-pressed', String(on));
+      }
     },
     toggle(v = panel.hidden) {
       panel.hidden = !v;

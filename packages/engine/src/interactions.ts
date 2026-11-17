@@ -16,6 +16,7 @@ import { sceneHasExpressions } from './expression';
 import type { DocumentResult, SceneNode, SceneV1 } from './document';
 import { apply as applyMat, invert } from './matrix';
 import type { Engine } from './engine';
+import { mountCanvas, type Renderer } from './canvas';
 
 export type Trigger = 'hover' | 'click' | 'enter' | 'pointer';
 export type Action = 'tween' | 'play' | 'seed' | 'toggle' | 'follow';
@@ -295,13 +296,18 @@ const nodeOf = (e: Event) => nodeOfEl(e.target);
  */
 export interface PlayerOptions {
   /** `pointer`: the live pointer (see `pointer` below), when it is being tracked. */
-  onFrame?: (info: { ms: number; t: number; pointer?: ScenePointer; runtime?: SceneRuntime }) => void;
+  onFrame?: (info: { ms: number; t: number; pointer?: ScenePointer; runtime?: SceneRuntime; painted: 'svg' | 'canvas' }) => void;
   /**
    * Track the pointer for `onFrame` even if no formula reads `scene.mouse.*` (a debug panel does): `true`, or a
    * function that says when (it is asked on every pointer event, so a hidden panel costs no repaints). While it
    * is on, `onFrame` also gets `runtime` (frame time, scroll, density, clock).
    */
   pointer?: boolean | (() => boolean);
+  /**
+   * Who paints: `svg` (default, live SVG elements), `canvas` (a <canvas> inside the <svg>; frames with
+   * filters or masks still go to SVG) or `auto` (canvas only for frames with many shapes).
+   */
+  renderer?: Renderer;
 }
 
 export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1, options: PlayerOptions = {}) {
@@ -338,7 +344,13 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const originalAspectRatio = svg.getAttribute('preserveAspectRatio');
   const fit = viewportFit(scene);
   if (fit) svg.setAttribute('preserveAspectRatio', VIEWPORT_ASPECT[fit]);
-  const live = engine.mount(svg, anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene);
+  const renderer = options.renderer ?? 'svg';
+  const first = anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene;
+  const live: { update(s: SceneV1): void; doc(): DocumentResult | null; onCanvas?(): boolean; hit?(x: number, y: number): string | null; surface?(): HTMLCanvasElement | null; renderer?(): Renderer; setRenderer?(r: Renderer): void; destroy?(): void } =
+    // Without a renderer option: the plain SVG mount. With one (even `svg`), the switchable one.
+    options.renderer === undefined ? engine.mount(svg, first) : mountCanvas(engine, svg, first, renderer);
+  /** The object under the pointer: the DOM knows it for SVG frames; the canvas tests its paths. */
+  const nodeAt = (e: MouseEvent) => (live.onCanvas?.() ? live.hit!(e.clientX, e.clientY) : nodeOf(e));
   const t0 = performance.now();
   let last = t0;
   let frame = 0;
@@ -347,7 +359,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const clockAt = (now: number) => {
     let t = 0;
     if (anim && autoplay) {
-      const e = (now - t0) / 1000;
+      // A frame's timestamp can come from before the player started (rAF stamps the frame's start): never negative.
+      const e = Math.max(0, (now - t0) / 1000);
       t = reduce ? anim.duration : anim.infinite ? e : anim.loop === false ? Math.min(e, anim.duration) : e % anim.duration;
     }
     // "play" interactions drive the playhead while they have one.
@@ -391,7 +404,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       mouseDirty = false;
       pointerDirty = false;
       shown = t;
-      options.onFrame?.({ ms: performance.now() - c0, t, ...(wantsPointer() ? { pointer: { ...pointerNow } } : {}), ...(wantsRuntime() ? { runtime: { ...runtimeNow } } : {}) });
+      options.onFrame?.({ ms: performance.now() - c0, t, painted: live.onCanvas?.() ? 'canvas' : 'svg', ...(wantsPointer() ? { pointer: { ...pointerNow } } : {}), ...(wantsRuntime() ? { runtime: { ...runtimeNow } } : {}) });
     }
     const keepGoing = (autoplay && !reduce && (anim!.infinite || anim!.loop !== false || t < anim!.duration)) || moving || mouse.active() || pointerBusy() || runtimeBusy();
     frame = keepGoing ? requestAnimationFrame(draw) : 0;
@@ -403,16 +416,38 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     }
   };
   const enter = (e: Event) => {
+    if (live.onCanvas?.()) return;
     inter.event('enter', nodeOf(e));
     wake();
   };
   // On leaving a shape, what matters is where the pointer goes (another shape of the same object, or nothing).
   const leave = (e: PointerEvent) => {
+    if (live.onCanvas?.()) return;
     inter.event('leave', nodeOfEl(e.relatedTarget));
     wake();
   };
-  const click = (e: Event) => {
-    inter.event('click', nodeOf(e));
+  const click = (e: MouseEvent) => {
+    inter.event('click', nodeAt(e));
+    wake();
+  };
+  // On the canvas there are no elements to enter or leave: the pointer's moves say which object it is over.
+  const touchable = new Set((scene.interactions ?? []).filter((it) => it.trigger !== 'enter' && it.trigger !== 'pointer').map((it) => it.node));
+  let hovered: string | null = null;
+  const hoverCanvas = (e: PointerEvent) => {
+    if (!live.onCanvas?.()) return;
+    const n = live.hit!(e.clientX, e.clientY);
+    if (n === hovered) return;
+    hovered = n;
+    inter.event('leave', n);
+    if (n) inter.event('enter', n);
+    const surface = live.surface?.();
+    if (surface) surface.style.cursor = n && touchable.has(n) ? 'pointer' : '';
+    wake();
+  };
+  const leaveCanvas = () => {
+    if (!live.onCanvas?.() || hovered === null) return;
+    hovered = null;
+    inter.event('leave', null);
     wake();
   };
   // "pointer": where the pointer is, in document coordinates (those of the <svg> viewBox).
@@ -520,6 +555,10 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     svg.addEventListener('pointerover', enter);
     svg.addEventListener('pointerout', leave);
     svg.addEventListener('click', click);
+    if (options.renderer !== undefined) {
+      svg.addEventListener('pointermove', hoverCanvas);
+      svg.addEventListener('pointerleave', leaveCanvas);
+    }
     if (list.some((it) => it.trigger === 'pointer')) {
       svg.addEventListener('pointermove', move);
       svg.addEventListener('pointerleave', out);
@@ -542,6 +581,19 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   return {
     /** Paints again (if a script changed the scene). */
     refresh: wake,
+    /** The chosen renderer (see `PlayerOptions.renderer`). */
+    renderer: (): Renderer => live.renderer?.() ?? 'svg',
+    /**
+     * Switches renderer while playing. A player created with `svg` (plain SVG mount) cannot switch:
+     * it returns false. Create it with `auto` or `canvas` to allow it.
+     */
+    setRenderer(next: Renderer): boolean {
+      if (!live.setRenderer) return false;
+      live.setRenderer(next);
+      shown = null;
+      wake();
+      return true;
+    },
     stop() {
       cancelAnimationFrame(frame);
       io?.disconnect();
@@ -568,6 +620,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       svg.removeEventListener('click', click);
       svg.removeEventListener('pointermove', move);
       svg.removeEventListener('pointerleave', out);
+      svg.removeEventListener('pointermove', hoverCanvas);
+      svg.removeEventListener('pointerleave', leaveCanvas);
+      live.destroy?.();
     },
   };
 }

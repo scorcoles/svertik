@@ -2,6 +2,7 @@ export * from './geometry';
 export * from './paths';
 export { importSVG, parsePathData } from './import';
 export { toSVG, toPathData, renderInto, gradientDefs, type ToSVGOptions } from './render';
+export { paintCanvas, hitTest, canvasCanPaint, mountCanvas, parseTransform, CANVAS_FROM, type Renderer, type Mounted, type PaintOptions } from './canvas';
 export * from './modifier';
 export * from './units';
 export { createEngine, type Engine, type StackInput, type ModifierInstance } from './engine';

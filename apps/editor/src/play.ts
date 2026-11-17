@@ -62,13 +62,18 @@ async function start(m: typeof import('@svertik/engine/player')) {
   if (unknown.length) console.warn(`svertik: effects that don't exist: ${unknown.join(', ')}`);
   // Las fuentes de sus textos, de Fontsource (solo si hay textos), y el importador si trae SVG suelto.
   const effects = await prepareScene(scene);
+  // Heavy frames paint on a canvas; ?renderer=svg|canvas|auto in the URL chooses, and so does the debug panel.
+  const asked = new URLSearchParams(location.search).get('renderer');
+  const initial = asked === 'svg' || asked === 'canvas' ? asked : 'auto';
+  let player: ReturnType<typeof createPlayer> | null = null;
   // Rendimiento: D o ?debug en la URL.
-  const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'));
+  const meter = createFpsMeter(document.body, new URLSearchParams(location.search).has('debug'), { onRenderer: (r) => player?.setRenderer(r) });
   addEventListener('keydown', (e) => e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && meter.toggle());
   // Wire (W, or ?wire in the URL): outlines only, as in the editor's canvas.
   m.installWire(stage, scene, { initial: new URLSearchParams(location.search).has('wire'), onChange: (on) => document.body.classList.toggle('wire', on) });
-  createPlayer(createEngine(effects), stage, scene, { pointer: () => meter.visible(), onFrame: ({ ms, t, pointer, runtime }) => {
+  player = createPlayer(createEngine(effects), stage, scene, { renderer: initial, pointer: () => meter.visible(), onFrame: ({ ms, t, pointer, runtime, painted }) => {
     meter.frame(ms);
+    meter.renderer(painted, player?.renderer() ?? initial);
     const values = evaluateSceneVariables(scene, t);
     meter.variables(describeSceneVariables(values, pointer, runtime), values.custom);
   } });

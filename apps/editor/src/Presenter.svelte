@@ -20,9 +20,11 @@
 
   onMount(() => {
     const scene = $state.snapshot(editor.scene) as SceneV1;
-    meter = createFpsMeter(document.body);
-    const player = svg ? createPlayer(createEngine(builtins), svg, scene, { pointer: () => meter?.visible() ?? false, onFrame: ({ ms, t, pointer, runtime }) => {
+    let player: ReturnType<typeof createPlayer> | null = null;
+    meter = createFpsMeter(document.body, false, { onRenderer: (r) => player?.setRenderer(r) });
+    player = svg ? createPlayer(createEngine(builtins), svg, scene, { renderer: 'auto', pointer: () => meter?.visible() ?? false, onFrame: ({ ms, t, pointer, runtime, painted }) => {
       meter?.frame(ms);
+      meter?.renderer(painted, player?.renderer() ?? 'auto');
       const values = evaluateSceneVariables(scene, t);
       meter?.variables(describeSceneVariables(values, pointer, runtime), values.custom);
     } }) : null;
