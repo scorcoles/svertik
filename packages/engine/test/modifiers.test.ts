@@ -698,7 +698,7 @@ describe('range, field and opacity', () => {
   });
 
   it('field: more effect near the centre, none outside the radius', () => {
-    const geo = grid([{ id: 'f', type: 'field', params: { center: [0.5, 0.5], radius: 0.35, softness: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    const geo = grid([{ id: 'f', type: 'field', params: { center: [0.5, 0.5], width: 0.7, height: 0.7, softness: 0.5 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
     const o = op(geo);
     // The leftmost copy is far away: almost untouched; the ones at the centre, almost invisible.
     expect(Math.max(...o)).toBeGreaterThan(0.9);
@@ -707,8 +707,16 @@ describe('range, field and opacity', () => {
 
   it('after a Clone, fractions are measured on all the copies, not on one', () => {
     // Centre on the left edge of the set and a small radius: only the first copy.
-    const geo = grid([{ id: 'f', type: 'field', params: { center: [0, 0.5], radius: 0.2, softness: 0 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    const geo = grid([{ id: 'f', type: 'field', params: { center: [0, 0.5], width: 0.4, height: 0.4, softness: 0 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
     expect(op(geo)).toEqual([0, 1, 1, 1]);
+  });
+
+  it('field box: width and height are independent', () => {
+    // A wide, flat box over the row of copies reaches all of them; a tall, narrow one only the middle.
+    const wide = grid([{ id: 'f', type: 'field', params: { shape: 'box', center: [0.5, 0.5], width: 2, height: 0.3, softness: 0 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    expect(op(wide)).toEqual([0, 0, 0, 0]);
+    const tall = grid([{ id: 'f', type: 'field', params: { shape: 'box', center: [0.5, 0.5], width: 0.5, height: 2, softness: 0 }, children: [{ id: 'o', type: 'opacity', params: { opacity: 0 } }] }]);
+    expect(op(tall)).toEqual([1, 0, 0, 1]);
   });
 
   it('in the scene, each effect says which box it measures on (refs)', () => {

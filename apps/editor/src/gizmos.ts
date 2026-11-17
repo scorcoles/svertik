@@ -500,23 +500,37 @@ Object.assign(builders, {
   field(p: Params, b: Bounds): Gizmo {
     // El campo: su forma (borde exterior) y, discontinuo, donde empieza la transición (Softness).
     const c = at(b, p.center);
-    const R = Number(p.radius) * sizeOf(b);
-    const inner = R * (1 - clamp(Number(p.softness), 0, 1));
+    const size = sizeOf(b);
+    const k = 1 - clamp(Number(p.softness), 0, 1);
     const a = rad(Number(p.angle) || 0);
     const [ux, uy] = [Math.cos(a), Math.sin(a)];
+    // From the shape's local axes (turned by Angle) to the canvas.
+    const toCanvas = (x: number, y: number): Vec2 => [c[0] + x * ux - y * uy, c[1] + x * uy + y * ux];
     const lines: GizmoLine[] = [];
     if (p.shape === 'linear') {
-      const L = sizeOf(b);
-      const seg = (d: number, dashed: boolean): GizmoLine => ({ pts: [[c[0] + ux * d - uy * L, c[1] + uy * d + ux * L], [c[0] + ux * d + uy * L, c[1] + uy * d - ux * L]], dashed });
-      lines.push(seg(0, true), seg(R, false));
-    } else if (p.shape === 'box') {
-      const sq = (r: number): Vec2[] => [[-r, -r], [r, -r], [r, r], [-r, r]].map(([x, y]) => [c[0] + x! * ux - y! * uy, c[1] + x! * uy + y! * ux] as Vec2);
-      lines.push({ pts: sq(R), closed: true }, { pts: sq(inner), closed: true, dashed: true });
-    } else lines.push({ pts: ellipse(c, R, R), closed: true }, { pts: ellipse(c, inner, inner), closed: true, dashed: true });
-    const edge: Vec2 = p.shape === 'linear' ? [c[0] + ux * R, c[1] + uy * R] : [c[0] + ux * R, c[1] + uy * R];
+      const D = Number(p.distance) * size;
+      const L = size;
+      const seg = (d: number, dashed: boolean): GizmoLine => ({ pts: [toCanvas(d, -L), toCanvas(d, L)], dashed });
+      lines.push(seg(0, true), seg(D, false));
+      return {
+        lines,
+        handles: [{ at: toCanvas(D, 0), label: 'Distance', drag: (_p0, _f, to) => ({ distance: round(clamp(((to[0] - c[0]) * ux + (to[1] - c[1]) * uy) / size, 0.01, 2), 100) }) }],
+      };
+    }
+    const hw = (Number(p.width) * size) / 2;
+    const hh = (Number(p.height) * size) / 2;
+    const outline = (s: number): Vec2[] => p.shape === 'box'
+      ? [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, y]) => toCanvas(x! * hw * s, y! * hh * s))
+      : Array.from({ length: 64 }, (_, i) => toCanvas(Math.cos((i / 64) * 2 * Math.PI) * hw * s, Math.sin((i / 64) * 2 * Math.PI) * hh * s));
+    lines.push({ pts: outline(1), closed: true }, { pts: outline(k), closed: true, dashed: true });
+    // Distance from the centre along each local axis, as a full size (fraction of the drawing).
+    const along = (to: Vec2, vx: number, vy: number) => round(clamp((2 * Math.abs((to[0] - c[0]) * vx + (to[1] - c[1]) * vy)) / size, 0.01, 4), 100);
     return {
       lines,
-      handles: [{ at: edge, label: 'Radius', drag: (_p0, _f, to) => ({ radius: round(clamp(Math.hypot(to[0] - c[0], to[1] - c[1]) / sizeOf(b), 0.01, 2), 100) }) }],
+      handles: [
+        { at: toCanvas(hw, 0), label: 'Width', drag: (_p0, _f, to) => ({ width: along(to, ux, uy) }) },
+        { at: toCanvas(0, hh), label: 'Height', drag: (_p0, _f, to) => ({ height: along(to, -uy, ux) }) },
+      ],
     };
   },
 

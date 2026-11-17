@@ -12,7 +12,9 @@ Takes nested effects (`children`), weighted per element by its position. Nested 
 | --- | --- | --- | --- | --- |
 | `shape` | enum | `"circle"` | `circle`, `linear`, `box` | not animatable |
 | `center` | point | `[0.5,0.5]` | [x, y], fractions of the box (0–1) |  |
-| `radius` | number | `0.35` | min 0.01, max 2, step 0.01 | fraction of the drawing size |
+| `width` | number | `0.7` | min 0.01, max 4, step 0.01 | fraction of the drawing size; only when `shape` is `circle` or `box` |
+| `height` | number | `0.7` | min 0.01, max 4, step 0.01 | fraction of the drawing size; only when `shape` is `circle` or `box` |
+| `distance` | number | `0.35` | min 0.01, max 2, step 0.01 | fraction of the drawing size; only when `shape` is `linear` |
 | `softness` | number | `0.5` | min 0, max 1, step 0.01 |  |
 | `angle` | angle | `0` | degrees |  |
 | `invert` | boolean | `false` |  | not animatable |
@@ -35,7 +37,9 @@ Inside a node's `stack` (effects run top to bottom):
       0.5,
       0.5
     ],
-    "radius": 0.35,
+    "width": 0.7,
+    "height": 0.7,
+    "distance": 0.35,
     "softness": 0.5,
     "angle": 0,
     "invert": false,

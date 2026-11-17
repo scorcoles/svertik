@@ -295,13 +295,13 @@ export function reelProject() {
             // Brota desde el centro: fuera del círculo, las teselas están a escala 0.
             {
               id: 'grid-reveal', type: 'field',
-              params: { shape: 'circle', center: [0.5, 0.5], radius: 0.02, softness: 0.5, invert: true },
+              params: { shape: 'circle', center: [0.5, 0.5], width: 0.04, height: 0.04, softness: 0.5, invert: true },
               children: [{ id: 'grid-reveal-scale', type: 'transform', params: { rotation: -90, scale: 0 } }],
             },
             // La ola: lo que pilla crece, gira y se aclara.
             {
               id: 'grid-wave', type: 'field',
-              params: { shape: 'circle', center: [-0.25, 0.25], radius: 0.24, softness: 1 },
+              params: { shape: 'circle', center: [-0.25, 0.25], width: 0.48, height: 0.48, softness: 1 },
               children: [
                 { id: 'grid-wave-move', type: 'transform', params: { y: -14, rotation: 90, scale: 1.7 } },
                 { id: 'grid-wave-tint', type: 'tint', params: { color: INK, amount: 1 } },
@@ -466,7 +466,7 @@ export function pointerProject() {
           stack: [
             { id: 'dots-grid', type: 'clone', params: { mode: 'grid', columns: 22, rows: 11, spacing: [5, 5] } },
             {
-              id: 'dots-field', type: 'field', params: { shape: 'circle', center: [0.5, 0.5], radius: 0.2, softness: 1, amount: 1 },
+              id: 'dots-field', type: 'field', params: { shape: 'circle', center: [0.5, 0.5], width: 0.4, height: 0.4, softness: 1, amount: 1 },
               children: [
                 { id: 'dots-grow', type: 'transform', params: { scale: 3.2 } },
                 { id: 'dots-tint', type: 'tint', params: { color: CYAN, amount: 1 } },
