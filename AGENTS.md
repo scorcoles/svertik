@@ -121,6 +121,8 @@ An instance with `mouse: { event, rate?, distance?, button?, count?, lifetime?, 
 
 `fullViewport` on SceneV1 fills the whole viewport in both Play hosts (off/absent by default), fitted like CSS `object-fit`: `true` or `"contain"` shows the whole document without distortion (bands where the aspect ratio differs), `"cover"` fills the screen and crops the overflow, `"stretch"` fills both axes and distorts. `createPlayer` sets SVG `preserveAspectRatio` to `xMidYMid meet`, `xMidYMid slice` or `none`; document coordinates, editor bounds and headless exports stay unchanged.
 
+`clipToDocument: true` on SceneV1 hides, in both Play hosts, whatever lies outside the document (by default it overflows the stage and shows in Contain's bands). `createPlayer` applies it as a CSS `clip-path` on the SVG; exports already stop at the document. Editor: **Document → Clip**. Not the editor-only View → Hide outside.
+
 ## Infinite time and cycle
 
 Set `animation: { duration: 10, infinite: true, loop: false, fps: 30, tracks: [] }` for procedural or interactive scenes that must keep running. In the editor, **Document → Time → Infinite** and **Timeline → Infinite** control the same flag. Off/absent is the existing finite mode. Infinite disables scene Loop; the clock never wraps or stops at `duration`, in editor playback and both Play hosts. The timeline remains editable within its configured duration, and its playhead stays at the end while the elapsed-time counter continues. Pause/resume keeps elapsed time; Go to start resets it.

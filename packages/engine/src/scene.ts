@@ -153,6 +153,12 @@ export interface SceneV1 {
    * Editor geometry and exports are unchanged.
    */
   fullViewport?: boolean | ViewportFit;
+  /**
+   * Clip to the document in Play: whatever lies outside it is not shown (by default the stage lets it
+   * overflow, and Contain shows it in the bands). Exports already stop at the document; the editor has its
+   * own View → Hide outside.
+   */
+  clipToDocument?: boolean;
   /** Global seed for effect expressions; nested compositions inherit it unless they override it. */
   seedGenerator?: number;
   /**

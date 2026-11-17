@@ -349,6 +349,28 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const live: { update(s: SceneV1): void; doc(): DocumentResult | null; onCanvas?(): boolean; hit?(x: number, y: number): string | null; surface?(): HTMLCanvasElement | null; renderer?(): Renderer; setRenderer?(r: Renderer): void; destroy?(): void } =
     // Without a renderer option: the plain SVG mount. With one (even `svg`), the switchable one.
     options.renderer === undefined ? engine.mount(svg, first) : mountCanvas(engine, svg, first, renderer);
+  // Clip to the document: nothing outside it shows in Play (the stage lets drawing overflow, and Contain
+  // leaves bands). A CSS inset on the <svg>, in its own pixels, from where the viewBox lands on screen; it
+  // follows resizes and a changing viewBox. The canvas renderer already stops at the viewBox.
+  const originalClip = svg.style.clipPath;
+  let clipKey = '';
+  const clipToDocument = () => {
+    if (!scene.clipToDocument || typeof svg.getScreenCTM !== 'function') return;
+    const vb = svg.viewBox?.baseVal;
+    const m = svg.getScreenCTM();
+    const r = svg.getBoundingClientRect();
+    if (!vb || !m || !r.width || !r.height) return;
+    const x0 = m.a * vb.x + m.c * vb.y + m.e - r.left, y0 = m.b * vb.x + m.d * vb.y + m.f - r.top;
+    const x1 = m.a * (vb.x + vb.width) + m.c * (vb.y + vb.height) + m.e - r.left, y1 = m.b * (vb.x + vb.width) + m.d * (vb.y + vb.height) + m.f - r.top;
+    const px = (v: number) => `${Math.round(v * 100) / 100}px`;
+    const key = `inset(${px(Math.min(y0, y1))} ${px(r.width - Math.max(x0, x1))} ${px(r.height - Math.max(y0, y1))} ${px(Math.min(x0, x1))})`;
+    if (key !== clipKey) svg.style.clipPath = clipKey = key;
+  };
+  let lastViewBox = svg.getAttribute('viewBox');
+  const resized = typeof ResizeObserver === 'function' && scene.clipToDocument ? new ResizeObserver(clipToDocument) : null;
+  resized?.observe(svg);
+  if (scene.clipToDocument && typeof window !== 'undefined') window.addEventListener('resize', clipToDocument);
+  clipToDocument();
   /** The object under the pointer: the DOM knows it for SVG frames; the canvas tests its paths. */
   const nodeAt = (e: MouseEvent) => (live.onCanvas?.() ? live.hit!(e.clientX, e.clientY) : nodeOf(e));
   const t0 = performance.now();
@@ -401,6 +423,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       // The pointer goes on the frame before Mouse Instances read it, and on to whatever draws it.
       const framed = mouse.apply(usesPointer || usesRuntime ? { ...stepped, ...(usesPointer ? { pointer: { ...pointerNow } } : {}), ...(usesRuntime ? { runtime: { ...runtimeNow } } : {}) } : stepped, now / 1000);
       live.update(framed);
+      if (scene.clipToDocument && svg.getAttribute('viewBox') !== lastViewBox) { lastViewBox = svg.getAttribute('viewBox'); clipToDocument(); }
       mouseDirty = false;
       pointerDirty = false;
       shown = t;
@@ -597,6 +620,11 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     stop() {
       cancelAnimationFrame(frame);
       io?.disconnect();
+      resized?.disconnect();
+      if (scene.clipToDocument) {
+        if (typeof window !== 'undefined') window.removeEventListener('resize', clipToDocument);
+        svg.style.clipPath = originalClip;
+      }
       mouse.clear();
       if (fit) {
         if (originalAspectRatio === null) svg.removeAttribute('preserveAspectRatio');

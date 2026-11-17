@@ -140,6 +140,12 @@
       <label for="doc-full-viewport">Full</label>
       <input id="doc-full-viewport" type="checkbox" aria-label="Full viewport" title="Fill the available viewport in Play" checked={!!editor.viewportFit} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
     </div>
+    {#if doc}
+      <div class="full-viewport-row">
+        <label for="doc-clip">Clip</label>
+        <input id="doc-clip" type="checkbox" aria-label="Clip to the document in Play" title="In Play, hide whatever lies outside the document" checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
+      </div>
+    {/if}
     {#if editor.viewportFit}
       <ParamRow label="Fit">
         <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. -->
@@ -152,7 +158,7 @@
     {#if editor.viewportFit && editor.showInfo}<p class="note">In Play, the document fills the screen edge to edge: Contain shows all of it (bands where the shape differs), Cover fills it and crops the overflow, Stretch fills both axes and distorts. The editor and exports keep the document size.</p>{/if}
     {#if editor.showInfo}<p class="note">
       {doc
-        ? 'What is exported and shown in Play. Anything outside is cut off. Turn on Bounds (View, below) to see the edge.'
+        ? 'What is exported and shown in Play. Exports stop at its edge; in Play, what lies outside still shows unless Clip is on. Turn on Bounds (View, below) to see the edge.'
         : 'The document fits whatever is drawn, with a small margin. Fix a size to export a frame (a video size, a post…).'}
     </p>{/if}
   </Section>

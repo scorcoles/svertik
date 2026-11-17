@@ -1469,6 +1469,13 @@ export class Editor {
     else delete this.scene.fullViewport;
     this.record(true);
   }
+  /** Clip to the document in Play (nothing outside it shows). */
+  setClipToDocument(enabled: boolean) {
+    if (!this.scene) return;
+    if (enabled) this.scene.clipToDocument = true;
+    else delete this.scene.clipToDocument;
+    this.record(true);
+  }
   /** Full mode's fit (contain is stored as `true`, the default). */
   setViewportFit(fit: ViewportFit) {
     if (!this.scene) return;
