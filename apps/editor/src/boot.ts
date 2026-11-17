@@ -13,6 +13,15 @@ export const BOOT_STAGES: BootStage[] = [
 
 /** Arranca el editor por etapas y gestiona la pantalla de carga (index.html#boot). */
 export async function startBoot() {
+  const notice = document.getElementById('mobile-notice');
+  if (notice && getComputedStyle(notice).display !== 'none') {
+    await new Promise<void>((resolve) => {
+      document.getElementById('mobile-notice-continue')!.addEventListener('click', () => {
+        notice.hidden = true;
+        resolve();
+      }, { once: true });
+    });
+  }
   await runStages(BOOT_STAGES, async () => {
     const { default: App } = await import('./App.svelte');
     const { mount } = await import('svelte');

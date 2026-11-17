@@ -5,6 +5,13 @@
 
 ---
 
+## Editor UI conventions
+
+- All user-facing interface text must be in English.
+- Use JetBrains Mono for interface typography, including startup screens and notices.
+- Buttons must have square corners (no border radius).
+- Avoid decorative separators in notices.
+
 ## 📚 Documentation & Reference
 
 - **[Comprehensive Engine & Effects Guide](docs/ENGINE_AND_EFFECTS.md)**: Deep dive into the architecture, execution rules, geometric primitives, and effect parameters, ranges, defaults, and notes.
