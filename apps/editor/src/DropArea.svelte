@@ -30,7 +30,7 @@
     <DemoReel {ondemo} />
     <div class="start">
       <div class="open-document">
-        <!-- One primary action: the demos are the quickest way to see what svertik does. -->
+        <!-- One primary action per section: here the demos, the quickest way to see what svertik does; below, Create. -->
         <Button label="Choose file…" onclick={onimport} />
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
@@ -50,7 +50,7 @@
         <span class="times" aria-hidden="true">×</span>
         <label class="dimension">H <input type="number" min="1" max="10000" bind:value={height} aria-label="Document height" /></label>
         <span class="unit">px</span>
-        <Button label="Create" onclick={() => editor.newFile(width, height)} />
+        <Button kind="primary" label="Create" onclick={() => editor.newFile(width, height)} />
       </div>
     </div>
     {#if editor.error}<p class="error" role="alert">{editor.error}</p>{/if}
