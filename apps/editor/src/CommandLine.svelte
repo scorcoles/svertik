@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { DropdownMenu } from 'bits-ui';
   import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions } from '@svertik/engine';
-  import { Icon, type IconName } from '@svertik/ui';
+  import { Icon, IconButton, type IconName } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import { buildCatalog, compile, complete, describeParam, familyColor, parse, pushRecent, recentEntries, resolve, search, tokenize, typable, type CommandEntry } from './command';
   import { completeParam, EXPORT_FORMATS, matchNames, matchVerbs, parseAssignments, parseTime, splitVerb, VERBS, type ExportFormat } from './verbs';
@@ -22,6 +22,24 @@
   let active = $state(0);
   let error = $state<string | null>(null);
   let announce = $state('');
+  // Results at a readable width, or across the whole footer line (the corner button). Remembered in this browser.
+  const WIDE_KEY = 'svertik.command.wide';
+  let wide = $state(readWide());
+  function readWide() {
+    try {
+      return localStorage.getItem(WIDE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+  function toggleWide() {
+    wide = !wide;
+    try {
+      localStorage.setItem(WIDE_KEY, wide ? '1' : '0');
+    } catch {
+      // Storage blocked: it lasts this session.
+    }
+  }
   // Session history: ↑ on an empty line.
   const history: string[] = [];
   // Recent effects, listed first on an empty line. Kept in this browser only (a convenience: it may be empty).
@@ -289,7 +307,7 @@
 
 <div class="command" class:compact data-position={editor.commandInEffectsSlot ? 'effects' : 'footer'} data-disabled={disabled || undefined} data-error={error ? true : undefined} data-idle={!disabled && !target ? true : undefined}>
   {#if open && !disabled}
-    <div class="results" role="presentation">
+    <div class="results" role="presentation" data-wide={wide || undefined}>
       {#if browsing}
         <!-- Fixed height, list left and description right: neither hovering nor filtering moves anything
              (descriptions run from one line to several). -->
@@ -405,7 +423,15 @@
         <p class="empty">No effect called "{parsed.name}". Tab completes names.</p>
       {/if}
       {#if error}<p class="error" role="alert">{error}</p>{/if}
-      <p class="keys">{call ? '⏎ run' : '⏎ add'} · Tab complete · ↑↓ choose · Esc close</p>
+      <div class="keys">
+        <span>{call ? '⏎ run' : '⏎ add'} · Tab complete · ↑↓ choose · Esc close</span>
+        {#if !compact}
+          <!-- pointerdown kept from the input: clicking here must not blur it (that would close the results). -->
+          <span class="widen">
+            <IconButton icon={wide ? 'narrow-width' : 'fit-width'} label={wide ? 'Narrow the results' : 'Widen the results'} aria-pressed={wide} onpointerdown={(e: PointerEvent) => e.preventDefault()} onclick={toggleWide} />
+          </span>
+        {/if}
+      </div>
     </div>
   {/if}
   <span class="prompt" title={target && !pending?.autonomous ? `Adds to ${target.name}` : undefined}>{promptText} ›</span>
@@ -514,8 +540,10 @@
     color: var(--sv-text-primary);
   }
   .command[data-position='effects'] .results { top: calc(100% + 1px); bottom: auto; }
-  /* In the footer the results span the whole line (in the top bar the line is short: keep 720 px). */
-  .command:not(.compact) .results { width: calc(100% + 2px); }
+  /* In the footer the line can be very wide: the results stop at a readable width, so the description
+     on the right keeps lines of about 65 characters. */
+  .command:not(.compact) .results { width: min(760px, calc(100% + 2px)); }
+  .command:not(.compact) .results[data-wide] { width: calc(100% + 2px); }
   .browse {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -580,6 +608,8 @@
   tr[data-off] th, tr[data-off] td { color: var(--sv-text-secondary); }
   .empty { padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-secondary); }
   .error { padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-signal-error); border-top: var(--sv-border-1) solid var(--sv-rule-strong); }
-  .keys { padding: 0 var(--sv-space-8); height: 20px; display: flex; align-items: center; color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); border-top: var(--sv-border-1) solid var(--sv-rule-default); }
+  .keys { justify-content: space-between; gap: var(--sv-space-8); padding: 0 0 0 var(--sv-space-8); height: 20px; display: flex; align-items: center; color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); border-top: var(--sv-border-1) solid var(--sv-rule-default); }
+  .widen { display: flex; flex: none; }
+  .widen :global(.sv-icon-button) { width: 20px; height: 20px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>
