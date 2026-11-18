@@ -9,6 +9,8 @@
     kind?: 'object' | 'deformer' | 'generator' | 'effector' | 'style' | 'filter';
     /** Icono del efecto; por defecto, uno según el tipo. */
     icon?: IconName;
+    /** Colour of the icon (a CSS value, e.g. the effect family's token); by default, the secondary text. */
+    tone?: string;
     /** Optional double-click action on the icon, separate from renaming the label. */
     oniconactivate?: () => void;
     /** Nivel en el árbol: 0 para el objeto, 1 para sus modificadores… */
@@ -39,6 +41,7 @@
     label,
     kind = 'deformer',
     icon = kind === 'object' ? 'object' : kind === 'generator' ? 'crack' : 'transform',
+    tone,
     oniconactivate,
     depth = kind === 'object' ? 0 : 1,
     expanded,
@@ -112,6 +115,7 @@
   data-selected={selected || undefined}
   data-disabled={!enabled || undefined}
   style:--depth={depth}
+  style:--tone={tone}
   tabindex={(tabbable ?? selected) ? 0 : -1}
   onpointerenter={() => (hot = true)}
   onpointerleave={() => (hot = false)}
@@ -244,7 +248,7 @@
     border: 0;
     cursor: pointer;
   }
-  .icon { display: flex; color: var(--sv-text-secondary); }
+  .icon { display: flex; color: var(--tone, var(--sv-text-secondary)); }
   .icon-action { align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
   .icon-action:hover { color: var(--sv-accent-fill); }
   [data-selected] .icon { color: var(--sv-accent-fill); }

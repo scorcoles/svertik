@@ -4,6 +4,7 @@
   import { tick } from 'svelte';
   import { canNest, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
   import PanelHeader from './PanelHeader.svelte';
+  import { categoryOf, familyColor } from './command';
 
   let { editor }: { editor: Editor } = $props();
 
@@ -223,6 +224,7 @@
         label={m.name || (registry.get(m.type)?.label ?? m.type)}
         kind={registry.get(m.type)?.kind}
         icon={m.type as IconName}
+        tone={familyColor(categoryOf(registry.get(m.type) ?? { type: m.type }))}
         {depth}
         expanded={m.children ? open : undefined}
         onexpand={(v) => editor.toggleCollapsed(m.id, v)}

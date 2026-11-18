@@ -16,6 +16,12 @@
   --sv-turquesa-950: #0F2A26;
   --sv-red-400: #FF6B5E;
   --sv-amber-400: #FFD166;
+  --sv-blue-400: #7AA2FF;
+  --sv-violet-400: #B894F6;
+  --sv-green-400: #6BD98A;
+  --sv-pink-400: #F58DC2;
+  --sv-orange-400: #FF9A52;
+  --sv-ochre-400: #D8C26A;
   --sv-space-2: 2px;
   --sv-space-4: 4px;
   --sv-space-6: 6px;
@@ -55,6 +61,13 @@
   --sv-accent-selection: var(--sv-turquesa-950);
   --sv-signal-error: var(--sv-red-400);
   --sv-signal-warning: var(--sv-amber-400);
+  --sv-family-deform: var(--sv-blue-400);
+  --sv-family-generate: var(--sv-violet-400);
+  --sv-family-effect: var(--sv-green-400);
+  --sv-family-style: var(--sv-pink-400);
+  --sv-family-glitch: var(--sv-orange-400);
+  --sv-family-filters: var(--sv-ochre-400);
+  --sv-family-utils: var(--sv-gray-300);
   --sv-timeline-playhead: var(--sv-gray-100);
   --sv-code-keyword: var(--sv-turquesa-500);
   --sv-code-string: var(--sv-gray-300);

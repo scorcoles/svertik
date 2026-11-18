@@ -17,7 +17,13 @@
       "turquesa.900": "#00211B",
       "turquesa.950": "#0F2A26",
       "red.400": "#FF6B5E",
-      "amber.400": "#FFD166"
+      "amber.400": "#FFD166",
+      "blue.400": "#7AA2FF",
+      "violet.400": "#B894F6",
+      "green.400": "#6BD98A",
+      "pink.400": "#F58DC2",
+      "orange.400": "#FF9A52",
+      "ochre.400": "#D8C26A"
     },
     "spacing": {
       "space.2": 2,
@@ -71,6 +77,13 @@
       "accent.selection": "{turquesa.950}",
       "signal.error": "{red.400}",
       "signal.warning": "{amber.400}",
+      "family.deform": "{blue.400}",
+      "family.generate": "{violet.400}",
+      "family.effect": "{green.400}",
+      "family.style": "{pink.400}",
+      "family.glitch": "{orange.400}",
+      "family.filters": "{ochre.400}",
+      "family.utils": "{gray.300}",
       "timeline.playhead": "{gray.100}",
       "code.keyword": "{turquesa.500}",
       "code.string": "{gray.300}",

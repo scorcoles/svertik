@@ -2,9 +2,9 @@
   import { tick } from 'svelte';
   import { DropdownMenu } from 'bits-ui';
   import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions } from '@svertik/engine';
-  import { Icon } from '@svertik/ui';
+  import { Icon, type IconName } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
-  import { buildCatalog, compile, complete, describeParam, parse, resolve, search, tokenize, typable, type CommandEntry } from './command';
+  import { buildCatalog, compile, complete, describeParam, familyColor, parse, pushRecent, recentEntries, resolve, search, tokenize, typable, type CommandEntry } from './command';
   import { completeParam, EXPORT_FORMATS, matchNames, matchVerbs, parseAssignments, parseTime, splitVerb, VERBS, type ExportFormat } from './verbs';
 
   // Command line, fixed in the status bar (like a CAD prompt). Type an effect and, optionally, its
@@ -24,6 +24,25 @@
   let announce = $state('');
   // Session history: ↑ on an empty line.
   const history: string[] = [];
+  // Recent effects, listed first on an empty line. Kept in this browser only (a convenience: it may be empty).
+  const RECENT_KEY = 'svertik.command.recent';
+  let recent = $state<string[]>(readRecent());
+  function readRecent(): string[] {
+    try {
+      const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+      return Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  function remember(type: string) {
+    recent = pushRecent(recent, type);
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+    } catch {
+      // Storage blocked (private window…): the list lasts this session.
+    }
+  }
   let historyAt = $state<number | null>(null);
 
   const parsed = $derived(parse(value));
@@ -41,8 +60,11 @@
     for (const m of matches) byCategory.set(m.category, [...(byCategory.get(m.category) ?? []), m]);
     const rank = (c: string) => (c === 'Commands' ? 0 : CATEGORY_ORDER.indexOf(c) + 1 || CATEGORY_ORDER.length + 1);
     const entries = [...byCategory.entries()];
-    if (!parsed.name.trim()) entries.sort(([a], [b]) => rank(a) - rank(b));
-    return entries.map(([category, items]) => ({ category, items }));
+    const empty = !parsed.name.trim();
+    if (empty) entries.sort(([a], [b]) => rank(a) - rank(b));
+    // Nothing typed: the recent effects first (copies, so each row is its own option), Enter repeats the last.
+    const recents = empty ? recentEntries(catalog, recent).map((e) => ({ ...e })) : [];
+    return [...(recents.length ? [{ category: 'Recent', items: recents }] : []), ...entries.map(([category, items]) => ({ category, items }))];
   });
   // The options in display order: what ↑↓ and Enter walk through.
   const ordered = $derived(groups.flatMap((g) => g.items));
@@ -206,6 +228,7 @@
     }
     if (compiled.entry.autonomous) editor.addShape(compiled.entry.type, compiled.params);
     else editor.add(compiled.entry.type, compiled.params);
+    remember(compiled.entry.type);
     if (history[history.length - 1] !== command) history.push(command);
     historyAt = null;
     value = '';
@@ -281,7 +304,7 @@
               {@const why = blocker(m)}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
-                id={optionId(m.type)}
+                id={optionId(String(i))}
                 class="option"
                 role="option"
                 tabindex="-1"
@@ -292,7 +315,10 @@
                 onpointerdown={(e) => e.preventDefault()}
                 onclick={() => (m.verb ? edit(`${m.type} `) : run(m.type))}
               >
-                <span class="name">{m.type}</span>
+                <span class="name">
+                  {#if m.verb}<span class="family" aria-hidden="true"></span>{:else}<span class="family" style:--tone={familyColor(m.category)}><Icon name={m.type as IconName} size={14} /></span>{/if}
+                  {m.type}
+                </span>
                 <span class="label">{m.label.toLowerCase().replace(/\s+/g, '') === m.type ? '' : m.label}</span>
               </div>
             {/each}
@@ -391,7 +417,7 @@
     aria-expanded={open && ((browsing && matches.length > 0) || choices.length > 0)}
     aria-controls={open && ((browsing && matches.length > 0) || (call && call.verb !== 'set' && call.verb !== 'key' && choices.length > 0)) ? listId : undefined}
     aria-autocomplete="list"
-    aria-activedescendant={open && browsing && highlighted ? optionId(highlighted.type) : open && call && choice ? optionId(`${call.verb}-${choices.indexOf(choice)}`) : undefined}
+    aria-activedescendant={open && browsing && highlighted ? optionId(String(ordered.indexOf(highlighted))) : open && call && choice ? optionId(`${call.verb}-${choices.indexOf(choice)}`) : undefined}
     aria-invalid={error ? true : undefined}
     autocomplete="off"
     spellcheck="false"
@@ -516,7 +542,7 @@
   [role='group'] + [role='group'] .group-head { border-top: var(--sv-border-1) solid var(--sv-rule-strong); }
   .option {
     display: grid;
-    grid-template-columns: 16ch minmax(0, 1fr);
+    grid-template-columns: 20ch minmax(0, 1fr);
     align-items: center;
     gap: var(--sv-space-12);
     height: var(--sv-size-row);
@@ -526,7 +552,9 @@
   .option[aria-selected='true'] { background: var(--sv-surface-hover); }
   .option[aria-selected='true'] .name { color: var(--sv-accent-fill); }
   .option[aria-disabled] { color: var(--sv-text-secondary); }
-  .name { overflow: hidden; text-overflow: ellipsis; font-weight: var(--sv-font-weight-bold); }
+  .name { display: flex; align-items: center; gap: var(--sv-space-6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--sv-font-weight-bold); }
+  /* The effect's icon in its family's colour, as in the stack. */
+  .family { display: flex; flex: none; width: 14px; color: var(--tone, var(--sv-text-secondary)); }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sv-text-secondary); }
   .category { color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
   p { margin: 0; }

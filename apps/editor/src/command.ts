@@ -43,6 +43,15 @@ const MENU_OF: Record<string, string> = { rigidbody: 'Effect' };
 /** The menu category a definition belongs to ("Deform"…), so the UI uses the same words as the top bar. */
 export const categoryOf = (d: { type?: string; kind?: string; family?: string }) => (d.type && MENU_OF[d.type]) || (CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other');
 
+/**
+ * The colour of a menu category ("Deform"…) as a CSS value, so the command line and the stack tint an
+ * effect's icon alike. Undefined for what is not an effect family (commands, recents, Other).
+ */
+export function familyColor(category: string): string | undefined {
+  const known = ['Deform', 'Generate', 'Effect', 'Style', 'Glitch', 'Filters', 'Utils'];
+  return known.includes(category) ? `var(--sv-family-${category.toLowerCase()})` : undefined;
+}
+
 export function buildCatalog(defs: readonly DefLike[], autonomous: readonly DefLike[], descriptions: Record<string, string>): CommandEntry[] {
   const entry = (d: DefLike, isAuto: boolean): CommandEntry => ({
     type: d.type,
@@ -57,11 +66,18 @@ export function buildCatalog(defs: readonly DefLike[], autonomous: readonly DefL
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, '');
 
-/** How well an effect matches the query: exact > prefix > substring > subsequence. 0: no match. */
+/** Words of a description, lower case, for searching by what an effect does ("shadow", "blur"…). */
+const wordsOf = (text: string) => text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+
+/**
+ * How well an effect matches the query: exact > prefix > substring > a word of its description (what it
+ * does, from three letters) > subsequence. 0: no match.
+ */
 function score(entry: CommandEntry, query: string) {
   const q = norm(query);
   if (!q) return 1;
   let best = 0;
+  if (q.length >= 3 && wordsOf(entry.description).some((w) => w.startsWith(q))) best = 30;
   for (const name of [norm(entry.type), norm(entry.label)]) {
     if (name === q) best = Math.max(best, 100);
     else if (name.startsWith(q)) best = Math.max(best, 80 - name.length / 10);
@@ -82,6 +98,19 @@ export function search(catalog: readonly CommandEntry[], query: string): Command
     .filter((r) => r.s > 0)
     .sort((a, b) => b.s - a.s || a.i - b.i)
     .map((r) => r.entry);
+}
+
+/** How many recent effects the command line remembers and lists first. */
+export const RECENT_LIMIT = 6;
+
+/** The recent list after using `type`: it moves to the front, without repeats, at most RECENT_LIMIT. */
+export function pushRecent(recent: readonly string[], type: string): string[] {
+  return [type, ...recent.filter((t) => t !== type)].slice(0, RECENT_LIMIT);
+}
+
+/** The catalog entries of the recent types, in that order (types no longer in the catalog are skipped). */
+export function recentEntries(catalog: readonly CommandEntry[], recent: readonly string[]): CommandEntry[] {
+  return recent.map((t) => catalog.find((e) => e.type === t)).filter((e): e is CommandEntry => !!e);
 }
 
 /** An effect by its exact type or label (ignoring case, spaces and dashes). */
