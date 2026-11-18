@@ -1,4 +1,4 @@
-import { rng } from './random';
+import { noise2D, rng } from './random';
 import { CLOCK_FIELDS, customNumber, neutralPointer, neutralRuntime, POINTER_FIELDS, sceneDuration, type SceneRuntime, type ScenePointer } from './scene';
 import type { SceneNode, SceneV1 } from './document';
 
@@ -25,7 +25,18 @@ export interface ExpressionContext {
   height?: number;
   /** Frame time, page scroll, screen density and the real clock (`scene.dt`, `scene.scroll`, …); neutral when absent. */
   runtime?: Partial<SceneRuntime>;
+  /** Where smooth() and spring() keep their value between frames; without it they return their target. */
+  memory?: ExpressionMemory;
 }
+
+/** What smooth() / spring() remember of the last frame: when, the value, and (spring) its speed. */
+interface FollowState { t: number; v: number; vel: number }
+/**
+ * The state of smooth() and spring() between frames, by call (each formula's parsed call) and random salt.
+ * One per engine: only its frame-by-frame evaluation uses it, never a look at other times (trails, history).
+ */
+export type ExpressionMemory = WeakMap<object, Map<number, FollowState>>;
+export const createExpressionMemory = (): ExpressionMemory => new WeakMap();
 
 export interface SceneExpressionValues extends ExpressionContext {
   /** Zero-based duration cycle; it keeps increasing when the scene has Infinite enabled. */
@@ -50,6 +61,19 @@ const FUNCTIONS: Record<string, (args: number[]) => number> = {
   cos: ([x]) => Math.cos(x!),
   floor: ([x]) => Math.floor(x!),
   lerp: ([a, b, t]) => a! + (b! - a!) * t!,
+  // x from [inMin, inMax] to [outMin, outMax], not clamped (like lerp, it extrapolates).
+  map: ([x, a, b, c, d]) => (b === a ? c! : c! + ((x! - a!) * (d! - c!)) / (b! - a!)),
+  // Always the sign of b: mod(-1, 3) = 2, where -1 % 3 = -1.
+  mod: ([a, b]) => a! - b! * Math.floor(a! / b!),
+  // 0 below edge, 1 from it on (as in GLSL): a gate, since formulas have no comparisons.
+  step: ([edge, x]) => (x! < edge! ? 0 : 1),
+  smoothstep: ([a, b, x]) => { const t = Math.min(1, Math.max(0, b === a ? (x! < a! ? 0 : 1) : (x! - a!) / (b! - a!))); return t * t * (3 - 2 * t); },
+  // Cubic easing of t, clamped to 0–1.
+  easeIn: ([t]) => { const u = Math.min(1, Math.max(0, t!)); return u * u * u; },
+  easeOut: ([t]) => { const u = 1 - Math.min(1, Math.max(0, t!)); return 1 - u * u * u; },
+  easeInOut: ([t]) => { const u = Math.min(1, Math.max(0, t!)); return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; },
+  // The value at index i (floored, wrapping): pick(mod(scene.mouse.clicks, 3), 10, 20, 40).
+  pick: ([i, ...values]) => values[((Math.floor(i!) % values.length) + values.length) % values.length]!,
   max: (xs) => Math.max(...xs),
   min: (xs) => Math.min(...xs),
   pow: ([a, b]) => Math.pow(a!, b!),
@@ -61,6 +85,8 @@ const FUNCTIONS: Record<string, (args: number[]) => number> = {
 const ARITY: Record<string, [number, number]> = {
   abs: [1, 1], atan: [1, 1], atan2: [2, 2], deg: [1, 1], ceil: [1, 1], clamp: [3, 3], cos: [1, 1], floor: [1, 1], lerp: [3, 3], 'scene.countDown': [1, 1],
   random: [2, 3], max: [1, Infinity], min: [1, Infinity], pow: [2, 2], round: [1, 1], sin: [1, 1], sqrt: [1, 1], tan: [1, 1],
+  map: [5, 5], mod: [2, 2], step: [2, 2], smoothstep: [3, 3], easeIn: [1, 1], easeOut: [1, 1], easeInOut: [1, 1], pick: [2, Infinity],
+  noise: [1, 2], smooth: [1, 2], spring: [1, 3],
 };
 const SCENE_VARIABLES = {
   cycle: 'scene.cycle', time: 'scene.time', frame: 'scene.frame', fps: 'scene.fps', duration: 'scene.duration', progress: 'scene.progress', seedGenerator: 'scene.seedGenerator', width: 'scene.width', height: 'scene.height',
@@ -226,7 +252,63 @@ function run(tree: Expr, context: ExpressionContext): number {
     return low * (1 - unit) + high * unit;
   }
   if (tree.name === 'scene.countDown') return Math.max(0, Math.ceil(args[0]! - context.time));
+  if (tree.name === 'noise') {
+    if (!args.every(Number.isFinite) || !Number.isFinite(context.seedGenerator)) throw new Error('noise() expects finite values.');
+    // One curve per document seed; the optional seed picks another line through the same 2D field.
+    const field = noiseOf(context.seedGenerator);
+    return Math.max(-1, Math.min(1, field(args[0]!, (args[1] ?? 0) * 17.31 + 0.5)));
+  }
+  if (tree.name === 'smooth' || tree.name === 'spring') return follow(tree, args, context);
   return FUNCTIONS[tree.name]!(args);
+}
+
+const noiseFields = new Map<number, (x: number, y: number) => number>();
+function noiseOf(seed: number) {
+  let field = noiseFields.get(seed);
+  if (!field) {
+    if (noiseFields.size > 64) noiseFields.clear();
+    field = noise2D(seed);
+    noiseFields.set(seed, field);
+  }
+  return field;
+}
+
+/**
+ * smooth(x, seconds): eases towards x, reaching about 95% of a jump in `seconds` (0.3 by default).
+ * spring(x, seconds, bounce): follows x like a spring of that period; bounce 0–1 (0.5 by default) overshoots.
+ * They remember the last frame in the context's memory; without one (a single frame, a look at another time)
+ * they are x. A step back in time or a jump of more than a second starts again from x.
+ */
+function follow(tree: Expr, args: number[], context: ExpressionContext): number {
+  const target = args[0]!;
+  const memory = context.memory;
+  if (!memory || !Number.isFinite(target) || !Number.isFinite(context.time)) return target;
+  let byCall = memory.get(tree);
+  if (!byCall) memory.set(tree, (byCall = new Map()));
+  const salt = context.randomSalt ?? 0;
+  const s = byCall.get(salt);
+  const dt = s ? context.time - s.t : -1;
+  if (!s || dt < 0 || dt > 1) {
+    byCall.set(salt, { t: context.time, v: target, vel: 0 });
+    return target;
+  }
+  // The same frame evaluated again: the same answer, without stepping twice.
+  if (dt === 0) return s.v;
+  s.t = context.time;
+  const seconds = Math.max(1e-3, Number.isFinite(args[1]) ? args[1]! : tree.kind === 'call' && tree.name === 'smooth' ? 0.3 : 0.5);
+  if (tree.kind === 'call' && tree.name === 'smooth') s.v += (target - s.v) * (1 - Math.exp((-3 * dt) / seconds));
+  else {
+    const w = (2 * Math.PI) / seconds;
+    const zeta = 1 - Math.min(0.99, Math.max(0, Number.isFinite(args[2]) ? args[2]! : 0.5));
+    // Small steps keep a stiff spring stable at any frame rate.
+    const n = Math.max(1, Math.ceil(dt / (1 / 240)));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      s.vel += (w * w * (target - s.v) - 2 * zeta * w * s.vel) * h;
+      s.v += s.vel * h;
+    }
+  }
+  return s.v;
 }
 
 export function validateExpression(source: string): string | null {
@@ -308,7 +390,7 @@ export function describeSceneVariables(values: SceneExpressionValues, pointer?: 
 }
 
 /** Resolve the live values exposed to expressions, without evaluating every object parameter. */
-export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, randomSalt = 0): SceneExpressionValues {
+export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, randomSalt = 0, memory?: ExpressionMemory): SceneExpressionValues {
   const fps = scene.animation?.fps ?? 30;
   const duration = sceneDuration(scene);
   const context: SceneExpressionValues = {
@@ -324,6 +406,7 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
     height: scene.document?.height ?? 0,
     mouse: { ...neutralPointer(scene), ...scene.pointer },
     runtime: { ...neutralRuntime(scene), ...scene.runtime },
+    ...(memory ? { memory } : {}),
     custom: Object.fromEntries(Object.entries(scene.custom ?? {}).flatMap(([key, value]) => {
       const n = customNumber(value);
       return n === null ? [] : [[key, n]];
@@ -348,13 +431,13 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
 }
 
 /** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
-export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number } = {}): SceneV1 {
+export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number; memory?: ExpressionMemory } = {}): SceneV1 {
   if (!sceneHasExpressions(scene)) return scene;
   const out = structuredClone(scene) as SceneV1;
   const time = out.at ?? 0;
   const fps = out.animation?.fps ?? 30;
   const duration = sceneDuration(out);
-  const context: ExpressionContext = { ...evaluateSceneVariables(out, time, options.randomSalt ?? 0), randomSalt: options.randomSalt ?? 0 };
+  const context: ExpressionContext = { ...evaluateSceneVariables(out, time, options.randomSalt ?? 0, options.memory), randomSalt: options.randomSalt ?? 0 };
   const params = (values?: Record<string, unknown>, points = false) => {
     if (!values) return;
     const one = (value: NumericExpression) => {
@@ -466,6 +549,17 @@ const FUNCTION_ABOUT: Record<string, ExpressionReferenceEntry> = {
   deg: { name: 'deg(x)', about: 'Radians to degrees, for angle parameters' },
   random: { name: 'random(min, max, seed?)', about: 'Reproducible random value; the seed varies it (e.g. scene.cycle)' },
   'scene.countDown': { name: 'scene.countDown(seconds)', about: 'Whole seconds left until that time, never below 0' },
+  map: { name: 'map(x, inMin, inMax, outMin, outMax)', about: 'x from one range to another (not clamped)' },
+  mod: { name: 'mod(a, b)', about: 'Remainder with the sign of b: mod(-1, 3) = 2' },
+  step: { name: 'step(edge, x)', about: '0 below edge, 1 from it on (a gate)' },
+  smoothstep: { name: 'smoothstep(a, b, x)', about: 'Smooth 0 → 1 as x goes from a to b' },
+  easeIn: { name: 'easeIn(t)', about: 'Starts slow (t from 0 to 1)' },
+  easeOut: { name: 'easeOut(t)', about: 'Ends slow (t from 0 to 1)' },
+  easeInOut: { name: 'easeInOut(t)', about: 'Slow at both ends (t from 0 to 1)' },
+  pick: { name: 'pick(i, a, b, …)', about: 'The value at index i, from 0, wrapping' },
+  noise: { name: 'noise(x, seed?)', about: 'Smooth noise in −1…1 along x (e.g. scene.time)' },
+  smooth: { name: 'smooth(x, seconds?)', about: 'Follows x with lag: ~95% of a jump in seconds (0.3); while playing' },
+  spring: { name: 'spring(x, seconds?, bounce?)', about: 'Follows x like a spring (period 0.5 s, bounce 0–1); while playing' },
 };
 
 /**

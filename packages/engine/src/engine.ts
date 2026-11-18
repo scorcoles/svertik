@@ -8,7 +8,7 @@ import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type HistoryLookup, type ModifierContext, type SceneSpace, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
-import { evaluateSceneExpressions } from './expression';
+import { createExpressionMemory, evaluateSceneExpressions } from './expression';
 import { hasMissingPacks, restorePacks } from './pack';
 
 export interface ModifierInstance {
@@ -260,9 +260,11 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
     return (h >>> 0).toString(36) + ':' + text.length;
   };
+  // smooth() and spring() remember the last frame here: only this frame-by-frame evaluation writes it.
+  const memory = createExpressionMemory();
   const evaluateDocument = (scene: SceneV1) => {
     const raw = withPacks(scene);
-    return documents.evaluate(expandCompositions(evaluateSceneExpressions(raw), registry), usesHistory(raw) ? pastOf(raw) : undefined);
+    return documents.evaluate(expandCompositions(evaluateSceneExpressions(raw, { memory }), registry), usesHistory(raw) ? pastOf(raw) : undefined);
   };
   const flat = (scene: SceneV1) => evaluateDocument(scene).geometry;
 
