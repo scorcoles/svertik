@@ -179,6 +179,7 @@
       "id": "rgb-aberration",
       "type": "rgbsplit",
       "params": {
+        "mode": "duo",
        "distance": 8,
        "angle": 0
       }

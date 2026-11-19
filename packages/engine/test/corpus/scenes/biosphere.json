@@ -317,6 +317,7 @@
                 "id": "rgb",
                 "type": "rgbsplit",
                 "params": {
+                  "mode": "duo",
                   "distance": 0,
                   "angle": 0,
                   "colorA": "#00e5ff",

@@ -198,3 +198,15 @@ Color now accepts `mode: "palette"`, `palette: string[]` (non-empty #rrggbb colo
 
 
 Mouse `.apply` materializes a root runtime group with the generator ID and live copies as children; its stack processes the placed collection in order. The source's stack remains evaluated on its local per-birth clock. General Mirror `reference` (node id, default empty) supplies axis bounds, e.g. Limit right edge with position 1. Runtime group `elementIndex`/`eventIndex` and shape `emission` retain stable per-birth/per-click color choices through collection edits. Do not author these runtime fields. Mouse-specific symmetry fields have been removed; use chained Mirror effects instead.
+
+### Crosshatch and Gravity
+
+Crosshatch (`crosshatch`) samples tone into real open stroked paths. Its detached circular Offset canvas handle slides the screen; Angle and Spacing have their own handles. `fixLines: false` follows the object's placement and material motion from Crack, Gravity and Transform earlier in the stack. `fixLines: true` anchors the screen to scene coordinates. Preserve scene notes when changing stack order.
+
+`Polygon → Crosshatch → Gravity` simulates independent line bodies with `merge: false`, or one rigid body with `merge: true`, including Original colour output with several paint paths. Both settings behave consistently against Gravity Solids and the Floor. Explicit line bodies include stroke width in contacts; merged screens use their marks' convex envelope. With Collisions enabled, initially crossed line pairs do not push each other apart at startup: a pair starts colliding after separating. This state participates in deterministic seeking. `Polygon → Gradient → Crack → Gravity → Crosshatch` moves the fragments before hatching them. Runtime geometry's `bodyGroup` and `patternTransform` metadata carry these relationships; do not add them to authored SceneV1 nodes.
+
+Gravity's Floor rotation is measured from the scene horizon, not the object's rotation. The upright reference for Floor position follows placement/scale. Canvas guides and simulation share this reference.
+
+### RGB Split modes
+
+RGB Split defaults to `mode: "channels"`: source RGB plates, red/blue shifted and green stationary. Choose `background: "dark"` for Screen/RGB or `"light"` for Multiply/CMY. Paint alpha and every gradient stop are retained. Nested children affect the shifted plates only, with separate filter groups. `mode: "duo"` explicitly selects the previous Color A/B copies with Original, Layer and Blend; use it when preserving an older scene's appearance. Distance zero in Channels is a no-op. Validate authored scenes after selecting the mode.

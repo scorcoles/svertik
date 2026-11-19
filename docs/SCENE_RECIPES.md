@@ -213,6 +213,7 @@ A vector polygon emblem afflicted with horizontal slice displacement, rectangula
           "id": "rgb-aberration",
           "type": "rgbsplit",
           "params": {
+            "mode": "duo",
             "distance": 8,
             "angle": 0
           }

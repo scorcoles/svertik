@@ -228,7 +228,11 @@ export function createDocumentEvaluator(
     const unwrappedAt = (scene.at ?? 0) + wraps;
     const seen = new Set<string>();
     const byId = new Map<string, SceneNode>();
-    for (const { node } of walkNodes(scene.objects)) byId.set(node.id, node);
+    const ancestorLinear = new Map<string, Mat>();
+    for (const { node, parent } of walkNodes(scene.objects)) {
+      byId.set(node.id, node);
+      ancestorLinear.set(node.id, parent ? multiply(ancestorLinear.get(parent.id) ?? IDENTITY, linearOf(placementOf(parent))) : IDENTITY);
+    }
     const broken = brokenInstances(byId);
     // For trails: the scene without the time (animated values at their value at 0), as the cache key.
     // When the scene changes, the history of the trails is stale: it is cleared.
@@ -397,10 +401,14 @@ export function createDocumentEvaluator(
         // Effects from an Effector node measure in the scene: they get this node's place in it.
         // A node inside a group only knows its place in the group (the group's own placement comes later).
         const inScene = (world: Mat) => {
-          const needsScene = (m: ModifierInstance): boolean => m.space === 'scene' || (m.type === 'crosshatch' && m.params?.fixLines === true) || !!m.children?.some(needsScene);
+          const needsScene = (m: ModifierInstance): boolean => m.space === 'scene' || m.type === 'gravity' || (m.type === 'crosshatch' && m.params?.fixLines === true) || !!m.children?.some(needsScene);
           if (!stack.some(needsScene)) return;
           const space: SceneSpace = { world, frame: sceneFrame };
-          stack = stack.map((m) => (needsScene(m) ? { ...m, scene: space } : m));
+          // Parent translations cancel in Gravity's relative floor frame; its orientation and scale
+          // are known before the parent's geometry-dependent pivot is evaluated.
+          const gravitySpace: SceneSpace = { world: multiply(ancestorLinear.get(node.id) ?? IDENTITY, world), frame: sceneFrame };
+          const usesGravity = (m: ModifierInstance): boolean => m.type === 'gravity' || !!m.children?.some(usesGravity);
+          stack = stack.map((m) => (needsScene(m) ? { ...m, scene: usesGravity(m) ? gravitySpace : space } : m));
         };
         if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {
           // Instance: its source is the original's result (without its placement). If not computed yet in
@@ -497,7 +505,7 @@ export function createDocumentEvaluator(
           const child = node.children[i]!;
           const out = evalNode(child, IDENTITY);
           const element = child.kind === 'group' ? child.elementIndex ?? i : i;
-          childShapes.push(...out.map(s => ({ ...s, clone: element * 10000 + (s.clone ?? 0), ...(child.kind === 'group' && child.eventIndex !== undefined ? { emission: child.eventIndex } : {}) })));
+          childShapes.push(...out.map(s => ({ ...s, clone: element * 10000 + (s.clone ?? 0), ...(s.bodyGroup !== undefined ? { bodyGroup: element * 10000 + s.bodyGroup } : {}), ...(child.kind === 'group' && child.eventIndex !== undefined ? { emission: child.eventIndex } : {}) })));
         }
         const inner: Geometry = { viewBox: [0, 0, 0, 0], shapes: childShapes };
         const frame = node.composition?.scene.document;

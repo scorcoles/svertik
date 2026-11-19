@@ -3,15 +3,16 @@
 // - Blocks: rectangular chunks that come out displaced (leaving their gap);
 // - Scanlines: thin horizontal lines cut out inside;
 // - Streaks: thin streaks escaping sideways;
-// - RGB Split: two coloured, shifted copies of the drawing (behind or in front, with their blend mode).
+// - RGB Split: separate colour channels, or the legacy two-colour copies in Duo mode.
 // Filled shapes are cut as surfaces; stroke-only ones (no fill), as lines.
 import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
 import { regionOf, toSubPath } from '../clip';
-import { bounds, flatten, keepInner, line, type Geometry, type Shape, type Vec2 } from '../geometry';
+import { bounds, flatten, keepInner, line, type Geometry, type Shape, type Style, type Vec2 } from '../geometry';
 import { chainFrom } from '../chain';
 import { BLEND_MODES } from '../document';
-import { defineModifier, deg } from '../modifier';
+import { defineModifier, deg, type ModifierContext } from '../modifier';
 import { rng } from '../random';
+import { parseColor, toHex } from '../color';
 
 /** Each filled shape, as a surface (with its box); the others, left out. */
 function regions(geo: Geometry, resolution: number) {
@@ -381,13 +382,9 @@ const rect = (x: number, y: number, w: number, h: number): Pair[] => [[x, y], [x
 const move = (m: MultiPolygon, dx: number, dy: number): MultiPolygon => m.map((poly) => poly.map((ring) => ring.map(([x, y]) => [x + dx, y + dy] as Pair)));
 
 /**
- * RGB split: two copies of the drawing, one of each colour, shifted to each side (Distance, in the
- * direction of Angle). Geometry, not a filter: inside Step, Range or Field each element (letter,
- * copy, piece) gets its own distance, and it exports to Lottie. The copies go behind or in front of the
- * drawing, with their blend mode (screen or multiply mix the colours where they cross).
- * What goes inside RGB Split (as in Step) applies only to the copies: Blur or Glow blur them,
- * Transform or Step move them, a Glitch breaks them… The drawing stays as it is.
- * Without Original, the drawing disappears and only the copies remain.
+ * Channels extracts RGB/CMY plates from vector paint, retaining gradient stops and paint alpha.
+ * Red and blue shift along Angle; green stays put. Duo retains the previous two-colour copies.
+ * Nested geometry and filters affect the shifted plates only (the copies in Duo).
  */
 export const rgbsplit = defineModifier({
   type: 'rgbsplit',
@@ -395,27 +392,32 @@ export const rgbsplit = defineModifier({
   kind: 'generator',
   family: 'glitch',
   params: {
+    mode: { type: 'enum', default: 'channels', options: ['channels', 'duo'] as const, label: 'Mode', animatable: false },
     distance: { type: 'number', default: 3, min: 0, max: 60, step: 0.5, unit: 'px', label: 'Distance' },
     angle: { type: 'angle', default: 0, label: 'Angle', ramp: false },
-    colorA: { type: 'color', default: '#00e5ff', label: 'Color A' },
-    colorB: { type: 'color', default: '#ff2bd6', label: 'Color B' },
-    layer: { type: 'enum', default: 'behind', options: ['behind', 'front'] as const, label: 'Layer', animatable: false },
-    blend: { type: 'enum', default: 'normal', options: BLEND_MODES, label: 'Blend', animatable: false },
-    original: { type: 'boolean', default: true, label: 'Original' },
+    background: { type: 'enum', default: 'dark', options: ['dark', 'light'] as const, label: 'Background', animatable: false, showIf: { mode: ['channels'] } },
+    colorA: { type: 'color', default: '#00e5ff', label: 'Color A', showIf: { mode: ['duo'] } },
+    colorB: { type: 'color', default: '#ff2bd6', label: 'Color B', showIf: { mode: ['duo'] } },
+    layer: { type: 'enum', default: 'behind', options: ['behind', 'front'] as const, label: 'Layer', animatable: false, showIf: { mode: ['duo'] } },
+    blend: { type: 'enum', default: 'normal', options: BLEND_MODES, label: 'Blend', animatable: false, showIf: { mode: ['duo'] } },
+    original: { type: 'boolean', default: true, label: 'Original', showIf: { mode: ['duo'] } },
   },
   apply(geo, p, ctx) {
-    if (!(p.distance > 0) && p.original) return geo;
+    const channels = p.mode === 'channels';
+    if (!(p.distance > 0) && (p.original || channels)) return geo;
     const a = deg(p.angle);
     const [dx, dy] = [Math.cos(a) * p.distance, Math.sin(a) * p.distance];
+    const shift = (s: Shape, sx: number, sy: number): Shape['subpaths'] =>
+      s.subpaths.map((sp) => ({
+        start: [sp.start[0] + sx, sp.start[1] + sy] as Vec2,
+        segs: sp.segs.map((g) => ({ c1: [g.c1[0] + sx, g.c1[1] + sy] as Vec2, c2: [g.c2[0] + sx, g.c2[1] + sy] as Vec2, p: [g.p[0] + sx, g.p[1] + sy] as Vec2 })),
+        closed: sp.closed,
+      }));
     const paint = (v: string | undefined, color: string) => (v && v !== 'none' ? color : v);
     const copy = (color: string, sx: number, sy: number): Shape[] =>
       geo.shapes.map((s) => ({
         ...s,
-        subpaths: s.subpaths.map((sp) => ({
-          start: [sp.start[0] + sx, sp.start[1] + sy] as Vec2,
-          segs: sp.segs.map((g) => ({ c1: [g.c1[0] + sx, g.c1[1] + sy] as Vec2, c2: [g.c2[0] + sx, g.c2[1] + sy] as Vec2, p: [g.p[0] + sx, g.p[1] + sy] as Vec2 })),
-          closed: sp.closed,
-        })),
+        subpaths: shift(s, sx, sy),
         style: {
           ...s.style,
           fill: paint(s.style.fill ?? 'black', color)!,
@@ -423,26 +425,13 @@ export const rgbsplit = defineModifier({
           ...(p.blend !== 'normal' ? { 'mix-blend-mode': p.blend } : {}),
         },
       }));
+    if (channels) return splitChannels(geo, ctx, p.background === 'light', dx, dy, shift);
     // The first in the list is painted first (it ends up behind).
-    let copies: Geometry = { viewBox: geo.viewBox, shapes: [...copy(p.colorA, -dx, -dy), ...copy(p.colorB, dx, dy)] };
-    // What is inside, only on the copies: geometry effects first, in order; filters, when painting.
-    const children = ctx.children.filter((c) => c.enabled);
-    for (const c of children) {
-      if (c.def.kind === 'filter') continue;
-      copies = keepInner(copies, c.def.apply(copies, c.params as never, { ...ctx, bounds: bounds(copies), children: c.children }));
-    }
-    const chain = chainFrom(children.map((c) => ({ def: c.def, params: c.params })));
-    let inner = geo.inner;
-    if (chain) {
-      // The key comes from the filters and their values: the same filters, the same <filter>.
-      const key = `rgb${hashText(JSON.stringify(children.filter((c) => c.def.kind === 'filter').map((c) => [c.def.type, c.params])))}`;
-      copies = { ...copies, shapes: copies.shapes.map((s) => ({ ...s, wrap: [...(s.wrap ?? []), `@${key}`] })) };
-      inner = { ...inner, ...copies.inner, [key]: { chain, ref: bounds(copies) } };
-    } else if (copies.inner) inner = { ...inner, ...copies.inner };
+    const copies = processRGBCopies(geo, { viewBox: geo.viewBox, shapes: [...copy(p.colorA, -dx, -dy), ...copy(p.colorB, dx, dy)] }, ctx);
     // Without the original: only the copies.
     const base = p.original ? geo.shapes : [];
     const shapes = p.layer === 'front' ? [...base, ...copies.shapes] : [...copies.shapes, ...base];
-    return { viewBox: geo.viewBox, shapes, ...(inner ? { inner } : {}) };
+    return { viewBox: geo.viewBox, shapes, ...(copies.inner ? { inner: copies.inner } : {}) };
   },
 });
 
@@ -454,4 +443,66 @@ function hashText(text: string): string {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0).toString(36);
+}
+
+/** Nested geometry and filters affect only the shifted plates in either mode. */
+function processRGBCopies(geo: Geometry, input: Geometry, ctx: ModifierContext, plate = ''): Geometry {
+  let copies = input;
+  const children = ctx.children.filter((c) => c.enabled);
+  for (const c of children) {
+    if (c.def.kind === 'filter') continue;
+    copies = keepInner(copies, c.def.apply(copies, c.params as never, { ...ctx, bounds: bounds(copies), children: c.children }));
+  }
+  const chain = chainFrom(children.map((c) => ({ def: c.def, params: c.params })));
+  let inner = { ...geo.inner, ...copies.inner };
+  if (chain) {
+    const key = `rgb${plate}${hashText(JSON.stringify(children.filter((c) => c.def.kind === 'filter').map((c) => [c.def.type, c.params])))}`;
+    copies = { ...copies, shapes: copies.shapes.map((s) => ({ ...s, wrap: [...(s.wrap ?? []), `@${key}`] })) };
+    inner = { ...inner, [key]: { chain, ref: bounds(copies) } };
+  }
+  return { ...copies, ...(Object.keys(inner).length ? { inner } : {}) };
+}
+
+/**
+ * Channels mode: the drawing split into its red, green and blue channels, red shifted one way, blue
+ * the other, green in place, and added back together (screen). Where the three meet the original
+ * colour comes back exactly; only the edges fringe, like a lens or a misaligned monitor. On a light
+ * background the subtraction does the same with cyan, magenta and yellow plates (multiply).
+ * Nested effects apply to the shifted channels only, so the green plate keeps the drawing in place.
+ */
+function splitChannels(
+  geo: Geometry,
+  ctx: ModifierContext,
+  light: boolean,
+  dx: number,
+  dy: number,
+  shift: (s: Shape, sx: number, sy: number) => Shape['subpaths'],
+): Geometry {
+  const blend = light ? 'multiply' : 'screen';
+  // The channel `k` of a colour: on its own (screen) or with the other two full (multiply).
+  const plate = (value: string, k: number): string => {
+    const rgb = parseColor(value);
+    if (!rgb) return value;
+    return toHex([k === 0 ? rgb[0] : light ? 255 : 0, k === 1 ? rgb[1] : light ? 255 : 0, k === 2 ? rgb[2] : light ? 255 : 0, rgb[3]]);
+  };
+  const channel = (k: number, sx: number, sy: number): Shape[] =>
+    geo.shapes.map((s) => {
+      const style: Style = { ...s.style, 'mix-blend-mode': blend };
+      const idOf = (id: string) => `${id}-split-${light ? 'cmy' : 'rgb'}-${k}`;
+      const gradients = s.gradients?.map((g) => ({ ...g, id: idOf(g.id), ...(g.href && s.gradients?.some((other) => other.id === g.href) ? { href: idOf(g.href) } : {}), stops: g.stops.map((stop) => ({ ...stop, color: plate(stop.color, k) })) }));
+      const paint = (value: string): string => {
+        const m = /^url\(#([^)]+)\)$/.exec(value.trim());
+        const index = m ? s.gradients?.findIndex((g) => g.id === m[1]) : undefined;
+        return index !== undefined && index >= 0 ? `url(#${gradients![index]!.id})` : plate(value, k);
+      };
+      style.fill = paint(s.style.fill ?? 'black');
+      if (s.style.stroke) style.stroke = paint(s.style.stroke);
+      return { ...s, subpaths: shift(s, sx, sy), style, ...(gradients ? { gradients } : {}) };
+    });
+  // Filter each shifted plate independently: putting both in a shared screen-blended filter
+  // would composite their overlap normally before blending and lose one of the channels.
+  const red = processRGBCopies(geo, { viewBox: geo.viewBox, shapes: channel(0, -dx, -dy) }, ctx, 'r');
+  const blue = processRGBCopies(geo, { viewBox: geo.viewBox, shapes: channel(2, dx, dy) }, ctx, 'b');
+  const inner = { ...red.inner, ...blue.inner };
+  return { viewBox: geo.viewBox, shapes: [...red.shapes, ...blue.shapes, ...channel(1, 0, 0)], ...(Object.keys(inner).length ? { inner } : {}) };
 }

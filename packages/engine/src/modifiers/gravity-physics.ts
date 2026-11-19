@@ -47,6 +47,17 @@ export function gravityBody(geo: Geometry): Body | null {
     for (const path of shape.subpaths) {
       const poly = pathOutline(path);
       points.push(...poly);
+      // Generated line bodies need thickness for the same contacts on solids and the floor.
+      if (shape.bodyGroup !== undefined && shape.style.fill === 'none' && shape.style.stroke && shape.style.stroke !== 'none') {
+        const half = Math.max(0, Number(shape.style['stroke-width'] ?? 1)) / 2;
+        for (let i = 1; i < poly.length; i++) {
+          const a = poly[i - 1]!, b = poly[i]!;
+          const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (length < 1e-12) continue;
+          const nx = -(b[1] - a[1]) / length * half, ny = (b[0] - a[0]) / length * half;
+          points.push([a[0] + nx, a[1] + ny], [a[0] - nx, a[1] - ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny]);
+        }
+      }
       if (!path.closed) continue;
       for (let i = 0; i < poly.length; i++) {
         const a = poly[i]!, b = poly[(i + 1) % poly.length]!;

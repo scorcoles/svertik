@@ -949,22 +949,22 @@ describe('rgb split', () => {
   const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><rect x="0" y="0" width="20" height="20" fill="#fff"/><rect x="60" y="0" width="20" height="20" fill="#fff"/></svg>';
   const xOf = (s: Shape) => s.subpaths[0]!.start[0];
   it('two coloured copies, shifted to each side, behind the drawing', () => {
-    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 5 } }] });
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { mode: 'duo', distance: 5 } }] });
     expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#00e5ff', '#00e5ff', '#ff2bd6', '#ff2bd6', '#fff', '#fff']);
     expect(xOf(geo.shapes[0]!) - xOf(geo.shapes[4]!)).toBeCloseTo(-5);
     expect(xOf(geo.shapes[2]!) - xOf(geo.shapes[4]!)).toBeCloseTo(5);
   });
   it('in front and with a blend mode', () => {
-    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 5, layer: 'front', blend: 'screen' } }] });
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { mode: 'duo', distance: 5, layer: 'front', blend: 'screen' } }] });
     expect(geo.shapes[0]!.style.fill).toBe('#fff');
     expect(geo.shapes.at(-1)!.style['mix-blend-mode']).toBe('screen');
   });
   it('without the original: only the two copies', () => {
-    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 5, original: false } }] });
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'r', type: 'rgbsplit', params: { mode: 'duo', distance: 5, original: false } }] });
     expect(geo.shapes.map((s) => s.style.fill)).toEqual(['#00e5ff', '#00e5ff', '#ff2bd6', '#ff2bd6']);
   });
   it('inside Step, each element with its own distance (the 2nd, double)', () => {
-    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 's', type: 'step', children: [{ id: 'r', type: 'rgbsplit', params: { distance: 4 } }] }] });
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 's', type: 'step', children: [{ id: 'r', type: 'rgbsplit', params: { mode: 'duo', distance: 4 } }] }] });
     const cyan = geo.shapes.filter((s) => s.style.fill === '#00e5ff').map(xOf);
     expect(cyan).toEqual([-4, 52]);
   });
@@ -973,7 +973,7 @@ describe('rgb split', () => {
 describe('rgb split with effects inside (only on the copies)', () => {
   const scene = (children: { id: string; type: string; params?: Record<string, unknown>; children?: unknown[] }[]) => ({
     version: 1 as const,
-    objects: [{ kind: 'shape' as const, id: 'n', name: 'n', shape: 'rectangle', params: { width: 100, height: 40, fillColor: '#ffffff' }, transform: { x: 50 }, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 6 }, children: children as never }] }],
+    objects: [{ kind: 'shape' as const, id: 'n', name: 'n', shape: 'rectangle', params: { width: 100, height: 40, fillColor: '#ffffff' }, transform: { x: 50 }, stack: [{ id: 'r', type: 'rgbsplit', params: { mode: 'duo', distance: 6 }, children: children as never }] }],
   });
   it('Blur inside: a <filter> only for the copies; the drawing without it', () => {
     const geo = createEngine(builtins).evaluateDocument(scene([{ id: 'b', type: 'blur', params: { amount: 3 } }])).geometry;
@@ -993,7 +993,7 @@ describe('rgb split with effects inside (only on the copies)', () => {
   });
   it('not placed in a scene (evaluateStack), an inner filter does not break the SVG', () => {
     const src = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
-    const geo = createEngine(builtins).evaluateStack({ source: src, stack: [{ id: 'r', type: 'rgbsplit', params: { distance: 2 }, children: [{ id: 'b', type: 'blur' }] }] });
+    const geo = createEngine(builtins).evaluateStack({ source: src, stack: [{ id: 'r', type: 'rgbsplit', params: { mode: 'duo', distance: 2 }, children: [{ id: 'b', type: 'blur' }] }] });
     expect(toSVG(geo)).not.toContain('filter=');
   });
   it('after RGB Split, another effect does not lose the copies filter', () => {

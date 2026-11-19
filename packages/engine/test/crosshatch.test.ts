@@ -9,6 +9,69 @@ const run = (params: Record<string, unknown>) =>
 const ends = (params: Record<string, unknown>) => run(params).shapes.flatMap((s) => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]));
 
 describe('crosshatch', () => {
+  it('does not explode an initially crossing screen when Collisions is enabled, and can replay it', () => {
+    const scene = (time: number): SceneV1 => ({ version: 1, objects: [{ kind: 'shape', id: 'hex', name: 'Hexagon', shape: 'polygon', params: { radius: 80, sides: 6, fill: true, fillColor: '#333333' }, transform: { rotation: 21 }, stack: [
+      { id: 'h', type: 'crosshatch', params: { spacing: 12, angle: 73, layers: 3, merge: false } },
+      { id: 'fall', type: 'gravity', params: { time, collisions: true, floor: [0.5, 4], bounce: 0.5 } },
+    ] }] });
+    const engine = createEngine(builtins);
+    const before = engine.evaluateDocument(scene(0)).geometry.shapes;
+    for (const time of [1 / 30, 0.3, 0.9]) {
+      const after = engine.evaluateDocument(scene(time)).geometry.shapes;
+      expect(after).toHaveLength(before.length);
+      for (let i = 0; i < after.length; i++) {
+        const a = after[i]!.subpaths[0]!, b = before[i]!.subpaths[0]!;
+        expect(a.start[0]).toBeCloseTo(b.start[0], 5);
+        expect(a.start[1] - b.start[1]).toBeCloseTo(0.5 * 160 * time * time, 5);
+        expect(a.segs[0]!.p[0] - a.start[0]).toBeCloseTo(b.segs[0]!.p[0] - b.start[0], 5);
+      }
+    }
+    engine.evaluateDocument(scene(3));
+    engine.evaluateDocument(scene(0.3));
+    const replay = engine.toSVG(scene(3));
+    expect(replay).toBe(createEngine(builtins).toSVG(scene(3)));
+  });
+  it('lets unmerged lines settle independently on both a Solid and the Floor', () => {
+    const engine = createEngine(builtins);
+    for (const solid of [false, true]) {
+      const scene: SceneV1 = { version: 1, objects: [
+        { kind: 'shape', id: 'hex', name: 'Hexagon', shape: 'polygon', params: { radius: 20, sides: 6, fill: true, fillColor: '#000000' }, stack: [
+          { id: 'h', type: 'crosshatch', params: { spacing: 8, angle: 0, layers: 1, merge: false, width: 2 } },
+          { id: 'fall', type: 'gravity', params: { time: 3, solids: solid ? ['platform'] : [], floor: [0.5, solid ? 20 : 2.75], bounce: 0 } },
+        ] },
+        { kind: 'shape', id: 'platform', name: 'Platform', visible: false, shape: 'rectangle', params: { width: 400, height: 20, fill: true }, transform: { y: 100 }, stack: [] },
+      ] };
+      const ys = engine.evaluateDocument(scene).geometry.shapes.flatMap((s) => s.subpaths.flatMap((sp) => [sp.start[1], ...sp.segs.map((seg) => seg.p[1])]));
+      expect(ys.length).toBeGreaterThan(4);
+      // Both surfaces are at Y=90. Every independent 2px stroke rests just above it.
+      expect(Math.max(...ys)).toBeLessThan(90.1);
+      expect(Math.min(...ys)).toBeGreaterThan(87);
+    }
+  });
+  it('keeps merged Original-colour lines as one rigid body on solids and the floor', () => {
+    const engine = createEngine(builtins);
+    const scene = (time: number, solids: string[]): SceneV1 => ({ version: 1, objects: [
+      { kind: 'shape', id: 'hex', name: 'Hexagon', shape: 'polygon', params: { radius: 40, sides: 6, fill: true, fillColor: '#000000' }, stack: [
+        { id: 'tone', type: 'gradient', params: { from: '#000000', to: '#777777' } },
+        { id: 'h', type: 'crosshatch', params: { spacing: 8, color: 'original', merge: true } },
+        { id: 'fall', type: 'gravity', params: { time, solids, floor: [0.5, 8], bounce: 0 } },
+      ] },
+      { kind: 'shape', id: 'platform', name: 'Platform', visible: false, shape: 'rectangle', params: { width: 400, height: 20, fill: true }, transform: { y: 100 }, stack: [] },
+    ] });
+    const points = (time: number, solids: string[]) => engine.evaluateDocument(scene(time, solids)).geometry.shapes.flatMap((s) => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((seg) => seg.p)]));
+    const before = points(0, []);
+    expect(before.length).toBeGreaterThan(30);
+    for (const solids of [[], ['platform']]) {
+      const after = points(3, solids);
+      expect(after).toHaveLength(before.length);
+      for (let i = 1; i < before.length; i += 17) {
+        const distance = (p: readonly (readonly [number, number])[]) => Math.hypot(p[i]![0] - p[0]![0], p[i]![1] - p[0]![1]);
+        expect(distance(after)).toBeCloseTo(distance(before), 5);
+      }
+      if (solids.length) expect(Math.max(...after.map((p) => p[1]))).toBeLessThan(91);
+      else expect(Math.max(...after.map((p) => p[1]))).toBeGreaterThan(200);
+    }
+  });
   it('attaches lines to the actual cracked hexagon fragments during rigid-body fall', () => {
     const engine = createEngine(builtins);
     for (const time of [0.2, 0.4]) {

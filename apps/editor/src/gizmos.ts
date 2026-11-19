@@ -1,7 +1,7 @@
 // Actuadores en el lienzo: el «wire» de un efecto (la esfera de Spherize, los anillos de Rotate 3D…)
 // y los tiradores que cambian sus parámetros. Todo en coordenadas locales del nodo (las de su caja
 // de referencia); el lienzo los lleva a pantalla con la matriz del nodo.
-import { apply, IDENTITY, invert, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
+import { apply, IDENTITY, invert, uprightBounds, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
 
 type Params = Record<string, unknown>;
 
@@ -603,6 +603,15 @@ Object.assign(builders, {
 
 export function gizmoFor(type: string, params: Params, bounds: Bounds, world: Mat = IDENTITY): Gizmo | null {
   if (type === 'crosshatch') return crosshatchGizmo(params, bounds, world);
+  if (type === 'gravity') {
+    const g = builders.gravity!(params, uprightBounds(bounds, world));
+    const inverse = invert(world);
+    const drag = (f: Drag): Drag => (p0, from, to, snap) => f(p0, apply(world, from), apply(world, to), snap);
+    return {
+      lines: g.lines.map((l) => ({ ...l, pts: l.pts.map((q) => apply(inverse, q)), ...(l.drag ? { drag: drag(l.drag) } : {}) })),
+      handles: g.handles.map((h) => ({ ...h, at: apply(inverse, h.at), drag: drag(h.drag) })),
+    };
+  }
   const build = builders[type];
   return build && bounds.width + bounds.height > 0 ? build(params, bounds) : null;
 }

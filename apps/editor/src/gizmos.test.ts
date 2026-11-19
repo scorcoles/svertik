@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { gizmoFor } from './gizmos';
+import { apply, invert, type Mat } from '@svertik/engine';
+
+it('keeps the Gravity guide horizontal and its rotation drag in scene axes', () => {
+  const world: Mat = [0, 2, -2, 0, 20, 30];
+  const p = { floor: [0.5, 1.5], rotation: 0 };
+  const g = gizmoFor('gravity', p, { x: -50, y: -20, width: 100, height: 40 }, world)!;
+  const line = g.lines[0]!.pts.map((q) => apply(world, q));
+  expect(line[0]![1]).toBeCloseTo(110);
+  expect(line[1]![1]).toBeCloseTo(110);
+  const rotation = g.handles.find((h) => h.label === 'Floor rotation')!;
+  expect(rotation.drag(p, apply(invert(world), [220, 110]), apply(invert(world), [20, 310]), false)).toEqual({ rotation: 90 });
+});
 
 describe('crosshatch controls', () => {
   const bounds = { x: 0, y: 0, width: 200, height: 100 };

@@ -1,11 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, builtins, createEngine } from '../src';
+import { bounds, builtins, createEngine, uprightBounds, type SceneV1 } from '../src';
 
 const engine = createEngine(builtins);
 const source = '<svg viewBox="0 0 100 100"><rect width="100" height="100"/></svg>';
 const run = (params: Record<string, unknown>) => engine.evaluateStack({ source, stack: [{ id: 'g', type: 'gravity', params: { physics: false, ...params } }] });
 
 describe('gravity', () => {
+  it.each([false, true])('falls down the scene, regardless of object rotation (rigid bodies: %s)', (physics) => {
+    const engine = createEngine(builtins);
+    for (const rotation of [0, 30, 90]) {
+      const scene = (time: number): SceneV1 => ({ version: 1, objects: [{ kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 100, height: 40, fill: true }, transform: { rotation }, stack: [{ id: 'fall', type: 'gravity', params: { time, physics, floor: [0.5, 20] } }] }] });
+      const before = bounds(engine.evaluateDocument(scene(0)).geometry);
+      const after = bounds(engine.evaluateDocument(scene(0.2)).geometry);
+      expect(after.x).toBeCloseTo(before.x, 6);
+      expect(after.y - before.y).toBeCloseTo(2, 5);
+    }
+  });
+
+  it('keeps the floor on the scene horizon for a rotated and scaled group', () => {
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'group', id: 'parent', name: 'Parent', transform: { rotation: 55, scale: 2 }, stack: [{ id: 'fall', type: 'gravity', params: { time: 10, physics: false, floor: [0.5, 2], rotation: 0 } }], children: [{ kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 100, height: 40, fill: true }, stack: [] }] }] };
+    // The upright reference has height 80 and floor Y = -40 + 2 * 80 = 120.
+    const box = bounds(createEngine(builtins).evaluateDocument(scene).geometry);
+    expect(box.y + box.height).toBeCloseTo(120, 5);
+  });
+  it('matches the horizon-aligned floor guide when Gravity is inside a rotated parent', () => {
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'group', id: 'parent', name: 'Parent', transform: { rotation: 55, scale: 2 }, stack: [], children: [{ kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 100, height: 40, fill: true }, stack: [{ id: 'fall', type: 'gravity', params: { time: 10, physics: false, floor: [0.5, 2] } }] }] }] };
+    const doc = createEngine(builtins).evaluateDocument(scene);
+    const info = doc.nodes.get('box')!, reference = uprightBounds(info.bounds, info.matrix);
+    const box = bounds(doc.geometry);
+    expect(box.y + box.height).toBeCloseTo(reference.y + reference.height * 2, 5);
+  });
   it('starts at rest and falls with time squared', () => {
     expect(bounds(run({ time: 0 })).y).toBe(0);
     expect(bounds(run({ time: 1, floor: [0, 10] })).y).toBeCloseTo(50);

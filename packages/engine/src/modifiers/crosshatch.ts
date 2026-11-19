@@ -53,7 +53,7 @@ export const crosshatch = defineModifier({
         const material = inverse ? mapPoints(input, (q) => apply(inverse, q)) : input;
         const result = crosshatch.apply(material, { ...p, merge: false }, ctx);
         const placed = matrix ? mapPoints(result, (q) => apply(matrix, q)) : result;
-        for (const shape of placed.shapes) shapes.push({ ...shape, ...(matrix ? { patternTransform: matrix } : {}), clone: shapes.length });
+        for (const shape of placed.shapes) shapes.push({ ...shape, ...(matrix ? { patternTransform: matrix } : {}), clone: shapes.length, bodyGroup: shapes.length });
       }
       return mergeLines({ viewBox: geo.viewBox, shapes }, p.merge);
     }
@@ -126,7 +126,7 @@ export const crosshatch = defineModifier({
         const close = (end: number) => {
           if (run && end - runStart > 1e-3) {
             const a = local(at(runStart, v)), b = local(at(end, v));
-            shapes.push({ style: styleFor(run.style), subpaths: [{ start: a, segs: [line(a, b)], closed: false } as SubPath], clone: n++ });
+            shapes.push({ style: styleFor(run.style), subpaths: [{ start: a, segs: [line(a, b)], closed: false } as SubPath], clone: n, bodyGroup: n++ });
           }
         };
         for (let s = -half; ; s = Math.min(half, s + step)) {
@@ -167,7 +167,7 @@ function mergeLines(geo: Geometry, merge: boolean): Geometry {
     const k = JSON.stringify(s.style);
     const g = byStyle.get(k);
     if (g) g.subpaths.push(...s.subpaths);
-    else byStyle.set(k, { style: s.style, subpaths: [...s.subpaths], clone: byStyle.size });
+    else byStyle.set(k, { style: s.style, subpaths: [...s.subpaths], clone: byStyle.size, bodyGroup: 0 });
   }
   return { viewBox: geo.viewBox, shapes: [...byStyle.values()] };
 }

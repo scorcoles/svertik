@@ -59,7 +59,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Blocks](effects/blocks.md) | `blocks` | Glitch: rectangular blocks cut out and shown displaced, leaving their gap. |
 | [Scanlines](effects/scanlines.md) | `scanlines` | Glitch: scan lines across the drawing, clipped to it. |
 | [Streaks](effects/streaks.md) | `streaks` | Glitch: streaks escaping sideways from the real edge of the shape. |
-| [RGB Split](effects/rgbsplit.md) | `rgbsplit` | RGB split: two coloured copies of the drawing shifted to each side (Distance, along Angle). |
+| [RGB Split](effects/rgbsplit.md) | `rgbsplit` | Chromatic separation with two modes: Channels (default) extracts the source RGB plates, shifting red and blue along Angle while green stays in place. |
 
 ### Effect
 

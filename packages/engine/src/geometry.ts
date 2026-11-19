@@ -29,6 +29,8 @@ export interface Impulse {
 export interface Shape {
   /** Runtime material frame, from pre-motion geometry to current stack coordinates. */
   patternTransform?: Mat;
+  /** Runtime rigid-body grouping, independent of the per-element clone indices used by effectors. */
+  bodyGroup?: number;
   impulse?: Impulse;
   /** Embedded or linked raster image carried by a rectangular path footprint. */
   image?: { href: string; width: number; height: number; preserveAspectRatio: string };

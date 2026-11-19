@@ -10,6 +10,8 @@ export interface CollisionBody {
   parts: Vec2[][];
   impulse?: Impulse;
   fixed?: boolean;
+  /** Generated strokes may intentionally cross when born; do not eject those initial overlaps. */
+  lineBody?: boolean;
 }
 /** A body's state: where its centre is, its angle, and how fast both change. */
 export interface State { x: number; y: number; angle: number; vx: number; vy: number; omega: number }
@@ -100,8 +102,10 @@ export function collisionBody(geo: Geometry, body = gravityBody(geo), fixed = fa
       parts.push(...mergeTriangles(earcut(points.flat(), holes, 2), points));
     }
   }
-  // Open paths retain their floor dynamics but have no filled area to collide with other bodies.
-  return { body, parts, fixed, impulse: geo.shapes[0]?.impulse };
+  // A merged line drawing is an explicit body, even though its paint contains no filled area.
+  // Use the envelope of its marks; ordinary independent open strokes retain floor-only dynamics.
+  if (!holes && !parts.length && !filled.length && geo.shapes.some((s) => s.bodyGroup !== undefined) && body.points.length >= 3) parts.push(body.points);
+  return { body, parts, fixed, impulse: geo.shapes[0]?.impulse, lineBody: !holes && geo.shapes.every((s) => s.bodyGroup !== undefined && s.style.fill === 'none') };
 }
 
 const boxOf = (points: Vec2[]): Box => {
@@ -156,7 +160,7 @@ function manifold(a: Polygon, b: Polygon): { nx: number; ny: number; depth: numb
   return { nx, ny, depth, points: hi - lo > 1e-5 ? [point(lo), point(hi)] : [point(lo)] };
 }
 
-interface Replay { key: string; checkpoints: State[][]; latest: { step: number; states: State[] } }
+interface Replay { key: string; checkpoints: State[][]; pending: Set<number>[]; latest: { step: number; states: State[]; pending: Set<number> } }
 interface StaticIndex { key: string; cell: number; grid: Map<string, number[]>; parts: { owner: Placed; polygon: Polygon }[]; box: Box }
 export interface CollisionWorld { bodies: CollisionBody[]; replay?: Replay; fixedIndex?: StaticIndex }
 
@@ -187,7 +191,18 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
         ? { x: (body.center[0] - floor[0]) * cs + (body.center[1] - floor[1]) * sn, y: -(body.center[0] - floor[0]) * sn + (body.center[1] - floor[1]) * cs, angle: -rotation, vx: vx * cs + vy * sn, vy: -vx * sn + vy * cs, omega: fixed ? 0 : impulse?.spin ?? 0 }
         : { x: body.center[0], y: body.center[1], angle: 0, vx, vy, omega: fixed ? 0 : impulse?.spin ?? 0 };
     });
-    replay = world.replay = { key, checkpoints: [initial], latest: { step: 0, states: initial } };
+    const pending = new Set<number>();
+    // A hatching screen is born with crossing strokes. Ignore only those initial pairs until
+    // they separate; later contacts use the normal solver, on both solids and the floor.
+    const lines = world.bodies.flatMap((b, i) => b.lineBody && !b.fixed ? [place(b, initial[i]!, i)] : []).sort((a, b) => a.box.x0 - b.box.x0 || a.index - b.index);
+    if (collide) for (let i = 0; i < lines.length; i++) for (let j = i + 1; j < lines.length; j++) {
+      const a = lines[i]!, b = lines[j]!;
+      if (b.box.x0 > a.box.x1) break;
+      if (overlap(a.box, b.box) && a.polygons().some((pa) => b.polygons().some((pb) => !!manifold(pa, pb)))) {
+        pending.add(Math.min(a.index, b.index) * world.bodies.length + Math.max(a.index, b.index));
+      }
+    }
+    replay = world.replay = { key, checkpoints: [initial], pending: [pending], latest: { step: 0, states: initial, pending } };
   }
   const size = Math.max(...world.bodies.filter((b) => !b.fixed).map((b) => Math.sqrt(b.body.inertia)), 1);
   const slop = size * 0.0001;
@@ -212,7 +227,9 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     });
     world.fixedIndex = fixed;
   }
+  let pending = replay.pending[0]!;
   const advance = (before: State[], dt: number): State[] => {
+    const stillPending = new Set<number>();
     const states = before.map((state, i) => {
       if (world.bodies[i]!.fixed) return { ...state };
       const ax = floor ? acceleration[1] * sn : acceleration[0];
@@ -256,6 +273,8 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
         if (same < 0) hits.push(hit);
         else if (hits[same]!.depth < hit.depth) hits[same] = hit;
       }
+      const pair = Math.min(a.index, b.index) * world.bodies.length + Math.max(a.index, b.index);
+      if (pending.has(pair) && hits.length) { stillPending.add(pair); continue; }
       for (const hit of hits.sort((a, b) => b.depth - a.depth).slice(0, 4)) add(a, b, hit.nx, hit.ny, hit.depth, hit.points);
     }
     for (const a of placed) {
@@ -304,16 +323,18 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     }
     const touching = new Set(contacts.flatMap((c) => c.b ? [c.a.index, c.b.index] : [c.a.index]));
     if (contactDamping) for (const i of touching) if (!world.bodies[i]!.fixed) states[i]!.omega *= Math.exp(-contactDamping * dt);
+    pending = stillPending;
     return states;
   };
   const whole = Math.floor(time * HZ + 1e-9), at = Math.min(Math.floor(whole / INTERVAL), replay.checkpoints.length - 1);
   let step = at * INTERVAL, states = replay.checkpoints[at]!;
-  if (replay.latest.step <= whole && replay.latest.step > step) { step = replay.latest.step; states = replay.latest.states; }
+  pending = replay.pending[at]!;
+  if (replay.latest.step <= whole && replay.latest.step > step) { step = replay.latest.step; states = replay.latest.states; pending = replay.latest.pending; }
   for (; step < whole; step++) {
     states = advance(states, 1 / HZ);
-    if ((step + 1) % INTERVAL === 0 && (step + 1) / INTERVAL === replay.checkpoints.length) replay.checkpoints.push(states);
+    if ((step + 1) % INTERVAL === 0 && (step + 1) / INTERVAL === replay.checkpoints.length) { replay.checkpoints.push(states); replay.pending.push(pending); }
   }
-  replay.latest = { step: whole, states };
+  replay.latest = { step: whole, states, pending };
   const fraction = time - whole / HZ;
   if (fraction > 1e-12) states = advance(states, fraction);
   return states;

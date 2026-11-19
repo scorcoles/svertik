@@ -272,7 +272,7 @@ All shapes share a standard styling block:
 
 ---
 
-## 7. Complete Catalog of All 58 Modifiers
+## 7. Complete Modifier Catalog
 
 ### 7.1 Deformers (`kind: "deformer"`)
 Move path vertices without altering vector topology.
@@ -494,7 +494,11 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `spacing` (number, def 6, 1 to 100, px), `angle` (angle, def 45), `layers` (number, def 3, 1 to 4), `width` (number, def 1, px, line width)
     - `gamma` (number, def 1), `invert` (boolean, def false)
     - `color` (`"ink" | "original"`, def `"ink"`), `ink` (color, def `"#111111"`)
-    - `offset` (point, def `[0, 0]`, fraction of the spacing; animate it to slide the lines), `merge` (boolean, def false)
+    - `offset` (point, def `[0, 0]`, fraction of the spacing; animate it to slide the lines), `fixLines` (boolean, def false), `merge` (boolean, def false)
+    - Canvas controls: the detached circular **Offset** handle slides the screen with reduced sensitivity and without wrapping its displayed position. **Angle** rotates the screen; **Spacing** changes the distance across the guide lines. Shift snaps Angle to 15°, Offset to quarter cells and Spacing to whole pixels. Arrow keys nudge the selected handle.
+    - **Merge lines** off keeps every run as an independent element and Gravity body. On joins marks into one path per colour, while all those paths remain one rigid body, including in Original colour mode. This choice applies consistently to both Gravity Solids and the Floor. With Collisions enabled, strokes that start crossed are not forcibly pushed apart at playback start: their initial pair contact is ignored until they separate, then later contacts behave normally. Line width contributes to contacts; merged strokes collide through the convex envelope of their marks, so gaps inside that envelope are solid.
+    - Stack order matters: `Polygon → Crosshatch → Gravity` drops individual strokes with Merge off, or the complete hatched drawing with Merge on. `Polygon → Gradient → Crack → Gravity → Crosshatch` moves the fragments first; with Fix lines off their hatching follows the Crack/Gravity/Transform material frame, while on samples a screen fixed to the scene.
+    - Sampling indexes nearby fragments and contour edges, and resolves gradient stops once per prepared input. It does not reduce the line density or colour resolution to improve performance.
 
 32. **`slices`** (Glitch family): Horizontal bands shifted laterally. Each band is an element.
     - `count` (number, def 8), `amount` (number, def 0.15, fraction), `probability` (number, def 0.6, 0 to 1), `seed` (seed, def 1)
@@ -508,8 +512,11 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
 35. **`streaks`** (Glitch family): Horizontal laser streaks escaping from shape edges.
     - `count` (number, def 12), `length` (number, def 40, px), `direction` (`"left" | "right" | "both"`, def `"right"`), `bite` (boolean, def false)
 
-36. **`rgbsplit`** (Glitch family): Geometric chromatic aberration (cyan/magenta or red/blue offset copies). Exports cleanly to vector SVG or Lottie. Accepts nested modifiers inside `children` that apply solely to colored clones.
-    - `distance` (number, def 10, px), `angle` (angle, def 0, deg)
+36. **`rgbsplit`** (Glitch family): Vector chromatic separation. `mode: "channels"` (default) extracts RGB from the source paint: red moves by −Distance along Angle, blue by +Distance, green stays in place. It preserves the source colours rather than painting two flat copies on top.
+    - `distance` (number, def 3, 0 to 60, px), `angle` (angle, def 0, clockwise degrees). Distance 0 preserves the input exactly in Channels mode.
+    - `background` (`"dark" | "light"`, def `"dark"`): Dark combines RGB with Screen; Light uses complementary CMY plates with Multiply. Choose the setting for the surface behind the drawing. Linear/radial gradients retain all stops, opacity, units and transforms; solid fill/stroke alpha is retained too.
+    - `mode: "duo"` restores the previous two-colour-copy look: `colorA` (def `"#00e5ff"`), `colorB` (def `"#ff2bd6"`), `layer` (`"behind" | "front"`, def `"behind"`), `blend` (def `"normal"`), `original` (boolean, def true). These controls only apply to Duo. Set Duo explicitly in scenes authored for the old appearance; an omitted mode now selects Channels.
+    - Nested `children` act on the two shifted plates, not the stationary green plate. Each shifted channel has its own filter group, so Blur/Glow do not discard a channel where the plates overlap. In Duo, children act on the two coloured copies, leaving Original unchanged. Geometry stays vector in SVG; nested filters and blending depend on the target renderer/exporter.
 
 37. **`boolean`**: Vector CSG boolean operations between node elements (group children or clone copies).
     - `operation` (`"union" | "subtract" | "intersect" | "exclude"`, def `"union"`)
@@ -603,6 +610,65 @@ Processed natively via browser `<filter>` primitives. Executed after geometry ev
 59. **`tone`**: Color map manipulation (`<feComponentTransfer>`).
     - `mode` (`"posterize" | "duotone" | "invert"`, def `"posterize"`), `levels` (number, def 4, 2..16), `shadows` (color, def `"#05051a"`), `lights` (color, def `"#09fdd1"`)
 
+### 7.6 Motion, physics and texture
+Effectors and generators added after the first catalog: oscillators, physics, particles and grain. The full parameter reference for every modifier is generated from the engine schema in `packages/engine/docs/reference/`.
+
+60. **`spikes`** (deformer): Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards).
+    - `count` (number, def 12, 1..200), `height` (number, def 30, -500..500, px), `curve` (number, def 0, -1..1), `width` (number, def 1, 0.05..1, fraction)
+    - `lean` (number, def 0, -1..1), `phase` (number, def 0, 0..1, fraction)
+
+61. **`gather`** (deformer): Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom.
+    - `axis` (`"x" | "y"`, def "x"), `start` (number, def 0.5, -0.99..0.99), `end` (number, def -0.5, -0.99..0.99)
+
+62. **`vectorgrain`** (generator): Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter).
+    - `edge` (`"inside" | "outside" | "both"`, def "inside"), `density` (number, def 2000, 0..5000), `falloff` (number, def 40, 0.5..2000, px), `curve` (number, def 1.5, 0.1..6)
+    - `interior` (number, def 0, 0..1), `center` (point, def [0.5, 0.5], fraction), `focus` (number, def 1, 0..1), `focusCurve` (number, def 1, 0.1..6)
+    - `distribution` (`"random" | "even"`, def "random"), `shape` (`"circle" | "square" | "speck"`, def "circle"), `size` (number, def 1.2, 0.05..50, px), `sizeJitter` (number, def 0.5, 0..1)
+    - `edgeSize` (number, def 1, 0.1..4), `color` (`"ink" | "original"`, def "ink"), `ink` (color, def "#000000"), `blend` (`"normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity"`, def "normal")
+    - `opacity` (number, def 1, 0..1), `opacityJitter` (number, def 0, 0..1), `source` (`"keep" | "replace"`, def "keep"), `seed` (seed, def 1)
+
+63. **`particles`** (generator): Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved.
+    - `time` (number, def 1, 0..60), `emission` (`"burst" | "stream"`, def "burst"), `count` (number, def 64, 1..512), `lifetime` (number, def 3, 0.05..30)
+    - `seed` (seed, def 1), `center` (point, def [0.5, 0.5], fraction), `emitter` (`"point" | "line" | "box" | "circle"`, def "circle"), `area` (point, def [0.15, 0.15], fraction)
+    - `motion` (`"free" | "impulse"`, def "free"), `direction` (angle, def -90), `spread` (number, def 90, 0..360), `speed` (number, def 0.8, 0..5, fraction)
+    - `speedRandom` (number, def 0.5, 0..1), `spin` (angle, def 180), `gravity` (number, def 0.6, 0..5, fraction), `size` (number, def 0.05, 0.001..1, fraction)
+    - `sizeRandom` (number, def 0.6, 0..1), `rotationRandom` (angle, def 360), `fade` (number, def 0.2, 0..1), `keepSource` (boolean, def false)
+
+64. **`gravity`** (effector): Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion or Rigid body. Floor rotation is measured from the scene horizon. Crosshatch Merge controls one-body versus per-line dynamics consistently on the floor and solids; see the Gravity section below.
+    - `time` (number, def 1, 0..60), `gravity` (number, def 1, 0..10, fraction), `floor` (point, def [0.5, 1.5], fraction), `rotation` (angle, def 0)
+    - `collisions` (boolean, def false), `solids` (nodes, def []), `physics` (boolean, def true), `friction` (number, def 0.7, 0..1)
+    - `bounce` (number, def 0.15, 0..1)
+
+65. **`physics`** (effector): A deterministic 2D rigid-body simulation for a group.
+    - `time` (number, def 0, 0..60), `acceleration` (point, def [0, 0], px), `collisions` (boolean, def true), `solids` (nodes, def [])
+    - `friction` (number, def 0, 0..1), `bounce` (number, def 1, 0..1)
+
+66. **`rigidbody`** (deformer): Initial linear velocity and spin for a child inside a Physics group (or Gravity).
+    - `velocity` (point, def [0, 0], px), `spin` (number, def 0, °/s), `immovable` (boolean, def false)
+
+67. **`rope`** (deformer): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings.
+    - `time` (number, def 0, 0..100000), `gravity` (number, def 1, 0..10, fraction), `wind` (number, def 0, 0..5), `damping` (number, def 0.8, 0..20)
+    - `stiffness` (number, def 14, 1..60), `segments` (number, def 24, 4..120), `pointer` (point, def [-2, -2], fraction), `space` (`"box" | "scene"`, def "box")
+    - `radius` (number, def 0, 0..1, fraction), `settle` (number, def 0, 0..10, s), `seed` (seed, def 1)
+
+68. **`oscillate`** (effector): Periodic modulation of nested effects: sine, triangle, square or saw.
+    - `wave` (`"sine" | "triangle" | "square" | "saw"`, def "sine"), `time` (number, def 0, s), `frequency` (number, def 1, 0..20, Hz), `amplitude` (number, def 1, 0..2)
+    - `offset` (number, def 0, -2..2), `phase` (angle, def 0), `perElement` (boolean, def true), `elementPhase` (angle, def 20)
+
+69. **`wiggle`** (effector): Smooth seeded random modulation of nested effects.
+    - `time` (number, def 0, s), `frequency` (number, def 1, 0..20, Hz), `amplitude` (number, def 1, 0..2), `offset` (number, def 0, -2..2)
+    - `phase` (angle, def 0), `perElement` (boolean, def true), `elementPhase` (angle, def 20), `seed` (seed, def 1)
+
+70. **`pulse`** (effector): Repeated pulses of nested effects, from neutral to full strength and back.
+    - `time` (number, def 0, s), `frequency` (number, def 1, 0..20, Hz), `amplitude` (number, def 1, 0..2), `offset` (number, def 0, -2..2)
+    - `phase` (angle, def 0), `perElement` (boolean, def true), `elementPhase` (angle, def 20), `attack` (number, def 0.1, 0..1, fraction)
+    - `decay` (number, def 0.4, 0..1, fraction)
+
+71. **`shake`** (effector): A seeded one-shot impact that loses strength and returns exactly to neutral at Duration.
+    - `time` (number, def 0, s), `start` (number, def 0, s), `duration` (number, def 1, 0.01..10, s), `frequency` (number, def 8, 0..20, Hz)
+    - `amplitude` (number, def 1, 0..2), `decay` (number, def 2, 0.1..8), `perElement` (boolean, def false), `elementDelay` (number, def 0.04, 0..1, s)
+    - `seed` (seed, def 1)
+
 ---
 
 ## 8. Animation & Keyframe Tracks
@@ -657,14 +723,14 @@ Falls each element (glyph, clone, fragment or independent shape) onto an infinit
 
 - `time`: elapsed seconds, default `1`, clamped to `0–60`. Animate from `0`, or set `{ "$expr": "scene.time", "fallback": 0 }` to follow playback.
 - `gravity`: downward acceleration in source bounding-box sizes per second squared, default `1`.
-- `floor`: floor position as source-box fractions, default `[0.5, 1.5]`.
-- `rotation`: floor angle in clockwise degrees, default `0` (horizontal). The positive local Y side is solid.
+- `floor`: floor position as fractions of an upright source reference box, default `[0.5, 1.5]`. The reference follows placement and scale while its axes stay aligned to the scene horizon.
+- `rotation`: floor angle in clockwise degrees **from the scene horizon**, default `0` (horizontal). It does not inherit object or parent rotation. Gravity acts downwards in scene axes; the positive normal side of the floor is solid. The canvas guide and its position/rotation handles use the same reference as the simulation.
 
 - `physics`: rigid-body dynamics, enabled by default. Disable for the original translation-only, frictionless mode.
 - `friction`: contact friction, `0–1`, default `0.7`. Controls sliding and rolling at the floor.
 - `bounce`: restitution, `0–1`, default `0.15`. Small resting impacts are damped to let bodies settle.
 
-All numeric parameters and floor position support animation. Rigid bodies use uniform-area centres of mass and rotational inertia: off-centre contacts generate rotation, so unstable pieces tip onto a supporting face. Shapes sharing a clone tag move as one body, preserving paint order. Curves are sampled for mass/contact dynamics; exact cubic support prevents penetration of the rendered floor. Open paths use approximate mass properties; stroke thickness is not included.
+All numeric parameters and floor position support animation. Rigid bodies use uniform-area centres of mass and rotational inertia: off-centre contacts generate rotation, so unstable pieces tip onto a supporting face. Shapes sharing a clone tag move as one body, preserving paint order. Curves are sampled for mass/contact dynamics; exact cubic support prevents penetration of the rendered floor. Open paths use approximate mass properties. Crosshatch outputs explicit line bodies: their stroke width contributes to floor support and Solid contacts. With **Merge lines** off each line can rotate and settle independently on either surface. With Merge on, all colour paths stay together as one body and use the convex envelope of the marks for Solid contacts. When Collisions is enabled, the initial crossings in an unmerged screen do not create separation impulses: each initially overlapping pair becomes collidable after it separates. This state is included in deterministic seek/replay checkpoints. Other ordinary open paths still use floor-only dynamics; their stroke thickness is not included.
 
 Physics integrates fixed 120 Hz steps, with a fractional final step. Mass properties are cached per input geometry; quarter-second checkpoints and the last full step are reused, so advancing time does not replay the entire fall. Geometry or physics parameter changes invalidate those states. Seeking backwards and headless rendering are deterministic. The current gravity, floor, friction and bounce values are held constant during that replay: their earlier animated values are not integrated. Collisions between pieces are optional (`collisions: true`). The floor guide remains editor-only.
 

@@ -1,5 +1,5 @@
 // 2D affine matrices in SVG's format: [a, b, c, d, e, f].
-import type { Vec2 } from './geometry';
+import type { Bounds, Vec2 } from './geometry';
 
 export type Mat = [number, number, number, number, number, number];
 
@@ -15,6 +15,13 @@ export const multiply = ([a1, b1, c1, d1, e1, f1]: Mat, [a2, b2, c2, d2, e2, f2]
 ];
 
 export const apply = ([a, b, c, d, e, f]: Mat, [x, y]: Vec2): Vec2 => [a * x + c * y + e, b * x + d * y + f];
+
+/** A reference box following placement and scale, with its axes kept on the scene horizon. */
+export function uprightBounds(b: Bounds, m: Mat): Bounds {
+  const c = apply(m, [b.x + b.width / 2, b.y + b.height / 2]);
+  const width = b.width * Math.hypot(m[0], m[1]), height = b.height * Math.hypot(m[2], m[3]);
+  return { x: c[0] - width / 2, y: c[1] - height / 2, width, height };
+}
 
 export function invert([a, b, c, d, e, f]: Mat): Mat {
   const det = a * d - b * c || 1e-12;

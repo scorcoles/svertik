@@ -78,6 +78,7 @@
               "id": "core-rgbsplit",
               "type": "rgbsplit",
               "params": {
+                "mode": "duo",
                 "distance": 4,
                 "angle": 30
               }
