@@ -6,7 +6,7 @@
 // - RGB Split: two coloured, shifted copies of the drawing (behind or in front, with their blend mode).
 // Filled shapes are cut as surfaces; stroke-only ones (no fill), as lines.
 import { difference, intersection, type MultiPolygon, type Pair, type Polygon } from '../polygon';
-import { regionOf, toSubPath } from '../clip';
+import { regionOf, ring as ringOf, toSubPath } from '../clip';
 import { bounds, flatten, keepInner, line, type Geometry, type Shape, type Vec2 } from '../geometry';
 import { chainFrom } from '../chain';
 import { BLEND_MODES } from '../document';
@@ -14,11 +14,41 @@ import { defineModifier, deg } from '../modifier';
 import { rng } from '../random';
 
 /** Each filled shape, as a surface (with its box); the others, left out. */
+/** Whether a closed ring (first point repeated at the end) is convex: then it is already simple. */
+function convex(r: Pair[]): boolean {
+  const n = r.length - 1;
+  if (n < 3) return false;
+  let sign = 0;
+  for (let i = 0; i < n; i++) {
+    const a = r[i]!, b = r[(i + 1) % n]!, c = r[(i + 2) % n]!;
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cross) < 1e-9) continue;
+    const s = Math.sign(cross);
+    if (sign && s !== sign) return false;
+    sign = s;
+  }
+  return sign !== 0;
+}
+
+/**
+ * The region of one shape. A single convex outline (a circle, a box, a copy of either) is its own region:
+ * it skips the boolean pass that `regionOf` runs to normalise arbitrary outlines, the bulk of the cost of
+ * the glitch effects on drawings made of many simple pieces.
+ */
+function regionOfShape(shape: Shape, step: number): MultiPolygon {
+  const closed = shape.subpaths.filter((sp) => sp.closed);
+  if (closed.length === 1 && closed.length === shape.subpaths.length) {
+    const r = ringOf(closed[0]!, step);
+    if (r.length >= 4 && convex(r)) return [[r]];
+  }
+  return regionOf([shape], step);
+}
+
 function regions(geo: Geometry, resolution: number) {
   const step = Math.max(resolution, 1e-3);
   return geo.shapes
     .filter((s) => (s.style.fill ?? 'black') !== 'none' && !isLine(s))
-    .map((shape) => ({ shape, poly: regionOf([shape], step) }))
+    .map((shape) => ({ shape, poly: regionOfShape(shape, step) }))
     .filter((x) => x.poly.length)
     .map((x) => ({ ...x, box: boxOf(x.poly) }));
 }
@@ -121,6 +151,43 @@ function lineShape(lp: LinePiece, extra: Partial<Shape> = {}): Shape | null {
   const subpaths = lp.lines.map((l) => ({ start: l[0]!, segs: l.slice(1).map((q, i) => line(l[i]!, q)), closed: false }));
   return subpaths.length ? { ...lp.shape, subpaths, ...extra } : null;
 }
+/**
+ * The part of a region between two horizontal lines. A band is convex, so clipping each ring against its two
+ * edges (Sutherland–Hodgman) gives the exact area, without the general boolean, which is far slower and is
+ * what made Slices expensive on drawings with many pieces. A concave ring cut in two may keep a zero-width
+ * seam along the cut line; it has no area, so the fill is the same.
+ */
+export function clipToBand(poly: MultiPolygon, y0: number, y1: number): MultiPolygon {
+  const edge = (ring: Pair[], inside: (p: Pair) => boolean, y: number): Pair[] => {
+    const out: Pair[] = [];
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i]!, b = ring[(i + 1) % ring.length]!;
+      const ia = inside(a), ib = inside(b);
+      if (ia) out.push(a);
+      if (ia !== ib) {
+        const t = (y - a[1]) / (b[1] - a[1]);
+        out.push([a[0] + t * (b[0] - a[0]), y]);
+      }
+    }
+    return out;
+  };
+  const clipRing = (ring: Pair[]): Pair[] | null => {
+    // polygon-clipping rings repeat their first point at the end.
+    const open = ring.length > 1 && ring[0]![0] === ring[ring.length - 1]![0] && ring[0]![1] === ring[ring.length - 1]![1] ? ring.slice(0, -1) : ring;
+    const top = edge(open, (p) => p[1] >= y0, y0);
+    const both = top.length ? edge(top, (p) => p[1] <= y1, y1) : top;
+    return both.length >= 3 ? [...both, both[0]!] : null;
+  };
+  const out: MultiPolygon = [];
+  for (const polygon of poly) {
+    const outer = polygon[0] && clipRing(polygon[0]);
+    if (!outer) continue;
+    const holes = polygon.slice(1).map(clipRing).filter((r): r is Pair[] => r !== null);
+    out.push([outer, ...holes]);
+  }
+  return out;
+}
+
 const toShape = (pc: Piece, poly: MultiPolygon, extra: Partial<Shape> = {}): Shape | null => {
   const subpaths = poly.flatMap((pl) => pl.map(toSubPath)).filter((x) => x !== null);
   return subpaths.length ? { ...pc.shape, subpaths, ...extra } : null;
@@ -154,7 +221,10 @@ export const slices = defineModifier({
     for (const pc of regions(geo, ctx.resolution)) {
       for (let i = 0; i < n; i++) {
         if (cuts[i + 1]! < pc.box.y || cuts[i]! > pc.box.y + pc.box.h) continue;
-        const cut = intersection(pc.poly, [rect(b.x - size, cuts[i]!, b.width + 2 * size, cuts[i + 1]! - cuts[i]!)]);
+        // A piece wholly inside the band is the band's cut as it is: no boolean needed (the bands span the
+        // whole width, so only the vertical extent matters). Most pieces of a busy drawing fall in one band.
+        const whole = pc.box.y >= cuts[i]! && pc.box.y + pc.box.h <= cuts[i + 1]!;
+        const cut = whole ? pc.poly : clipToBand(pc.poly, cuts[i]!, cuts[i + 1]!);
         // Each band, an element (Step, Color… treat it separately).
         const sh = cut.length && toShape(pc, dx[i] ? move(cut, dx[i]!, 0) : cut, { clone: i });
         if (sh) out.push(sh);
@@ -242,11 +312,18 @@ export const scanlines = defineModifier({
     const gap = b.height / m;
     const out: Shape[] = [];
     for (const pc of regions(geo, ctx.resolution)) {
-      // Only the lines crossing the piece's height.
-      const lines: MultiPolygon = [];
+      // Only the lines crossing the piece's height. Each one spans the piece, so removing them leaves the
+      // bands between them: clipping to those bands is exact and avoids a boolean difference per piece.
       const i0 = Math.max(0, Math.floor((pc.box.y - b.y) / gap - 1)), i1 = Math.min(m - 1, Math.ceil((pc.box.y + pc.box.h - b.y) / gap));
-      for (let i = i0; i <= i1; i++) lines.push([rect(pc.box.x - 1, b.y + (i + 0.5) * gap - p.width / 2, pc.box.w + 2, p.width)]);
-      const sh = toShape(pc, lines.length ? difference(pc.poly, lines) : pc.poly);
+      const kept: MultiPolygon = [];
+      let from = pc.box.y - 1;
+      for (let i = i0; i <= i1; i++) {
+        const y = b.y + (i + 0.5) * gap - p.width / 2;
+        if (y > from) kept.push(...clipToBand(pc.poly, from, y));
+        from = Math.max(from, y + p.width);
+      }
+      kept.push(...clipToBand(pc.poly, from, pc.box.y + pc.box.h + 1));
+      const sh = toShape(pc, i1 >= i0 ? kept : pc.poly);
       if (sh) out.push(sh);
     }
     // Strokes: the parts falling on each little line are removed.
