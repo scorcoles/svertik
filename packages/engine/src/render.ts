@@ -42,7 +42,22 @@ const fmt =
  * matters for effects with thousands of polygons (grain, halftone). Off by default: animated SVG interpolates
  * `d` between frames and needs the same commands in every frame.
  */
+// Path data by outline: the engine keeps unchanged outlines (and their subpaths) between frames, so a
+// frame that only moves some objects doesn't format every path again.
+const pathData = new WeakMap<Shape['subpaths'], Map<string, string>>();
+
 export function toPathData(shape: Shape, precision = 2, lines = false): string {
+  const variant = `${precision}${lines ? 'L' : 'C'}`;
+  let known = pathData.get(shape.subpaths);
+  const hit = known?.get(variant);
+  if (hit !== undefined) return hit;
+  const d = formatPathData(shape, precision, lines);
+  if (!known) pathData.set(shape.subpaths, (known = new Map()));
+  known.set(variant, d);
+  return d;
+}
+
+function formatPathData(shape: Shape, precision: number, lines: boolean): string {
   const f = (n: number) => fmt(n, precision);
   let d = '';
   for (const sp of shape.subpaths) {

@@ -209,7 +209,7 @@ export function createDocumentEvaluator(
   };
   // `deps`: for the ones that use another object, a fingerprint of what they saw of each (its geometry and
   // where both were). While it doesn't change, the result holds: touching something else doesn't redo it.
-  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs; volatile?: boolean }>();
+  const cache = new Map<string, { key: string; source: Geometry; result: Geometry; dynamic: boolean; deps: [string, number][]; refs: StackRefs; volatile?: boolean; placed?: { result: Geometry; matrix: Mat; geo: Geometry; world?: Mat; box?: Bounds } }>();
   const groupCache = new Map<string, { key: string; result: Geometry; refs: StackRefs }>();
   /** What came out last time (matrix and geometry of each node): the first pass starts from there. */
   let last = new Map<string, { world: Mat; geo: Geometry }>();
@@ -476,7 +476,15 @@ export function createDocumentEvaluator(
             asked = asked || before;
             cache.set(node.id, entry);
           }
-          const placed = transformGeo(entry.result, m);
+          // The same result at the same place: the placed drawing is reused, so its paths keep their identity
+          // (the renderers cache each path's data by it) and nothing is rebuilt for a frame that didn't move it.
+          const prev = entry.placed;
+          const same = !!prev && prev.result === entry.result && prev.matrix.every((v, i) => v === m[i]);
+          const placed = same ? prev!.geo : transformGeo(entry.result, m);
+          // Its box in the scene, too: measuring a big drawing every frame is not free.
+          const sameWorld = same && !!prev!.world && prev!.world.every((v, i) => v === world[i]);
+          const box = sameWorld && prev!.box ? prev!.box : boundsOf(entry.result, world);
+          entry.placed = { result: entry.result, matrix: m, geo: placed, world, box };
           for (const child of node.children ?? []) if (nodes.has(child.id)) reparent(child, world);
           for (const { node: child } of walkNodes(node.children ?? [])) {
             const info = nodes.get(child.id);
@@ -484,7 +492,7 @@ export function createDocumentEvaluator(
             if (info && own.length) info.box = boundsOf({ viewBox: entry.result.viewBox, shapes: own }, world);
           }
           results.set(node.id, entry.result);
-          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: boundsOf(entry.result, world) });
+          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box });
           if (node.visible === false) return [];
           return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend)));
         }

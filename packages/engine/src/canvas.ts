@@ -33,13 +33,17 @@ export function canvasCanPaint(geo: Geometry): boolean {
 }
 
 /** A shape's outline as a Path2D (cubic segments, as the engine keeps them). */
+const paths = new WeakMap<Shape['subpaths'], Path2D>();
 function pathOf(shape: Shape): Path2D {
+  const known = paths.get(shape.subpaths);
+  if (known) return known;
   const p = new Path2D();
   for (const sp of shape.subpaths) {
     p.moveTo(sp.start[0], sp.start[1]);
     for (const s of sp.segs) p.bezierCurveTo(s.c1[0], s.c1[1], s.c2[0], s.c2[1], s.p[0], s.p[1]);
     if (sp.closed) p.closePath();
   }
+  paths.set(shape.subpaths, p);
   return p;
 }
 
