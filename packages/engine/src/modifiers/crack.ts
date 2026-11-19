@@ -4,6 +4,7 @@ import { flatten, insidePolygons, line, type Geometry, type Shape, type SubPath,
 import { band } from './damage';
 import { defineModifier, fromFraction } from '../modifier';
 import { rng } from '../random';
+import { IDENTITY, multiply, translate } from '../matrix';
 
 interface Branch {
   points: Vec2[];
@@ -145,6 +146,7 @@ function cut(geo: Geometry, lines: SubPath[], p: { mode: string; width: number; 
     }
     for (const poly of rest) {
       let pl = poly;
+      let tx = 0, ty = 0;
       if (p.mode === 'shatter' && p.separation > 0) {
         // Each piece, moving away from the impact (from its centre), slightly at random.
         const ring = poly[0]!;
@@ -152,10 +154,11 @@ function cut(geo: Geometry, lines: SubPath[], p: { mode: string; width: number; 
         const dx = cx - origin[0], dy = cy - origin[1];
         const d = Math.hypot(dx, dy) || 1;
         const k = p.separation * (0.6 + rand() * 0.8);
-        pl = poly.map((rg) => rg.map(([x, y]) => [x + (dx / d) * k, y + (dy / d) * k] as Pair));
+        tx = (dx / d) * k; ty = (dy / d) * k;
+        pl = poly.map((rg) => rg.map(([x, y]) => [x + tx, y + ty] as Pair));
       }
       const subpaths = pl.map(toSubPath).filter((x) => x !== null);
-      if (subpaths.length) out.push({ ...s, subpaths, clone: piece++ });
+      if (subpaths.length) out.push({ ...s, subpaths, clone: piece++, ...(tx || ty ? { patternTransform: multiply(translate(tx, ty), s.patternTransform ?? IDENTITY) } : {}) });
     }
   }
   return { viewBox: geo.viewBox, shapes: out };

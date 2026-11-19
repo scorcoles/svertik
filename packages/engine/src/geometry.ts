@@ -1,4 +1,5 @@
 import type { FilterChain } from './chain';
+import type { Mat } from './matrix';
 // Internal geometry: everything is a cubic curve. A shape has subpaths and a style.
 
 export type Vec2 = readonly [number, number];
@@ -26,6 +27,8 @@ export interface Impulse {
 }
 
 export interface Shape {
+  /** Runtime material frame, from pre-motion geometry to current stack coordinates. */
+  patternTransform?: Mat;
   impulse?: Impulse;
   /** Embedded or linked raster image carried by a rectangular path footprint. */
   image?: { href: string; width: number; height: number; preserveAspectRatio: string };

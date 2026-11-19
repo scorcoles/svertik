@@ -1,4 +1,4 @@
-import { line, type Shape, type Style, type SubPath, type Vec2 } from '../geometry';
+import { line, mapPoints, type Geometry, type Shape, type Style, type SubPath, type Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 import { colorSampler, darkness, prepare, type Layer } from './halftone';
 import { apply, invert } from '../matrix';
@@ -34,8 +34,29 @@ export const crosshatch = defineModifier({
     fixLines: { type: 'boolean', default: false, label: 'Fix lines', animatable: false, random: false },
     merge: { type: 'boolean', default: false, label: 'Merge lines', animatable: false, random: false },
   },
-  apply(geo, p, ctx) {
+  apply(geo, p, ctx): Geometry {
     if (!(p.spacing >= 0.5) || !(p.width > 0) || !geo.shapes.length) return geo;
+    if (!p.fixLines && geo.shapes.some((s) => s.patternTransform)) {
+      // Gravity and Transform move material inside the stack, independently of node placement.
+      // Hatch each material frame before its motion, then put its lines back on the fragment.
+      const groups = new Map<string, Shape[]>();
+      for (const shape of geo.shapes) {
+        const key = JSON.stringify(shape.patternTransform ?? null);
+        const group = groups.get(key) ?? [];
+        group.push(shape); groups.set(key, group);
+      }
+      const shapes: Shape[] = [];
+      for (const group of groups.values()) {
+        const matrix = group[0]!.patternTransform;
+        const inverse = matrix ? invert(matrix) : undefined;
+        const input = { ...geo, shapes: group.map(({ patternTransform: _, ...shape }) => shape) };
+        const material = inverse ? mapPoints(input, (q) => apply(inverse, q)) : input;
+        const result = crosshatch.apply(material, { ...p, merge: false }, ctx);
+        const placed = matrix ? mapPoints(result, (q) => apply(matrix, q)) : result;
+        for (const shape of placed.shapes) shapes.push({ ...shape, ...(matrix ? { patternTransform: matrix } : {}), clone: shapes.length });
+      }
+      return mergeLines({ viewBox: geo.viewBox, shapes }, p.merge);
+    }
     const layers = geo.shapes.map((s) => prepare(s, 0.25)).filter((l): l is Layer => !!l);
     if (!layers.length) return { viewBox: geo.viewBox, shapes: [] };
     const paintAt = colorSampler(layers, p.color !== 'ink');
@@ -134,15 +155,19 @@ export const crosshatch = defineModifier({
         close(half);
       }
     }
-    if (!p.merge) return { viewBox: geo.viewBox, shapes };
-    // Merge: one path per style, in first-seen order.
-    const byStyle = new Map<string, Shape>();
-    for (const s of shapes) {
-      const k = JSON.stringify(s.style);
-      const g = byStyle.get(k);
-      if (g) g.subpaths.push(...s.subpaths);
-      else byStyle.set(k, { style: s.style, subpaths: [...s.subpaths], clone: byStyle.size });
-    }
-    return { viewBox: geo.viewBox, shapes: [...byStyle.values()] };
+    return mergeLines({ viewBox: geo.viewBox, shapes }, p.merge);
   },
 });
+
+function mergeLines(geo: Geometry, merge: boolean): Geometry {
+  if (!merge) return geo;
+  // Merge: one path per style, in first-seen order. A merged path can span material frames.
+  const byStyle = new Map<string, Shape>();
+  for (const s of geo.shapes) {
+    const k = JSON.stringify(s.style);
+    const g = byStyle.get(k);
+    if (g) g.subpaths.push(...s.subpaths);
+    else byStyle.set(k, { style: s.style, subpaths: [...s.subpaths], clone: byStyle.size });
+  }
+  return { viewBox: geo.viewBox, shapes: [...byStyle.values()] };
+}

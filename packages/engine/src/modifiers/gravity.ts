@@ -2,6 +2,7 @@ import { mapPoints, type Geometry, type Shape } from '../geometry';
 import { collisionBody, fallWorld, type CollisionBody, type CollisionWorld } from './gravity-collisions';
 import { fallBody, gravityBody, type FallPose } from './gravity-physics';
 import { defineModifier, deg, fromFraction } from '../modifier';
+import { IDENTITY, multiply, type Mat } from '../matrix';
 
 // Stable input geometries share their mass properties and deterministic simulation checkpoints.
 const bodyPlans = new WeakMap<Geometry, { shapes: Shape[]; body?: ReturnType<typeof gravityBody>; collider?: CollisionBody | null }[]>();
@@ -135,7 +136,10 @@ export const gravity = defineModifier({
     return {
       ...geo,
       shapes: geo.shapes.map((shape) => {
-        const moved = mapPoints({ ...geo, shapes: [shape] }, transforms.get(shape)!).shapes[0]!;
+        const move = transforms.get(shape)!;
+        const origin = move([0, 0]), x = move([1, 0]), y = move([0, 1]);
+        const matrix: Mat = [x[0] - origin[0], x[1] - origin[1], y[0] - origin[0], y[1] - origin[1], origin[0], origin[1]];
+        const moved = { ...mapPoints({ ...geo, shapes: [shape] }, move).shapes[0]!, patternTransform: multiply(matrix, shape.patternTransform ?? IDENTITY) };
         if (!p.physics || !moved.impulse) return moved;
         const { impulse: _consumed, ...result } = moved;
         return result;

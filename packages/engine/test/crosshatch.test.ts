@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, type SceneV1, type StackInput } from '../src';
+import { apply, builtins, createEngine, invert, type Mat, type SceneV1, type StackInput } from '../src';
 
 // Left half black, right half light grey: the black side should get every layer, the grey side none.
 const halves =
@@ -9,6 +9,61 @@ const run = (params: Record<string, unknown>) =>
 const ends = (params: Record<string, unknown>) => run(params).shapes.flatMap((s) => s.subpaths.flatMap((sp) => [sp.start, ...sp.segs.map((g) => g.p)]));
 
 describe('crosshatch', () => {
+  it('attaches lines to the actual cracked hexagon fragments during rigid-body fall', () => {
+    const engine = createEngine(builtins);
+    for (const time of [0.2, 0.4]) {
+      const scene: SceneV1 = { version: 1, objects: [{ kind: 'shape', id: 'hex', name: 'Hexagon', shape: 'polygon', params: { sides: 6, radius: 100, fill: true, fillColor: '#000000' }, stack: [
+        { id: 'gradient', type: 'gradient', params: { from: '#000000', to: '#777777' } },
+        { id: 'crack', type: 'crack', params: { mode: 'shatter', cracks: 5, separation: 10 } },
+        { id: 'gravity', type: 'gravity', params: { time } },
+        { id: 'h', type: 'crosshatch', params: { angle: 0, spacing: 10, layers: 1, fixLines: false } },
+      ] }] };
+      const doc = engine.evaluateDocument(scene);
+      const originY = doc.nodes.get('hex')!.bounds.y;
+      expect(doc.geometry.shapes.length).toBeGreaterThan(10);
+      for (const shape of doc.geometry.shapes) {
+        expect(shape.patternTransform).toBeDefined();
+        const inverse = invert(shape.patternTransform!);
+        for (const sp of shape.subpaths) {
+          const a = apply(inverse, sp.start), b = apply(inverse, sp.segs[0]!.p);
+          expect(a[1]).toBeCloseTo(b[1], 5);
+          const phase = (a[1] - originY) / 10;
+          expect(phase).toBeCloseTo(Math.round(phase), 5);
+        }
+      }
+    }
+  });
+  it.each([false, true])('tracks Gravity inside the stack only when Fix lines is off (%s)', (fixLines) => {
+    const scene: SceneV1 = { version: 1, objects: [{ kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 100, height: 100, fill: true, fillColor: '#000000' }, stack: [
+      { id: 'fall', type: 'gravity', params: { time: 0.2, physics: false } },
+      { id: 'h', type: 'crosshatch', params: { angle: 0, spacing: 10, layers: 1, fixLines } },
+    ] }] };
+    const shapes = createEngine(builtins).evaluateDocument(scene).geometry.shapes;
+    expect(shapes.length).toBeGreaterThan(5);
+    for (const shape of shapes) {
+      const y = shape.subpaths[0]!.start[1] - (fixLines ? 0 : 2);
+      expect(y / 10).toBeCloseTo(Math.round(y / 10), 6);
+    }
+  });
+
+  it('keeps lines attached through a stack Transform rotation and translation', () => {
+    const matrix: Mat = [Math.cos(Math.PI / 6), 0.5, -0.5, Math.cos(Math.PI / 6), 3, 7];
+    const scene = (fixLines: boolean): SceneV1 => ({ version: 1, objects: [{ kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 100, height: 100, fill: true, fillColor: '#000000' }, stack: [
+      { id: 'move', type: 'transform', params: { x: 3, y: 7, rotation: 30 } },
+      { id: 'h', type: 'crosshatch', params: { angle: 0, spacing: 10, layers: 1, fixLines } },
+    ] }] });
+    const engine = createEngine(builtins);
+    for (const fixLines of [false, true]) {
+      const shapes = engine.evaluateDocument(scene(fixLines)).geometry.shapes;
+      expect(shapes.length).toBeGreaterThan(5);
+      for (const shape of shapes) for (const sp of shape.subpaths) {
+        const a = fixLines ? sp.start : apply(invert(matrix), sp.start);
+        const b = fixLines ? sp.segs[0]!.p : apply(invert(matrix), sp.segs[0]!.p);
+        expect(a[1]).toBeCloseTo(b[1], 6);
+        expect(a[1] / 10).toBeCloseTo(Math.round(a[1] / 10), 6);
+      }
+    }
+  });
   it('can anchor lines to the scene through movement, rotation and scaling, including cached frames', () => {
     const engine = createEngine(builtins);
     const scene = (fixLines: boolean, y: number, rotation: number, scale: number): SceneV1 => ({
