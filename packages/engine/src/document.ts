@@ -397,9 +397,10 @@ export function createDocumentEvaluator(
         // Effects from an Effector node measure in the scene: they get this node's place in it.
         // A node inside a group only knows its place in the group (the group's own placement comes later).
         const inScene = (world: Mat) => {
-          if (!stack.some((m) => m.space === 'scene')) return;
+          const needsScene = (m: ModifierInstance): boolean => m.space === 'scene' || (m.type === 'crosshatch' && m.params?.fixLines === true) || !!m.children?.some(needsScene);
+          if (!stack.some(needsScene)) return;
           const space: SceneSpace = { world, frame: sceneFrame };
-          stack = stack.map((m) => (m.space === 'scene' ? { ...m, scene: space } : m));
+          stack = stack.map((m) => (needsScene(m) ? { ...m, scene: space } : m));
         };
         if (node.kind === 'object' || node.kind === 'shape' || node.kind === 'instance') {
           // Instance: its source is the original's result (without its placement). If not computed yet in

@@ -1217,7 +1217,7 @@
     // Dentro de Step cada copia usa su propio centro; el actuador se dibuja sobre el objeto entero
     // y sirve igual para cambiar los valores (los de la primera copia; las demás los multiplican).
     if (!m || !info || cornerTypes.has(m.type)) return null;
-    return gizmoFor(m.type, liveParams(m), refBox(info));
+    return gizmoFor(m.type, liveParams(m), refBox(info), info.matrix);
   });
   /** El actuador en el recuadro de la esquina (Rotate 3D), en sus propios píxeles. */
   const cornerGizmo = $derived.by(() => {
@@ -1608,6 +1608,7 @@
             class="gizmo-handle"
             data-tone={h.tone}
             data-handle={h.label}
+            data-offset={editor.current?.type === 'crosshatch' && h.label === 'Offset' ? '' : undefined}
             style:left="{h.x}px"
             style:top="{h.y}px"
             title={h.label}
@@ -1959,6 +1960,8 @@
     cursor: move;
   }
   .gizmo-handle::before { content: ''; position: absolute; inset: -4px; }
+  .gizmo-handle[data-offset] { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--sv-surface-panel); background: var(--sv-accent-fill); }
+  .gizmo-handle[data-offset]::before { inset: -7px; border-radius: 50%; }
   .gizmo-handle[data-tone='x'],
   .gizmo-handle[data-tone='y'],
   .gizmo-handle[data-tone='z'] { width: 9px; height: 9px; border-radius: 50%; }

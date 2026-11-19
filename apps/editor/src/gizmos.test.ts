@@ -1,6 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { gizmoFor } from './gizmos';
 
+describe('crosshatch controls', () => {
+  const bounds = { x: 0, y: 0, width: 200, height: 100 };
+  it('drags offset with a comfortable travel and snaps to quarter cells', () => {
+    const p = { spacing: 10, angle: 0, offset: [0.2, 0.3] };
+    const g = gizmoFor('crosshatch', p, bounds)!;
+    const h = g.handles.find((h) => h.label === 'Offset')!;
+    expect(h.drag(p, [0, 0], [30, -60], false)).toEqual({ offset: [0.7, -0.7] });
+    expect(h.drag(p, [0, 0], [1, 0], true)).toEqual({ offset: [0.25, 0.25] });
+  });
+
+  it('rotates the angle handle and adjusts spacing across the lines', () => {
+    const p = { spacing: 10, angle: 0 };
+    const g = gizmoFor('crosshatch', p, bounds)!;
+    const angle = g.handles.find((h) => h.label === 'Angle')!;
+    expect(angle.drag(p, [60, 0], [0, 60], false)).toEqual({ angle: 90 });
+    const spacing = g.handles.find((h) => h.label === 'Spacing')!;
+    expect(spacing.drag(p, [0, 30], [0, 60], false)).toEqual({ spacing: 20 });
+    expect(spacing.drag(p, [0, 30], [0, -300], false)).toEqual({ spacing: 1 });
+  });
+
+  it('uses scene axes for fixed lines on a rotated and scaled object', () => {
+    const p = { spacing: 6, angle: 0, fixLines: true };
+    const g = gizmoFor('crosshatch', p, bounds, [0, 2, -2, 0, 30, 40])!;
+    const offset = g.handles.find((h) => h.label === 'Offset')!;
+    expect(offset.drag(p, [0, 0], [30, 0], false)).toEqual({ offset: [0, 1] });
+    const spacing = g.handles.find((h) => h.label === 'Spacing')!;
+    expect(spacing.drag(p, [0, 0], [9, 0], false)).toEqual({ spacing: 12 });
+  });
+});
+
 const box = { x: 0, y: 0, width: 200, height: 100 };
 
 describe('gizmos', () => {

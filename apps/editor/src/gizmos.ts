@@ -1,7 +1,7 @@
 // Actuadores en el lienzo: el «wire» de un efecto (la esfera de Spherize, los anillos de Rotate 3D…)
 // y los tiradores que cambian sus parámetros. Todo en coordenadas locales del nodo (las de su caja
 // de referencia); el lienzo los lleva a pantalla con la matriz del nodo.
-import type { Bounds, Vec2 } from '@svertik/engine';
+import { apply, IDENTITY, invert, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
 
 type Params = Record<string, unknown>;
 
@@ -601,7 +601,49 @@ Object.assign(builders, {
   },
 } satisfies Record<string, (p: Params, b: Bounds) => Gizmo>);
 
-export function gizmoFor(type: string, params: Params, bounds: Bounds): Gizmo | null {
+export function gizmoFor(type: string, params: Params, bounds: Bounds, world: Mat = IDENTITY): Gizmo | null {
+  if (type === 'crosshatch') return crosshatchGizmo(params, bounds, world);
   const build = builders[type];
   return build && bounds.width + bounds.height > 0 ? build(params, bounds) : null;
+}
+
+/** Crosshatch's offset is measured in spacing units, rather than box fractions. */
+function crosshatchGizmo(p: Params, b: Bounds, world: Mat): Gizmo {
+  const fixed = p.fixLines === true;
+  const toScreenSpace = (q: Vec2) => fixed ? apply(world, q) : q;
+  const inverse = invert(world);
+  const toLocal = (q: Vec2) => fixed ? apply(inverse, q) : q;
+  const spacing = Math.max(1, Number(p.spacing ?? 6));
+  const offset = (p.offset as Vec2 | undefined) ?? [0, 0];
+  // Keep the actuator near the object even when the scene's screen origin is far away.
+  const boxOrigin = toScreenSpace([b.x, b.y]);
+  const origin: Vec2 = fixed ? [Math.round(boxOrigin[0] / spacing) * spacing, Math.round(boxOrigin[1] / spacing) * spacing] : boxOrigin;
+  const c: Vec2 = [origin[0] + (offset[0] % 1) * spacing, origin[1] + (offset[1] % 1) * spacing];
+  const angle = Number(p.angle ?? 45), a = rad(angle);
+  const u: Vec2 = [Math.cos(a), Math.sin(a)], v: Vec2 = [-u[1], u[0]];
+  const worldScale = fixed ? Math.hypot(world[0], world[1]) : 1;
+  const arm = Math.max(32, sizeOf(b) * worldScale * 0.3);
+  // A separate offset handle follows the pointer continuously. One cell takes a comfortable
+  // drag, independent of the much smaller screen spacing; its display never wraps at a cell.
+  const offsetTravel = Math.max(60, spacing * 4);
+  const offsetAt: Vec2 = [origin[0] - v[0] * 40 + offset[0] * offsetTravel, origin[1] - v[1] * 40 + offset[1] * offsetTravel];
+  const point = (along: number, across: number): Vec2 => toLocal([c[0] + u[0] * along + v[0] * across, c[1] + u[1] * along + v[1] * across]);
+  return {
+    lines: [
+      ...[-2, -1, 0, 1, 2, 3].map((i) => ({ pts: [point(-arm, i * spacing), point(arm, i * spacing)], dashed: true })),
+    ],
+    handles: [
+      { at: toLocal(offsetAt), label: 'Offset', drag: (p0, from, to, snap) => {
+        const start = toScreenSpace(from), end = toScreenSpace(to);
+        const old = (p0.offset as Vec2 | undefined) ?? [0, 0];
+        return { offset: old.map((value, i) => round(value + (end[i]! - start[i]!) / offsetTravel, snap ? 4 : 1000)) };
+      } },
+      { at: point(arm, 0), label: 'Angle', drag: (p0, from, to, snap) => ({ angle: snapDeg(Number(p0.angle ?? 45) + turn(c, toScreenSpace(from), toScreenSpace(to)), snap) }) },
+      { at: point(0, spacing * 3), label: 'Spacing', drag: (p0, from, to, snap) => {
+        const start = toScreenSpace(from), end = toScreenSpace(to);
+        const delta = ((end[0] - start[0]) * v[0] + (end[1] - start[1]) * v[1]) / 3;
+        return { spacing: round(Math.max(1, Math.min(100, Number(p0.spacing ?? 6) + delta)), snap ? 1 : 100) };
+      } },
+    ],
+  };
 }

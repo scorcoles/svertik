@@ -105,13 +105,14 @@ interface Hit {
   style: Style;
   rgba: [number, number, number, number];
   /** Paint that produced the hit: solid colour or a gradient to sample at the point. */
-  paint: { solid: string } | { grad: Gradient; bbox: [number, number, number, number] };
+  paint: { solid: string } | { grad: Gradient; bbox: [number, number, number, number]; stops: SampleStop[] };
   opacity: number;
 }
-interface Layer {
+export interface Layer {
   box: [number, number, number, number];
   bbox: [number, number, number, number];
   polys: Vec2[][];
+  fillIndex?: FillIndex;
   evenodd: boolean;
   fill: Hit | null;
   stroke: { hit: Hit; half: number } | null;
@@ -130,7 +131,8 @@ function paintOf(value: string | undefined, gradients: Gradient[] | undefined): 
   return { solid: value };
 }
 
-function prepare(s: Shape): Layer | null {
+/** `tolerance`: how far (px) the flattened outline may stray from the curves. */
+export function prepare(s: Shape, tolerance = 8): Layer | null {
   const st = s.style;
   const fillPaint = paintOf(st.fill ?? '#000000', s.gradients);
   const strokePaint = paintOf(st.stroke, s.gradients);
@@ -146,11 +148,11 @@ function prepare(s: Shape): Layer | null {
     if (st['mix-blend-mode']) style['mix-blend-mode'] = st['mix-blend-mode'];
     const rgba0 = 'solid' in paint ? (parseColor(paint.solid) ?? [0, 0, 0, 1]) : [0, 0, 0, 1];
     const a0 = rgba0[3] ?? 1;
-    return { style, rgba: [rgba0[0]!, rgba0[1]!, rgba0[2]!, a0 * o], paint: 'solid' in paint ? paint : { grad: paint.grad, bbox }, opacity: o };
+    return { style, rgba: [rgba0[0]!, rgba0[1]!, rgba0[2]!, a0 * o], paint: 'solid' in paint ? paint : { grad: paint.grad, bbox, stops: paint.grad.stops.map((s) => ({ offset: s.offset, rgba: stopRgba(s) })).sort((a, b) => a.offset - b.offset) }, opacity: o };
   };
   const closed = s.subpaths.filter((sp) => sp.closed);
-  const polys = fillPaint ? closed.map((sp) => flatten(sp, 8)) : [];
-  const lines = strokePaint && width > 0 ? s.subpaths.map((sp) => { const pts = flatten(sp, 8); if (sp.closed) pts.push(sp.start); return pts; }) : [];
+  const polys = fillPaint ? closed.map((sp) => flatten(sp, tolerance)) : [];
+  const lines = strokePaint && width > 0 ? s.subpaths.map((sp) => { const pts = flatten(sp, tolerance); if (sp.closed) pts.push(sp.start); return pts; }) : [];
   if (!polys.length && !lines.length) return null;
   const half = lines.length ? width / 2 : 0;
   let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
@@ -160,6 +162,7 @@ function prepare(s: Shape): Layer | null {
     box: [bx0 - half, by0 - half, bx1 + half, by1 + half],
     bbox,
     polys,
+    fillIndex: fillPaint ? fillIndex(polys, by0, by1) : undefined,
     evenodd: st['fill-rule'] === 'evenodd',
     fill: fillPaint && polys.length ? hitFor(fillPaint, Number(st['fill-opacity'] ?? 1), bbox) : null,
     stroke: lines.length ? { hit: hitFor(strokePaint!, Number(st['stroke-opacity'] ?? 1), bbox), half } : null,
@@ -168,7 +171,7 @@ function prepare(s: Shape): Layer | null {
   };
 }
 
-function colorAt(layers: Layer[], q: Vec2): { rgba: [number, number, number, number]; style: Style; gradients?: Gradient[] } | null {
+export function colorAt(layers: Layer[], q: Vec2, resolveColor = true): { rgba: [number, number, number, number]; style: Style; gradients?: Gradient[] } | null {
   for (let n = layers.length - 1; n >= 0; n--) {
     const l = layers[n]!;
     if (q[0] < l.box[0] || q[0] > l.box[2] || q[1] < l.box[1] || q[1] > l.box[3]) continue;
@@ -179,11 +182,12 @@ function colorAt(layers: Layer[], q: Vec2): { rgba: [number, number, number, num
         : nearLines(l.lines, q, l.stroke.half)
       : false;
     if (near) hit = l.stroke!.hit;
-    else if (l.fill && insideFill(l.polys, q, l.evenodd)) hit = l.fill;
+    else if (l.fill && (l.fillIndex ? insideIndexed(l.fillIndex, q, l.evenodd) : insideFill(l.polys, q, l.evenodd))) hit = l.fill;
     if (!hit) continue;
     if ('grad' in hit.paint) {
-      const c = sampleGradient(hit.paint.grad, q, hit.paint.bbox);
+      const c = sampleGradient(hit.paint.grad, q, hit.paint.bbox, hit.paint.stops);
       const rgba: [number, number, number, number] = [c[0], c[1], c[2], c[3] * hit.opacity];
+      if (!resolveColor) return { rgba, style: hit.style };
       const hex = toHex([rgba[0], rgba[1], rgba[2], 1]);
       const style: Style = { ...hit.style, fill: hex };
       if (rgba[3] < 1) style.opacity = String(rgba[3]);
@@ -195,7 +199,7 @@ function colorAt(layers: Layer[], q: Vec2): { rgba: [number, number, number, num
   return null;
 }
 
-function sampleGradient(g: Gradient, [x, y]: Vec2, [bx, by, bw, bh]: [number, number, number, number]): [number, number, number, number] {
+function sampleGradient(g: Gradient, [x, y]: Vec2, [bx, by, bw, bh]: [number, number, number, number], stops: SampleStop[]): [number, number, number, number] {
   const u = (x - bx) / bw, v = (y - by) / bh;
   let t = 0;
   if (g.kind === 'linear') {
@@ -229,23 +233,45 @@ function sampleGradient(g: Gradient, [x, y]: Vec2, [bx, by, bw, bh]: [number, nu
     const m = t % 2;
     t = m <= 1 ? m : 2 - m;
   }
-  return sampleStops(g.stops, t);
+  return sampleStops(stops, t);
 }
 
-function sampleStops(stops: { offset: number; color: string; opacity?: number }[], t: number): [number, number, number, number] {
+interface SampleStop { offset: number; rgba: [number, number, number, number] }
+
+function sampleStops(stops: SampleStop[], t: number): [number, number, number, number] {
   if (!stops.length) return [0, 0, 0, 1];
-  const s = [...stops].sort((a, b) => a.offset - b.offset);
-  if (t <= s[0]!.offset) return stopRgba(s[0]!);
-  if (t >= s[s.length - 1]!.offset) return stopRgba(s[s.length - 1]!);
+  const s = stops;
+  if (t <= s[0]!.offset) return s[0]!.rgba;
+  if (t >= s[s.length - 1]!.offset) return s[s.length - 1]!.rgba;
   for (let i = 0; i < s.length - 1; i++) {
     const a = s[i]!, b = s[i + 1]!;
     if (t >= a.offset && t <= b.offset) {
       const tt = b.offset === a.offset ? 0 : (t - a.offset) / (b.offset - a.offset);
-      const ca = stopRgba(a), cb = stopRgba(b);
+      const ca = a.rgba, cb = b.rgba;
       return [ca[0] + (cb[0] - ca[0]) * tt, ca[1] + (cb[1] - ca[1]) * tt, ca[2] + (cb[2] - ca[2]) * tt, ca[3] + (cb[3] - ca[3]) * tt];
     }
   }
-  return stopRgba(s[s.length - 1]!);
+  return s[s.length - 1]!.rgba;
+}
+
+/** Restrict each lookup to nearby pieces without changing their paint order. */
+export function colorSampler(layers: Layer[], resolveColor = true): (q: Vec2) => ReturnType<typeof colorAt> {
+  if (layers.length < 8) return (q) => colorAt(layers, q, resolveColor);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const { box: b } of layers) {
+    x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]);
+    x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]);
+  }
+  const cells = Math.min(32, Math.ceil(Math.sqrt(layers.length * 4)));
+  const cw = Math.max(x1 - x0, 1e-6) / cells, ch = Math.max(y1 - y0, 1e-6) / cells;
+  const col = (x: number) => Math.max(0, Math.min(cells - 1, Math.floor((x - x0) / cw)));
+  const row = (y: number) => Math.max(0, Math.min(cells - 1, Math.floor((y - y0) / ch)));
+  const buckets: Layer[][] = Array.from({ length: cells * cells }, () => []);
+  for (const l of layers) {
+    const a = col(l.box[0]), b = col(l.box[2]), c = row(l.box[1]), d = row(l.box[3]);
+    for (let y = c; y <= d; y++) for (let x = a; x <= b; x++) buckets[y * cells + x]!.push(l);
+  }
+  return (q) => q[0] < x0 || q[0] > x1 || q[1] < y0 || q[1] > y1 ? null : colorAt(buckets[row(q[1]) * cells + col(q[0])]!, q, resolveColor);
 }
 function stopRgba(stop: { color: string; opacity?: number }): [number, number, number, number] {
   const c = parseColor(stop.color) ?? [0, 0, 0, 1];
@@ -253,7 +279,7 @@ function stopRgba(stop: { color: string; opacity?: number }): [number, number, n
 }
 
 /** Perceived darkness 0..1 (1 = black/opaque). */
-function darkness([r, g, b, a]: [number, number, number, number]): number {
+export function darkness([r, g, b, a]: [number, number, number, number]): number {
   const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
   // treat transparency as light/paper
   return (1 - lum) * a;
@@ -357,6 +383,38 @@ export function insideFill(polys: Vec2[][], [x, y]: Vec2, evenodd: boolean): boo
     }
   }
   return evenodd ? odd : wind !== 0;
+}
+
+interface FillIndex { y0: number; height: number; rows: number[][] }
+
+/** Only contour edges spanning a sample's Y can intersect its horizontal test ray. */
+function fillIndex(polys: Vec2[][], y0: number, y1: number): FillIndex | undefined {
+  const edges = polys.reduce((n, p) => n + p.length, 0);
+  if (edges < 64 || !(y1 > y0)) return undefined;
+  const count = Math.min(128, Math.ceil(Math.sqrt(edges) * 4));
+  const height = (y1 - y0) / count;
+  const rows: number[][] = Array.from({ length: count }, () => []);
+  for (const p of polys) for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const [xi, yi] = p[i]!, [xj, yj] = p[j]!;
+    if (yi === yj) continue;
+    const first = Math.max(0, Math.floor((Math.min(yi, yj) - y0) / height));
+    const last = Math.min(count - 1, Math.floor((Math.max(yi, yj) - y0) / height));
+    for (let row = first; row <= last; row++) rows[row]!.push(xi, yi, xj, yj);
+  }
+  return { y0, height, rows };
+}
+
+function insideIndexed(index: FillIndex, [x, y]: Vec2, evenodd: boolean): boolean {
+  const row = index.rows[Math.max(0, Math.min(index.rows.length - 1, Math.floor((y - index.y0) / index.height)))]!;
+  let winding = 0, odd = false;
+  for (let i = 0; i < row.length; i += 4) {
+    const xi = row[i]!, yi = row[i + 1]!, xj = row[i + 2]!, yj = row[i + 3]!;
+    if (yj <= y !== yi <= y && x < xj + ((y - yj) * (xi - xj)) / (yi - yj)) {
+      odd = !odd;
+      winding += yi > yj ? 1 : -1;
+    }
+  }
+  return evenodd ? odd : winding !== 0;
 }
 
 export function flatten(sp: SubPath, max: number): Vec2[] {
