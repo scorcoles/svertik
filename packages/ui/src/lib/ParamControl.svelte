@@ -5,6 +5,7 @@
   import ColorField from './ColorField.svelte';
   import IconButton from './IconButton.svelte';
   import PaintField from './PaintField.svelte';
+  import PivotSelect from './PivotSelect.svelte';
   import type { IconName } from './icons';
   import NumberField from './NumberField.svelte';
   import NodeTargets from './NodeTargets.svelte';
@@ -94,6 +95,7 @@
   const icons = $derived(spec.type === 'enum' && spec.options.every((o) => WAVE_ICONS[o]) ? WAVE_ICONS : ICONS);
   // Botones en vez de desplegable: con pocas opciones, o si todas tienen icono.
   const segmented = $derived(spec.type === 'enum' && (spec.options.length <= 3 || spec.options.every((o) => icons[o])));
+  const pivotSelector = $derived(spec.type === 'enum' && name === 'pivot' && spec.options.length === 9 && spec.options.includes('center') && spec.options.includes('nw') && spec.options.includes('se'));
 </script>
 
 {#if spec.type === 'nodes'}
@@ -165,6 +167,8 @@
         />
       </span>
     {/if}
+  {:else if pivotSelector}
+    <PivotSelect value={value as string} {label} onchange={(v) => onchange(v)} />
   {:else if spec.type === 'enum' && segmented}
     <Segmented value={value as string} {label} options={spec.options.map((o) => ({ value: o, label: o, icon: icons[o] }))} {onchange} />
   {:else if spec.type === 'enum'}
