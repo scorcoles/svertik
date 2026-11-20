@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type Geometry, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
+  import { hatchObjectAt } from './hit-regions';
   import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
   import TextEdit from './TextEdit.svelte';
   import DropArea from './DropArea.svelte';
@@ -33,6 +34,8 @@
     editor.fontsTick++;
   }
   let result = $state<SVGSVGElement>();
+  let wireHits = $state<SVGSVGElement>();
+  let paintedGeometry = $state.raw<Geometry | null>(null);
   let ghost = $state<SVGSVGElement>();
   let stage = $state<HTMLDivElement>();
   let renderError = $state<string | null>(null);
@@ -61,35 +64,7 @@
     items.forEach(visit);
     return found.slice(0, 4);
   }
-  function wireBodyKinds(scene: SceneV1) {
-    const kinds = new Map<string, 'fixed' | 'mobile'>();
-    const visit = (items: SceneNode[], active = false, inherited?: 'fixed' | 'mobile') => {
-      for (const node of items) {
-        const simulation = active || node.stack?.some((m) => m.enabled !== false && ['physics', 'gravity'].includes(m.type));
-        const rigidBody = node.stack?.find((m) => m.enabled !== false && m.type === 'rigidbody');
-        const kind = rigidBody ? (rigidBody.params?.immovable === true ? 'fixed' : 'mobile') : simulation ? inherited ?? 'mobile' : undefined;
-        if (simulation && kind) kinds.set(node.id, kind);
-        if (node.children?.length) visit(node.children, simulation, kind);
-        if (node.kind === 'group' && node.composition) visit(node.composition.scene.objects, simulation, kind);
-      }
-    };
-    visit(scene.objects);
-    return kinds;
-  }
-  function updateWirePatterns() {
-    if (!result) return;
-    let defs = result.querySelector(':scope > defs[data-wire-hatch]');
-    if (!editor.showWire) { defs?.remove(); return; }
-    if (!defs) {
-      defs = result.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'defs');
-      defs.setAttribute('data-wire-hatch', '');
-      result.append(defs);
-    }
-    const size = 8 / Math.max(view.zoom, 0.001), stroke = 1 / Math.max(view.zoom, 0.001);
-    defs.innerHTML = [
-      ['mobile', '#22d3ee'], ['fixed', '#facc15'],
-    ].map(([kind, color]) => `<pattern id="wire-hatch-${kind}" patternUnits="userSpaceOnUse" width="${size}" height="${size}" patternTransform="rotate(45)"><path d="M0 0V${size}" fill="none" stroke="${color}" stroke-width="${stroke}"/></pattern>`).join('');
-  }
+  function updateWirePatterns() { if (result) refreshWirePatterns(result, editor.showWire); }
   let dropping = $state(false);
   /**
    * Encuadre del lienzo, en coordenadas del documento. Se fija al abrir y con Fit (⇧1);
@@ -124,6 +99,7 @@
         framed = true;
       }
       renderInto(result, doc.geometry);
+      paintedGeometry = doc.geometry;
       const colors = wireColors(scene);
       const bodyKinds = wireBodyKinds(scene);
       updateWirePatterns();
@@ -178,6 +154,23 @@
   });
 
   // Pan and zoom only update the viewport; they must not reevaluate the scene geometry.
+  $effect(() => {
+    void paintedGeometry;
+    if (!result) return;
+    const current = editor.current;
+    const ranges: string[] = [];
+    const visit = (stack: { id: string; type: string; children?: unknown[] }[]) => {
+      for (const item of stack) { if (item.type === 'range') ranges.push(item.id); if (item.children) visit(item.children as typeof stack); }
+    };
+    if (editor.currentNode) visit(editor.currentNode.stack);
+    highlightWireRange(result, current?.type === 'range' ? current.id : null, Math.max(0, ranges.indexOf(current?.id ?? '')));
+  });
+  $effect(() => {
+    if (!wireHits || !paintedGeometry) return;
+    // Keep the original fill, stroke width, opacity and masks for interaction. Wire is only paint.
+    renderInto(wireHits, paintedGeometry);
+    wireHits.setAttribute('viewBox', viewBox.join(' '));
+  });
   $effect(() => {
     const box = viewBox.join(' ');
     const wireWidth = `${1 / Math.max(view.zoom, 0.001)}px`;
@@ -1058,7 +1051,12 @@
     if (space || e.button !== 0 || !editor.scene) return;
     if (editor.tool === 'pen') return drawPen(e);
     if (editor.tool) return drawShape(e);
-    const id = (e.target as Element).closest?.('path[data-node], image[data-node]')?.getAttribute('data-node');
+    let id = (e.target as Element).closest?.('path[data-node], image[data-node]')?.getAttribute('data-node');
+    if (!id && paintedGeometry) {
+      const p = clientToDoc(e.clientX, e.clientY);
+      const insideClip = p && (!editor.hideOutside || (p[0] >= docViewBox[0] && p[0] <= docViewBox[0] + docViewBox[2] && p[1] >= docViewBox[1] && p[1] <= docViewBox[1] + docViewBox[3]));
+      if (p && insideClip) id = hatchObjectAt(editor.scene, paintedGeometry, nodes, p[0], p[1]);
+    }
     if (id && editor.isLocked(id)) return;
     if (!id) {
       if (!e.shiftKey) editor.selected = null;
@@ -1441,6 +1439,7 @@
           {/each}
         {/if}
         <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
+        {#if editor.showWire}<svg class="wire-hits" bind:this={wireHits} aria-hidden="true"></svg>{/if}
         {#if editor.showBounds}
           {@const [bx, by, bw, bh] = docViewBox}
           {@const fixed = !!editor.scene.document}
@@ -1754,7 +1753,7 @@
     background: var(--canvas, #b0b0b0);
   }
   /* Wire view: a fixed dark background behind the grey wires, whatever canvas colour the user picked. */
-  .canvas[data-wire] { background: var(--sv-surface-field); }
+  .canvas[data-wire] { background: #101216; }
   /* No scene yet: the night console, not the default document colour (which new documents still get). */
   .canvas[data-empty] { background: var(--sv-surface-app); }
   .canvas[data-dragging] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -8px; }
@@ -1972,6 +1971,8 @@
   .stage[data-space] .gizmo-handle,
   .stage[data-space] .gizmo .hit { pointer-events: none; }
   .ghost { opacity: 0.2; }
+  .result.wire { pointer-events: none; }
+  .wire-hits { opacity: 0; }
   /* Onion skin tint: before the playhead bluish, after it greenish (as in classic animation tools). */
   .onion { pointer-events: none; }
   .onion[data-side='before'] { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(4); }
@@ -1984,6 +1985,8 @@
     vector-effect: non-scaling-stroke;
   }
   .wire :global(path[data-svertik-shape][data-wire-body]) { fill: var(--wire-fill) !important; }
+  .wire :global(path[data-svertik-shape][data-wire-selected]) { stroke: var(--wire-selection-color, #ff6b9d) !important; }
+  .wire :global(path[data-svertik-shape][data-wire-body][data-wire-selected]) { fill: url(#wire-hatch-selected) !important; }
   .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-11); }
   .canvas > .error { position: absolute; top: 28px; left: var(--sv-space-12); }
 </style>

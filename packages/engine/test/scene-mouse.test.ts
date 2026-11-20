@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { builtins, createEngine, createMouseInstances, createPlayer, evaluateExpression, evaluateSceneExpressions, validateExpression, walkNodes, type Engine, type GroupNode, type SceneV1 } from '../src';
+import { builtins, createEngine, createMouseInstances, createPlayer, evaluateExpression, evaluateSceneExpressions, validateExpression, walkNodes, type Engine, type GroupNode, type SceneV1, type ShapeNode } from '../src';
 
 const base = { time: 0, frame: 0, fps: 30, duration: 10, progress: 0, seedGenerator: 1, custom: {} };
 const rect = (x: unknown): SceneV1 => ({
@@ -23,11 +23,11 @@ describe('scene.mouse.*', () => {
   it('resolves in a scene from its runtime pointer, and defaults to the document centre', () => {
     const s = rect({ $expr: 'scene.mouse.posX * 2', fallback: 0 }) as SceneV1;
     (s.objects[0] as { params: Record<string, unknown> }).params.width = { $expr: 'scene.mouse.posX', fallback: 1 };
-    const none = evaluateSceneExpressions(s).objects[0] as { params: { width: number } };
+    const none = evaluateSceneExpressions(s).objects[0] as ShapeNode;
     expect(none.params.width).toBe(0);
-    const moved = evaluateSceneExpressions({ ...s, pointer: { posX: 30 } }).objects[0] as { params: { width: number } };
+    const moved = evaluateSceneExpressions({ ...s, pointer: { posX: 30 } }).objects[0] as ShapeNode;
     expect(moved.params.width).toBe(30);
-    const off = evaluateSceneExpressions({ ...s, document: { width: 400, height: 200, x: 50 } }).objects[0] as { params: { width: number } };
+    const off = evaluateSceneExpressions({ ...s, document: { width: 400, height: 200, x: 50 } }).objects[0] as ShapeNode;
     expect(off.params.width).toBe(50);
   });
 

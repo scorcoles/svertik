@@ -19,7 +19,8 @@ export const apply = ([a, b, c, d, e, f]: Mat, [x, y]: Vec2): Vec2 => [a * x + c
 /** A reference box following placement and scale, with its axes kept on the scene horizon. */
 export function uprightBounds(b: Bounds, m: Mat): Bounds {
   const c = apply(m, [b.x + b.width / 2, b.y + b.height / 2]);
-  const width = b.width * Math.hypot(m[0], m[1]), height = b.height * Math.hypot(m[2], m[3]);
+  const size = Math.max(b.width, b.height) || 1;
+  const width = (b.width || size) * Math.hypot(m[0], m[1]), height = (b.height || size) * Math.hypot(m[2], m[3]);
   return { x: c[0] - width / 2, y: c[1] - height / 2, width, height };
 }
 

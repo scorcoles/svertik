@@ -98,7 +98,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     let ref = b;
     let reusable = true;
     scene.stack.forEach((inst, i) => {
-      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
+      const key = JSON.stringify([inst.id, inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? []]);
       const cached = steps[i];
       if (reusable && cached && cached.key === key) {
         geo = cached.geo;
@@ -109,7 +109,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         if (!def) throw new Error(`svertik: unknown modifier "${inst.type}"`);
         // Filters and masks don't change the geometry (they apply when the object is painted).
         if (inst.enabled !== false && def.kind !== 'filter' && !def.mask) {
-          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, bounds: ref, children: resolveChildren(inst.children) }));
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { ...ctx, id: inst.id, bounds: ref, children: resolveChildren(inst.children) }));
           if (def.reframe) {
             const nb = bounds(geo);
             if (nb.width > 0 || nb.height > 0) ref = nb;
@@ -127,7 +127,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     return children.map((c) => {
       const def = registry.get(c.type);
       if (!def) throw new Error(`svertik: unknown modifier "${c.type}"`);
-      return { def, params: resolveParams(def.params, c.params), enabled: c.enabled !== false, children: resolveChildren(c.children) };
+      return { id: c.id, def, params: resolveParams(def.params, c.params), enabled: c.enabled !== false, children: resolveChildren(c.children) };
     });
   }
 
@@ -146,7 +146,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
     stack.forEach((inst, i) => {
       if (refs) refs[inst.id] = ref;
-      const key = JSON.stringify([inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? [], inst.scene ?? 0]);
+      const key = JSON.stringify([inst.id, inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? [], inst.scene ?? 0]);
       const cached = memo?.steps[i];
       if (reuse && cached && cached.key === key && !cached.dynamic) {
         geo = cached.geo;
@@ -164,7 +164,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
           // What depends on its past is redone every time (the past can change without its input changing).
           const own = def.history ? history?.(inst) : undefined;
           if (own) dynamic = true;
-          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}) }));
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { id: inst.id, bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}) }));
           if (def.reframe) {
             const b = bounds(geo);
             if (b.width > 0 || b.height > 0) ref = b;

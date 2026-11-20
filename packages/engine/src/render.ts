@@ -277,6 +277,8 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
     } else path.setAttribute('d', toPathData(shape, precision, true));
     if (shape.node) path.setAttribute('data-node', shape.node);
     else path.removeAttribute('data-node');
+    if (shape.rangeSelections?.length) path.setAttribute('data-ranges', JSON.stringify(shape.rangeSelections));
+    else path.removeAttribute('data-ranges');
     // Style attributes it no longer has (an opacity, a stroke…) are removed: otherwise it would keep
     // the previous frame's. The renderer remembers which ones it set in data-svertik.
     const before = (path.getAttribute('data-svertik') ?? '').split(' ').filter(Boolean);

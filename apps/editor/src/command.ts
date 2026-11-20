@@ -38,7 +38,7 @@ const CATEGORY: Record<string, string> = {
  * Effects shown in another menu than their kind's. Rigid body is a deformer in the engine (it tags its
  * geometry), but it only means something under Physics, so it sits next to it, in Effect.
  */
-const MENU_OF: Record<string, string> = { rigidbody: 'Effect' };
+const MENU_OF: Record<string, string> = { rigidbody: 'Effect', softbody: 'Effect' };
 
 /** The menu category a definition belongs to ("Deform"…), so the UI uses the same words as the top bar. */
 export const categoryOf = (d: { type?: string; kind?: string; family?: string }) => (d.type && MENU_OF[d.type]) || (CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other');

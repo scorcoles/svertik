@@ -13,7 +13,7 @@ export { setSVGImporter, hasSVGImporter, type SVGImporter } from './importer';
 // Las fuentes: una web que incruste el reproductor puede darle las suyas (con `registerFont`),
 // en vez de que se bajen de Fontsource.
 export { registerFont, fontKey, fontNames, hasFont } from './fonts';
-export { wireColors, wireCSS, installWire, type WireOptions } from './wire';
+export { wireColors, wireBodyKinds, updateWirePatterns, wireCSS, installWire, type WireOptions } from './wire';
 export { isScene, viewportFit, VIEWPORT_ASPECT, POINTER_FIELDS, CLOCK_FIELDS, type ScenePointer, type SceneRuntime, type ViewportFit, type SceneV1, type SceneNode, type ShapeNode, type ObjectNode, type GroupNode } from './scene';
 export { effectTypes } from './modifiers/manifest';
 // The heavy kernels (WebAssembly). `prepareScene` loads them when the scene needs them; this is for

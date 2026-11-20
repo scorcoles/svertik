@@ -68,6 +68,7 @@ type ValueOf<S extends ParamSpec> = S['default'];
 export type ParamValues<P extends ParamSchema> = { [K in keyof P]: ValueOf<P[K]> };
 
 export interface ResolvedModifier {
+  id?: string;
   def: ModifierDef<any>;
   params: Record<string, unknown>;
   enabled: boolean;
@@ -75,6 +76,8 @@ export interface ResolvedModifier {
 }
 
 export interface ModifierContext {
+  /** Saved effect identity, for diagnostic element-selection provenance. */
+  id?: string;
   /** Box of the source drawing: a stable reference for relative parameters (fractions). */
   bounds: Bounds;
   /** Maximum segment length when subdividing before deforming, in SVG units. */

@@ -64,6 +64,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   trim: one(() => import('./trim'), 'trim'),
   // Effect (per element)
   gravity: one(() => import('./gravity'), 'gravity'),
+  softbody: one(() => import('./softbody'), 'softbody'),
   physics: one(() => import('./physics'), 'physics'),
   rigidbody: one(() => import('./rigidbody'), 'rigidbody'),
   field: one(() => import('./field'), 'field'),

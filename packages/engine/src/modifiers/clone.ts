@@ -78,7 +78,7 @@ export const clone = defineModifier({
           // 2 cells across are 2·W + gap wide (not 2·W).
           const sx = (cellWidth * W + (cellWidth - 1) * p.gap) / (W || 1);
           const sy = (cellHeight * H + (cellHeight - 1) * p.gap) / (H || 1);
-          copies.push({ dx: (gx - (cols - 1) / 2) * (W + p.gap), dy: (gy - (rows - 1) / 2) * (H + p.gap), rot: 0, scale: sx, sy, cells: cellWidth * cellHeight });
+          copies.push({ dx: (gx - (cols - 1) / 2) * (W + p.gap), dy: (gy - (rows - 1) / 2) * (H + p.gap), rot: 0, scale: sx, sy, cells: cellWidth * cellHeight, row: r, column: c });
         };
         const targetLarge = Math.round((cols * rows * p.largeRatio) / (1 + 3 * p.largeRatio));
         let largeCount = 0;
@@ -97,7 +97,7 @@ export const clone = defineModifier({
         }
       } else {
         for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-          copies.push({ dx: (c - (cols - 1) / 2) * p.spacing[0] * W, dy: (r - (rows - 1) / 2) * p.spacing[1] * H, rot: 0, scale: 1 });
+          copies.push({ dx: (c - (cols - 1) / 2) * p.spacing[0] * W, dy: (r - (rows - 1) / 2) * p.spacing[1] * H, rot: 0, scale: 1, row: r, column: c });
         }
       }
       if (p.fill < 1) fillGrid(copies, p.fill, p.fillDirection, p.fillAngle, p.fillSeed);
@@ -191,7 +191,7 @@ export const clone = defineModifier({
         const uy = (y - cy) * sy;
         return [cx + ux * c - uy * s + k.dx, cy + ux * s + uy * c + k.dy];
       });
-      shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index })));
+      shapes.push(...moved.shapes.map((s) => ({ ...s, clone: index, gridRow: k.row, gridColumn: k.column })));
     }
 
     const out: Geometry = { viewBox: geo.viewBox, shapes };
@@ -200,7 +200,7 @@ export const clone = defineModifier({
 });
 
 /** A copy: its offset, rotation and scale around the drawing's centre (`sy`: a different vertical scale; `cells`: grid cells it covers). */
-interface Copy { dx: number; dy: number; rot: number; scale: number; sy?: number; cells?: number }
+interface Copy { dx: number; dy: number; rot: number; scale: number; sy?: number; cells?: number; row?: number; column?: number }
 
 /** Grows the viewBox just enough to fit everything, with a 5 % margin. */
 export function fitViewBox([x, y, w, h]: [number, number, number, number], b: { x: number; y: number; width: number; height: number }): [number, number, number, number] {

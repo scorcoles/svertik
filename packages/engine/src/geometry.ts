@@ -26,7 +26,15 @@ export interface Impulse {
   immovable?: boolean;
 }
 
+export interface SoftMaterial {
+  mode: string; stiffness: number; bending: number; volume: number; damping: number; pins: string; segments: number;
+}
+
 export interface Shape {
+  /** Material properties only; motion is evaluated by Gravity or Physics. */
+  softBody?: SoftMaterial;
+  /** Range IDs which affect this element; diagnostic only, never scene state. */
+  rangeSelections?: string[];
   /** Runtime material frame, from pre-motion geometry to current stack coordinates. */
   patternTransform?: Mat;
   /** Runtime rigid-body grouping, independent of the per-element clone indices used by effectors. */
@@ -38,6 +46,9 @@ export interface Shape {
   style: Style;
   /** Copy number given by Clone (for effectors like Step). */
   clone?: number;
+  /** Original zero-based cell of a Clone grid (a packed tile uses its top-left cell). */
+  gridRow?: number;
+  gridColumn?: number;
   /** Mirror branch path, used to keep generated filters' raster regions local. */
   filterRegion?: string;
   /** Runtime input emission, shared by copies from one Mouse event. */

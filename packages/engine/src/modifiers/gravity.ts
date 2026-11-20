@@ -3,6 +3,7 @@ import { collisionBody, fallWorld, type CollisionBody, type CollisionWorld } fro
 import { fallBody, gravityBody, type FallPose } from './gravity-physics';
 import { defineModifier, deg, fromFraction } from '../modifier';
 import { apply, IDENTITY, invert, multiply, uprightBounds, type Mat } from '../matrix';
+import { hasSoftMaterial, materialDynamics } from './softbody-physics';
 
 const sceneInputs = new WeakMap<Geometry, { key: string; geo: Geometry }>();
 
@@ -95,8 +96,13 @@ export const gravity = defineModifier({
       });
       return inSpace(result, invert(world));
     }
-    const floor = fromFraction(ctx.bounds, p.floor);
+    const floor = fromFraction(uprightBounds(ctx.bounds, IDENTITY), p.floor);
     const angle = deg(p.rotation);
+    if (p.physics && hasSoftMaterial(geo)) {
+      const targets = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
+      const size = Math.max(ctx.bounds.width, ctx.bounds.height) || 1;
+      return materialDynamics(geo, time, { acceleration: [0, Math.max(0, p.gravity) * size], floor, rotation: angle, friction: p.friction, bounce: p.bounce, collisions: p.collisions }, targets, size);
+    }
     const nx = -Math.sin(angle), ny = Math.cos(angle);
     const fall = 0.5 * Math.max(0, p.gravity) * (Math.max(ctx.bounds.width, ctx.bounds.height) || 1) * time * time;
     let parts = bodyPlans.get(geo);

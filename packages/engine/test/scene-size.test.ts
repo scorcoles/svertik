@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { POINTER_FIELDS, describeSceneVariables, evaluateExpression, evaluateSceneExpressions, evaluateSceneVariables, validateExpression, type SceneV1 } from '../src';
+import { POINTER_FIELDS, describeSceneVariables, evaluateExpression, evaluateSceneExpressions, evaluateSceneVariables, validateExpression, type SceneV1, type ShapeNode } from '../src';
 
 const base = { time: 0, frame: 0, fps: 30, duration: 10, progress: 0, seedGenerator: 1, custom: {} };
 const shape = (document: SceneV1['document'], extra: Record<string, unknown> = {}): SceneV1 => ({
@@ -15,9 +15,9 @@ describe('scene.width / scene.height', () => {
   });
 
   it('take the document size in a scene, and are 0 without a fixed document', () => {
-    const sized = evaluateSceneExpressions(shape({ width: 900, height: 1400 })).objects[0] as { params: { width: number; height: number } };
+    const sized = evaluateSceneExpressions(shape({ width: 900, height: 1400 })).objects[0] as ShapeNode;
     expect(sized.params).toMatchObject({ width: 100, height: 1300 });
-    const free = evaluateSceneExpressions(shape(undefined)).objects[0] as { params: { width: number; height: number } };
+    const free = evaluateSceneExpressions(shape(undefined)).objects[0] as ShapeNode;
     expect(free.params).toMatchObject({ width: 0, height: -100 });
     expect(evaluateSceneVariables(shape({ width: 640, height: 480 }), 0)).toMatchObject({ width: 640, height: 480 });
   });

@@ -4,6 +4,7 @@ import { isNumericExpression } from './expression';
 import { parsePercent } from './units';
 import { signalSchemas } from './modifiers/signal-schemas';
 import { compositionParams } from './composition';
+import { nthSelector } from './modifiers/range';
 // Scene validation: what comes from a file, the code panel or a link.
 // - errors: the scene can't be used (something essential is missing or a type is unknown);
 // - warnings: it can be used, but something will be silently ignored (a misspelt parameter, a track
@@ -81,11 +82,14 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       mods.set(m.id, { inst: m, node });
       const where = `${path} › ${def.label} (${m.id})`;
       checkParams(def.params, m.params, where);
+      if (m.type === 'range' && m.params?.selector === 'nth' && !nthSelector((m.params.nth ?? '2n') as string)) warnings.push(`${where}: invalid An+B selector; no elements will be selected`);
       if (m.children !== undefined) checkStack(m.children, node, where);
     }
   };
 
-  const checkNodes = (list: SceneNode[], root = false) => {
+  const containsSoft = (stack: ModifierInstance[]): boolean => stack.some((m) => m.enabled !== false && (m.type === 'softbody' || containsSoft(m.children ?? [])));
+  const isSimulation = (m: ModifierInstance) => m.enabled !== false && ['gravity', 'physics'].includes(m.type);
+  const checkNodes = (list: SceneNode[], root = false, ancestorSimulation = false) => {
     if (root && list.some((n) => n?.kind === 'group' && n.layer)) {
       const loose = list.filter((n) => !(n?.kind === 'group' && n.layer));
       if (loose.length) warnings.push(`With layers, every top-level object must be a layer: ${loose.map((n) => `"${n?.name ?? n?.id}"`).join(', ')} ${loose.length === 1 ? 'is' : 'are'} outside any layer`);
@@ -133,6 +137,9 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
       n.stack ??= [];
       checkStack(n.stack, n, name(n));
+      let lastSimulation = -1;
+      n.stack.forEach((m, i) => { if (isSimulation(m)) lastSimulation = i; });
+      if (!ancestorSimulation && lastSimulation >= 0 && containsSoft(n.stack.slice(lastSimulation + 1))) warnings.push(`${name(n)}: Soft Body is after the last simulation; move the material before Gravity/Physics so it can affect the motion`);
       if (n.kind === 'group' && n.layer) {
         if (!root) errors.push(`${name(n)}: a layer must be a top-level object of its scene, not nested`);
         if (n.composition) errors.push(`${name(n)}: a layer cannot be a composition`);
@@ -157,7 +164,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       }
       if (n.children !== undefined || n.kind === 'group') {
         if (!Array.isArray(n.children)) errors.push(`${name(n)}: children must be an array`);
-        else checkNodes(n.children);
+        else checkNodes(n.children, false, ancestorSimulation || n.stack.some(isSimulation));
       }
     }
   };

@@ -498,6 +498,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - Canvas controls: the detached circular **Offset** handle slides the screen with reduced sensitivity and without wrapping its displayed position. **Angle** rotates the screen; **Spacing** changes the distance across the guide lines. Shift snaps Angle to 15°, Offset to quarter cells and Spacing to whole pixels. Arrow keys nudge the selected handle.
     - **Merge lines** off keeps every run as an independent element and Gravity body. On joins marks into one path per colour, while all those paths remain one rigid body, including in Original colour mode. This choice applies consistently to both Gravity Solids and the Floor. With Collisions enabled, strokes that start crossed are not forcibly pushed apart at playback start: their initial pair contact is ignored until they separate, then later contacts behave normally. Line width contributes to contacts; merged strokes collide through the convex envelope of their marks, so gaps inside that envelope are solid.
     - Stack order matters: `Polygon → Crosshatch → Gravity` drops individual strokes with Merge off, or the complete hatched drawing with Merge on. `Polygon → Gradient → Crack → Gravity → Crosshatch` moves the fragments first; with Fix lines off their hatching follows the Crack/Gravity/Transform material frame, while on samples a screen fixed to the scene.
+    - Editor selection uses the evaluated object bounds as a fallback between strokes, in both normal and Wire views. Moving or deforming the object moves this region; grabbing it does not require hitting an individual thread.
     - Sampling indexes nearby fragments and contour edges, and resolves gradient stops once per prepared input. It does not reduce the line density or colour resolution to improve performance.
 
 32. **`slices`** (Glitch family): Horizontal bands shifted laterally. Each band is an element.
@@ -542,8 +543,21 @@ Distribute modifier evaluation across elements. All container effectors accept n
     - `delay` (number, def 0.3, 0 to 1): Cascading delay offset between successive elements.
     - `jitter` (number, def 0, in positions): pushes each element's turn later by a random amount up to this many positions (seeded by `seed`), so a row keeps its order on the whole but neighbours may swap. The total length leaves room for the largest push, so it does not depend on the draw.
 
-42. **`range`**: Cardinal order selector. Modulates child modifiers based on element index in sequence.
-    - `start` (number, def 0, 0..1), `end` (number, def 1, 0..1), `offset` (number, def 0, -1..1), `smoothness` (number, def 0.2, 0..1)
+42. **`range`**: Selects elements for its nested effects, independently of the effects themselves.
+    - `selector` (`"all" | "even" | "odd" | "nth"`, default `"all"`; editor: **Select**). CSS-style positions are one-based: Even picks 2, 4, 6…; Odd picks 1, 3, 5… . Custom `nth` (text, default `"2n"`; editor: **An+B**) accepts `3n+2`, `-n+3`, a single index such as `4`, or `even`/`odd`. `n` starts at zero; invalid formulas select nothing and validation warns. This is a selector grammar, not JavaScript.
+    - `unit` (`"elements" | "words" | "lines" | "rows" | "columns"`, default `"elements"`). Lines means text lines; Rows/Columns means Clone Grid cells. For alternating grid rows: **Unit: Rows → Select: Odd**, then nest Transform with an X offset. Partial grids keep the original row/column numbers; packed tiles use their top-left cell. Non-grid shapes are not selected by Rows/Columns. A subsequent Clone replaces grid coordinates with its own grid; a non-grid Clone clears them.
+    - `start` / `end` (default 0 / 1) and `offset` (default 0) limit the selected band. They intersect with Select, rather than changing its parity. `amount` (default 1) scales the selected effects. `random` (default false) shuffles ordering reproducibly using `seed`; with Random order on, parity refers to that shuffled order.
+    - `shape` is still the saved JSON key, but the inspector calls it **Falloff**: Square applies a uniform amount; Ramp up/down, Triangle, Round and Smooth vary the amount within the band. It does not select objects or change their geometric shape. Use Square for a constant Transform on alternate rows.
+    - Wire highlights only the affected elements of the Range currently selected in the stack. Switching Range switches the highlight; selecting a different effect clears it. Ranges get stable colours from a five-colour palette. This is an editor diagnostic, with no effect on rendering, export or pointer handling.
+
+```json
+{
+  "id": "odd-rows",
+  "type": "range",
+  "params": { "unit": "rows", "selector": "odd", "shape": "square" },
+  "children": [{ "id": "shift-rows", "type": "transform", "params": { "x": 30 } }]
+}
+```
 
 43. **`field`**: Geometric falloff selector. Modulates child modifiers based on spatial distance to a field center.
     - `shape` (`"circle" | "linear" | "box"`, def `"circle"`), `center` (point, def [0.5, 0.5], fraction), `width` / `height` (circle and box, def 0.7, fraction of the drawing size; turned by `angle`), `distance` (linear, def 0.35, fraction), `contain` (`"center" | "full" | "partial"`, def `"center"`), `softness` (number, def 0.5, 0..1), `angle` (degrees), `invert` (boolean, def false), `amount` (0..1), `unit` (`"elements" | "words" | "lines"`). From an Effector node, fractions are of the document.
@@ -733,6 +747,22 @@ Falls each element (glyph, clone, fragment or independent shape) onto an infinit
 All numeric parameters and floor position support animation. Rigid bodies use uniform-area centres of mass and rotational inertia: off-centre contacts generate rotation, so unstable pieces tip onto a supporting face. Shapes sharing a clone tag move as one body, preserving paint order. Curves are sampled for mass/contact dynamics; exact cubic support prevents penetration of the rendered floor. Open paths use approximate mass properties. Crosshatch outputs explicit line bodies: their stroke width contributes to floor support and Solid contacts. With **Merge lines** off each line can rotate and settle independently on either surface. With Merge on, all colour paths stay together as one body and use the convex envelope of the marks for Solid contacts. When Collisions is enabled, the initial crossings in an unmerged screen do not create separation impulses: each initially overlapping pair becomes collidable after it separates. This state is included in deterministic seek/replay checkpoints. Other ordinary open paths still use floor-only dynamics; their stroke thickness is not included.
 
 Physics integrates fixed 120 Hz steps, with a fractional final step. Mass properties are cached per input geometry; quarter-second checkpoints and the last full step are reused, so advancing time does not replay the entire fall. Geometry or physics parameter changes invalidate those states. Seeking backwards and headless rendering are deterministic. The current gravity, floor, friction and bounce values are held constant during that replay: their earlier animated values are not integrated. Collisions between pieces are optional (`collisions: true`). The floor guide remains editor-only.
+
+### Soft Body material (`softbody`)
+
+**Effect → Soft Body**, beside Rigid body, defines a material. It does not move or deform the drawing by itself and has no Time, Gravity, Floor, Solids, friction or restitution controls. A following **Gravity**, or **Physics on an ancestor group**, owns the clock, forces and contacts. Each effect has one responsibility.
+
+- `mode`: `"auto"` (default) applies elasticity to both open fibres and closed bodies; `"fibers"` or `"bodies"` limits the material to that path type. Other path types keep rigid dynamics.
+- `stiffness`: 0–1, default `0.8`. The defaults aim at firm rubber: limited deformation on impact and quick recovery. Lower values soften the material.
+- `bending`: 0–1, default `0.15`, resistance to bending, especially for fibres.
+- `volume`: 0–1, default `0.9`; **Keep area** for closed contours, including holes.
+- `damping`: 0–1, default `0.4`. Damps internal deformation relative to the body's translation and rigid spin. It is not air drag and does not slow the fall of the whole body.
+- `pins`: `"free"` (default), `"start"` or `"ends"`, for fibre attachment. Rigid body's Immovable still pins a complete body; its velocity and spin provide initial motion.
+- `segments`: 4–64, default `24`; **Resolution**, approximate material samples per contour. Physics uses a coarse material cage based on contour length, retains authored vertices, and adapts subdivision for dense inputs. Rest-pose cubics, paint and gradients remain intact.
+
+For selected copies, use **Clone → Range (Transform + Soft Body) → Gravity**. Putting Range/Soft Body after Gravity assigns a material after the simulation has already run; it cannot affect that earlier motion. Validation warns about this order. In a Physics group, put Soft Body on the child; keep Time, Acceleration, Solids, Friction and Restitution on the group's Physics effect. Gravity's Physics toggle must remain enabled to simulate elastic material.
+
+The internal deformable solver uses fixed 120 Hz steps and cached checkpoints, using the Gravity/Physics Time up to 60 seconds. Forces, material values and targets are held at their current values throughout replay, as with the rigid simulation. It handles the floor, filled static solids and optional body contacts; no self-collision is applied within one material body. Contacts are sampled, rather than exact analytic curve intersections. Keep input topology stable during a simulation: changing cuts or tessellation rebuilds the material cage and replays that input from rest. Use fewer samples for complex imported paths. Run `node scripts/bench-softbody.mjs` for a CPU-only benchmark of nine crosses, four with the material; the sample scene is `apps/editor/public/demos/softbody-material.svrtk`. Merge on Crosshatch keeps its marks in one elastic structure; off leaves separate fibres. Merely assigning Soft Body does not turn on a simulation or Wire's body diagnostics.
 
 ### Physics (`physics`)
 
@@ -1126,3 +1156,10 @@ Mirror's optional `reference` is a general node parameter: it measures that node
 Mirror now receives the copies already placed, so it reflects their complete animated results, color and handedness. Stack order matters: Mirror then Transform moves both sides together; Transform then Mirror reflects the moved source result. Chain a second Mirror (vertical) for four-way reflection, or add Color, Clone, deformers and effectors normally. Put per-copy effects/animation on the source; put effects intended for the entire generated result on Mouse's stack. Generator-stack expressions use the parent scene clock; source expressions use each copy's local clock.
 
 The runtime collection has the generator's ID, so references can address its evaluated result. Stable element/emission metadata keeps Color Random choices per birth and Color Palette choices per click when new copies arrive. Mouse limit/lifetime govern source births; geometry produced by downstream Mirror disappears with its source birth. No extra Mouse symmetry options are stored. Generated collections and click history remain temporary in Play; authored JSON keeps the Mouse generator plus ordinary effects.
+
+
+## Wire view and selection
+
+Press **W** in the editor or either player to switch the evaluated geometry to Wire. The views share body classification, palette and screen-sized hatch patterns: mobile bodies use cyan, fixed bodies use yellow. Wire changes presentation only. Its invisible interaction geometry retains the original fills, stroke widths, opacity and masks, so selecting, dragging and clicking use the same areas as normal rendering. Wire is never saved as scene paint or exported.
+
+In the editor, selecting a Range in the stack highlights only the elements that Range affects. Five stable colours distinguish different Ranges, one active highlight at a time; no new random colour is sampled during playback. Switching to an object or a different kind of effect clears the Range highlight. Range preview also works before adding children. View zoom changes pattern scale, not evaluated scene geometry.

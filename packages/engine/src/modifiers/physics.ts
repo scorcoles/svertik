@@ -2,6 +2,7 @@ import { bounds, mapPoints, type Bounds, type Geometry, type Shape, type Vec2 } 
 import { collisionBody, physicsStates, type CollisionBody, type CollisionWorld, type State } from './gravity-collisions';
 import { gravityBody, type Body } from './gravity-physics';
 import { defineModifier, resolveParams, type HistoryLookup } from '../modifier';
+import { hasSoftMaterial, materialDynamics } from './softbody-physics';
 
 /** One element of the input (a child, a copy, a tile): the shapes that move together as one body. */
 interface Part {
@@ -39,7 +40,7 @@ function geometryKey(geometries: Geometry[]): string {
 function groupsOf(geo: Geometry): Map<number, number[]> {
   const groups = new Map<number, number[]>();
   geo.shapes.forEach((shape, i) => {
-    const key = shape.clone ?? i;
+    const key = shape.bodyGroup ?? shape.clone ?? i;
     groups.set(key, [...(groups.get(key) ?? []), i]);
   });
   return groups;
@@ -195,6 +196,7 @@ export const physics = defineModifier({
     const solids = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
     const detail = Math.max(Math.max(ctx.bounds.width, ctx.bounds.height) * 0.006, 0.25);
     const friction = Math.max(0, Math.min(1, p.friction)), bounce = Math.max(0, Math.min(1, p.bounce));
+    if (hasSoftMaterial(geo)) return materialDynamics(geo, time, { acceleration: p.acceleration, floor: null, rotation: 0, friction, bounce, collisions: p.collisions }, solids, Math.max(ctx.bounds.width, ctx.bounds.height) || 1);
 
     // Stretch by stretch: each one starts with the bodies of the previous one where they left off.
     const stretches = stretchesOf(ctx.history, geo, time);

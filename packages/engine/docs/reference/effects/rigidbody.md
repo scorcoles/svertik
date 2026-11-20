@@ -1,6 +1,6 @@
 # Rigid body
 
-`type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Deform**.
+`type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Effect**.
 
 Initial linear velocity and spin for a child inside a Physics group (or Gravity). Enable Immovable to turn it into a fixed collider that other bodies can hit.
 

@@ -15,7 +15,7 @@ const CONTAINERS: Record<string, string> = {
 };
 
 const MENU: Record<string, string> = { deformer: 'Deform', generator: 'Generate', effector: 'Effect', style: 'Style', filter: 'Filters' };
-const menuOf = (m: ModifierDef) => (m.family === 'glitch' ? 'Glitch' : m.family === 'utils' ? 'Utils' : MENU[m.kind] ?? m.kind);
+const menuOf = (m: ModifierDef) => (m.type === 'rigidbody' || m.type === 'softbody' ? 'Effect' : m.family === 'glitch' ? 'Glitch' : m.family === 'utils' ? 'Utils' : MENU[m.kind] ?? m.kind);
 const KIND_NOTE: Record<string, string> = {
   deformer: 'Deformer: moves the points of the drawing.',
   generator: 'Generator: makes new geometry (copies, pieces, cuts…).',
