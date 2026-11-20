@@ -43,11 +43,14 @@ export function gravityBody(geo: Geometry, coarse = false): Body | null {
   if (coarse) {
     const b = bounds(geo);
     if (!(b.width > 0 || b.height > 0)) return null;
-    const center: Vec2 = [b.x + b.width / 2, b.y + b.height / 2];
+    const naturalCenter: Vec2 = [b.x + b.width / 2, b.y + b.height / 2];
+    const massCenter = geo.shapes.find((shape) => shape.impulse?.centerOfMass)?.impulse?.centerOfMass;
+    const center: Vec2 = massCenter ? [b.x + b.width * massCenter[0], b.y + b.height * massCenter[1]] : naturalCenter;
     const hw = Math.max(b.width / 2, 0.01), hh = Math.max(b.height / 2, 0.01);
-    const points: Vec2[] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+    const dx = naturalCenter[0] - center[0], dy = naturalCenter[1] - center[1];
+    const points: Vec2[] = [[-hw + dx, -hh + dy], [hw + dx, -hh + dy], [hw + dx, hh + dy], [-hw + dx, hh + dy]];
     const mass = Math.max(b.width * b.height, 0.0001);
-    const inertia = Math.max((b.width * b.width + b.height * b.height) / 12, 0.0001);
+    const inertia = Math.max((b.width * b.width + b.height * b.height) / 12 + dx * dx + dy * dy, 0.0001);
     return { points, center, inertia, mass };
   }
   const points: Vec2[] = [];
@@ -86,13 +89,22 @@ export function gravityBody(geo: Geometry, coarse = false): Body | null {
   }
   if (!points.length) return null;
   const outline = hull(points);
-  const center: Vec2 = area2 > 1e-10
+  const naturalCenter: Vec2 = area2 > 1e-10
     ? [cx / (3 * area2), cy / (3 * area2)]
     : [points.reduce((s, p) => s + p[0], 0) / points.length, points.reduce((s, p) => s + p[1], 0) / points.length];
-  const local = (outline.length ? outline : [points[0]!]).map(([x, y]): Vec2 => [x - center[0], y - center[1]]);
+  const massCenter = geo.shapes.find((shape) => shape.impulse?.centerOfMass)?.impulse?.centerOfMass;
+  const box = massCenter ? bounds(geo) : null;
+  const center: Vec2 = box && massCenter
+    ? [box.x + box.width * massCenter[0], box.y + box.height * massCenter[1]]
+    : naturalCenter;
+  const outlinePoints = outline.length ? outline : [points[0]!];
+  const local = outlinePoints.map(([x, y]): Vec2 => [x - center[0], y - center[1]]);
   const radius2 = Math.max(...local.map(([x, y]) => x * x + y * y), 1e-8);
-  const inertia = area2 > 1e-10 ? moment / (6 * area2) - center[0] ** 2 - center[1] ** 2 : radius2 / 2;
-  return { points: local, center, inertia: Math.max(radius2 * 1e-4, inertia), mass: Math.max(area2 / 2, radius2 * 1e-4) };
+  const naturalRadius2 = Math.max(...outlinePoints.map(([x, y]) => (x - naturalCenter[0]) ** 2 + (y - naturalCenter[1]) ** 2), 1e-8);
+  const inertiaAtNaturalCenter = area2 > 1e-10 ? moment / (6 * area2) - naturalCenter[0] ** 2 - naturalCenter[1] ** 2 : naturalRadius2 / 2;
+  const mass = Math.max(area2 / 2, naturalRadius2 * 1e-4);
+  const inertia = inertiaAtNaturalCenter + (center[0] - naturalCenter[0]) ** 2 + (center[1] - naturalCenter[1]) ** 2;
+  return { points: local, center, inertia: Math.max(radius2 * 1e-4, inertia), mass };
 }
 
 export interface FallPose {

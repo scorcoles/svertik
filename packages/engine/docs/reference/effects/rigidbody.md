@@ -2,7 +2,7 @@
 
 `type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Effect**.
 
-Initial linear velocity and spin for a child inside a Physics group (or Gravity). Enable Immovable to turn it into a fixed collider that other bodies can hit. In Physics, enable Attractor to pull other rigid bodies toward the nearest point on this one's solid geometry with an inverse-square field. Hollow shapes preserve their holes, so bodies in a donut's opening are pulled toward its ring. Strength is relative to the largest body in the Physics group, including fixed bodies: at that distance, it accelerates by Strength × that body's size. Range is also relative to that body, with 0 meaning unlimited. A movable attractor receives the equal-and-opposite reaction scaled by mass; an Immovable attractor stays fixed and absorbs it. Absorption damps motion and reduces bounce on impact, preserving approach speed so bodies can rebound before settling. Its default 0.5 keeps half the global bounce on impact; at 1, impacts with the attractor are fully inelastic; set it to 0 for conservative motion. **Settle** is the residual speed threshold, relative to the largest body per second, below which the solver zeros motion after impact. It defaults to 0.03; set it to 0 to disable the cutoff.
+Initial linear velocity and spin for a child inside a Physics group (or Gravity). **Mass center** defaults to Auto, which uses the geometry's center. Choose Custom to place it manually; when this effect is selected in the stack, drag the Position point on the canvas. This shifts the body's rotation and collision center without changing its outline. Enable Immovable to turn it into a fixed collider that other bodies can hit. In Physics, enable Attractor to pull other rigid bodies toward the nearest point on this one's solid geometry with an inverse-square field. Hollow shapes preserve their holes, so bodies in a donut's opening are pulled toward its ring. Strength is relative to the largest body in the Physics group, including fixed bodies: at that distance, it accelerates by Strength × that body's size. Range is also relative to that body, with 0 meaning unlimited. A movable attractor receives the equal-and-opposite reaction scaled by mass; an Immovable attractor stays fixed and absorbs it. Absorption damps motion and reduces bounce on impact, preserving approach speed so bodies can rebound before settling. Its default 0.5 keeps half the global bounce on impact; at 1, impacts with the attractor are fully inelastic; set it to 0 for conservative motion. **Settle** is the residual speed threshold, relative to the largest body per second, below which the solver zeros motion after impact. It defaults to 0.03; set it to 0 to disable the cutoff.
 
 ## Parameters
 
@@ -11,6 +11,8 @@ Initial linear velocity and spin for a child inside a Physics group (or Gravity)
 | `velocity` | point | `[0,0]` | [x, y], px | unit: px |
 | `spin` | number | `0` | step 1 | unit: °/s |
 | `immovable` | boolean | `false` |  |  |
+| `centerOfMassMode` | enum | `auto` | auto, custom | group: Mass; label: Mass center |
+| `centerOfMass` | point | `[0.5, 0.5]` | [x, y], fraction | group: Mass; label: Position; shown when custom; drag point handle when this effect is selected |
 | `attractor` | boolean | `false` |  | group: Attraction |
 | `attractionStrength` | number | `1` | min 0, max 10, step 0.01 | unit: fraction; group: Attraction; label: Strength |
 | `attractionRange` | number | `0` | min 0, max 10, step 0.1 | unit: fraction; 0 means unlimited; group: Attraction; label: Range |
@@ -34,6 +36,11 @@ Inside a node's `stack` (effects run top to bottom):
     ],
     "spin": 0,
     "immovable": false,
+    "centerOfMassMode": "auto",
+    "centerOfMass": [
+      0.5,
+      0.5
+    ],
     "attractor": false,
     "attractionStrength": 1,
     "attractionRange": 0,

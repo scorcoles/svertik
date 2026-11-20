@@ -38,6 +38,8 @@ export interface Impulse {
   attractionRange?: number;
   attractionAbsorption?: number;
   attractionSleepThreshold?: number;
+  /** Normalized mass-center position within this body group's bounds. */
+  centerOfMass?: Vec2;
 }
 
 export interface SoftMaterial {
