@@ -556,10 +556,10 @@
       editor.fontsTick++;
       await editor.loadFromURL();
     })();
-    // Cerrar o recargar la pestaña con cambios que se perderían: el navegador pregunta antes (con su propio
-    // mensaje; no se puede cambiar). Si la escena ya está en la URL (cabe), no pregunta: se recupera.
+    // Cerrar o recargar la pestaña con cambios sin guardar: el navegador pregunta antes
+    // (con su propio mensaje, que no se puede cambiar).
     const leave = (e: BeforeUnloadEvent) => {
-      if (!editor.wouldLose) return;
+      if (!editor.dirty) return;
       e.preventDefault();
       e.returnValue = '';
     };

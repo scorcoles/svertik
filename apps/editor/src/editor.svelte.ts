@@ -3105,14 +3105,6 @@ export class Editor {
     this.#inURL = fits ? state : undefined;
   }
   /**
-   * Cerrar la pestaña perdería algo: hay cambios sin guardar y no están en la URL (una escena grande no
-   * cabe). Si están en la URL, volver a abrirla (o recargar) los recupera: no hace falta preguntar.
-   */
-  get wouldLose() {
-    return this.dirty && this.#history[this.#index] !== this.#inURL;
-  }
-
-  /**
    * Enlace para compartir: la escena en la URL, marcada para abrirse en el modo Play (#p=…).
    * null si no cabe en un enlace (entonces, mejor el archivo .json).
    */
