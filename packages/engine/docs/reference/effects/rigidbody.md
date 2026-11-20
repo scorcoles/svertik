@@ -2,7 +2,7 @@
 
 `type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Effect**.
 
-Initial linear velocity and spin for a child inside a Physics group (or Gravity). Enable Immovable to turn it into a fixed collider that other bodies can hit. In Physics, enable Attractor to pull other rigid bodies toward the nearest point on this one's solid geometry with an inverse-square field. Hollow shapes preserve their holes, so bodies in a donut's opening are pulled toward its ring. Strength is relative to the largest moving body: at that distance, it accelerates by Strength × that body's size. Range is also relative to that body, with 0 meaning unlimited. Immovable attractors still exert their field.
+Initial linear velocity and spin for a child inside a Physics group (or Gravity). Enable Immovable to turn it into a fixed collider that other bodies can hit. In Physics, enable Attractor to pull other rigid bodies toward the nearest point on this one's solid geometry with an inverse-square field. Hollow shapes preserve their holes, so bodies in a donut's opening are pulled toward its ring. Strength is relative to the largest moving body: at that distance, it accelerates by Strength × that body's size. Range is also relative to that body, with 0 meaning unlimited. A movable attractor receives the equal-and-opposite reaction scaled by mass; an Immovable attractor stays fixed and absorbs it.
 
 ## Parameters
 

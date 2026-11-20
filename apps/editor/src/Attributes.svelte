@@ -74,7 +74,7 @@
     {:else if editor.showInfo && m.type === 'physics'}
       <p class="note">Simulates the children of this group as rigid bodies. Add Rigid body to set initial velocity, spin, immovability or attraction. Add a hollow filled path as an immovable body to make an arena.</p>
     {:else if editor.showInfo && m.type === 'rigidbody'}
-      <p class="note">Sets this child’s initial motion for a Physics group or Gravity. Immovable bodies stay fixed and can be used as colliders. In Physics, Attractor pulls other rigid bodies; Strength sets the pull and Range limits it (0 means unlimited).</p>
+      <p class="note">Sets this child’s initial motion for a Physics group or Gravity. Immovable bodies stay fixed and can be used as colliders. In Physics, Attractor pulls other rigid bodies and receives their reaction unless Immovable is on.</p>
     {:else if editor.showInfo && def.kind === 'filter'}
       <p class="note">Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.</p>
     {:else if editor.showInfo && m.children}

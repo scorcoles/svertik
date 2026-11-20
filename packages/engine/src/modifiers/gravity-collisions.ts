@@ -269,23 +269,38 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
       const placed = place(collider, before[index]!, index);
       return [{ index, strength: Math.max(0, impulse.attractionStrength ?? 1), range: Math.max(0, impulse.attractionRange ?? 0) * size, polygons: placed.polygons(), hull: placed.hull }];
     });
-    const states = before.map((state, i) => {
-      if (world.bodies[i]!.fixed) return { ...state };
-      let ax = floor ? acceleration[1] * sn : acceleration[0];
-      let ay = floor ? acceleration[1] * cs : acceleration[1];
-      for (const source of attractors) {
-        if (source.index === i) continue;
+    const bodyAccelerations = before.map((): [number, number] => [
+      floor ? acceleration[1] * sn : acceleration[0],
+      floor ? acceleration[1] * cs : acceleration[1],
+    ]);
+    for (const source of attractors) {
+      const sourceBody = world.bodies[source.index]!;
+      for (let i = 0; i < before.length; i++) {
+        const targetBody = world.bodies[i]!;
+        if (i === source.index || targetBody.fixed) continue;
+        const state = before[i]!;
         const target = nearestOnBody([state.x, state.y], source.polygons, source.hull);
         const dx = target[0] - state.x, dy = target[1] - state.y;
         const distance2 = dx * dx + dy * dy;
         if ((source.range > 0 && distance2 > source.range * source.range) || distance2 < 1e-12) continue;
         const inverseDistance = 1 / Math.sqrt(Math.max(distance2, softening * softening));
+        const directionX = dx / Math.sqrt(distance2), directionY = dy / Math.sqrt(distance2);
         // Inverse-square field: Strength is the acceleration fraction of the scene scale at one scene scale away.
         // Cap the singularity near the attractor so a close pass cannot launch a body out of the simulation.
         const magnitude = Math.min(source.strength * size * 20, source.strength * size * size * size * inverseDistance * inverseDistance);
-        ax += dx * inverseDistance * magnitude;
-        ay += dy * inverseDistance * magnitude;
+        bodyAccelerations[i]![0] += directionX * magnitude;
+        bodyAccelerations[i]![1] += directionY * magnitude;
+        // Attraction is reciprocal. A fixed attractor is a constraint, so its support absorbs the reaction force.
+        if (!sourceBody.fixed) {
+          const ratio = targetBody.body.mass / sourceBody.body.mass;
+          bodyAccelerations[source.index]![0] -= directionX * magnitude * ratio;
+          bodyAccelerations[source.index]![1] -= directionY * magnitude * ratio;
+        }
       }
+    }
+    const states = before.map((state, i) => {
+      if (world.bodies[i]!.fixed) return { ...state };
+      const [ax, ay] = bodyAccelerations[i]!;
       return { ...state, x: state.x + state.vx * dt + ax * dt * dt / 2, y: state.y + state.vy * dt + ay * dt * dt / 2, vx: state.vx + ax * dt, vy: state.vy + ay * dt, angle: state.angle + state.omega * dt };
     });
     const placed = world.bodies.flatMap((collider, index) => collider.fixed ? [] : [place(collider, states[index]!, index)]);
