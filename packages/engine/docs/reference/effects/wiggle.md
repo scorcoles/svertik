@@ -2,7 +2,7 @@
 
 `type: "wiggle"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-Smooth seeded random modulation of nested effects. Frequency controls the rate of change, amplitude its strength, offset its centre. Per element gives each clone or glyph an independent reproducible signal. Time follows scene.time in the editor; seeking backwards gives the same result.
+Smooth seeded random modulation of nested effects. Frequency controls the rate of change, amplitude its strength, offset its centre. Per element gives each clone or glyph an independent reproducible signal. Time follows scene.time in the editor; seeking backwards gives the same result. Wiggle can be nested in Range or Field to limit it to selected elements; Amplitude and Offset follow the selector's weight, and per-element randomness keeps the original Clone indices.
 
 ## Parameters
 

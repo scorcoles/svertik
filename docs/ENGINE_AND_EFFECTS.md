@@ -1,6 +1,6 @@
 # Comprehensive svertik Engine & Effects Guide
 
-> **Technical Reference for AI Agents & Headless Developers**  
+> **Technical Reference for AI Agents & Headless Developers**<br>
 > Complete documentation for authoring procedural SVG motion graphics, scenes, and demos directly with `@svertik/engine` and the terminal CLI, **without requiring a graphical user interface (UI) or MCP server**.
 
 ---
@@ -201,7 +201,7 @@ The **Effector** modifiers (`step`, `stagger`, `range`, `field`, `explosion`, `c
 - `explosion`: Propels elements outward from a blast centre with spin, displacement, and scaling.
 
 > [!WARNING]
-> Container effectors (`step`, `stagger`, `range`, `field`, `rgbsplit`) hold nested modifiers inside their `children` array. **An effector cannot nest another effector inside its `children`** (e.g. putting `step` inside `stagger` triggers a validation error).
+> Container effectors (`step`, `stagger`, `range`, `field`, `rgbsplit`) hold nested modifiers inside their `children` array. Selector effectors Range and Field can also contain the time-signal effectors Oscillate, Wiggle, Pulse and Shake, limiting those signals to the selected elements. Other effector nesting is not supported.
 
 ---
 
@@ -709,6 +709,8 @@ Timeline tracks belong in `scene.animation.tracks`:
 }
 ```
 
+In the editor, click a keyframe to select it without moving the playhead. Drag empty timeline space to marquee-select keys across tracks; Shift adds keys to the selection. Drag any selected key to move the selection as a block. Drag a selected key at the rightmost time to retime the selection proportionally around its leftmost time, preserving the intervals; a move that would collide with another key on the same track is rejected. Delete removes the selected keys together. Clicking empty track space still scrubs the playhead, and dragging the ruler scrubs continuously.
+
 - `on: "node"`: Animates `"x"`, `"y"`, `"scale"`, `"rotation"`, `"opacity"`, `"pivot"`.
 - `on: "shape"`: Animates primitive parameters (e.g. `radius`, `innerRadius`, `dashOffset`, `strokeWidth`).
 - `on: "modifier"`: Animates any animatable modifier parameter (e.g. `angle`, `phase`, `distance`, or `enabled: true/false`).
@@ -864,7 +866,7 @@ In **Clone → Radial**, **Rings** chooses 1–64 concentric circles; **Count** 
 
 ### Oscillate and Wiggle — time modulators
 
-Both are effector containers: nest Transform, Color, Opacity or another non-effector inside `children`. Numeric child parameters vary from their neutral values to the configured amplitudes: Transform `y: 30` means ±30 px, `rotation: 15` means ±15°, and `scale: 1.2` means 0.8–1.2 at full bipolar strength. Color in shift mode modulates hue, saturation and lightness. Non-numeric choices (including solid color) do not interpolate. Child parameters marked `ramp: false` remain fixed.
+Both are effector containers: nest Transform, Color, Opacity or another non-effector inside `children`. Numeric child parameters vary from their neutral values to the configured amplitudes: Transform `y: 30` means ±30 px, `rotation: 15` means ±15°, and `scale: 1.2` means 0.8–1.2 at full bipolar strength. Color in shift mode modulates hue, saturation and lightness. Non-numeric choices (including solid color) do not interpolate. Child parameters marked `ramp: false` remain fixed. Range and Field can contain Oscillate, Wiggle, Pulse or Shake; the selector gates each signal to its elements, scales signal Amplitude and Offset by its weight, and preserves original Clone indices for per-element phase or delay.
 
 - `time` (seconds, default 0 in the engine) is set to `{ "$expr": "scene.time", "fallback": 1 }` when added in the editor, as for Particles and Gravity. Replace it with a number to freeze, or an expression such as `scene.time * 0.5` to use a slower local clock.
 - `frequency` (Hz, default 1, slider 0–20), `amplitude` (default 1, slider 0–2), `offset` (default 0, slider −2–2), `phase` (degrees, default 0). The signal is `offset + amplitude × waveform`.

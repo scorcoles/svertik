@@ -2,7 +2,7 @@
   import type { ModifierInstance, SceneNode } from '@svertik/engine';
   import { IconButton, StackItem, type IconName } from '@svertik/ui';
   import { tick } from 'svelte';
-  import { canNest, locateModifier, locateNode, registry, type Editor } from './editor.svelte';
+  import { canNest, locateModifier, locateNode, registry, selectors, signalEffectors, type Editor } from './editor.svelte';
   import PanelHeader from './PanelHeader.svelte';
   import { categoryOf, familyColor } from './command';
 
@@ -138,11 +138,12 @@
   type Where = 'before' | 'after' | 'inside';
   let drag = $state<{ id: string; kind: 'node' | 'modifier' } | null>(null);
   let drop = $state<{ id: string; where: Where } | null>(null);
+  let invalidDrop = $state<string | null>(null);
 
-  const zone = (e: DragEvent, canNest: boolean): Where => {
+  const zone = (e: DragEvent): Where => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const y = (e.clientY - r.top) / r.height;
-    return canNest && y > 0.25 && y < 0.75 ? 'inside' : y < 0.5 ? 'before' : 'after';
+    return y > 0.25 && y < 0.75 ? 'inside' : y < 0.5 ? 'before' : 'after';
   };
 
   function overModifier(e: DragEvent, m: ModifierInstance) {
@@ -151,15 +152,28 @@
     const from = locateModifier(editor.scene, drag.id);
     const to = locateModifier(editor.scene, m.id);
     if (!from || !to) return;
+    // Selector → time-signal nesting is the useful drop action across the whole row;
+    // reserving a tiny central strip made the valid destination hard to discover.
+    const where = selectors.has(m.type) && signalEffectors.has(from.inst.type) ? 'inside' : zone(e);
+    if (where === 'inside' && !canNest(m.type, from.inst.type)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+      drop = null;
+      invalidDrop = m.id;
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = e.shiftKey ? 'copy' : 'move';
-    drop = { id: m.id, where: zone(e, canNest(m.type, from.inst.type)) };
+    invalidDrop = null;
+    drop = { id: m.id, where };
   }
 
   function overNode(e: DragEvent, n: SceneNode) {
     if (editor.isLocked(n.id)) {
       drop = null;
+      invalidDrop = null;
       return;
     }
     // Un efecto soltado sobre un objeto va al final de su pila.
@@ -167,13 +181,22 @@
       e.preventDefault();
       e.stopPropagation();
       if (e.dataTransfer) e.dataTransfer.dropEffect = e.shiftKey ? 'copy' : 'move';
+      invalidDrop = null;
       drop = { id: n.id, where: 'inside' };
       return;
     }
     if (!drag || drag.kind !== 'node' || drag.id === n.id) return;
     e.preventDefault();
     e.stopPropagation();
-    drop = { id: n.id, where: zone(e, n.kind !== 'effector' && !(n.kind === 'group' && n.composition)) };
+    const where = zone(e);
+    if (where === 'inside' && (n.kind === 'effector' || (n.kind === 'group' && n.composition))) {
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+      drop = null;
+      invalidDrop = n.id;
+      return;
+    }
+    invalidDrop = null;
+    drop = { id: n.id, where };
   }
 
   function dropHere(e?: DragEvent) {
@@ -198,11 +221,13 @@
     }
     drag = null;
     drop = null;
+    invalidDrop = null;
   }
 
   const end = () => {
     drag = null;
     drop = null;
+    invalidDrop = null;
   };
 </script>
 
@@ -211,10 +236,9 @@
     {@const open = !editor.isCollapsed(m.id)}
     <div
       class="drag"
-      draggable="true"
       data-drop={drop?.id === m.id ? drop.where : undefined}
+      data-drop-invalid={invalidDrop === m.id ? true : undefined}
       data-insert={insert?.id === m.id ? insert.where : undefined}
-      ondragstart={(e) => { e.stopPropagation(); drag = { id: m.id, kind: 'modifier' }; e.dataTransfer?.setData('text/plain', m.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove'; }}
       ondragover={(e) => overModifier(e, m)}
       ondrop={(e) => { e.stopPropagation(); dropHere(e); }}
       ondragend={end}
@@ -234,6 +258,7 @@
         ontoggle={(v) => editor.setEnabled(m.id, v)}
         onremove={() => editor.remove(m.id)}
         onrename={(name) => editor.renameModifier(m.id, name)}
+        ondragstart={(e) => { drag = { id: m.id, kind: 'modifier' }; e.dataTransfer?.setData('text/plain', m.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove'; }}
       />
     </div>
     {#if m.children && open}
@@ -256,10 +281,9 @@
     <div
       class="drag node"
       class:hidden-node={n.visible === false}
-      draggable={!locked}
       data-drop={drop?.id === n.id ? drop.where : undefined}
+      data-drop-invalid={invalidDrop === n.id ? true : undefined}
       data-insert={insert?.id === n.id ? insert.where : undefined}
-      ondragstart={(e) => { e.stopPropagation(); drag = { id: n.id, kind: 'node' }; e.dataTransfer?.setData('text/plain', n.id); }}
       ondragover={(e) => overNode(e, n)}
       ondrop={(e) => { e.stopPropagation(); dropHere(e); }}
       ondragend={end}
@@ -283,6 +307,7 @@
         locked={!!n.locked}
         onlock={() => editor.toggleLock(n.id)}
         tabbable={editor.isSelected(n.id) || (!editor.selected && n.id === editor.root[0]?.id)}
+        ondragstart={locked ? undefined : (e) => { drag = { id: n.id, kind: 'node' }; e.dataTransfer?.setData('text/plain', n.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
       />
     </div>
     {#if open}
@@ -340,7 +365,8 @@
   /* Command line preview: same marks as a drop, on ::before so a drag in progress still shows its own. */
   .drag[data-insert='after']::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--sv-accent-fill); z-index: 1; pointer-events: none; }
   .drag[data-insert='inside'] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -1px; }
-  .drag[data-drop='inside'] { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
+  .drag[data-drop='inside'] { outline: 2px solid var(--sv-accent-fill); outline-offset: -2px; }
+  .drag[data-drop-invalid] { outline: 1px dashed var(--sv-signal-error); outline-offset: -1px; }
   .empty {
     margin: 0;
     height: 22px;

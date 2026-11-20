@@ -2,7 +2,7 @@
 
 `type: "shake"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-A seeded one-shot impact that loses strength and returns exactly to neutral at Duration. Start schedules the hit; Frequency sets its vibration rate and Decay how quickly it settles. Per element adds independent signals and an Element delay. The default Transform child shakes position and rotation; seeking is deterministic.
+A seeded one-shot impact that loses strength and returns exactly to neutral at Duration. Start schedules the hit; Frequency sets its vibration rate and Decay how quickly it settles. Per element adds independent signals and an Element delay. The default Transform child shakes position and rotation; seeking is deterministic. Shake can be nested in Range or Field to limit it to selected elements; Amplitude follows the selector's weight, and per-element delay keeps the original Clone indices.
 
 ## Parameters
 

@@ -10,7 +10,7 @@ export const oscillate = defineModifier({
   apply(geo, p, ctx) {
     const together = geo.shapes.length > 0 && geo.shapes.every((shape) => shape.signalGroup === 0);
     return applyWeighted(geo, ctx, p.perElement && !together ? keyFor(geo, 'elements') : () => 0,
-      (_key, index) => p.offset + p.amplitude * waveform(p.time * p.frequency + (p.phase + index * p.elementPhase) / 360, p.wave),
+      (key) => p.offset + p.amplitude * waveform(p.time * p.frequency + (p.phase + key * p.elementPhase) / 360, p.wave),
       1, [-Infinity, Infinity]);
   },
 });

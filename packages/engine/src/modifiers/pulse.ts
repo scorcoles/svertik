@@ -8,7 +8,7 @@ export const pulse = defineModifier({
   params: signalSchemas.pulse,
   apply(geo, p, ctx) {
     return applyWeighted(geo, ctx, p.perElement ? keyFor(geo, 'elements') : () => 0,
-      (_key, index) => p.offset + p.amplitude * pulseSignal(p.time * p.frequency + (p.phase + index * p.elementPhase) / 360, p.attack, p.decay),
+      (key) => p.offset + p.amplitude * pulseSignal(p.time * p.frequency + (p.phase + key * p.elementPhase) / 360, p.attack, p.decay),
       1, [-Infinity, Infinity]);
   },
 });

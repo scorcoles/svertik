@@ -5,8 +5,9 @@ import { rng } from '../random';
 export const signalParams = {
   time: { type: 'number', default: 0, step: 0.01, unit: 's', label: 'Time', ramp: false },
   frequency: { type: 'number', default: 1, min: 0, max: 20, step: 0.05, unit: 'Hz', label: 'Frequency', ramp: false },
-  amplitude: { type: 'number', default: 1, min: 0, max: 2, step: 0.01, label: 'Amplitude', ramp: false },
-  offset: { type: 'number', default: 0, min: -2, max: 2, step: 0.01, label: 'Offset', ramp: false },
+  // Selector weights fade nested signals through their strength and baseline.
+  amplitude: { type: 'number', default: 1, min: 0, max: 2, step: 0.01, label: 'Amplitude' },
+  offset: { type: 'number', default: 0, min: -2, max: 2, step: 0.01, label: 'Offset' },
   phase: { type: 'angle', default: 0, label: 'Phase', ramp: false },
   perElement: { type: 'boolean', default: true, label: 'Per element', animatable: false },
   elementPhase: { type: 'angle', default: 20, label: 'Element phase', ramp: false, showIf: { perElement: ['true'] } },

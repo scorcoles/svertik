@@ -2,7 +2,7 @@
 
 `type: "pulse"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-Repeated pulses of nested effects, from neutral to full strength and back. Attack and Decay are fractions of one cycle; any remaining time is rest. If their sum exceeds 1 they are fitted to one cycle. Frequency, amplitude, offset and per-element phase work as in Oscillate. Time follows scene.time in the editor.
+Repeated pulses of nested effects, from neutral to full strength and back. Attack and Decay are fractions of one cycle; any remaining time is rest. If their sum exceeds 1 they are fitted to one cycle. Frequency, amplitude, offset and per-element phase work as in Oscillate. Time follows scene.time in the editor. Pulse can be nested in Range or Field to limit it to selected elements; Amplitude and Offset follow the selector's weight, and per-element phase keeps the original Clone indices.
 
 ## Parameters
 

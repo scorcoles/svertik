@@ -15,6 +15,7 @@
   const fps = $derived(anim?.fps ?? 30);
   const lastFrame = $derived(Math.floor(duration * fps + 1e-6));
   let area = $state<HTMLDivElement>();
+  let inner = $state<HTMLDivElement>();
   /** Ancho visible de las pistas (sin el margen de los lados). */
   let visible = $state(400);
   const SIDE = 12;
@@ -57,6 +58,7 @@
   // ── Cabezal: arrastrar en la regla
   function scrub(e: PointerEvent) {
     const el = e.currentTarget as HTMLElement;
+    e.stopPropagation();
     // Without this, dragging over the ruler/lanes selects their numbers and labels as text.
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
@@ -72,27 +74,122 @@
 
   // ── Claves
   let selected = $state<{ track: string; t: number } | null>(null);
+  let selectedKeys = $state<{ track: string; t: number }[]>([]);
+  let marquee = $state<{ left: number; top: number; width: number; height: number } | null>(null);
+  const selectedBounds = $derived.by(() => {
+    const times = selectedKeys.map((key) => key.t);
+    const min = times.length ? Math.min(...times) : 0;
+    const max = times.length ? Math.max(...times) : 0;
+    return { min, max, scalable: selectedKeys.length > 1 && max > min };
+  });
+  const sameKey = (a: { track: string; t: number }, b: { track: string; t: number }) => a.track === b.track && a.t === b.t;
+  function setSelectedKeys(keys: { track: string; t: number }[], primary = keys.at(-1) ?? null) {
+    selectedKeys = keys;
+    selected = primary;
+  }
+  function toggleKeySelection(key: { track: string; t: number }) {
+    const exists = selectedKeys.some((item) => sameKey(item, key));
+    const next = exists ? selectedKeys.filter((item) => !sameKey(item, key)) : [...selectedKeys, key];
+    setSelectedKeys(next, exists ? (next.at(-1) ?? null) : key);
+  }
+
+  function lanePointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    const fromCurve = (e.target as HTMLElement).closest('.segment') !== null;
+    if (fromCurve && !e.shiftKey) return;
+    e.preventDefault();
+    const surface = e.currentTarget as HTMLElement;
+    const startX = e.clientX, startY = e.clientY;
+    const additive = e.shiftKey;
+    const base = additive ? [...selectedKeys] : [];
+    let moved = false;
+    surface.setPointerCapture(e.pointerId);
+    const update = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) < 4) return;
+      moved = true;
+      if (!inner) return;
+      const left = Math.min(startX, ev.clientX), right = Math.max(startX, ev.clientX);
+      const top = Math.min(startY, ev.clientY), bottom = Math.max(startY, ev.clientY);
+      const bounds = inner.getBoundingClientRect();
+      marquee = { left: left - bounds.left, top: top - bounds.top, width: right - left, height: bottom - top };
+      const found = [...inner.querySelectorAll<HTMLElement>('.key[data-track][data-time]')].filter((key) => {
+        const r = key.getBoundingClientRect();
+        return r.right >= left && r.left <= right && r.bottom >= top && r.top <= bottom;
+      }).map((key) => ({ track: key.dataset.track!, t: Number(key.dataset.time) }));
+      const merged = additive ? [...base] : [];
+      for (const key of found) if (!merged.some((item) => sameKey(item, key))) merged.push(key);
+      setSelectedKeys(merged, found.at(-1) ?? merged.at(-1) ?? null);
+    };
+    const finish = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      update(ev);
+      surface.removeEventListener('pointermove', update);
+      surface.removeEventListener('pointerup', finish);
+      surface.removeEventListener('pointercancel', finish);
+      marquee = null;
+      if (!moved) {
+        if (fromCurve) return;
+        if (!additive) setSelectedKeys([]);
+        const r = inner?.getBoundingClientRect() ?? surface.getBoundingClientRect();
+        editor.setTime(snap(Math.max(0, Math.min(duration, ((ev.clientX - r.left) / r.width) * duration))));
+      }
+    };
+    surface.addEventListener('pointermove', update);
+    surface.addEventListener('pointerup', finish);
+    surface.addEventListener('pointercancel', finish);
+  }
+
   function dragKey(e: PointerEvent, track: string, t0: number) {
     e.stopPropagation();
     e.preventDefault();
     // preventDefault stops the browser from focusing the diamond: focus it ourselves so ←→ work next.
     (e.currentTarget as HTMLElement).focus({ preventScroll: true });
     // En la ventana y no en el rombo: al cambiar de instante, el rombo se vuelve a crear (va por su instante).
-    selected = { track, t: t0 };
-    editor.setTime(t0);
+    const key = { track, t: t0 };
+    if (e.shiftKey) { toggleKeySelection(key); return; }
+    if (!selectedKeys.some((item) => sameKey(item, key))) setSelectedKeys([key], key);
+    else selected = key;
     const x0 = e.clientX;
-    let cur = t0;
+    let applied = 0;
+    let appliedScale = 1;
+    const scale = selectedBounds.scalable && t0 === selectedBounds.max;
+    const anchor = selectedBounds.min;
+    const originalEnd = selectedBounds.max;
     const move = (ev: PointerEvent) => {
-      const t = snap(Math.max(0, Math.min(duration, t0 + ((ev.clientX - x0) / width) * duration)));
-      if (t === cur) return;
-      cur = editor.moveKey(track, cur, t);
-      selected = { track, t: cur };
-      editor.setTime(cur);
+      if (scale) {
+        const end = snap(Math.max(anchor, Math.min(duration, t0 + ((ev.clientX - x0) / width) * duration)));
+        const desired = Math.max(0.001, (end - anchor) / (originalEnd - anchor));
+        const factor = desired / appliedScale;
+        if (Math.abs(factor - 1) < 1e-6) return;
+        const refs = selectedKeys.map((item) => ({ ...item }));
+        if (!editor.scaleKeys(refs, anchor, factor)) return;
+        appliedScale = desired;
+        const updated = refs.map((item) => ({ track: item.track, t: Math.round((anchor + (item.t - anchor) * factor) * 1000) / 1000 }));
+        const primaryTime = Math.round((anchor + (t0 - anchor) * appliedScale) * 1000) / 1000;
+        setSelectedKeys(updated, { track, t: primaryTime });
+        editor.setTime(primaryTime);
+        return;
+      }
+      const desired = snap(Math.max(0, Math.min(duration, t0 + ((ev.clientX - x0) / width) * duration))) - t0;
+      const delta = desired - applied;
+      if (Math.abs(delta) < 1e-9) return;
+      const refs = selectedKeys.map((item) => ({ ...item }));
+      const actual = editor.moveKeys(refs, delta);
+      if (!actual) return;
+      applied += actual;
+      const updated = refs.map((item) => ({ track: item.track, t: Math.round((item.t + actual) * 1000) / 1000 }));
+      const primaryTime = Math.round((t0 + applied) * 1000) / 1000;
+      setSelectedKeys(updated, { track, t: primaryTime });
+      editor.setTime(primaryTime);
     };
     const up = () => {
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
       // A dragged diamond is recreated at its new time: give focus back to it.
-      if (cur !== t0) void tick().then(() => document.querySelector<HTMLElement>(`[data-key="${CSS.escape(`${track}@${cur}`)}"]`)?.focus({ preventScroll: true }));
+      if (applied !== 0 || appliedScale !== 1) {
+        const at = scale ? Math.round((anchor + (t0 - anchor) * appliedScale) * 1000) / 1000 : Math.round((t0 + applied) * 1000) / 1000;
+        void tick().then(() => document.querySelector<HTMLElement>(`[data-key="${CSS.escape(`${track}@${at}`)}"]`)?.focus({ preventScroll: true }));
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
@@ -103,7 +200,7 @@
   // follows it by its data-key attribute.
   function selectKey(track: string, t: number) {
     editor.playing = false;
-    selected = { track, t };
+    setSelectedKeys([{ track, t }], { track, t });
     editor.setTime(t);
   }
   async function nudgeKey(e: KeyboardEvent, track: string, t0: number) {
@@ -127,7 +224,7 @@
       : keys.find((k) => k.t > t + 1e-6);
     if (key) {
       editor.playing = false;
-      selected = { track: tr.id, t: key.t };
+      setSelectedKeys([{ track: tr.id, t: key.t }], { track: tr.id, t: key.t });
       editor.setTime(key.t);
     }
   }
@@ -152,11 +249,11 @@
   });
   function keydown(e: KeyboardEvent) {
     if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedKey) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedKeys.length) {
       e.preventDefault();
       e.stopPropagation();
-      editor.removeKey(selectedKey.tr.id, selectedKey.key.t);
-      selected = null;
+      editor.removeKeys(selectedKeys);
+      setSelectedKeys([]);
     }
   }
 
@@ -235,7 +332,7 @@
       <span class="field">Ease
         <Select value={selectedKey.key.ease ?? 'ease-in-out'} options={EASES} label="Ease" width="104px" onchange={(v) => editor.setEase(selectedKey.tr.id, selectedKey.key.t, v as Ease)} />
       </span>
-      <IconButton icon="trash" label="Delete keyframe (Del)" onclick={() => { editor.removeKey(selectedKey.tr.id, selectedKey.key.t); selected = null; }} />
+      <IconButton icon="trash" label={`Delete ${selectedKeys.length > 1 ? `${selectedKeys.length} keyframes` : 'keyframe'} (Del)`} onclick={() => { editor.removeKeys(selectedKeys); setSelectedKeys([]); }} />
       <span class="rule" aria-hidden="true"></span>
       <!-- Repetir la pista entera: cuántas veces (0, sin parar) y cada cuánto (vacío: una detrás de otra). -->
       <label class="field" title="How many times this track plays its keys. 0: until the end">Repeat
@@ -302,8 +399,9 @@
         {/if}
       {/each}
     </div>
-    <div class="lanes" bind:this={area} onwheel={wheel}>
-      <div class="inner" style:width="{width}px">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="lanes" bind:this={area} onwheel={wheel} onpointerdown={lanePointerDown}>
+      <div class="inner" bind:this={inner} style:width="{width}px">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="ruler" onpointerdown={scrub}>
         {#each ticks as t (t)}
@@ -316,7 +414,7 @@
       {#each groups as g (g.id)}
         <!-- Fila del objeto: un rombo pequeño donde tenga alguna clave (lleva el cabezal a ese instante). -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="lane group" onpointerdown={scrub}>
+        <div class="lane group">
           {#each g.times as t (t)}
             <button
               type="button"
@@ -332,7 +430,7 @@
         {#if g.open}
           {#each g.tracks as tr (tr.id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="lane" onpointerdown={scrub}>
+        <div class="lane">
           {#each tr.keys.slice(0, -1) as a, i (a.t)}
             {@const b = tr.keys[i + 1]!}
             {@const w = Math.max(1, x(b.t) - x(a.t))}
@@ -344,7 +442,7 @@
                 title={`${a.ease ?? 'ease-in-out'} — click to change the ease`}
                 aria-label={`Ease from ${a.t.toFixed(2)} to ${b.t.toFixed(2)} s: ${a.ease ?? 'ease-in-out'}`}
                 data-on={easeOpen === id || (selected?.track === tr.id && selected.t === a.t) || undefined}
-                onpointerdown={(e: PointerEvent) => e.stopPropagation()}
+                onpointerdown={(e: PointerEvent) => { if (!e.shiftKey) e.stopPropagation(); }}
               >
                 <svg width={w} height="22" aria-hidden="true"><path d={curve(a.ease, w, 22, 5)} /></svg>
               </Popover.Trigger>
@@ -369,16 +467,21 @@
             <span class="key ghost" style:left="{x(t)}px" aria-hidden="true"></span>
           {/each}
           {#each tr.keys as k (k.t)}
+            {@const selectedHere = selectedKeys.some((item) => item.track === tr.id && item.t === k.t)}
+            {@const scaleHandle = selectedHere && selectedBounds.scalable && k.t === selectedBounds.max}
             <button
               type="button"
               class="key"
-              data-selected={selected?.track === tr.id && selected.t === k.t ? '' : undefined}
+              data-selected={selectedHere || undefined}
               data-hold={k.ease === 'hold' || undefined}
               style:left="{x(k.t)}px"
-              title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'} · ←→ move, Del remove`}
+              title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'} · ${scaleHandle ? 'drag to scale selected keys' : 'drag to move'} · Del remove`}
               aria-label={(({ node, what, param }) => `${[node, what, param].filter(Boolean).join(' · ')}: keyframe at ${k.t.toFixed(2)} seconds`)(labelOf(tr))}
               aria-keyshortcuts="ArrowLeft ArrowRight Delete"
               data-key={`${tr.id}@${k.t}`}
+              data-track={tr.id}
+              data-time={k.t}
+              data-scale-handle={scaleHandle || undefined}
               onpointerdown={(e) => dragKey(e, tr.id, k.t)}
               onclick={(e) => { if (e.detail === 0) selectKey(tr.id, k.t); }}
               onkeydown={(e) => nudgeKey(e, tr.id, k.t)}
@@ -388,6 +491,9 @@
       {/each}
         {/if}
       {/each}
+      {#if marquee}
+        <span class="marquee" aria-hidden="true" style:left="{marquee.left}px" style:top="{marquee.top}px" style:width="{marquee.width}px" style:height="{marquee.height}px"></span>
+      {/if}
       {#if !anim?.tracks.length && editor.showInfo}
         <p class="empty">Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.</p>
       {/if}
@@ -411,7 +517,7 @@
   .marker-editor input { width: 140px; min-width: 0; font: inherit; color: var(--sv-text-primary); background: var(--sv-surface-field); border: 1px solid var(--sv-rule-default); }
   .marker { position: absolute; bottom: 0; z-index: 2; width: 8px; height: 9px; padding: 0; translate: -50% 0; background: var(--sv-accent-fill); border: 0; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); cursor: pointer; }
   .marker:focus-visible { outline: 2px solid var(--sv-text-primary); clip-path: none; }
-  .body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; overflow-y: auto; }
+  .body { display: grid; grid-template-columns: 220px 1fr; flex: 1; min-height: 0; overflow-y: auto; }
   .labels { border-right: var(--sv-border-1) solid var(--sv-rule-default); }
   .ruler-gap, .ruler { height: 20px; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .ruler-gap { display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 var(--sv-space-4); }
@@ -441,6 +547,7 @@
   .label .x:hover { color: var(--sv-signal-error); }
   .lanes { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; user-select: none; }
   .inner { position: relative; margin: 0 12px; }
+  .marquee { position: absolute; z-index: 5; border: 1px solid var(--sv-accent-fill); background: color-mix(in srgb, var(--sv-accent-fill) 12%, transparent); pointer-events: none; }
   .zoom { display: flex; align-items: center; gap: 2px; }
   .zoom .pct { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .ruler { position: relative; cursor: ew-resize; }
@@ -475,6 +582,7 @@
   .key[data-hold] { border-radius: 0; background: var(--sv-surface-panel); border-color: var(--sv-text-secondary); }
   .key[data-hold]:hover { border-color: var(--sv-text-primary); }
   .key[data-selected] { background: var(--sv-accent-fill); border-color: var(--sv-accent-fill); outline: 1px solid var(--sv-text-primary); outline-offset: 2px; }
+  .key[data-scale-handle] { cursor: ew-resize; box-shadow: 0 0 0 2px var(--sv-text-primary); }
   .head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sv-timeline-playhead); pointer-events: none; }
   .head::before { content: ''; position: absolute; top: 0; left: -4px; width: 9px; height: 8px; background: var(--sv-timeline-playhead); clip-path: polygon(0 0, 100% 0, 50% 100%); }
   .empty { margin: var(--sv-space-12) 0; color: var(--sv-text-muted); font-size: var(--sv-font-size-11); max-width: 520px; }

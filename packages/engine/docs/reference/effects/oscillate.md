@@ -2,7 +2,7 @@
 
 `type: "oscillate"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
 
-Periodic modulation of nested effects: sine, triangle, square or saw. Frequency is cycles per second; amplitude and offset control signal strength. Phase and Element phase are degrees. Disable Per element to move the whole object together. Time follows scene.time when added in the editor; numeric child parameters move around their neutral values (scale around 1).
+Periodic modulation of nested effects: sine, triangle, square or saw. Frequency is cycles per second; amplitude and offset control signal strength. Phase and Element phase are degrees. Disable Per element to move the whole object together. Time follows scene.time when added in the editor; numeric child parameters move around their neutral values (scale around 1). Oscillate can be nested in Range or Field to limit the signal to selected elements; its Amplitude and Offset scale with that selector's weight, and its per-element phase follows original Clone indices.
 
 ## Parameters
 

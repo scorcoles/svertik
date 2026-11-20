@@ -4,7 +4,7 @@
 
 Selects elements, text words/lines or Clone grid rows/columns for nested effects. Select: All, Even, Odd or CSS-style An+B (one-based). Start/End/Offset limit the selection; Falloff (stored as shape) controls strength, with Square applying a uniform amount. Odd grid rows are 1, 3, 5… and keep their original indices through partial grids. In Wire, only the Range selected in the stack highlights its affected elements, using a stable five-colour palette.
 
-Takes nested effects (`children`), weighted per element by its order. Nested effectors are not allowed.
+Takes nested effects (`children`), weighted per element by its order. It can contain the time-signal effectors Oscillate, Wiggle, Pulse and Shake; those signals act only on the selected elements. Their Amplitude and Offset follow Range's per-element weight, and Per element keeps using the original Clone index when Range selects a subset.
 
 ## Parameters
 

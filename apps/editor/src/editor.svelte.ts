@@ -77,16 +77,20 @@ export const DEFAULT_DOCUMENT = { width: 1400, height: 900 };
 const newScene = (objects: SceneNode[] = []): SceneV1 => ({ version: 1, document: { ...DEFAULT_DOCUMENT }, objects });
 const normalizeSeedGenerator = (value: number) => Math.max(0, Math.min(0x7fffffff, Math.round(Number.isFinite(value) ? value : 1)));
 
-/** Modificadores que aceptan otros colgados (y los aplican a su manera). */
-/** Efectos que llevan otros dentro: los efectores (Step, Range, Field, Stagger) y RGB Split (lo suyo, a las copias). */
+/** Effects that select a subset of elements and can scope time signals to that subset. */
+export const selectors = new Set(['range', 'field']);
+/** Time-signal effectors that can run inside a selector. */
+export const signalEffectors = new Set(['oscillate', 'wiggle', 'pulse', 'shake']);
+/** Modifiers that accept children and apply them according to their own semantics. */
 export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics']);
 export const containers = new Set([...effectors, 'rgbsplit']);
 /**
- * ¿Puede `child` ir dentro de `parent`? Un efector no lleva otro efector; RGB Split lleva cualquier cosa
- * menos otro RGB Split (un Step dentro reparte sus copias por elementos), y también puede ir dentro de un efector.
+ * Can `child` go inside `parent`? Selectors can scope time signals to their selected elements. Other
+ * effectors do not contain effectors; RGB Split accepts everything except another RGB Split.
  */
 export function canNest(parent: string, child: string): boolean {
   if (!containers.has(parent)) return false;
+  if (selectors.has(parent) && signalEffectors.has(child)) return true;
   if (effectors.has(parent)) return !effectors.has(child);
   return child !== 'rgbsplit';
 }
@@ -2245,6 +2249,61 @@ export class Editor {
     this.record();
     return t;
   }
+  /** Move a set of keyframes by one shared delta; collisions reject the whole move. */
+  moveKeys(keys: { track: string; t: number }[], delta: number): number {
+    const anim = this.animation;
+    if (!anim || !Number.isFinite(delta) || Math.abs(delta) < 1e-9) return 0;
+    const refs: { track: Track; key: Track['keys'][number] }[] = [];
+    const seen = new Set<string>();
+    for (const ref of keys) {
+      const id = `${ref.track}@${ref.t}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const track = anim.tracks.find((tr) => tr.id === ref.track);
+      const key = track?.keys.find((k) => k.t === ref.t);
+      if (track && key) refs.push({ track, key });
+    }
+    if (!refs.length) return 0;
+    const actual = Math.max(-Math.min(...refs.map(({ key }) => key.t)), Math.min(anim.duration - Math.max(...refs.map(({ key }) => key.t)), delta));
+    const targets = refs.map(({ key }) => Math.round((key.t + actual) * 1000) / 1000);
+    for (let i = 0; i < refs.length; i++) {
+      const { track, key } = refs[i]!;
+      if (track.keys.some((other) => other !== key && !refs.some((ref) => ref.track === track && ref.key === other) && other.t === targets[i])) return 0;
+    }
+    for (let i = 0; i < refs.length; i++) refs[i]!.key.t = targets[i]!;
+    for (const track of new Set(refs.map(({ track }) => track))) track.keys.sort((a, b) => a.t - b.t);
+    this.#applyTime();
+    this.record();
+    return actual;
+  }
+  /** Scale selected key times around a fixed anchor, preserving their relative timing. */
+  scaleKeys(keys: { track: string; t: number }[], anchor: number, factor: number): boolean {
+    const anim = this.animation;
+    if (!anim || !Number.isFinite(anchor) || !Number.isFinite(factor) || factor < 0) return false;
+    const refs: { track: Track; key: Track['keys'][number] }[] = [];
+    const seen = new Set<string>();
+    for (const ref of keys) {
+      const id = `${ref.track}@${ref.t}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const track = anim.tracks.find((tr) => tr.id === ref.track);
+      const key = track?.keys.find((k) => k.t === ref.t);
+      if (track && key) refs.push({ track, key });
+    }
+    if (!refs.length) return false;
+    const targets = refs.map(({ key }) => Math.round((anchor + (key.t - anchor) * factor) * 1000) / 1000);
+    for (let i = 0; i < refs.length; i++) {
+      const { track, key } = refs[i]!;
+      if (targets[i]! < 0 || targets[i]! > anim.duration) return false;
+      if (refs.some((ref, j) => j < i && ref.track === track && targets[j] === targets[i])) return false;
+      if (track.keys.some((other) => other !== key && !refs.some((ref) => ref.track === track && ref.key === other) && other.t === targets[i])) return false;
+    }
+    for (let i = 0; i < refs.length; i++) refs[i]!.key.t = targets[i]!;
+    for (const track of new Set(refs.map(({ track }) => track))) track.keys.sort((a, b) => a.t - b.t);
+    this.#applyTime();
+    this.record();
+    return true;
+  }
   setEase(trackId: string, at: number, e: Ease) {
     const k = this.animation?.tracks.find((x) => x.id === trackId)?.keys.find((x) => x.t === at);
     if (!k) return;
@@ -2258,6 +2317,22 @@ export class Editor {
     if (!anim || !tr) return;
     tr.keys = tr.keys.filter((k) => k.t !== at);
     if (!tr.keys.length) anim.tracks = anim.tracks.filter((x) => x !== tr);
+    this.#applyTime();
+    this.record(true);
+  }
+  /** Remove selected keys across tracks as one undoable operation. */
+  removeKeys(keys: { track: string; t: number }[]) {
+    const anim = this.animation;
+    if (!anim || !keys.length) return;
+    let removed = false;
+    for (const track of anim.tracks) {
+      const times = new Set(keys.filter((key) => key.track === track.id).map((key) => key.t));
+      if (!times.size) continue;
+      const kept = track.keys.filter((key) => !times.has(key.t));
+      if (kept.length !== track.keys.length) { track.keys = kept; removed = true; }
+    }
+    if (!removed) return;
+    anim.tracks = anim.tracks.filter((track) => track.keys.length);
     this.#applyTime();
     this.record(true);
   }

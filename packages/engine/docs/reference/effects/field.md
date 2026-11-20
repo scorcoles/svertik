@@ -4,7 +4,7 @@
 
 Field selector: the nested effects act more or less on each element depending on where it is relative to a shape (ellipse, plane or box). Circle and Box take Width and Height; Linear fades over Distance. Contain decides when an element counts as inside: its centre, all of it (full) or any part of it (partial). Move the field to sweep the drawing; Softness is how much of the edge is a transition. In an Effector node the field is one place in the scene (fractions of the document) for all its targets.
 
-Takes nested effects (`children`), weighted per element by its position. Nested effectors are not allowed.
+Takes nested effects (`children`), weighted per element by its position. It can contain the time-signal effectors Oscillate, Wiggle, Pulse and Shake; those signals act only on elements inside the field, and their Amplitude and Offset follow the field's per-element weight.
 
 ## Parameters
 

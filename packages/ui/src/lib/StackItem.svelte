@@ -36,6 +36,8 @@
     onlock?: () => void;
     /** In the tab order (roving tabindex: one row per tree). Defaults to the selected row. */
     tabbable?: boolean;
+    /** Optional dedicated drag handle; keeps normal row interaction from starting a drag. */
+    ondragstart?: (e: DragEvent) => void;
   }
   let {
     label,
@@ -58,6 +60,7 @@
     locked = false,
     onlock,
     tabbable,
+    ondragstart,
   }: Props = $props();
 
   // Accessible name: the row's label plus its state, without the names of the buttons inside it.
@@ -129,6 +132,19 @@
     else if (expanded !== undefined && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); onexpand?.(e.key === 'ArrowRight'); }
   }}
 >
+  {#if ondragstart}
+    <button
+      type="button"
+      class="drag-handle"
+      draggable="true"
+      tabindex="-1"
+      aria-label={`Drag ${label}`}
+      title="Drag to move"
+      onpointerdown={(e) => e.stopPropagation()}
+      onclick={(e) => e.stopPropagation()}
+      ondragstart={(e) => { e.stopPropagation(); ondragstart(e); }}
+    >⠿</button>
+  {/if}
   {#if expanded !== undefined}
     <button
       type="button"
@@ -248,6 +264,23 @@
     border: 0;
     cursor: pointer;
   }
+  .drag-handle {
+    flex: none;
+    width: 16px;
+    height: 22px;
+    margin-left: -3px;
+    padding: 0;
+    border: 0;
+    color: var(--sv-text-muted);
+    background: transparent;
+    font: inherit;
+    line-height: 1;
+    cursor: grab;
+    opacity: 0.68;
+  }
+  .sv-stack-item:hover .drag-handle,
+  .sv-stack-item:focus-within .drag-handle { opacity: 1; }
+  .drag-handle:active { cursor: grabbing; }
   .icon { display: flex; color: var(--tone, var(--sv-text-secondary)); }
   .icon-action { align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
   .icon-action:hover { color: var(--sv-accent-fill); }
