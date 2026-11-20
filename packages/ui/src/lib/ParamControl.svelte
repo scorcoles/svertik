@@ -101,7 +101,7 @@
 {#if spec.type === 'nodes'}
   <NodeTargets value={value as string[]} {nodes} {label} onselect={onselectnode} onadd={(id) => onchange([...new Set([...(value as string[]), id])])} onremove={(id) => onchange((value as string[]).filter((node) => node !== id))} />
 {:else}
-<ParamRow {label} for={id} tall={spec.type === 'text' || spec.type === 'palette'} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey} scrub={spec.type === 'number' && !expression ? { value: shown as number, step: spec.step ?? 0.01, min: spec.min, max: spec.max, onchange: emit } : spec.type === 'angle' ? { value: value as number, step: 1, onchange: (v) => onchange(v) } : spec.type === 'seed' && !expression ? { value: value as number, step: 1, min: 0, onchange: (v) => onchange(v) } : undefined}>
+<ParamRow {label} for={id} tall={spec.type === 'text' || spec.type === 'palette' || pivotSelector} keyState={expression ? undefined : keyState} onkey={expression || spec.animatable === false ? undefined : onkey} scrub={spec.type === 'number' && !expression ? { value: shown as number, step: spec.step ?? 0.01, min: spec.min, max: spec.max, onchange: emit } : spec.type === 'angle' ? { value: value as number, step: 1, onchange: (v) => onchange(v) } : spec.type === 'seed' && !expression ? { value: value as number, step: 1, min: 0, onchange: (v) => onchange(v) } : undefined}>
   {#if spec.type === 'number' || spec.type === 'seed'}
     {#if expression}
       <div class="expression-control" style={`--sv-field-width: ${numericFieldWidth}`}>

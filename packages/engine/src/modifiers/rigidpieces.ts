@@ -43,13 +43,16 @@ export const rigidpieces = defineModifier({
     const transformed = new Map<number, Geometry>();
     for (const [group, shapes] of pieces) {
       let part: Geometry = { viewBox: marked.viewBox, shapes };
+      const deferred: NonNullable<Shape['rigidTransforms']> = [];
       for (const child of children) {
+        if (child.def.type === 'transform' || child.def.type === 'rotate3d') {
+          deferred.push({ type: child.def.type, params: child.params });
+          continue;
+        }
         const local: ModifierContext = { ...ctx, bounds: bounds(part), children: child.children };
-        const params = child.def.type === 'transform' || child.def.type === 'rotate3d'
-          ? { ...child.params, pivot: pivotPoint[(p.pivot as Shape['rigidPivot']) ?? 'center'] }
-          : child.params;
-        part = child.def.apply(part, params as never, local);
+        part = child.def.apply(part, child.params as never, local);
       }
+      if (deferred.length) part.shapes = part.shapes.map((shape) => ({ ...shape, rigidTransforms: deferred }));
       transformed.set(group, part);
     }
     return { ...marked, shapes: [...transformed.values()].flatMap((part) => part.shapes) };

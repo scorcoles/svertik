@@ -19,6 +19,12 @@ export interface SubPath {
 
 export type Style = Record<string, string>;
 
+/** Transform controls nested in Rigid Pieces wait for a downstream deformer to act. */
+export interface RigidPieceTransform {
+  type: 'transform' | 'rotate3d';
+  params: Record<string, unknown>;
+}
+
 /** Initial motion metadata consumed by the next rigid-body simulation. */
 export interface Impulse {
   velocity: Vec2;
@@ -43,6 +49,8 @@ export interface Shape {
   rigidGroup?: number;
   /** Mix between normal pointwise deformation (0) and whole-piece rigid motion (1). */
   rigidAmount?: number;
+  /** Deferred per-piece transforms; consumed by the first downstream deformer that changes this piece. */
+  rigidTransforms?: RigidPieceTransform[];
   /** Anchor point used when compatible deformers rotate this rigid piece. */
   rigidPivot?: 'center' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
   impulse?: Impulse;
@@ -229,6 +237,7 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
     groups.set(shape.rigidGroup, group);
   }
   const transforms = new Map<number, (point: Vec2) => Vec2>();
+  const activated = new Set<number>();
   for (const [id, members] of groups) {
     const b = bounds({ viewBox: geo.viewBox, shapes: members });
     const pivot = members[0]?.rigidPivot ?? 'center';
@@ -249,15 +258,64 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
     }
     const angle = Math.atan2(vy, vx), c = Math.cos(angle), s = Math.sin(angle);
     const amount = Math.max(0, Math.min(1, members[0]?.rigidAmount ?? 1));
-    transforms.set(id, ([x, y]) => {
-      const point = fn([x, y]);
-      if (amount === 0) return point;
+    const pieceChanged = members.some((shape) => shape.subpaths.some((path) => {
+      const points = [path.start, ...path.segs.flatMap((seg) => [seg.c1, seg.c2, seg.p])];
+      return points.some((point) => {
+        const moved = fn(point);
+        return Math.hypot(moved[0] - point[0], moved[1] - point[1]) > 1e-6;
+      });
+    }));
+    let rigidMap = ([x, y]: Vec2): Vec2 => {
       const dx = x - anchor[0], dy = y - anchor[1];
-      const rigid: Vec2 = [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
-      return [point[0] + (rigid[0] - point[0]) * amount, point[1] + (rigid[1] - point[1]) * amount];
+      return [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
+    };
+    if (pieceChanged && amount > 0) {
+      for (const operation of members[0]?.rigidTransforms ?? []) {
+        const current = mapPoints({ viewBox: geo.viewBox, shapes: members }, rigidMap);
+        const box = bounds(current);
+        const params = operation.params;
+        const px = box.x + box.width * (pivot === 'nw' || pivot === 'w' || pivot === 'sw' ? 0 : pivot === 'ne' || pivot === 'e' || pivot === 'se' ? 1 : 0.5);
+        const py = box.y + box.height * (pivot === 'nw' || pivot === 'n' || pivot === 'ne' ? 0 : pivot === 'sw' || pivot === 's' || pivot === 'se' ? 1 : 0.5);
+        const previous = rigidMap;
+        if (operation.type === 'transform') {
+          const rotation = (Number(params.rotation ?? 0) * Math.PI) / 180;
+          const scale = Number(params.scale ?? 1);
+          const co = Math.cos(rotation) * scale, si = Math.sin(rotation) * scale;
+          const tx = Number(params.x ?? 0), ty = Number(params.y ?? 0);
+          rigidMap = (point) => {
+            const [x, y] = previous(point), dx = x - px, dy = y - py;
+            return [px + dx * co - dy * si + tx, py + dx * si + dy * co + ty];
+          };
+        } else {
+          const rx = (Number(params.rotateX ?? 30) * Math.PI) / 180;
+          const ry = (Number(params.rotateY ?? 0) * Math.PI) / 180;
+          const rz = (Number(params.rotateZ ?? 0) * Math.PI) / 180;
+          const [sx, cx] = [Math.sin(rx), Math.cos(rx)];
+          const [sy, cy] = [Math.sin(ry), Math.cos(ry)];
+          const [sz, cz] = [Math.sin(rz), Math.cos(rz)];
+          const distance = Number(params.perspective ?? 2) * Math.max(box.width, box.height);
+          rigidMap = (point) => {
+            let [x, y] = previous(point);
+            x -= px; y -= py;
+            let z = 0;
+            [x, y] = [x * cz - y * sz, x * sz + y * cz];
+            [y, z] = [y * cx - z * sx, y * sx + z * cx];
+            [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+            const f = distance / Math.max(distance - z, distance * 0.05);
+            return [px + x * f, py + y * f];
+          };
+        }
+      }
+      activated.add(id);
+    }
+    transforms.set(id, (source) => {
+      const flexible = fn(source);
+      if (amount === 0) return flexible;
+      const rigid = rigidMap(source);
+      return [flexible[0] + (rigid[0] - flexible[0]) * amount, flexible[1] + (rigid[1] - flexible[1]) * amount];
     });
   }
-  return mapSubPaths({ viewBox: geo.viewBox, shapes }, (path, shape) => {
+  const moved = mapSubPaths({ viewBox: geo.viewBox, shapes }, (path, shape) => {
     const map = shape.rigidGroup === undefined ? fn : transforms.get(shape.rigidGroup)!;
     return {
       start: map(path.start),
@@ -265,6 +323,10 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
       closed: path.closed,
     };
   });
+  if (activated.size) moved.shapes = moved.shapes.map((shape) => shape.rigidGroup !== undefined && activated.has(shape.rigidGroup)
+    ? (({ rigidTransforms: _pending, ...rest }) => rest)(shape)
+    : shape);
+  return moved;
 }
 
 /** Box containing every point (controls included). */

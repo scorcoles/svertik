@@ -7,7 +7,7 @@ export const effectDescriptions: Record<string, string> = {
   transform: 'Moves, rotates and scales the whole drawing, around a pivot. Offsets are in drawing units (px).',
   rotate3d: 'Rotates the drawing in 3D (X, Y, Z) around a pivot and projects it with perspective. Tilting on X or Y gives the classic tilt; Z is a flat spin.',
   spherize: 'Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. The edge of the circle does not move, so there is no jump with what is outside. After Rigid Pieces, each marked element moves and turns as a plate instead of bending.',
-  rigidpieces: 'Marks each current element as a rigid piece. Amount blends normal pointwise deformation with whole-piece motion: 0 bends normally, 1 preserves the piece shape. A neutral downstream deformer leaves it unchanged. Nest Transform or Rotate 3D for explicit per-piece transforms; Pivot sets the shared rotation anchor.',
+  rigidpieces: 'Marks each current element as a rigid piece. Amount blends normal pointwise deformation with whole-piece motion: 0 bends normally, 1 preserves the piece shape. Nested Transform and Rotate 3D wait until a downstream deformer actually moves the piece; Pivot sets their shared rotation anchor.',
   twist: 'A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius.',
   bend: 'Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. Positive angles bend the ends down (∩), negative ones up (∪).',
   bones: 'A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.',
