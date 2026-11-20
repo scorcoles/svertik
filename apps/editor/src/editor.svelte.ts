@@ -2699,7 +2699,7 @@ export class Editor {
     if (!this.scene || !def || !owner) return;
     const inst: ModifierInstance = { id: `${type}-${uid()}`, type, enabled: true, params: { ...resolveParams(def.params) } };
     if (type === 'color') inst.params!.mode = 'solid';
-    if (['particles', 'gravity', 'physics', 'oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
+    if (['particles', 'gravity', 'physics', 'voronoi', 'oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
       inst.params!.time = { $expr: 'scene.time', fallback: 1 };
       this.#ensureAnimation();
     }

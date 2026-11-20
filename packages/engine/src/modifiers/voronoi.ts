@@ -3,6 +3,7 @@ import { covers, regionOf, toSubPath } from '../clip';
 import type { Geometry, Shape } from '../geometry';
 import { defineModifier } from '../modifier';
 import { colorSampler, prepare, type Layer } from './halftone';
+import { noise2D } from '../random';
 
 const MAX_CELLS = 1000;
 
@@ -17,6 +18,9 @@ export const voronoi = defineModifier({
     color: { type: 'enum', default: 'original', options: ['original', 'ink'] as const, label: 'Color', animatable: false },
     ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     seed: { type: 'seed', default: 1 },
+    drift: { type: 'number', default: 0, min: 0, max: 0.25, step: 0.01, unit: 'fraction', group: 'Motion', label: 'Drift' },
+    speed: { type: 'number', default: 0.2, min: 0, max: 3, step: 0.01, group: 'Motion', label: 'Speed' },
+    time: { type: 'number', default: 0, min: 0, step: 0.01, unit: 's', group: 'Motion', label: 'Time', random: false },
   },
   apply(geo, p, ctx): Geometry {
     if (!geo.shapes.length) return geo;
@@ -38,10 +42,18 @@ export const voronoi = defineModifier({
     const gridX = bounds[0] + (bounds[2] - bounds[0] - nx * step) / 2;
     const gridY = bounds[1] + (bounds[3] - bounds[1] - ny * step) / 2;
     const sites: Pair[] = [];
+    const driftX = p.drift > 0 ? noise2D(p.seed + 104729) : null;
+    const driftY = p.drift > 0 ? noise2D(p.seed + 130363) : null;
+    const phase = p.time * p.speed;
     for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
       const cx = gridX + (x + 0.5) * step;
       const cy = gridY + (y + 0.5) * step;
-      sites.push([cx + (rand(p.seed, x, y, 0) - 0.5) * step * p.jitter, cy + (rand(p.seed, x, y, 1) - 0.5) * step * p.jitter]);
+      const baseX = cx + (rand(p.seed, x, y, 0) - 0.5) * step * p.jitter;
+      const baseY = cy + (rand(p.seed, x, y, 1) - 0.5) * step * p.jitter;
+      const nx = x * 0.73, ny = y * 0.73;
+      const dx = driftX ? (driftX(nx + phase, ny + phase * 0.37) - driftX(nx, ny)) * 0.5 * step * p.drift : 0;
+      const dy = driftY ? (driftY(nx - phase * 0.41, ny + phase * 0.61) - driftY(nx, ny)) * 0.5 * step * p.drift : 0;
+      sites.push([baseX + dx, baseY + dy]);
     }
     const output: Shape[] = [];
     const reach = 2;

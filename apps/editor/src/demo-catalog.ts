@@ -3,6 +3,7 @@ import { tileWallProject } from './demo-tiles';
 import { weaveProject } from './demo-weave';
 import { contourProject } from './demo-contour';
 import { voronoiProject } from './demo-voronoi';
+import { livingVoronoiProject } from './demo-voronoi-living';
 import { networkProject } from './demo-network';
 import { timeRemapProject, compositionsProject, crossFillProject, motionProject, rhythmProject, demoProject, gravityProject, ricochetProject, tidalOrbitProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
 
@@ -25,6 +26,7 @@ export const DEMOS = [
   { which: 'weave', label: 'Weave: a breathing moiré grid with Gather', create: weaveProject, view: 'canvas' },
   { which: 'contour', label: 'Contour: an isobar poster', create: contourProject, view: 'canvas' },
   { which: 'voronoi', label: 'Voronoi: a fault-line color study', create: voronoiProject, view: 'canvas' },
+  { which: 'voronoi-living', label: 'Voronoi: living cells in motion', create: livingVoronoiProject, view: 'canvas' },
   { which: 'network', label: 'Network: nearest-neighbour links', create: networkProject, view: 'canvas' },
   { which: 'poster', label: 'Print Poster: a 1200×4800 glitch print', create: printPosterProject, view: 'canvas' },
 ] as const;

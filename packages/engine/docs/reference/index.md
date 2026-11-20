@@ -43,7 +43,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Particles](effects/particles.md) | `particles` | Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved. |
 | [Mirror](effects/mirror.md) | `mirror` | Reflects the drawing on an axis at a fraction of its box. |
 | [Mosaic](effects/mosaic.md) | `mosaic` | Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). |
-| [Voronoi](effects/voronoi.md) | `voronoi` | Turns filled artwork into jittered Voronoi cells, clipped to its silhouette. |
+| [Voronoi](effects/voronoi.md) | `voronoi` | Turns filled artwork into jittered cells; optional smooth site drift animates the shared tessellation. |
 | [Fractal](effects/fractal.md) | `fractal` | Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. |
 | [Halftone](effects/halftone.md) | `halftone` | A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. |
 | [Vector Grain](effects/vectorgrain.md) | `vectorgrain` | Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). |
