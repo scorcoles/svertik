@@ -9,7 +9,7 @@ interface Path { shape: number; sub: number; ids: number[]; source: SubPath; are
 interface Body { ids: number[]; rest: Vec2[]; material: SoftMaterial; rigid: boolean }
 interface Frame { pos: Float64Array; vel: Float64Array; pending: Set<number> }
 export interface SoftPlan {
-  base: Geometry; rest: Float64Array; initial: Frame; free: number[]; radius: number[]; damping: number[];
+  base: Geometry; rest: Float64Array; initial: Frame; free: number[]; radius: number[]; damping: number[]; surface: number[];
   paths: Path[]; links: Link[]; bodies: Body[]; groups: { ids: number[]; paths: Path[] }[];
   replay?: { key: string; checkpoints: Frame[]; latest: { step: number; frame: Frame } };
 }
@@ -41,20 +41,20 @@ export function buildSoftPlan(geo: Geometry, size: number): SoftPlan {
     const samples = Math.max(4, Math.min(64, shape.softBody?.segments ?? 16));
     return subdivide({ viewBox: geo.viewBox, shapes: [{ ...shape, subpaths: [path] }] }, Math.max(perimeter / samples, length / 4096, 0.25)).shapes[0]!.subpaths[0]!;
   }) })) };
-  const points: number[] = [], velocities: number[] = [], free: number[] = [], radius: number[] = [], damping: number[] = [];
+  const points: number[] = [], velocities: number[] = [], free: number[] = [], radius: number[] = [], damping: number[] = [], surface: number[] = [];
   const paths: Path[] = [], links: Link[] = [];
   const groups = new Map<string, { ids: number[]; closed: boolean; paths: number; explicit: boolean; material: SoftMaterial; rigid: boolean }>();
   base.shapes.forEach((s, si) => s.subpaths.forEach((source, sub) => {
     if (!source.segs.length) return;
     const material = s.softBody;
     const rigid = !material || (material.mode === 'fibers' && source.closed) || (material.mode === 'bodies' && !source.closed);
-    const p: SoftMaterial = rigid ? { mode: 'auto', pins: 'free', stiffness: 1, bending: 1, volume: 0, damping: 0, segments: 24 } : material!;
+    const p: SoftMaterial = rigid ? { mode: 'auto', body: 'outline', pins: 'free', stiffness: 1, bending: 1, volume: 0, damping: 0, recovery: 10, segments: 24 } : material!;
     let path = source;
     const end = path.segs.at(-1)!.p;
     if (path.closed && Math.hypot(end[0] - path.start[0], end[1] - path.start[1]) > 1e-8) path = { ...path, segs: [...path.segs, line(end, path.start)] };
     const samples = [path.start, ...path.segs.map((seg) => seg.p)];
     if (path.closed) samples.pop();
-    const ids: number[] = [], center: Vec2 = [samples.reduce((n, v) => n + v[0], 0) / samples.length, samples.reduce((n, v) => n + v[1], 0) / samples.length];
+    const ids: number[] = [], internalIds: number[] = [], center: Vec2 = [samples.reduce((n, v) => n + v[0], 0) / samples.length, samples.reduce((n, v) => n + v[1], 0) / samples.length];
     const [vx, vy] = s.impulse?.velocity ?? [0, 0], spin = s.impulse?.spin ?? 0;
     samples.forEach((q, i) => {
       ids.push(points.length / 2); points.push(q[0], q[1]);
@@ -62,16 +62,51 @@ export function buildSoftPlan(geo: Geometry, size: number): SoftPlan {
       damping.push(p.damping);
       free.push(s.impulse?.immovable || (!path.closed && ((p.pins !== 'free' && i === 0) || (p.pins === 'ends' && i === samples.length - 1))) ? 0 : 1);
       radius.push(path.closed || !s.style.stroke || s.style.stroke === 'none' ? 0 : Math.max(0, Number(s.style['stroke-width'] ?? 1)) / 2);
+      surface.push(1);
     });
     const connect = (a: number, b: number, bend: boolean) => links.push({ a, b, bend, material: p, rigid, length: Math.hypot(points[a * 2]! - points[b * 2]!, points[a * 2 + 1]! - points[b * 2 + 1]!) });
     const n = ids.length;
     for (let i = 0; i < n - (path.closed ? 0 : 1); i++) connect(ids[i]!, ids[(i + 1) % n]!, false);
     if (n > 2) for (let i = 0; i < n - (path.closed ? 0 : 2); i++) connect(ids[i]!, ids[(i + 2) % n]!, true);
+    // A beam adds a flexible inner spine and cross-sections. The paired surface
+    // points keep each section together, so contact bends the whole body instead
+    // of letting its lower outline fold independently.
+    if (path.closed && !rigid && p.body === 'beam' && n >= 8) {
+      const local = ids.map((id) => [points[id * 2]!, points[id * 2 + 1]!] as Vec2);
+      const mx = local.reduce((sum, q) => sum + q[0], 0) / n, my = local.reduce((sum, q) => sum + q[1], 0) / n;
+      let xx = 0, xy = 0, yy = 0;
+      for (const q of local) { const x = q[0] - mx, y = q[1] - my; xx += x * x; xy += x * y; yy += y * y; }
+      const angle = Math.atan2(2 * xy, xx - yy) / 2, axis: Vec2 = [Math.cos(angle), Math.sin(angle)], normal: Vec2 = [-Math.sin(angle), Math.cos(angle)];
+      const along = local.map((q) => q[0] * axis[0] + q[1] * axis[1]), across = local.map((q) => q[0] * normal[0] + q[1] * normal[1]);
+      const min = Math.min(...along), max = Math.max(...along), thickness = Math.max(...across) - Math.min(...across), length = max - min;
+      if (length > Math.max(thickness * 2.5, 1)) {
+        const sections = Math.max(3, Math.min(24, Math.floor(n / 2), Math.ceil(length / Math.max(thickness, 1))));
+        const spine: number[] = [], sectionLinks = new Set<string>();
+        for (let section = 0; section <= sections; section++) {
+          const sAt = min + length * section / sections, halfWindow = length / sections * 0.55;
+          let candidates = ids.map((id, i) => ({ id, i, distance: Math.abs(along[i]! - sAt) })).filter((q) => q.distance <= halfWindow);
+          if (candidates.length < 2) candidates = ids.map((id, i) => ({ id, i, distance: Math.abs(along[i]! - sAt) })).sort((a, b) => a.distance - b.distance).slice(0, Math.min(8, n));
+          const top = candidates.reduce((a, b) => across[a.i]! < across[b.i]! ? a : b);
+          const bottom = candidates.reduce((a, b) => across[a.i]! > across[b.i]! ? a : b);
+          if (top.id === bottom.id || Math.hypot(points[top.id * 2]! - points[bottom.id * 2]!, points[top.id * 2 + 1]! - points[bottom.id * 2 + 1]!) < thickness * 0.35) continue;
+          const key = `${Math.min(top.id, bottom.id)}:${Math.max(top.id, bottom.id)}`;
+          if (sectionLinks.has(key)) continue;
+          sectionLinks.add(key);
+          const id = points.length / 2, x = (points[top.id * 2]! + points[bottom.id * 2]!) / 2, y = (points[top.id * 2 + 1]! + points[bottom.id * 2 + 1]!) / 2;
+          points.push(x, y); velocities.push(vx - spin * (y - center[1]), vy + spin * (x - center[0]));
+          free.push(s.impulse?.immovable ? 0 : 1); radius.push(0); damping.push(p.damping); surface.push(0);
+          internalIds.push(id); spine.push(id);
+          connect(top.id, bottom.id, false); connect(id, top.id, false); connect(id, bottom.id, false);
+        }
+        for (let i = 0; i < spine.length - 1; i++) connect(spine[i]!, spine[i + 1]!, false);
+        for (let i = 0; i < spine.length - 2; i++) connect(spine[i]!, spine[i + 2]!, true);
+      }
+    }
     const area = path.closed ? samples.reduce((sum, q, i) => { const r = samples[(i + 1) % n]!; return sum + q[0] * r[1] - r[0] * q[1]; }, 0) / 2 : 0;
     const key = s.bodyGroup !== undefined ? `body:${s.bodyGroup}` : s.clone !== undefined ? `clone:${s.clone}` : `shape:${si}`;
     paths.push({ shape: si, sub, ids, source: path, area, volume: rigid ? 0 : p.volume, group: key });
     const group = groups.get(key) ?? { ids: [], closed: false, paths: 0, explicit: s.bodyGroup !== undefined, material: p, rigid };
-    group.ids.push(...ids); group.closed ||= path.closed || rigid; group.paths++;
+    group.ids.push(...ids, ...internalIds); group.closed ||= path.closed || rigid; group.paths++;
     groups.set(key, group);
   }));
   const bodies: Body[] = [];
@@ -84,7 +119,7 @@ export function buildSoftPlan(geo: Geometry, size: number): SoftPlan {
   const rest = new Float64Array(points);
   const bodyParticles = new Set(bodies.flatMap((body) => body.ids));
   for (const link of links) link.body = bodyParticles.has(link.a) && bodyParticles.has(link.b);
-  return { base, rest, initial: { pos: rest.slice(), vel: new Float64Array(velocities), pending: new Set() }, free, radius, damping, paths, links, bodies, groups: [...groups.entries()].map(([key, g]) => ({ ids: g.ids, paths: paths.filter((p) => p.group === key) })) };
+  return { base, rest, initial: { pos: rest.slice(), vel: new Float64Array(velocities), pending: new Set() }, free, radius, damping, surface, paths, links, bodies, groups: [...groups.entries()].map(([key, g]) => ({ ids: g.ids, paths: paths.filter((p) => p.group === key) })) };
 }
 
 function solidsOf(targets: Geometry[], detail: number): Solid[] {
@@ -145,10 +180,10 @@ export function simulateSoft(plan: SoftPlan, time: number, p: SoftSettings, targ
     replay = plan.replay = { key, checkpoints: [initial], latest: { step: 0, frame: initial } };
   }
   const solids = solidsOf(targets, Math.max(0.25, size / 1000));
-  const { rest, free, radius, damping } = plan;
+  const { rest, free, radius, damping, surface } = plan;
   const count = free.length, nx = -Math.sin(p.rotation), ny = Math.cos(p.rotation);
   const advance = (frame: Frame, dt: number): Frame => {
-    const pos = frame.pos.slice(), vel = frame.vel.slice(), contact = new Float64Array(count * 2);
+    const pos = frame.pos.slice(), vel = frame.vel.slice(), contact = new Float64Array(count * 2), contactSpeed = new Float64Array(count);
     const projected = frame.pos.slice();
     const pending = new Set(frame.pending);
 
@@ -174,14 +209,16 @@ export function simulateSoft(plan: SoftPlan, time: number, p: SoftSettings, targ
       }
     }
     const project = () => {
-      for (let i = 0; i < count; i++) if (free[i]) {
+      for (let i = 0; i < count; i++) if (free[i] && surface[i]) {
         let x = pos[i * 2]!, y = pos[i * 2 + 1]!;
+        const beforeX = x, beforeY = y;
         for (const s of solids) {
           const hit = solidContact(s, x, y, projected[i * 2]!, projected[i * 2 + 1]!, radius[i]!, true);
           if (hit) { [x, y] = hit; contact[i * 2] = hit[2]; contact[i * 2 + 1] = hit[3]; }
         }
         const depth = p.floor ? (x - p.floor[0]) * nx + (y - p.floor[1]) * ny + radius[i]! : -Infinity;
         if (depth > 0) { x -= nx * depth; y -= ny * depth; contact[i * 2] = -nx; contact[i * 2 + 1] = -ny; }
+        contactSpeed[i] = Math.max(contactSpeed[i]!, Math.hypot(x - beforeX, y - beforeY) / dt);
         pos[i * 2] = x; pos[i * 2 + 1] = y;
         projected[i * 2] = x; projected[i * 2 + 1] = y;
       }
@@ -224,8 +261,8 @@ export function simulateSoft(plan: SoftPlan, time: number, p: SoftSettings, targ
         const pair = i * count + j;
         if (!overlap(b[i]!, b[j]!)) { pending.delete(pair); continue; }
         if (pending.has(pair)) continue;
-        for (const id of plan.groups[i]!.ids) contactPoint(id, plan.groups[j]!);
-        for (const id of plan.groups[j]!.ids) contactPoint(id, plan.groups[i]!);
+        for (const id of plan.groups[i]!.ids) if (surface[id]) contactPoint(id, plan.groups[j]!);
+        for (const id of plan.groups[j]!.ids) if (surface[id]) contactPoint(id, plan.groups[i]!);
       }
     };
     project();
@@ -242,8 +279,33 @@ export function simulateSoft(plan: SoftPlan, time: number, p: SoftSettings, targ
         pos[b * 2] = pos[b * 2]! - dx * k * free[b]!; pos[b * 2 + 1] = pos[b * 2 + 1]! - dy * k * free[b]!;
       }
       for (const body of plan.bodies) {
-        const bodyStrength = relaxation(body.material, body.rigid);
         const cx = body.ids.reduce((sum, id) => sum + pos[id * 2]!, 0) / body.ids.length, cy = body.ids.reduce((sum, id) => sum + pos[id * 2 + 1]!, 0) / body.ids.length;
+        // Beam deformation is temporary: elastic shape memory lets impact flex the
+        // body, then gradually restores its rigid rest pose without cancelling bounce.
+        let memory = 1;
+        if (!body.rigid && body.material.body === 'beam') {
+          const n = body.ids.length;
+          let vx = 0, vy = 0;
+          for (const id of body.ids) { vx += vel[id * 2]!; vy += vel[id * 2 + 1]!; }
+          vx /= n; vy /= n;
+          let spin = 0, inertia = 0;
+          for (const id of body.ids) {
+            const x = pos[id * 2]! - cx, y = pos[id * 2 + 1]! - cy;
+            spin += x * (vel[id * 2 + 1]! - vy) - y * (vel[id * 2]! - vx); inertia += x * x + y * y;
+          }
+          spin = inertia > 1e-12 ? spin / inertia : 0;
+          let strainSpeed2 = 0, impactSpeed = 0;
+          for (const id of body.ids) {
+            const rigidX = vx - spin * (pos[id * 2 + 1]! - cy), rigidY = vy + spin * (pos[id * 2]! - cx);
+            strainSpeed2 += (vel[id * 2]! - rigidX) ** 2 + (vel[id * 2 + 1]! - rigidY) ** 2;
+            impactSpeed = Math.max(impactSpeed, contactSpeed[id]!);
+          }
+          const scale = Math.max(1, Math.sqrt(inertia / n));
+          const activity = Math.max(Math.sqrt(strainSpeed2 / n), impactSpeed);
+          const stillness = 1 - clamp(activity / Math.max(5, scale * 0.2));
+          memory = clamp(body.material.recovery / 100) * stillness;
+        }
+        const bodyStrength = relaxation(body.material, body.rigid) * memory;
         let a = 0, b = 0;
         body.ids.forEach((id, j) => { const q = body.rest[j]!, x = pos[id * 2]! - cx, y = pos[id * 2 + 1]! - cy; a += q[0] * x + q[1] * y; b += q[0] * y - q[1] * x; });
         const angle = Math.atan2(b, a), c = Math.cos(angle), s = Math.sin(angle);

@@ -756,10 +756,12 @@ Physics integrates fixed 120 Hz steps, with a fractional final step. Mass proper
 **Effect → Soft Body**, beside Rigid body, defines a material. It does not move or deform the drawing by itself and has no Time, Gravity, Floor, Solids, friction or restitution controls. A following **Gravity**, or **Physics on an ancestor group**, owns the clock, forces and contacts. Each effect has one responsibility.
 
 - `mode`: `"auto"` (default) applies elasticity to both open fibres and closed bodies; `"fibers"` or `"bodies"` limits the material to that path type. Other path types keep rigid dynamics.
+- `body`: `"outline"` (default) keeps the existing contour-based body behaviour; `"beam"` adds a flexible internal spine and linked cross-sections so a closed, elongated body bends as a whole, then recovers toward its rigid rest shape as impacts settle. Bounce and floor contacts still come from Gravity or Physics. Choose per Soft Body effect; open fibres are unchanged. Beam adds solver constraints and costs more to simulate.
 - `stiffness`: 0–1, default `0.8`. The defaults aim at firm rubber: limited deformation on impact and quick recovery. Lower values soften the material.
 - `bending`: 0–1, default `0.15`, resistance to bending, especially for fibres.
 - `volume`: 0–1, default `0.9`; **Keep area** for closed contours, including holes.
 - `damping`: 0–1, default `0.4`. Damps internal deformation relative to the body's translation and rigid spin. It is not air drag and does not slow the fall of the whole body.
+- `recovery`: 0–100, default `10`. For **Body model → Beam**, controls the return toward the original rigid shape as internal motion dies down. `0` leaves the beam deformed; `100` restores the full rest shape when it has settled. It does not replace Gravity/Physics Bounce.
 - `pins`: `"free"` (default), `"start"` or `"ends"`, for fibre attachment. Rigid body's Immovable still pins a complete body; its velocity and spin provide initial motion.
 - `segments`: 4–64, default `24`; **Resolution**, approximate material samples per contour. Physics uses a coarse material cage based on contour length, retains authored vertices, and adapts subdivision for dense inputs. Rest-pose cubics, paint and gradients remain intact.
 

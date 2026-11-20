@@ -27,7 +27,7 @@ export interface Impulse {
 }
 
 export interface SoftMaterial {
-  mode: string; stiffness: number; bending: number; volume: number; damping: number; pins: string; segments: number;
+  mode: string; body: string; stiffness: number; bending: number; volume: number; damping: number; recovery: number; pins: string; segments: number;
 }
 
 export interface Shape {
