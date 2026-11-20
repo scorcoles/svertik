@@ -4,7 +4,7 @@ Turns filled artwork into a tessellation of vector cells. Each cell is clipped t
 
 The cell centers use a regular grid with seeded jitter. A smaller Cell size creates more detail and more paths. Large inputs automatically use a coarser grid above about 1,000 sites to keep generation responsive. Open paths without a fill are not converted.
 
-Set **Drift** above 0 to move the cell sites by smooth, seeded noise, up to a quarter of a cell spacing. **Speed** controls how quickly they move. **Time** is linked to `scene.time` when Voronoi is added in the editor; for authored JSON, use `{ "$expr": "scene.time", "fallback": 0 }` or animate Time. Drift defaults to 0, so existing static tessellations stay unchanged. For softer, more organic edges, add Noise after Voronoi and animate its Evolution; Noise deforms the tessellation as a continuous field.
+Set **Drift** above 0 to move the cell sites by smooth, seeded noise, up to half a cell spacing. **Speed** controls how quickly they move. **Time** is linked to `scene.time` when Voronoi is added in the editor; for authored JSON, use `{ "$expr": "scene.time", "fallback": 0 }` or animate Time. Drift defaults to 0, so existing static tessellations stay unchanged. Stronger Drift makes the cells visibly change shape; all cells are recomputed from the same moving sites, so their shared borders stay joined. For an additional organic edge treatment, add Noise after Voronoi and animate its Evolution.
 
 | Parameter | Type | Default | Range | Description |
 |---|---|---:|---:|---|
@@ -13,8 +13,8 @@ Set **Drift** above 0 to move the cell sites by smooth, seeded noise, up to a qu
 | Color | enum | original | original, ink | Keep the sampled source paint or use one solid ink. |
 | Ink | color | `#111111` | — | Cell fill when Color is Ink. |
 | Seed | seed | 1 | — | Changes the deterministic cell layout. |
-| Drift | number | 0 | 0–0.25 | Site movement as a fraction of cell spacing; 0 keeps the layout still. |
-| Speed | number | 0.2 | 0–3 | Rate of the smooth site movement. |
+| Drift | number | 0 | 0–0.5 | Site movement as a fraction of cell spacing; 0 keeps the layout still. |
+| Speed | number | 0.5 | 0–3 | Rate of the smooth site movement. |
 | Time | number | 0 | seconds | Animation time; link to `scene.time` to play continuously. |
 
 Gradients are sampled at each cell center and become solid cell fills. Voronoi generates geometry; use Color or other style effects afterwards to change its appearance.

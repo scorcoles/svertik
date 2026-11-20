@@ -466,7 +466,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
 29. **`mosaic`**: Slices geometry into geometric tiles across a regular grid. Each tile is an element.
 29a. **`voronoi`**: Divides filled artwork into jittered Voronoi cells, clipped to the input silhouette. Cells are individual elements and keep the sampled source color or use one ink. Optional Drift moves the sites smoothly and recomputes the shared tessellation, so cells mutate without opening seams. Large grids automatically coarsen above about 1,000 sites.
     - `spacing` (number, def 32, 8..200, px), `jitter` (number, def 0.8, 0..1), `color` (`"original" | "ink"`, def "original"), `ink` (color, def #111111), `seed` (seed, def 1)
-    - `drift` (number, def 0, 0..0.25, fraction of cell spacing), `speed` (number, def 0.2, 0..3), `time` (number, def 0, seconds; link to `scene.time` for continuous playback)
+    - `drift` (number, def 0, 0..0.5, fraction of cell spacing), `speed` (number, def 0.5, 0..3), `time` (number, def 0, seconds; link to `scene.time` for continuous playback)
     - `shape` (`"rectangle" | "triangle" | "hexagon" | "target"`, def `"rectangle"`)
     - `columns`, `rows` (number, def 6)
     - `gutter` (number, def 4, px)

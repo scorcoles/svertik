@@ -18,8 +18,8 @@ export const voronoi = defineModifier({
     color: { type: 'enum', default: 'original', options: ['original', 'ink'] as const, label: 'Color', animatable: false },
     ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     seed: { type: 'seed', default: 1 },
-    drift: { type: 'number', default: 0, min: 0, max: 0.25, step: 0.01, unit: 'fraction', group: 'Motion', label: 'Drift' },
-    speed: { type: 'number', default: 0.2, min: 0, max: 3, step: 0.01, group: 'Motion', label: 'Speed' },
+    drift: { type: 'number', default: 0, min: 0, max: 0.5, step: 0.01, unit: 'fraction', group: 'Motion', label: 'Drift' },
+    speed: { type: 'number', default: 0.5, min: 0, max: 3, step: 0.01, group: 'Motion', label: 'Speed' },
     time: { type: 'number', default: 0, min: 0, step: 0.01, unit: 's', group: 'Motion', label: 'Time', random: false },
   },
   apply(geo, p, ctx): Geometry {
@@ -51,12 +51,12 @@ export const voronoi = defineModifier({
       const baseX = cx + (rand(p.seed, x, y, 0) - 0.5) * step * p.jitter;
       const baseY = cy + (rand(p.seed, x, y, 1) - 0.5) * step * p.jitter;
       const nx = x * 0.73, ny = y * 0.73;
-      const dx = driftX ? (driftX(nx + phase, ny + phase * 0.37) - driftX(nx, ny)) * 0.5 * step * p.drift : 0;
-      const dy = driftY ? (driftY(nx - phase * 0.41, ny + phase * 0.61) - driftY(nx, ny)) * 0.5 * step * p.drift : 0;
+      const dx = driftX ? Math.tanh((driftX(nx + phase, ny + phase * 0.37) - driftX(nx, ny)) * 2) * step * p.drift : 0;
+      const dy = driftY ? Math.tanh((driftY(nx - phase * 0.41, ny + phase * 0.61) - driftY(nx, ny)) * 2) * step * p.drift : 0;
       sites.push([baseX + dx, baseY + dy]);
     }
     const output: Shape[] = [];
-    const reach = 2;
+    const reach = p.drift > 0.25 ? 3 : 2;
     for (let index = 0; index < sites.length; index++) {
       const site = sites[index]!;
       const gx = Math.round((site[0] - gridX) / step - 0.5);
