@@ -56,11 +56,13 @@ export const voronoi = defineModifier({
       sites.push([baseX + dx, baseY + dy]);
     }
     const output: Shape[] = [];
-    const reach = p.drift > 0.25 ? 3 : 2;
+    // Search from each site's original lattice address: recomputing this address after the sites move
+    // can skip a real neighbour, leaving overlapping Voronoi regions. Expand for the maximum drift.
+    const reach = 2 + Math.ceil(p.drift * 2);
     for (let index = 0; index < sites.length; index++) {
       const site = sites[index]!;
-      const gx = Math.round((site[0] - gridX) / step - 0.5);
-      const gy = Math.round((site[1] - gridY) / step - 0.5);
+      const gx = index % nx;
+      const gy = Math.floor(index / nx);
       let cell: Pair[] = [[site[0] - step * 2.5, site[1] - step * 2.5], [site[0] + step * 2.5, site[1] - step * 2.5], [site[0] + step * 2.5, site[1] + step * 2.5], [site[0] - step * 2.5, site[1] + step * 2.5]];
       for (let oy = -reach; oy <= reach && cell.length; oy++) for (let ox = -reach; ox <= reach && cell.length; ox++) {
         const sx = gx + ox, sy = gy + oy;
