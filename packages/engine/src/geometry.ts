@@ -41,6 +41,10 @@ export interface Shape {
   bodyGroup?: number;
   /** Elements marked by Rigid Pieces; compatible deformers move each group without bending it. */
   rigidGroup?: number;
+  /** Maximum displacement-driven tilt, in degrees, assigned by Rigid Pieces. */
+  rigidTilt?: number;
+  /** Whether Rigid Pieces alternates the tilt direction by element. */
+  rigidTiltAlternate?: boolean;
   impulse?: Impulse;
   /** Embedded or linked raster image carried by a rectangular path footprint. */
   image?: { href: string; width: number; height: number; preserveAspectRatio: string };
@@ -237,7 +241,10 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
       vx = vertical[1] - target[1];
       vy = target[0] - vertical[0];
     }
-    const angle = Math.atan2(vy, vx), c = Math.cos(angle), s = Math.sin(angle);
+    const movement = Math.hypot(target[0] - center[0], target[1] - center[1]);
+    const tilt = (members[0]?.rigidTilt ?? 0) * Math.min(1, movement / Math.max(b.width, b.height, 1));
+    const direction = members[0]?.rigidTiltAlternate && id % 2 ? -1 : 1;
+    const angle = Math.atan2(vy, vx) + (tilt * direction * Math.PI) / 180, c = Math.cos(angle), s = Math.sin(angle);
     transforms.set(id, ([x, y]) => {
       const dx = x - center[0], dy = y - center[1];
       return [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
