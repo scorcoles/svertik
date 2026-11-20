@@ -1,0 +1,373 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Tidal · Orbital Study",
+  "canvas": "#07141F",
+  "scene": {
+    "version": 1,
+    "document": { "width": 1400, "height": 900 },
+    "notes": "A dark editorial study of attraction, impact, and settling. The immovable hollow ring attracts bodies toward its solid rim. The square satellites use a custom mass center so impacts create visible tumbling. Select the Rigid Body effect on a satellite to drag its mass center. Playback loops over 10 seconds; the ring remains fixed while the bodies keep their momentum between impacts.",
+    "objects": [
+      {
+        "kind": "shape",
+        "id": "tidal-title",
+        "name": "Tidal / Orbital Study",
+        "shape": "text",
+        "params": {
+          "text": "ORBITAL",
+          "font": "JetBrains Mono",
+          "weight": 700,
+          "size": 76,
+          "tracking": 7,
+          "align": "center",
+          "fill": true,
+          "fillColor": "#E9F4F2",
+          "stroke": false
+        },
+        "transform": { "x": 0, "y": -368 },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-kicker",
+        "name": "Field study label",
+        "shape": "text",
+        "params": {
+          "text": "TIDAL MECHANICS   /   01",
+          "font": "JetBrains Mono",
+          "weight": 400,
+          "size": 15,
+          "tracking": 2,
+          "align": "center",
+          "fill": true,
+          "fillColor": "#6F9BA5",
+          "stroke": false
+        },
+        "transform": { "x": 0, "y": -315 },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-counter",
+        "name": "Study number",
+        "shape": "text",
+        "params": {
+          "text": "PHYSICS   /   2D",
+          "font": "JetBrains Mono",
+          "weight": 400,
+          "size": 12,
+          "tracking": 1,
+          "align": "center",
+          "fill": true,
+          "fillColor": "#6F9BA5",
+          "stroke": false
+        },
+        "transform": { "x": 0, "y": 390 },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-core-label",
+        "name": "Attractor label",
+        "shape": "text",
+        "params": {
+          "text": "FIXED\nATTRACTOR",
+          "font": "JetBrains Mono",
+          "weight": 400,
+          "size": 12,
+          "tracking": 1.4,
+          "align": "center",
+          "fill": true,
+          "fillColor": "#70E7D2",
+          "stroke": false
+        },
+        "transform": { "x": 0, "y": 0 },
+        "stack": []
+      },
+      {
+        "kind": "group",
+        "id": "tidal-physics",
+        "name": "Physics chamber",
+        "stack": [
+          {
+            "id": "tidal-simulation",
+            "type": "physics",
+            "enabled": true,
+            "params": {
+              "time": { "$expr": "scene.time", "fallback": 0 },
+              "acceleration": [0, 34],
+              "collisions": true,
+              "solids": [],
+              "friction": 0.24,
+              "bounce": 0.72
+            },
+            "children": []
+          }
+        ],
+        "children": [
+          {
+            "kind": "shape",
+            "id": "tidal-heavy-satellite",
+            "name": "Heavy satellite",
+            "shape": "polygon",
+            "params": {
+              "radius": 29,
+              "sides": 6,
+              "rotation": 0,
+              "fill": true,
+              "fillColor": "#FFB86B",
+              "stroke": true,
+              "strokeColor": "#FFF0C9",
+              "strokeWidth": 2
+            },
+            "transform": { "x": 506, "y": -32 },
+            "stack": [
+              {
+                "id": "tidal-heavy-body",
+                "type": "rigidbody",
+                "enabled": true,
+                "params": {
+                  "velocity": [-82, 34],
+                  "spin": 180,
+                  "immovable": false,
+                  "centerOfMassMode": "custom",
+                  "centerOfMass": [0.68, 0.4]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "shape",
+            "id": "tidal-beads",
+            "name": "Inner satellites",
+            "shape": "ellipse",
+            "params": {
+              "width": 14,
+              "height": 14,
+              "fill": true,
+              "fillColor": "#FF7D72",
+              "stroke": true,
+              "strokeColor": "#FFD2C5",
+              "strokeWidth": 1
+            },
+            "stack": [
+              {
+                "id": "tidal-bead-clone",
+                "type": "clone",
+                "enabled": true,
+                "params": {
+                  "mode": "radial",
+                  "count": 12,
+                  "radius": 22,
+                  "rings": 1,
+                  "ringSpacing": 1.1,
+                  "startAngle": -15,
+                  "align": false,
+                  "scaleMin": 0.8,
+                  "scaleMax": 1.35,
+                  "variationSeed": 14
+                }
+              },
+              {
+                "id": "tidal-bead-color",
+                "type": "color",
+                "enabled": true,
+                "params": {
+                  "mode": "palette",
+                  "palette": ["#FF7D72", "#FFB86B", "#F5E7A1"],
+                  "paletteMode": "random",
+                  "seed": 31,
+                  "target": "fill"
+                }
+              },
+              {
+                "id": "tidal-bead-body",
+                "type": "rigidbody",
+                "enabled": true,
+                "params": {
+                  "velocity": [0, 0],
+                  "spin": 0,
+                  "immovable": false,
+                  "centerOfMassMode": "auto"
+                }
+              }
+            ]
+          },
+          {
+            "kind": "shape",
+            "id": "tidal-shards",
+            "name": "Tumbling satellites",
+            "shape": "polygon",
+            "params": {
+              "radius": 17,
+              "sides": 4,
+              "rotation": 45,
+              "fill": true,
+              "fillColor": "#68DCC9",
+              "stroke": true,
+              "strokeColor": "#D4FFF2",
+              "strokeWidth": 1.5
+            },
+            "stack": [
+              {
+                "id": "tidal-shard-clone",
+                "type": "clone",
+                "enabled": true,
+                "params": {
+                  "mode": "radial",
+                  "count": 16,
+                  "radius": 11.2,
+                  "rings": 1,
+                  "ringSpacing": 1.1,
+                  "startAngle": 5,
+                  "align": true,
+                  "scaleMin": 0.82,
+                  "scaleMax": 1.28,
+                  "variationSeed": 8
+                }
+              },
+              {
+                "id": "tidal-shard-color",
+                "type": "color",
+                "enabled": true,
+                "params": {
+                  "mode": "palette",
+                  "palette": ["#68DCC9", "#73A9FF", "#B3A3FF", "#FFB86B"],
+                  "paletteMode": "random",
+                  "seed": 7,
+                  "target": "fill"
+                }
+              },
+              {
+                "id": "tidal-shard-body",
+                "type": "rigidbody",
+                "enabled": true,
+                "params": {
+                  "velocity": [0, 0],
+                  "spin": 18,
+                  "immovable": false,
+                  "centerOfMassMode": "custom",
+                  "centerOfMass": [0.68, 0.4]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "shape",
+            "id": "tidal-attractor-ring",
+            "name": "Immovable attractor",
+            "shape": "donut",
+            "params": {
+              "radius": 228,
+              "innerRadius": 190,
+              "fill": true,
+              "fillColor": "#123747",
+              "stroke": true,
+              "strokeColor": "#70E7D2",
+              "strokeWidth": 3
+            },
+            "stack": [
+              {
+                "id": "tidal-ring-body",
+                "type": "rigidbody",
+                "enabled": true,
+                "params": {
+                  "velocity": [0, 0],
+                  "spin": 0,
+                  "immovable": true,
+                  "attractor": true,
+                  "attractionStrength": 0.55,
+                  "attractionRange": 0,
+                  "attractionAbsorption": 0.35,
+                  "attractionSleepThreshold": 0.035
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-orbit-outer",
+        "name": "Outer orbit guide",
+        "shape": "ellipse",
+        "params": {
+          "width": 770,
+          "height": 770,
+          "fill": false,
+          "stroke": true,
+          "strokeColor": "#153441",
+          "strokeWidth": 1,
+          "dash": 3,
+          "gap": 12
+        },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-orbit-inner",
+        "name": "Inner orbit guide",
+        "shape": "ellipse",
+        "params": {
+          "width": 540,
+          "height": 540,
+          "fill": false,
+          "stroke": true,
+          "strokeColor": "#153441",
+          "strokeWidth": 1
+        },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-core",
+        "name": "Quiet core",
+        "shape": "ellipse",
+        "params": {
+          "width": 300,
+          "height": 300,
+          "fill": true,
+          "fillColor": "#0C202C",
+          "stroke": true,
+          "strokeColor": "#204250",
+          "strokeWidth": 1
+        },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-footer",
+        "name": "Interaction note",
+        "shape": "text",
+        "params": {
+          "text": "ATTRACTION   ·   COLLISION   ·   SETTLE",
+          "font": "JetBrains Mono",
+          "weight": 400,
+          "size": 13,
+          "tracking": 1,
+          "align": "center",
+          "fill": true,
+          "fillColor": "#93B2B6",
+          "stroke": false
+        },
+        "transform": { "x": 0, "y": 422 },
+        "stack": []
+      },
+      {
+        "kind": "shape",
+        "id": "tidal-background",
+        "name": "Midnight background",
+        "shape": "rectangle",
+        "params": {
+          "width": 1400,
+          "height": 900,
+          "fill": true,
+          "fillColor": "#07141F",
+          "stroke": false
+        },
+        "stack": []
+      }
+    ],
+    "animation": { "duration": 10, "fps": 30, "loop": true, "autoplay": true, "tracks": [] }
+  }
+}

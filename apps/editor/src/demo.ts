@@ -1,5 +1,6 @@
 import { type SceneNode, type SceneV1, type Track } from '@svertik/engine';
 import physicsSource from './demo-physics.json?raw';
+import tidalOrbitSource from './demo-physics-tidal.json?raw';
 
 // La demo del menú: un proyecto pequeño que enseña texto, escalonados, curvas, copias y trazos que se dibujan.
 // 6 s en bucle: el círculo se dibuja, los puntos brotan con muelle, el título entra desde el centro,
@@ -606,6 +607,11 @@ export function ricochetProject() {
   const project = JSON.parse(physicsSource) as { svertik: 'project'; version: 1; name: string; canvas: string; scene: SceneV1 };
   project.scene.notes = 'A hollow, immovable Wall contains two moving rigid bodies. Body 1 is a rounded hexagon with an initial velocity and spin; Body 2 is a smaller circle. They collide with the Wall and each other in a shared Physics group with zero acceleration and friction and full restitution. Select either Rigid body to adjust its velocity vector on the canvas, change Spin, or make it Immovable.';
   return project;
+}
+
+/** A colour-rich Physics study with an immovable attractor and a draggable mass center. */
+export function tidalOrbitProject() {
+  return JSON.parse(tidalOrbitSource) as { svertik: 'project'; version: 1; name: string; canvas: string; scene: SceneV1 };
 }
 
 export function crossFillProject() {

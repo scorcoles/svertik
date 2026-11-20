@@ -56,7 +56,7 @@ Es un proyecto propio y open source (licencia MIT, © VERTIK), en alfa (0.0.2). 
 ## Evidence on Hand
 
 - Documentación real: `README.md`, `AGENTS.md`, `docs/ENGINE_AND_EFFECTS.md`, `docs/SCENE_RECIPES.md` y referencias autogeneradas en `packages/engine/docs/reference/`.
-- Demos reales: 7 proyectos `.json` en `apps/editor/public/demos/` (compositions-boom, cross-fill, gravity-circle, motion-crosses, particles, rhythm-crosses, time-remap-boom).
+- Demos reales: 8 proyectos `.json` en `apps/editor/public/demos/` (compositions-boom, cross-fill, gravity-circle, motion-crosses, particles, physics-tidal-orbit, rhythm-crosses, time-remap-boom).
 - **No existen todavía:** usuarios públicos, testimonios, métricas de uso, prensa ni casos de estudio. Nada de eso debe inventarse.
 
 ## Product Principles
