@@ -53,6 +53,7 @@ export interface NodeInfo {
 
 export interface DocumentResult {
   geometry: Geometry;
+  diagnostics?: { code: string; effectId?: string; message: string }[];
   /** The result of a node (with its effects), in the document; without its opacity or blend. */
   geometryOf(id: string): Geometry | null;
   /** What a node's stack produced, in the node's own coordinates (before its placement). */
@@ -714,7 +715,12 @@ export function createDocumentEvaluator(
       (filters ??= {})[id] = { markup, region, kind: 'mask' };
     }
     const resultOf = (id: string) => finalResults.get(id) ?? null;
-    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, sources: { viewBox, shapes: placedSources }, nodes, geometryOf, resultOf };
+    const diagnosticMap = new Map<string, { code: string; effectId?: string; message: string }>();
+    for (const result of finalResults.values()) for (const diagnostic of result.diagnostics ?? []) {
+      diagnosticMap.set(`${diagnostic.code}:${diagnostic.effectId ?? ''}`, diagnostic);
+    }
+    const diagnostics = [...diagnosticMap.values()];
+    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, ...(diagnostics.length ? { diagnostics } : {}), sources: { viewBox, shapes: placedSources }, nodes, geometryOf, resultOf };
   }
 
   return { evaluate };

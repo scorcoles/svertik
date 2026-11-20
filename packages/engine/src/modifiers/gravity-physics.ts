@@ -1,4 +1,4 @@
-import { cubicAt, type Geometry, type Impulse, type SubPath, type Vec2 } from '../geometry';
+import { bounds, cubicAt, type Geometry, type Impulse, type SubPath, type Vec2 } from '../geometry';
 
 export interface Body {
   points: Vec2[];
@@ -39,7 +39,17 @@ function pathOutline(path: SubPath): Vec2[] {
 }
 
 /** Uniform lamina mass properties, including oppositely wound holes. Open paths use a hull fallback. */
-export function gravityBody(geo: Geometry): Body | null {
+export function gravityBody(geo: Geometry, coarse = false): Body | null {
+  if (coarse) {
+    const b = bounds(geo);
+    if (!(b.width > 0 || b.height > 0)) return null;
+    const center: Vec2 = [b.x + b.width / 2, b.y + b.height / 2];
+    const hw = Math.max(b.width / 2, 0.01), hh = Math.max(b.height / 2, 0.01);
+    const points: Vec2[] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+    const mass = Math.max(b.width * b.height, 0.0001);
+    const inertia = Math.max((b.width * b.width + b.height * b.height) / 12, 0.0001);
+    return { points, center, inertia, mass };
+  }
   const points: Vec2[] = [];
   let area2 = 0, cx = 0, cy = 0, moment = 0;
   for (const shape of geo.shapes) {

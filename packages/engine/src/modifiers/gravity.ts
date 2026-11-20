@@ -5,6 +5,9 @@ import { defineModifier, deg, fromFraction } from '../modifier';
 import { apply, IDENTITY, invert, multiply, uprightBounds, type Mat } from '../matrix';
 import { hasSoftMaterial, materialDynamics } from './softbody-physics';
 
+/** Pairwise contact work grows rapidly with path count; keep high-detail outputs safe to play. */
+export const GRAVITY_COLLISION_PATH_LIMIT = 512;
+
 const sceneInputs = new WeakMap<Geometry, { key: string; geo: Geometry }>();
 
 function inSpace(geo: Geometry, matrix: Mat): Geometry {
@@ -82,6 +85,14 @@ export const gravity = defineModifier({
   apply(geo, p, ctx): Geometry {
     const time = Math.min(60, Math.max(0, p.time));
     if (!time || (!p.gravity && !(p.physics && geo.shapes.some((s) => s.impulse))) || !geo.shapes.length) return geo;
+    const pathCount = geo.shapes.reduce((count, shape) => count + shape.subpaths.length, 0);
+    const overloaded = p.physics && pathCount > GRAVITY_COLLISION_PATH_LIMIT;
+    const collisions = p.collisions && !overloaded;
+    const diagnostics = overloaded ? [
+      ...(geo.diagnostics ?? []),
+      { code: 'gravity-collision-path-limit', ...(ctx.id ? { effectId: ctx.id } : {}), message: `Gravity is using a simplified body for its ${pathCount} input paths and has disabled body and Solid collisions to keep the scene responsive. The floor still works. Reduce the path count to restore detailed collisions.` },
+    ] : geo.diagnostics;
+    const activeSolids = overloaded ? [] : [...new Set(p.solids)];
     const world = ctx.scene?.world;
     if (world && !world.every((v, i) => v === IDENTITY[i])) {
       if (Math.abs(world[0] * world[3] - world[1] * world[2]) < 1e-12) return geo;
@@ -94,33 +105,38 @@ export const gravity = defineModifier({
       const result = gravity.apply(entry.geo, p, { ...ctx, scene: undefined, bounds: uprightBounds(ctx.bounds, world),
         target: ctx.target ? (id) => { const g = ctx.target!(id); return g ? inSpace(g, world) : null; } : undefined,
       });
-      return inSpace(result, invert(world));
+      const output = inSpace(result, invert(world));
+      return diagnostics ? { ...output, diagnostics } : output;
     }
     const floor = fromFraction(uprightBounds(ctx.bounds, IDENTITY), p.floor);
     const angle = deg(p.rotation);
     if (p.physics && hasSoftMaterial(geo)) {
-      const targets = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
+      const targets = activeSolids.flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
       const size = Math.max(ctx.bounds.width, ctx.bounds.height) || 1;
-      return materialDynamics(geo, time, { acceleration: [0, Math.max(0, p.gravity) * size], floor, rotation: angle, friction: p.friction, bounce: p.bounce, collisions: p.collisions }, targets, size);
+      const output = materialDynamics(geo, time, { acceleration: [0, Math.max(0, p.gravity) * size], floor, rotation: angle, friction: p.friction, bounce: p.bounce, collisions }, targets, size);
+      return diagnostics ? { ...output, diagnostics } : output;
     }
     const nx = -Math.sin(angle), ny = Math.cos(angle);
     const fall = 0.5 * Math.max(0, p.gravity) * (Math.max(ctx.bounds.width, ctx.bounds.height) || 1) * time * time;
     let parts = bodyPlans.get(geo);
     if (!parts) {
-      const tagged = geo.shapes.some((s) => s.clone !== undefined);
-      const groups = new Map<number, Shape[]>();
-      geo.shapes.forEach((shape, i) => {
-        const key = shape.bodyGroup ?? (tagged ? (shape.clone ?? -1) : i);
-        const group = groups.get(key) ?? [];
-        group.push(shape);
-        groups.set(key, group);
-      });
-      parts = [...groups.values()].map((shapes) => ({ shapes }));
+      if (overloaded) parts = [{ shapes: geo.shapes }];
+      else {
+        const tagged = geo.shapes.some((s) => s.clone !== undefined);
+        const groups = new Map<number, Shape[]>();
+        geo.shapes.forEach((shape, i) => {
+          const key = shape.bodyGroup ?? (tagged ? (shape.clone ?? -1) : i);
+          const group = groups.get(key) ?? [];
+          group.push(shape);
+          groups.set(key, group);
+        });
+        parts = [...groups.values()].map((shapes) => ({ shapes }));
+      }
       bodyPlans.set(geo, parts);
     }
     let coupled: Map<Shape[], FallPose> | null = null;
-    if (p.physics && (p.collisions || p.solids.length)) {
-      const solids = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
+    if (p.physics && (collisions || activeSolids.length)) {
+      const solids = activeSolids.flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
       const key = JSON.stringify(solids.map((g) => g.shapes.map((s) => [s.subpaths, s.style.fill])));
       let cache = collisionWorlds.get(geo);
       if (!cache || cache.key !== key) {
@@ -128,7 +144,7 @@ export const gravity = defineModifier({
         const detail = Math.max(Math.max(ctx.bounds.width, ctx.bounds.height) * 0.006, 0.25);
         for (const entry of parts) {
           const part = { ...geo, shapes: entry.shapes };
-          const body = entry.body === undefined ? (entry.body = gravityBody(part)) : entry.body;
+          const body = entry.body === undefined ? (entry.body = gravityBody(part, overloaded)) : entry.body;
           const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body, !!entry.shapes[0]?.impulse?.immovable, detail)) : entry.collider;
           if (collider) { indices.set(entry.shapes, bodies.length); bodies.push(collider); }
         }
@@ -137,7 +153,7 @@ export const gravity = defineModifier({
         collisionWorlds.set(geo, cache);
       }
       const acceleration = Math.max(0, p.gravity) * (Math.max(ctx.bounds.width, ctx.bounds.height) || 1);
-      const poses = fallWorld(cache.world, floor, angle, acceleration, time, Math.max(0, Math.min(1, p.friction)), Math.max(0, Math.min(1, p.bounce)), p.collisions);
+      const poses = fallWorld(cache.world, floor, angle, acceleration, time, Math.max(0, Math.min(1, p.friction)), Math.max(0, Math.min(1, p.bounce)), collisions);
       coupled = new Map([...cache.indices].map(([shapes, index]) => [shapes, poses[index]!]));
     }
     // Calculate transforms by group, then preserve the original paint order.
@@ -146,7 +162,7 @@ export const gravity = defineModifier({
       const { shapes } = entry;
       const part: Geometry = { ...geo, shapes };
       if (p.physics) {
-        const body = entry.body === undefined ? (entry.body = gravityBody(part)) : entry.body;
+        const body = entry.body === undefined ? (entry.body = gravityBody(part, overloaded)) : entry.body;
         if (!body) {
           shapes.forEach((shape) => transforms.set(shape, ([x, y]) => [x, y]));
           continue;
@@ -159,10 +175,15 @@ export const gravity = defineModifier({
           pose.y + (x - body.center[0]) * sn + (y - body.center[1]) * cs,
         ];
         // The sampled collision hull drives dynamics; exact cubic support keeps rendered curves above the plane.
-        const projected = support(mapPoints(part, (point) => {
-          const [x, y] = transform(point);
-          return [(x - floor[0]) * ny - (y - floor[1]) * nx, (x - floor[0]) * nx + (y - floor[1]) * ny];
-        }));
+        const projected = overloaded
+          ? Math.max(...body.points.map(([x, y]) => {
+              const [px, py] = transform([body.center[0] + x, body.center[1] + y]);
+              return (px - floor[0]) * nx + (py - floor[1]) * ny;
+            }))
+          : support(mapPoints(part, (point) => {
+              const [x, y] = transform(point);
+              return [(x - floor[0]) * ny - (y - floor[1]) * nx, (x - floor[0]) * nx + (y - floor[1]) * ny];
+            }));
         const correction = Math.max(0, projected);
         shapes.forEach((shape) => transforms.set(shape, (point) => {
           const [x, y] = transform(point);
@@ -182,6 +203,7 @@ export const gravity = defineModifier({
     }
     return {
       ...geo,
+      ...(diagnostics ? { diagnostics } : {}),
       shapes: geo.shapes.map((shape) => {
         const move = transforms.get(shape)!;
         const origin = move([0, 0]), x = move([1, 0]), y = move([0, 1]);

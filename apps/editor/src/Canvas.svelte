@@ -49,6 +49,7 @@
   let smoothCost: number | null = null;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let slowReported = false;
+  let lastSceneDiagnostic = '';
 
   function slowCandidates(items: SceneNode[]): string[] {
     const found: string[] = [];
@@ -92,6 +93,10 @@
     try {
       const t0 = performance.now();
       const doc = engine.evaluateDocument(scene);
+      const heavyGravity = doc.diagnostics?.find((diagnostic) => diagnostic.code === 'gravity-collision-path-limit');
+      const diagnosticKey = heavyGravity ? `${heavyGravity.effectId ?? ''}:${heavyGravity.message}` : '';
+      if (diagnosticKey && diagnosticKey !== lastSceneDiagnostic) editor.notice = heavyGravity!.message;
+      lastSceneDiagnostic = diagnosticKey;
       docViewBox = doc.geometry.viewBox;
       editor.contentBox = bounds(doc.geometry);
       if (!framed) {

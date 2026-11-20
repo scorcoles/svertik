@@ -108,6 +108,8 @@ export interface Gradient {
 
 export interface Geometry {
   shapes: Shape[];
+  /** Runtime diagnostics from effects, collected by the document evaluator for editor feedback. */
+  diagnostics?: { code: string; effectId?: string; message: string }[];
   /** viewBox of the source SVG: [x, y, width, height]. */
   viewBox: [number, number, number, number];
   /** SVG filters (shadow, blur…) of the objects that have them, by id. See `Shape.wrap`. */

@@ -650,6 +650,7 @@ Effectors and generators added after the first catalog: oscillators, physics, pa
     - `sizeRandom` (number, def 0.6, 0..1), `rotationRandom` (angle, def 360), `fade` (number, def 0.2, 0..1), `keepSource` (boolean, def false)
 
 64. **`gravity`** (effector): Drops each element as a rigid body onto a virtual floor, inheriting velocity and spin from Explosion or Rigid body. Floor rotation is measured from the scene horizon. Crosshatch Merge controls one-body versus per-line dynamics consistently on the floor and solids; see the Gravity section below.
+    - Safety limit: when Gravity receives more than 512 paths, it combines the input into one simplified rigid body and disables body-to-body and Solid collisions. The floor still works. The editor reports why; reduce the path count to restore detailed contacts.
     - `time` (number, def 1, 0..60), `gravity` (number, def 1, 0..10, fraction), `floor` (point, def [0.5, 1.5], fraction), `rotation` (angle, def 0)
     - `collisions` (boolean, def false), `solids` (nodes, def []), `physics` (boolean, def true), `friction` (number, def 0.7, 0..1)
     - `bounce` (number, def 0.15, 0..1)
