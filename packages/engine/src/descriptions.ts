@@ -32,7 +32,7 @@ export const effectDescriptions: Record<string, string> = {
   lookat: "Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.",
   // Generate
   connect: "Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. Straight, arc, horizontal or vertical; from edge to edge with a `gap`; optional arrowheads. Utils → Connector creates it.",
-  network: 'Draws links between each shape and its nearest neighbours while leaving the source shapes in place. Links stop at the shapes’ edges and have adjustable neighbour count, maximum distance, colour and width.',
+  network: 'Draws links between each shape and its nearest neighbours while leaving the source shapes in place. Links stop at the shapes’ edges and stay attached to their nodes under Gravity. Neighbour count, maximum distance, colour and width are adjustable.',
   trace: "A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.",
   crack: 'Branching cracks from an impact point. `cut` cuts them as gaps of `width` px; `shatter` cuts them and pushes each loose piece away from the impact (each piece, an element).',
   damage: 'Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.',

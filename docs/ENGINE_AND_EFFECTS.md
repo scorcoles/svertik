@@ -413,7 +413,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `arrow` (`"none" | "end" | "start" | "both"`, def `"none"`)
     - `arrowSize` (number, def 10, px)
 
-24. **`network`**: Draws deduplicated links between each input element and its nearest neighbours. The source elements stay visible; links are drawn behind them and clipped to the edge of closed shapes. With Clone, each copy is treated as one node.
+24. **`network`**: Draws deduplicated links between each input element and its nearest neighbours. The source elements stay visible; links are drawn behind them and clipped to the edge of closed shapes. With Clone, each copy is treated as one node. Gravity keeps the wire endpoints attached to the corresponding moving bodies; wires do not participate in collisions.
     - `neighbors` (number, default 2, 1–8): Number of nearest neighbours considered per element. Undirected duplicate links are merged.
     - `maxDistance` (number, default 180 px; 0 = unlimited): Maximum centre-to-centre distance for a link.
     - `gap` (number, default 2 px): Extra space between a shape edge and the link.

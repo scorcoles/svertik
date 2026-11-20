@@ -85,7 +85,8 @@ export const gravity = defineModifier({
   apply(geo, p, ctx): Geometry {
     const time = Math.min(60, Math.max(0, p.time));
     if (!time || (!p.gravity && !(p.physics && geo.shapes.some((s) => s.impulse))) || !geo.shapes.length) return geo;
-    const pathCount = geo.shapes.reduce((count, shape) => count + shape.subpaths.length, 0);
+    const movingShapes = geo.shapes.filter((shape) => !shape.networkLink);
+    const pathCount = movingShapes.reduce((count, shape) => count + shape.subpaths.length, 0);
     const overloaded = p.physics && pathCount > GRAVITY_COLLISION_PATH_LIMIT;
     const collisions = p.collisions && !overloaded;
     const diagnostics = overloaded ? [
@@ -120,11 +121,11 @@ export const gravity = defineModifier({
     const fall = 0.5 * Math.max(0, p.gravity) * (Math.max(ctx.bounds.width, ctx.bounds.height) || 1) * time * time;
     let parts = bodyPlans.get(geo);
     if (!parts) {
-      if (overloaded) parts = [{ shapes: geo.shapes }];
+      if (overloaded) parts = movingShapes.length ? [{ shapes: movingShapes }] : [];
       else {
-        const tagged = geo.shapes.some((s) => s.clone !== undefined);
+        const tagged = movingShapes.some((s) => s.clone !== undefined);
         const groups = new Map<number, Shape[]>();
-        geo.shapes.forEach((shape, i) => {
+        movingShapes.forEach((shape, i) => {
           const key = shape.bodyGroup ?? (tagged ? (shape.clone ?? -1) : i);
           const group = groups.get(key) ?? [];
           group.push(shape);
@@ -209,11 +210,45 @@ export const gravity = defineModifier({
       const shift: [number, number] = [-penetration * nx, fall - penetration * ny];
       shapes.forEach((shape) => transforms.set(shape, ([x, y]) => [x + shift[0], y + shift[1]]));
     }
+    const networkMotions = new Map<string, Map<number, (point: readonly [number, number]) => [number, number]>>();
+    for (const shape of movingShapes) {
+      const move = transforms.get(shape);
+      if (!move) continue;
+      for (const ref of shape.networkNodes ?? []) {
+        const nodes = networkMotions.get(ref.networkId) ?? new Map();
+        nodes.set(ref.node, move);
+        networkMotions.set(ref.networkId, nodes);
+      }
+    }
+    const moveLink = (shape: Shape) => {
+      const link = shape.networkLink;
+      if (!link) return shape;
+      const nodes = networkMotions.get(link.networkId);
+      const from = nodes?.get(link.from), to = nodes?.get(link.to);
+      const path = shape.subpaths[0];
+      if (!path || !from || !to) return shape;
+      const end = path.segs.at(-1)?.p ?? path.start;
+      const start = from(path.start), finish = to(end);
+      return {
+        ...shape,
+        subpaths: shape.subpaths.map((subpath, index) => index === 0 ? {
+          ...subpath,
+          start,
+          segs: [{
+            c1: [start[0] + (finish[0] - start[0]) / 3, start[1] + (finish[1] - start[1]) / 3] as [number, number],
+            c2: [start[0] + (finish[0] - start[0]) * 2 / 3, start[1] + (finish[1] - start[1]) * 2 / 3] as [number, number],
+            p: finish,
+          }],
+          closed: false,
+        } : subpath),
+      };
+    };
     return {
       ...geo,
       ...(diagnostics ? { diagnostics } : {}),
       shapes: geo.shapes.map((shape) => {
-        const move = transforms.get(shape)!;
+        if (shape.networkLink) return moveLink(shape);
+        const move = transforms.get(shape) ?? (([x, y]: readonly [number, number]) => [x, y]);
         const origin = move([0, 0]), x = move([1, 0]), y = move([0, 1]);
         const matrix: Mat = [x[0] - origin[0], x[1] - origin[1], y[0] - origin[0], y[1] - origin[1], origin[0], origin[1]];
         const moved = { ...mapPoints({ ...geo, shapes: [shape] }, move).shapes[0]!, patternTransform: multiply(matrix, shape.patternTransform ?? IDENTITY) };

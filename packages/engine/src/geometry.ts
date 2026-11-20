@@ -25,6 +25,9 @@ export interface RigidPieceTransform {
   params: Record<string, unknown>;
 }
 
+export interface NetworkNodeRef { networkId: string; node: number }
+export interface NetworkLinkRef { networkId: string; from: number; to: number }
+
 /** Initial motion metadata consumed by the next rigid-body simulation. */
 export interface Impulse {
   velocity: Vec2;
@@ -51,6 +54,10 @@ export interface Shape {
   rigidAmount?: number;
   /** Deferred per-piece transforms; consumed by the first downstream deformer that changes this piece. */
   rigidTransforms?: RigidPieceTransform[];
+  /** Runtime graph node identities used to keep Network links attached during rigid-body motion. */
+  networkNodes?: NetworkNodeRef[];
+  /** Runtime endpoints for a Network link; Gravity uses the attached nodes' body transforms. */
+  networkLink?: NetworkLinkRef;
   /** Anchor point used when compatible deformers rotate this rigid piece. */
   rigidPivot?: 'center' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
   impulse?: Impulse;

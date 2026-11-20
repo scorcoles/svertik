@@ -2,7 +2,7 @@
 
 `type: "network"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
 
-Draws lines between the nearest neighbouring input elements. With a Clone modifier before Network, each copy becomes a node; otherwise each shape is a node. Source shapes remain visible, with links rendered behind them. Closed shape outlines clip links to their edges; open shapes use their bounds. Each node links to its nearest `neighbors` nodes, and duplicate undirected links are merged.
+Draws lines between the nearest neighbouring input elements. With a Clone modifier before Network, each copy becomes a node; otherwise each shape is a node. Source shapes remain visible, with links rendered behind them. Closed shape outlines clip links to their edges; open shapes use their bounds. Each node links to its nearest `neighbors` nodes, and duplicate undirected links are merged. Gravity keeps each generated link end attached to its node as the bodies move and rotate; the wires themselves do not become simulated bodies or affect collisions.
 
 ## Parameters
 

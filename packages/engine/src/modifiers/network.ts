@@ -21,17 +21,21 @@ export const network = defineModifier({
     color: { type: 'color', default: '#09fdd1', solid: true, label: 'Link color' },
     width: { type: 'number', default: 1.5, min: 0.1, max: 24, step: 0.1, unit: 'px', label: 'Link width', ramp: false },
   },
-  apply(geo, p): Geometry {
-    if (geo.shapes.length < 2) return geo;
-    const tagged = geo.shapes.some((shape) => shape.clone !== undefined);
+  apply(geo, p, ctx): Geometry {
+    const sourceShapes = geo.shapes.filter((shape) => !shape.networkLink);
+    if (sourceShapes.length < 2) return geo;
+    const networkId = ctx.id ?? 'network';
+    const tagged = sourceShapes.some((shape) => shape.clone !== undefined);
     const groups = new Map<string, Shape[]>();
-    for (const [index, shape] of geo.shapes.entries()) {
+    for (const [index, shape] of sourceShapes.entries()) {
       const key = tagged ? `clone:${shape.clone ?? `uncloned:${index}`}` : `shape:${index}`;
       const group = groups.get(key) ?? [];
       group.push(shape);
       groups.set(key, group);
     }
-    const nodes: Node[] = [...groups.values()].map((shapes) => {
+    const nodeForShape = new Map<Shape, number>();
+    const nodes: Node[] = [];
+    for (const shapes of groups.values()) {
       const geometry = { viewBox: geo.viewBox, shapes };
       const box = bounds(geometry);
       const center: Vec2 = [box.x + box.width / 2, box.y + box.height / 2];
@@ -39,8 +43,12 @@ export const network = defineModifier({
       const inside = polygons.length
         ? (point: Vec2) => polygons.some((rings) => insidePolygons(rings, point))
         : (point: Vec2) => point[0] >= box.x && point[0] <= box.x + box.width && point[1] >= box.y && point[1] <= box.y + box.height;
-      return { geometry, center, box, inside };
-    }).filter((node) => Number.isFinite(node.center[0]) && Number.isFinite(node.center[1]));
+      if (Number.isFinite(center[0]) && Number.isFinite(center[1])) {
+        const node = nodes.length;
+        for (const shape of shapes) nodeForShape.set(shape, node);
+        nodes.push({ geometry, center, box, inside });
+      }
+    }
     if (nodes.length < 2) return geo;
 
     const maxDistance = Math.max(0, p.maxDistance);
@@ -118,10 +126,19 @@ export const network = defineModifier({
       lineShapes.push({
         style: { fill: 'none', stroke: p.color, 'stroke-width': String(p.width), 'stroke-linecap': 'round' },
         subpaths: [{ start, segs: [{ c1: [start[0] + (end[0] - start[0]) / 3, start[1] + (end[1] - start[1]) / 3], c2: [start[0] + (end[0] - start[0]) * 2 / 3, start[1] + (end[1] - start[1]) * 2 / 3], p: end }], closed: false }],
+        networkLink: { networkId, from: i, to: j },
         ...(tagged ? { clone: nextClone++ } : {}),
       });
     }
-    // Links render behind their source nodes, which remain untouched.
-    return { viewBox: geo.viewBox, shapes: [...lineShapes, ...geo.shapes] };
+    // Store graph identities on the nodes so Gravity can transform each link end with its body.
+    const markedSources = new Map<Shape, Shape>();
+    for (const shape of sourceShapes) {
+      const node = nodeForShape.get(shape);
+      if (node === undefined) continue;
+      const refs = (shape.networkNodes ?? []).filter((ref) => ref.networkId !== networkId);
+      markedSources.set(shape, { ...shape, networkNodes: [...refs, { networkId, node }] });
+    }
+    // Links render behind their source nodes; earlier Network links stay excluded from node selection.
+    return { viewBox: geo.viewBox, shapes: [...lineShapes, ...geo.shapes.map((shape) => markedSources.get(shape) ?? shape)] };
   },
 });
