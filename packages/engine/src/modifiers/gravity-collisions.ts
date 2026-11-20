@@ -398,32 +398,34 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
       const k = Math.sqrt(energyBefore / after);
       for (const { state } of involved) { state.vx *= k; state.vy *= k; state.omega *= k; }
     }
-    // Absorb motion after contacts into a sink, so collision impulses cannot reintroduce endless rolling or bounce.
-    const absorptionByBody = new Map<number, number>();
-    for (const source of attractors) {
-      if (!source.absorption) continue;
-      const sourceBody = world.bodies[source.index]!;
-      for (let i = 0; i < states.length; i++) {
-        const targetBody = world.bodies[i]!;
-        if (i === source.index || targetBody.fixed) continue;
-        const origin = before[i]!;
-        const target = nearestOnBody([origin.x, origin.y], source.polygons, source.hull);
-        const distance2 = (target[0] - origin.x) ** 2 + (target[1] - origin.y) ** 2;
-        if (source.range > 0 && distance2 > source.range * source.range) continue;
-        absorptionByBody.set(i, Math.max(absorptionByBody.get(i) ?? 0, source.absorption));
-        if (!sourceBody.fixed) absorptionByBody.set(source.index, Math.max(absorptionByBody.get(source.index) ?? 0, source.absorption));
+    // Absorption happens on impact, so it preserves the initial approach speed while damping repeated rebounds.
+    const dampedByBody = new Map<number, { absorption: number; threshold: number }>();
+    const absorptionOf = (index: number) => {
+      const body = world.bodies[index];
+      return body?.impulse?.attractor
+        ? { absorption: Math.max(0, Math.min(1, body.impulse.attractionAbsorption ?? 0.5)), threshold: Math.max(0, body.impulse.attractionSleepThreshold ?? 0.03) }
+        : null;
+    };
+    for (const contact of contacts) {
+      const aAbsorption = absorptionOf(contact.a.index);
+      const bAbsorption = contact.b ? absorptionOf(contact.b.index) : null;
+      const setting = [aAbsorption, bAbsorption].filter((value): value is NonNullable<typeof value> => value !== null).sort((a, b) => b.absorption - a.absorption)[0];
+      if (!setting || setting.absorption <= 0) continue;
+      for (const index of [contact.a.index, contact.b?.index]) {
+        if (index === undefined || world.bodies[index]!.fixed) continue;
+        const previous = dampedByBody.get(index);
+        if (!previous || setting.absorption > previous.absorption) dampedByBody.set(index, setting);
       }
     }
-    for (const [index, absorption] of absorptionByBody) {
+    for (const [index, setting] of dampedByBody) {
       const state = states[index]!;
-      const factor = Math.exp(-absorption * 8 * dt);
+      const factor = Math.exp(-setting.absorption * 8 * dt);
       state.vx *= factor; state.vy *= factor; state.omega *= factor;
       const body = world.bodies[index]!.body;
       const radiusOfGyration = Math.sqrt(body.inertia / body.mass);
       const specificSpeed2 = state.vx * state.vx + state.vy * state.vy + (state.omega * radiusOfGyration) ** 2;
-      const sleepThreshold = Math.max(0, ...attractors.map(({ index }) => world.bodies[index]?.impulse?.attractionSleepThreshold ?? 0.03));
       // Below the configurable fraction of the attractor's reference scale per second, make residual energy exactly zero.
-      if (sleepThreshold > 0 && specificSpeed2 < (attractionSize * sleepThreshold) ** 2) state.vx = state.vy = state.omega = 0;
+      if (setting.threshold > 0 && specificSpeed2 < (attractionSize * setting.threshold) ** 2) state.vx = state.vy = state.omega = 0;
     }
     const touching = new Set(contacts.flatMap((c) => c.b ? [c.a.index, c.b.index] : [c.a.index]));
     if (contactDamping) for (const i of touching) if (!world.bodies[i]!.fixed) states[i]!.omega *= Math.exp(-contactDamping * dt);
