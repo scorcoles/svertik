@@ -468,7 +468,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `fit` (boolean, def true)
 
 31. **`halftone`**: Vector halftone screen reproducing tonal luminosity using dot sizes on a rotated grid.
-31a. **`dithering`**: Converts tone to a binary grid of vector cells using ordered Bayer thresholds, Floyd–Steinberg or Atkinson error diffusion, or deterministic seeded noise.
+31a. **`dithering`**: Converts tone to a binary grid of vector cells using ordered Bayer thresholds, Floyd–Steinberg or Atkinson error diffusion, or deterministic seeded noise. Contiguous cells merge into larger rectangles; large grids raise Cell size as needed to cap work at 40,000 samples.
     - `shape` (`"circle" | "square" | "diamond" | "line" | "ring"`, def `"circle"`)
     - `spacing` (number, def 16, px)
     - `angle` (angle, def 45, deg)

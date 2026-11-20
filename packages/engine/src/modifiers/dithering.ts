@@ -2,7 +2,8 @@ import { line, type Geometry, type Shape, type Style, type SubPath, type Vec2 } 
 import { defineModifier } from '../modifier';
 import { colorSampler, darkness, prepare, rnd, type Layer } from './halftone';
 
-const MAX_CELLS = 100_000;
+// Bound per-frame sampling and SVG path size on large canvases. The grid grows evenly to fit the budget.
+const MAX_CELLS = 40_000;
 
 /** Turns sampled tone into a binary, vector pixel grid. */
 export const dithering = defineModifier({
@@ -76,21 +77,22 @@ export const dithering = defineModifier({
       }
     }
 
+    const regions = mergeRegions(bits, samples, cols, rows, p.color === 'ink' ? p.ink : undefined);
     const shapes: Shape[] = [];
     const merged = new Map<string, Shape>();
-    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
-      const index = row * cols + col, sample = samples[index];
-      if (!bits[index] || !sample) continue;
-      const fill = p.color === 'ink' ? p.ink : (sample.style.fill ?? p.ink);
-      const style: Style = { fill, stroke: 'none' };
-      if (p.color === 'original' && sample.style.opacity) style.opacity = sample.style.opacity;
-      const key = JSON.stringify(style);
-      const cell = cellPath(origin[0] + (i0 + col) * size, origin[1] + (j0 + row) * size, size, cos, sin, cx, cy);
+    for (const region of regions) {
+      const subpath = cellPath(
+        origin[0] + (i0 + region.x) * size,
+        origin[1] + (j0 + region.y) * size,
+        region.width * size,
+        region.height * size,
+        cos, sin, cx, cy,
+      );
       if (p.merge) {
-        let shape = merged.get(key);
-        if (!shape) { shape = { style, subpaths: [], clone: merged.size }; merged.set(key, shape); }
-        shape.subpaths.push(cell);
-      } else shapes.push({ style, subpaths: [cell], clone: shapes.length });
+        let shape = merged.get(region.key);
+        if (!shape) { shape = { style: region.style, subpaths: [], clone: merged.size }; merged.set(region.key, shape); }
+        shape.subpaths.push(subpath);
+      } else shapes.push({ style: region.style, subpaths: [subpath], clone: shapes.length });
     }
     return { viewBox: geo.viewBox, shapes: p.merge ? [...merged.values()] : shapes };
   },
@@ -124,8 +126,50 @@ function diffuse(samples: ({ tone: number; style: Style } | null)[], bits: Uint8
   }
 }
 
-function cellPath(x: number, y: number, size: number, cos: number, sin: number, cx: number, cy: number): SubPath {
+interface Region { key: string; style: Style; x: number; y: number; width: number; height: number }
+
+/** Collapse identical horizontal runs into rectangles, extending matching runs across rows. */
+function mergeRegions(bits: Uint8Array, samples: ({ tone: number; style: Style } | null)[], cols: number, rows: number, ink?: string): Region[] {
+  const active = new Map<string, Region>();
+  const regions: Region[] = [];
+  const styleFor = (sample: { style: Style }): Style => {
+    const style: Style = { fill: ink ?? sample.style.fill ?? '#111111', stroke: 'none' };
+    if (!ink && sample.style.opacity) style.opacity = sample.style.opacity;
+    return style;
+  };
+  for (let y = 0; y < rows; y++) {
+    const present = new Set<string>();
+    let x = 0;
+    while (x < cols) {
+      const index = y * cols + x, sample = samples[index];
+      if (!bits[index] || !sample) { x++; continue; }
+      const style = styleFor(sample);
+      const key = JSON.stringify(style);
+      const start = x++;
+      while (x < cols) {
+        const next = y * cols + x, nextSample = samples[next];
+        if (!bits[next] || !nextSample) break;
+        if (JSON.stringify(styleFor(nextSample)) !== key) break;
+        x++;
+      }
+      const id = `${start}:${x}:${key}`;
+      present.add(id);
+      const region = active.get(id);
+      if (region) region.height++;
+      else active.set(id, { key, style, x: start, y, width: x - start, height: 1 });
+    }
+    for (const [id, region] of active) {
+      if (present.has(id)) continue;
+      regions.push(region);
+      active.delete(id);
+    }
+  }
+  regions.push(...active.values());
+  return regions;
+}
+
+function cellPath(x: number, y: number, width: number, height: number, cos: number, sin: number, cx: number, cy: number): SubPath {
   const point = (px: number, py: number): Vec2 => [cx + cos * px - sin * py, cy + sin * px + cos * py];
-  const a = point(x, y), b = point(x + size, y), c = point(x + size, y + size), d = point(x, y + size);
+  const a = point(x, y), b = point(x + width, y), c = point(x + width, y + height), d = point(x, y + height);
   return { start: a, segs: [line(a, b), line(b, c), line(c, d), line(d, a)], closed: true };
 }
