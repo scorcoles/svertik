@@ -130,6 +130,38 @@ function polygonOf(points: Vec2[]): Polygon {
   return { points, box: boxOf(points), axes };
 }
 
+/** The nearest point on a convex solid; an interior point is already in the solid. */
+function nearestOnPolygon(point: Vec2, polygon: Polygon): Vec2 {
+  if (polygon.axes.every(({ x, y, min, max }) => {
+    const value = point[0] * x + point[1] * y;
+    return value >= min - 1e-9 && value <= max + 1e-9;
+  })) return point;
+  let nearest: Vec2 = polygon.points[0] ?? point;
+  let distance2 = Infinity;
+  for (let i = 0; i < polygon.points.length; i++) {
+    const a = polygon.points[i]!, b = polygon.points[(i + 1) % polygon.points.length]!;
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const length2 = dx * dx + dy * dy;
+    const t = length2 > 1e-12 ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / length2)) : 0;
+    const candidate: Vec2 = [a[0] + dx * t, a[1] + dy * t];
+    const d2 = (point[0] - candidate[0]) ** 2 + (point[1] - candidate[1]) ** 2;
+    if (d2 < distance2) { nearest = candidate; distance2 = d2; }
+  }
+  return nearest;
+}
+
+/** The nearest point in a body's filled region; decomposed holes remain empty. */
+function nearestOnBody(point: Vec2, polygons: Polygon[], hull: Vec2[]): Vec2 {
+  const parts = polygons.length ? polygons : hull.length >= 3 ? [polygonOf(hull)] : [];
+  let nearest = point, distance2 = Infinity;
+  for (const polygon of parts) {
+    const candidate = nearestOnPolygon(point, polygon);
+    const d2 = (point[0] - candidate[0]) ** 2 + (point[1] - candidate[1]) ** 2;
+    if (d2 < distance2) { nearest = candidate; distance2 = d2; }
+  }
+  return nearest;
+}
+
 /** SAT with a two-point support manifold. Normal points from A into B. */
 function manifold(a: Polygon, b: Polygon): { nx: number; ny: number; depth: number; points: Vec2[] } | null {
   if (!overlap(a.box, b.box)) return null;
@@ -231,23 +263,26 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
   let pending = replay.pending[0]!;
   const advance = (before: State[], dt: number): State[] => {
     const stillPending = new Set<number>();
+    const attractors = world.bodies.flatMap((collider, index) => {
+      const impulse = collider.impulse;
+      if (!impulse?.attractor || !(impulse.attractionStrength ?? 1) || !before[index]) return [];
+      const placed = place(collider, before[index]!, index);
+      return [{ index, strength: Math.max(0, impulse.attractionStrength ?? 1), range: Math.max(0, impulse.attractionRange ?? 0) * size, polygons: placed.polygons(), hull: placed.hull }];
+    });
     const states = before.map((state, i) => {
       if (world.bodies[i]!.fixed) return { ...state };
       let ax = floor ? acceleration[1] * sn : acceleration[0];
       let ay = floor ? acceleration[1] * cs : acceleration[1];
-      for (let j = 0; j < world.bodies.length; j++) {
-        if (j === i) continue;
-        const source = world.bodies[j]!;
-        const strength = source.impulse?.attractor ? Math.max(0, source.impulse.attractionStrength ?? 1) : 0;
-        if (!strength) continue;
-        const dx = before[j]!.x - state.x, dy = before[j]!.y - state.y;
+      for (const source of attractors) {
+        if (source.index === i) continue;
+        const target = nearestOnBody([state.x, state.y], source.polygons, source.hull);
+        const dx = target[0] - state.x, dy = target[1] - state.y;
         const distance2 = dx * dx + dy * dy;
-        const range = Math.max(0, source.impulse?.attractionRange ?? 0) * size;
-        if ((range > 0 && distance2 > range * range) || distance2 < 1e-12) continue;
+        if ((source.range > 0 && distance2 > source.range * source.range) || distance2 < 1e-12) continue;
         const inverseDistance = 1 / Math.sqrt(Math.max(distance2, softening * softening));
         // Inverse-square field: Strength is the acceleration fraction of the scene scale at one scene scale away.
         // Cap the singularity near the attractor so a close pass cannot launch a body out of the simulation.
-        const magnitude = Math.min(strength * size * 20, strength * size * size * size * inverseDistance * inverseDistance);
+        const magnitude = Math.min(source.strength * size * 20, source.strength * size * size * size * inverseDistance * inverseDistance);
         ax += dx * inverseDistance * magnitude;
         ay += dy * inverseDistance * magnitude;
       }

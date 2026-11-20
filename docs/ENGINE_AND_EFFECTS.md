@@ -670,7 +670,7 @@ Effectors and generators added after the first catalog: oscillators, physics, pa
     - `time` (number, def 0, 0..60), `acceleration` (point, def [0, 0], px), `collisions` (boolean, def true), `solids` (nodes, def [])
     - `friction` (number, def 0, 0..1), `bounce` (number, def 1, 0..1)
 
-66. **`rigidbody`** (deformer): Initial linear velocity and spin for a child inside a Physics group (or Gravity); can also attract other rigid bodies in Physics.
+66. **`rigidbody`** (deformer): Initial linear velocity and spin for a child inside a Physics group (or Gravity); can also attract other rigid bodies in Physics toward the nearest point on its solid geometry, preserving holes.
     - `velocity` (point, def [0, 0], px), `spin` (number, def 0, °/s), `immovable` (boolean, def false)
     - `attractor` (boolean, def false), `attractionStrength` (number, def 1, 0..10, fraction), `attractionRange` (number, def 0, 0..10, fraction of largest moving body; 0 = unlimited)
 
@@ -784,7 +784,7 @@ The internal deformable solver uses fixed 120 Hz steps and cached checkpoints, u
 
 ### Physics (`physics`)
 
-A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin, fixed state or attraction field you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. Enable **Attractor** to pull other rigid bodies toward that child. Its inverse-square field has a **Strength** and a **Range** relative to the largest moving body; a range of 0 is unlimited. The field affects other bodies without a reciprocal force on the attractor. The whole group shares one simulation and time.
+A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin, fixed state or attraction field you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. Enable **Attractor** to pull other rigid bodies toward the nearest point on that child's solid geometry. Hollow shapes preserve their holes, so an object in a donut opening is attracted toward the ring, not the hole's centre. The inverse-square field has a **Strength** and a **Range** relative to the largest moving body; a range of 0 is unlimited. The field affects other bodies without a reciprocal force on the attractor. The whole group shares one simulation and time.
 
 - `time`: simulation time in seconds; the editor links it to `scene.time` when added.
 - `acceleration`: constant `[x, y]` acceleration in px/s²; `[0, 0]` gives free, frictionless motion between impacts.
