@@ -666,13 +666,13 @@ Effectors and generators added after the first catalog: oscillators, physics, pa
     - `collisions` (boolean, def false), `solids` (nodes, def []), `physics` (boolean, def true), `friction` (number, def 0.7, 0..1)
     - `bounce` (number, def 0.15, 0..1)
 
-65. **`physics`** (effector): A deterministic 2D rigid-body simulation for a group. Rigid body children can enable inverse-square attraction fields with strength and range relative to the largest moving body.
+65. **`physics`** (effector): A deterministic 2D rigid-body simulation for a group. Rigid body children can enable inverse-square attraction fields with strength and range relative to the largest body, fixed or moving.
     - `time` (number, def 0, 0..60), `acceleration` (point, def [0, 0], px), `collisions` (boolean, def true), `solids` (nodes, def [])
     - `friction` (number, def 0, 0..1), `bounce` (number, def 1, 0..1)
 
 66. **`rigidbody`** (deformer): Initial linear velocity and spin for a child inside a Physics group (or Gravity); can also attract other rigid bodies in Physics toward the nearest point on its solid geometry, preserving holes.
     - `velocity` (point, def [0, 0], px), `spin` (number, def 0, °/s), `immovable` (boolean, def false)
-    - `attractor` (boolean, def false), `attractionStrength` (number, def 1, 0..10, fraction), `attractionRange` (number, def 0, 0..10, fraction of largest moving body; 0 = unlimited)
+    - `attractor` (boolean, def false), `attractionStrength` (number, def 1, 0..10, fraction), `attractionRange` (number, def 0, 0..10, fraction of largest body; 0 = unlimited), `attractionAbsorption` (number, def 0.5, 0..1, fraction; reduces bounce and damps motion; 1 absorbs all bounce), `attractionSleepThreshold` (number, def 0.03, 0..0.2, fraction of largest body per second; 0 disables settling cutoff)
 
 67. **`rope`** (deformer): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings.
     - `time` (number, def 0, 0..100000), `gravity` (number, def 1, 0..10, fraction), `wind` (number, def 0, 0..5), `damping` (number, def 0.8, 0..20)
@@ -784,7 +784,7 @@ The internal deformable solver uses fixed 120 Hz steps and cached checkpoints, u
 
 ### Physics (`physics`)
 
-A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin, fixed state or attraction field you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. Enable **Attractor** to pull other rigid bodies toward the nearest point on that child's solid geometry. Hollow shapes preserve their holes, so an object in a donut opening is attracted toward the ring, not the hole's centre. The inverse-square field has a **Strength** and a **Range** relative to the largest moving body; a range of 0 is unlimited. Attraction is reciprocal, with the reaction force scaled by mass; an Immovable attractor absorbs it and stays fixed. The whole group shares one simulation and time.
+A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin, fixed state or attraction field you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. Enable **Attractor** to pull other rigid bodies toward the nearest point on that child's solid geometry. Hollow shapes preserve their holes, so an object in a donut opening is attracted toward the ring, not the hole's centre. The inverse-square field has a **Strength** and a **Range** relative to the largest body, fixed or moving; a range of 0 is unlimited. Attraction is reciprocal, with the reaction force scaled by mass; an Immovable attractor absorbs it and stays fixed. **Absorption** drains linear and angular motion in the field and reduces bounce at the attractor, so objects make a few rebounds before settling despite perfectly elastic global collisions. Its default 0.5 keeps half the global bounce on impact; at 1, impacts with the attractor are fully inelastic. **Settle** sets the residual speed below which the solver zeros a body's motion; it defaults to 3% of the largest body's scale per second. Set it to 0 to disable the cutoff. Set Absorption to 0 for conservative motion. The whole group shares one simulation and time.
 
 - `time`: simulation time in seconds; the editor links it to `scene.time` when added.
 - `acceleration`: constant `[x, y]` acceleration in px/s²; `[0, 0]` gives free, frictionless motion between impacts.

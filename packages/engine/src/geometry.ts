@@ -36,6 +36,8 @@ export interface Impulse {
   attractor?: boolean;
   attractionStrength?: number;
   attractionRange?: number;
+  attractionAbsorption?: number;
+  attractionSleepThreshold?: number;
 }
 
 export interface SoftMaterial {

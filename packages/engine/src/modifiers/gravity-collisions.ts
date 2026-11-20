@@ -237,7 +237,7 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     replay = world.replay = { key, checkpoints: [initial], pending: [pending], latest: { step: 0, states: initial, pending } };
   }
   const size = Math.max(...world.bodies.filter((b) => !b.fixed).map((b) => Math.sqrt(b.body.inertia)), 1);
-  const softening = Math.max(size * 0.02, 1);
+  const attractionSize = Math.max(...world.bodies.map((b) => Math.sqrt(b.body.inertia)), 1);
   const slop = size * 0.0001;
   // Slow approaches don't bounce: bodies resting against each other (pieces of a fracture, a stack) stay in contact
   // instead of trading tiny rebounds. Without acceleration the floor of size × 0.5/s keeps it above zero.
@@ -265,9 +265,9 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     const stillPending = new Set<number>();
     const attractors = world.bodies.flatMap((collider, index) => {
       const impulse = collider.impulse;
-      if (!impulse?.attractor || !(impulse.attractionStrength ?? 1) || !before[index]) return [];
+      if (!impulse?.attractor || (!(impulse.attractionStrength ?? 1) && !(impulse.attractionAbsorption ?? 0)) || !before[index]) return [];
       const placed = place(collider, before[index]!, index);
-      return [{ index, strength: Math.max(0, impulse.attractionStrength ?? 1), range: Math.max(0, impulse.attractionRange ?? 0) * size, polygons: placed.polygons(), hull: placed.hull }];
+      return [{ index, strength: Math.max(0, impulse.attractionStrength ?? 1), absorption: Math.max(0, Math.min(1, impulse.attractionAbsorption ?? 0.5)), range: Math.max(0, impulse.attractionRange ?? 0) * attractionSize, polygons: placed.polygons(), hull: placed.hull }];
     });
     const bodyAccelerations = before.map((): [number, number] => [
       floor ? acceleration[1] * sn : acceleration[0],
@@ -283,18 +283,25 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
         const dx = target[0] - state.x, dy = target[1] - state.y;
         const distance2 = dx * dx + dy * dy;
         if ((source.range > 0 && distance2 > source.range * source.range) || distance2 < 1e-12) continue;
-        const inverseDistance = 1 / Math.sqrt(Math.max(distance2, softening * softening));
-        const directionX = dx / Math.sqrt(distance2), directionY = dy / Math.sqrt(distance2);
-        // Inverse-square field: Strength is the acceleration fraction of the scene scale at one scene scale away.
-        // Cap the singularity near the attractor so a close pass cannot launch a body out of the simulation.
-        const magnitude = Math.min(source.strength * size * 20, source.strength * size * size * size * inverseDistance * inverseDistance);
-        bodyAccelerations[i]![0] += directionX * magnitude;
-        bodyAccelerations[i]![1] += directionY * magnitude;
+        const distance = Math.sqrt(distance2);
+        const directionX = dx / distance, directionY = dy / distance;
+        if (source.strength > 0) {
+          const inverseDistance = 1 / Math.sqrt(Math.max(distance2, attractionSize * attractionSize * 0.0004, 1));
+          // Inverse-square field: Strength is the acceleration fraction of the largest body's scale at that distance.
+          // Cap the singularity near the attractor so a close pass cannot launch a body out of the simulation.
+          const magnitude = Math.min(source.strength * attractionSize * 20, source.strength * attractionSize * attractionSize * attractionSize * inverseDistance * inverseDistance);
+          bodyAccelerations[i]![0] += directionX * magnitude;
+          bodyAccelerations[i]![1] += directionY * magnitude;
+        }
         // Attraction is reciprocal. A fixed attractor is a constraint, so its support absorbs the reaction force.
         if (!sourceBody.fixed) {
           const ratio = targetBody.body.mass / sourceBody.body.mass;
-          bodyAccelerations[source.index]![0] -= directionX * magnitude * ratio;
-          bodyAccelerations[source.index]![1] -= directionY * magnitude * ratio;
+          if (source.strength > 0) {
+            const inverseDistance = 1 / Math.sqrt(Math.max(distance2, attractionSize * attractionSize * 0.0004, 1));
+            const magnitude = Math.min(source.strength * attractionSize * 20, source.strength * attractionSize * attractionSize * attractionSize * inverseDistance * inverseDistance);
+            bodyAccelerations[source.index]![0] -= directionX * magnitude * ratio;
+            bodyAccelerations[source.index]![1] -= directionY * magnitude * ratio;
+          }
         }
       }
     }
@@ -309,6 +316,9 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
       // Correct penetration once per manifold, independent of the number of contact points.
       const total = a.im + (b?.im ?? 0);
       if (!total) return;
+      const absorptionOf = (index: number) => world.bodies[index]?.impulse?.attractor ? Math.max(0, Math.min(1, world.bodies[index]?.impulse?.attractionAbsorption ?? 0)) : 0;
+      const absorption = Math.max(absorptionOf(a.index), b ? absorptionOf(b.index) : 0);
+      const restitution = bounce * (1 - Math.max(0, Math.min(1, absorption)));
       const correction = Math.max(0, depth - slop) * 0.8 / total;
       a.state.x -= nx * correction * a.im; a.state.y -= ny * correction * a.im;
       if (b) { b.state.x += nx * correction * b.im; b.state.y += ny * correction * b.im; }
@@ -316,7 +326,7 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
         const avx = a.state.vx - a.state.omega * (y - a.state.y), avy = a.state.vy + a.state.omega * (x - a.state.x);
         const bvx = b ? b.state.vx - b.state.omega * (y - b.state.y) : 0, bvy = b ? b.state.vy + b.state.omega * (x - b.state.x) : 0;
         const closing = (bvx - avx) * nx + (bvy - avy) * ny;
-        contacts.push({ a, b, nx, ny, x, y, depth, normal: 0, tangent: 0, target: closing < -restitutionThreshold ? -closing * bounce : 0 });
+        contacts.push({ a, b, nx, ny, x, y, depth, normal: 0, tangent: 0, target: closing < -restitutionThreshold ? -closing * restitution : 0 });
       }
     };
     for (const a of placed) if (a.im && floor) {
@@ -387,6 +397,33 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     if (after > energyBefore * (1 + 1e-9) && after > 0) {
       const k = Math.sqrt(energyBefore / after);
       for (const { state } of involved) { state.vx *= k; state.vy *= k; state.omega *= k; }
+    }
+    // Absorb motion after contacts into a sink, so collision impulses cannot reintroduce endless rolling or bounce.
+    const absorptionByBody = new Map<number, number>();
+    for (const source of attractors) {
+      if (!source.absorption) continue;
+      const sourceBody = world.bodies[source.index]!;
+      for (let i = 0; i < states.length; i++) {
+        const targetBody = world.bodies[i]!;
+        if (i === source.index || targetBody.fixed) continue;
+        const origin = before[i]!;
+        const target = nearestOnBody([origin.x, origin.y], source.polygons, source.hull);
+        const distance2 = (target[0] - origin.x) ** 2 + (target[1] - origin.y) ** 2;
+        if (source.range > 0 && distance2 > source.range * source.range) continue;
+        absorptionByBody.set(i, Math.max(absorptionByBody.get(i) ?? 0, source.absorption));
+        if (!sourceBody.fixed) absorptionByBody.set(source.index, Math.max(absorptionByBody.get(source.index) ?? 0, source.absorption));
+      }
+    }
+    for (const [index, absorption] of absorptionByBody) {
+      const state = states[index]!;
+      const factor = Math.exp(-absorption * 8 * dt);
+      state.vx *= factor; state.vy *= factor; state.omega *= factor;
+      const body = world.bodies[index]!.body;
+      const radiusOfGyration = Math.sqrt(body.inertia / body.mass);
+      const specificSpeed2 = state.vx * state.vx + state.vy * state.vy + (state.omega * radiusOfGyration) ** 2;
+      const sleepThreshold = Math.max(0, ...attractors.map(({ index }) => world.bodies[index]?.impulse?.attractionSleepThreshold ?? 0.03));
+      // Below the configurable fraction of the attractor's reference scale per second, make residual energy exactly zero.
+      if (sleepThreshold > 0 && specificSpeed2 < (attractionSize * sleepThreshold) ** 2) state.vx = state.vy = state.omega = 0;
     }
     const touching = new Set(contacts.flatMap((c) => c.b ? [c.a.index, c.b.index] : [c.a.index]));
     if (contactDamping) for (const i of touching) if (!world.bodies[i]!.fixed) states[i]!.omega *= Math.exp(-contactDamping * dt);
