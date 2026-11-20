@@ -457,7 +457,7 @@ export function createDocumentEvaluator(
           const m = placementMatrix(originPivot ? { ...p, pivot: originPivot } : p, ref, [0, 0], origin);
           const world = multiply(parentMatrix, m);
           inScene(world);
-          const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.image, s.softBody, s.rangeSelections, s.gridRow, s.gridColumn, s.bodyGroup, s.rigidGroup, s.rigidTilt, s.rigidTiltAlternate, s.rigidPivot])) : '';
+          const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.image, s.softBody, s.rangeSelections, s.gridRow, s.gridColumn, s.bodyGroup, s.rigidGroup, s.rigidAmount, s.rigidPivot])) : '';
           // Text depends on the registered fonts: when a new one arrives, it is drawn again.
           const key =
             node.kind === 'instance'
@@ -521,7 +521,7 @@ export function createDocumentEvaluator(
         if (stack.length) {
           // What its stack produced holds while its children (shape and style) and its stack don't change, and
           // it doesn't look at other objects (that is always redone): a Metaball isn't repeated in every pass of a frame.
-          const gkey = JSON.stringify([resolution, stack]) + '|' + hashGeo(inner) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.softBody, s.rangeSelections, s.gridRow, s.gridColumn, s.bodyGroup, s.rigidGroup, s.rigidTilt, s.rigidTiltAlternate, s.rigidPivot]));
+          const gkey = JSON.stringify([resolution, stack]) + '|' + hashGeo(inner) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.softBody, s.rangeSelections, s.gridRow, s.gridColumn, s.bodyGroup, s.rigidGroup, s.rigidAmount, s.rigidPivot]));
           const hit = groupCache.get(node.id);
           if (hit && hit.key === gkey) {
             result = hit.result;
@@ -864,8 +864,7 @@ function hashGeo(geo: Geometry): number {
   for (const s of geo.shapes) {
     add(s.subpaths.length);
     add(s.rigidGroup === undefined ? -1 : s.rigidGroup);
-    add(s.rigidTilt ?? 0);
-    add(s.rigidTiltAlternate ? 1 : 0);
+    add(s.rigidAmount ?? 1);
     add(s.rigidPivot === undefined ? -1 : ['center', 'n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'].indexOf(s.rigidPivot));
     if (s.impulse) { add(s.impulse.velocity[0]); add(s.impulse.velocity[1]); add(s.impulse.spin); }
     for (const sp of s.subpaths) {

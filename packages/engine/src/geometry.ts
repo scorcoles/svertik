@@ -41,10 +41,8 @@ export interface Shape {
   bodyGroup?: number;
   /** Elements marked by Rigid Pieces; compatible deformers move each group without bending it. */
   rigidGroup?: number;
-  /** Maximum displacement-driven tilt, in degrees, assigned by Rigid Pieces. */
-  rigidTilt?: number;
-  /** Whether Rigid Pieces alternates the tilt direction by element. */
-  rigidTiltAlternate?: boolean;
+  /** Mix between normal pointwise deformation (0) and whole-piece rigid motion (1). */
+  rigidAmount?: number;
   /** Anchor point used when compatible deformers rotate this rigid piece. */
   rigidPivot?: 'center' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
   impulse?: Impulse;
@@ -233,7 +231,6 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
   const transforms = new Map<number, (point: Vec2) => Vec2>();
   for (const [id, members] of groups) {
     const b = bounds({ viewBox: geo.viewBox, shapes: members });
-    const center: Vec2 = [b.x + b.width / 2, b.y + b.height / 2];
     const pivot = members[0]?.rigidPivot ?? 'center';
     const fractions: Record<NonNullable<Shape['rigidPivot']>, Vec2> = {
       center: [0.5, 0.5], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1],
@@ -242,7 +239,6 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
     const [fx, fy] = fractions[pivot];
     const anchor: Vec2 = [b.x + b.width * fx, b.y + b.height * fy];
     const target = fn(anchor);
-    const movedCenter = fn(center);
     const epsilon = Math.max(Math.hypot(b.width, b.height) * 1e-4, 1e-3);
     let vx = fn([anchor[0] + epsilon, anchor[1]])[0] - target[0];
     let vy = fn([anchor[0] + epsilon, anchor[1]])[1] - target[1];
@@ -251,13 +247,14 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
       vx = vertical[1] - target[1];
       vy = target[0] - vertical[0];
     }
-    const movement = Math.hypot(movedCenter[0] - center[0], movedCenter[1] - center[1]);
-    const tilt = (members[0]?.rigidTilt ?? 0) * Math.min(1, movement / Math.max(b.width, b.height, 1));
-    const direction = members[0]?.rigidTiltAlternate && id % 2 ? -1 : 1;
-    const angle = Math.atan2(vy, vx) + (tilt * direction * Math.PI) / 180, c = Math.cos(angle), s = Math.sin(angle);
+    const angle = Math.atan2(vy, vx), c = Math.cos(angle), s = Math.sin(angle);
+    const amount = Math.max(0, Math.min(1, members[0]?.rigidAmount ?? 1));
     transforms.set(id, ([x, y]) => {
+      const point = fn([x, y]);
+      if (amount === 0) return point;
       const dx = x - anchor[0], dy = y - anchor[1];
-      return [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
+      const rigid: Vec2 = [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
+      return [point[0] + (rigid[0] - point[0]) * amount, point[1] + (rigid[1] - point[1]) * amount];
     });
   }
   return mapSubPaths({ viewBox: geo.viewBox, shapes }, (path, shape) => {

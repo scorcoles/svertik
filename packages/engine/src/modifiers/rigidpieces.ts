@@ -1,5 +1,10 @@
 import { bounds, type Geometry, type Shape } from '../geometry';
-import { defineModifier, type ModifierContext, type ResolvedModifier } from '../modifier';
+import { defineModifier, type ModifierContext } from '../modifier';
+
+const pivotPoint: Record<NonNullable<Shape['rigidPivot']>, [number, number]> = {
+  center: [0.5, 0.5], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1],
+  s: [0.5, 1], sw: [0, 1], w: [0, 0.5], nw: [0, 0],
+};
 
 /** Marks each current element as a rigid piece for compatible downstream deformers. */
 export const rigidpieces = defineModifier({
@@ -7,8 +12,7 @@ export const rigidpieces = defineModifier({
   label: 'Rigid Pieces',
   kind: 'effector',
   params: {
-    tilt: { type: 'number', default: 0, min: 0, max: 90, step: 1, unit: '°', label: 'Tilt', ramp: false },
-    alternate: { type: 'boolean', default: false, label: 'Alternate tilt' },
+    amount: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Amount', ramp: false },
     pivot: { type: 'enum', default: 'center', options: ['center', 'n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const, label: 'Pivot', animatable: false },
   },
   apply(geo, p, ctx) {
@@ -21,7 +25,7 @@ export const rigidpieces = defineModifier({
             : shape.clone !== undefined ? `clone:${shape.clone}` : `shape:${index}`;
         let group = groupIds.get(key);
         if (group === undefined) groupIds.set(key, (group = groupIds.size));
-        return { ...shape, rigidGroup: group, rigidTilt: p.tilt, rigidTiltAlternate: p.alternate, rigidPivot: p.pivot as Shape['rigidPivot'] };
+        return { ...shape, rigidGroup: group, rigidAmount: p.amount, rigidPivot: p.pivot as Shape['rigidPivot'] };
       }),
     };
     const children = ctx.children.filter((child) => child.enabled && child.def.kind === 'deformer');
@@ -41,7 +45,10 @@ export const rigidpieces = defineModifier({
       let part: Geometry = { viewBox: marked.viewBox, shapes };
       for (const child of children) {
         const local: ModifierContext = { ...ctx, bounds: bounds(part), children: child.children };
-        part = child.def.apply(part, child.params as never, local);
+        const params = child.def.type === 'transform' || child.def.type === 'rotate3d'
+          ? { ...child.params, pivot: pivotPoint[(p.pivot as Shape['rigidPivot']) ?? 'center'] }
+          : child.params;
+        part = child.def.apply(part, params as never, local);
       }
       transformed.set(group, part);
     }

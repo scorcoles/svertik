@@ -11,7 +11,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Transform](effects/transform.md) | `transform` | Moves, rotates and scales the whole drawing, around a pivot. |
 | [Rotate 3D](effects/rotate3d.md) | `rotate3d` | Rotates the drawing in 3D (X, Y, Z) around a pivot and projects it with perspective. |
 | [Spherize](effects/spherize.md) | `spherize` | Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. |
-| [Rigid Pieces](effects/rigidpieces.md) | `rigidpieces` | Applies nested deformers per rigid element and preserves pieces in downstream deformations. |
+| [Rigid Pieces](effects/rigidpieces.md) | `rigidpieces` | Blends downstream deformation between pointwise bending and whole-piece rigid motion. |
 | [Twist](effects/twist.md) | `twist` | A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius. |
 | [Bend](effects/bend.md) | `bend` | Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. |
 | [Bones](effects/bones.md) | `bones` | A chain of 2 to 6 equal bones from Start to End. |
