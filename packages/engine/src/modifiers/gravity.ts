@@ -1,4 +1,4 @@
-import { mapPoints, type Geometry, type Shape } from '../geometry';
+import { bounds, mapPoints, type Geometry, type Shape } from '../geometry';
 import { collisionBody, fallWorld, type CollisionBody, type CollisionWorld } from './gravity-collisions';
 import { fallBody, gravityBody, type FallPose } from './gravity-physics';
 import { defineModifier, deg, fromFraction } from '../modifier';
@@ -141,14 +141,22 @@ export const gravity = defineModifier({
       let cache = collisionWorlds.get(geo);
       if (!cache || cache.key !== key) {
         const bodies: CollisionBody[] = [], indices = new Map<Shape[], number>();
-        const detail = Math.max(Math.max(ctx.bounds.width, ctx.bounds.height) * 0.006, 0.25);
         for (const entry of parts) {
           const part = { ...geo, shapes: entry.shapes };
           const body = entry.body === undefined ? (entry.body = gravityBody(part, overloaded)) : entry.body;
+          // Generated pieces can be much smaller than the source object. Simplifying each collider
+          // against the scene-wide size makes adjacent Voronoi/Mosaic cells overlap at startup.
+          const partBounds = bounds(part);
+          const detail = Math.max(Math.max(partBounds.width, partBounds.height) * 0.006, 0.25);
           const collider = entry.collider === undefined ? (entry.collider = collisionBody(part, body, !!entry.shapes[0]?.impulse?.immovable, detail)) : entry.collider;
           if (collider) { indices.set(entry.shapes, bodies.length); bodies.push(collider); }
         }
-        for (const solid of solids) { const collider = collisionBody(solid, undefined, true, detail); if (collider) bodies.push(collider); }
+        for (const solid of solids) {
+          const solidBounds = bounds(solid);
+          const detail = Math.max(Math.max(solidBounds.width, solidBounds.height) * 0.006, 0.25);
+          const collider = collisionBody(solid, undefined, true, detail);
+          if (collider) bodies.push(collider);
+        }
         cache = { key, world: { bodies }, indices };
         collisionWorlds.set(geo, cache);
       }

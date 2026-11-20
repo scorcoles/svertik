@@ -2,6 +2,7 @@ import { printPosterProject } from './demo-poster';
 import { tileWallProject } from './demo-tiles';
 import { weaveProject } from './demo-weave';
 import { contourProject } from './demo-contour';
+import { voronoiProject } from './demo-voronoi';
 import { timeRemapProject, compositionsProject, crossFillProject, motionProject, rhythmProject, demoProject, gravityProject, ricochetProject, orbitProject, pointerProject, reelProject, shatterProject } from './demo';
 
 /** Shared by both menus and the loader: one place for labels, order, factories and presentation. */
@@ -21,6 +22,7 @@ export const DEMOS = [
   { which: 'tilewall', label: 'Tile Wall: a procedural wall of chamfered tiles', create: tileWallProject, view: 'canvas' },
   { which: 'weave', label: 'Weave: a breathing moiré grid with Gather', create: weaveProject, view: 'canvas' },
   { which: 'contour', label: 'Contour: an isobar poster', create: contourProject, view: 'canvas' },
+  { which: 'voronoi', label: 'Voronoi: a fault-line color study', create: voronoiProject, view: 'canvas' },
   { which: 'poster', label: 'Print Poster: a 1200×4800 glitch print', create: printPosterProject, view: 'canvas' },
 ] as const;
 
