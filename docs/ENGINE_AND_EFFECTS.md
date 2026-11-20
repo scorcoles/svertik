@@ -192,7 +192,10 @@ Many advanced procedural effects operate on collections of **individual elements
 - Cloner (`clone`): Each duplicated copy is an element.
 - Mosaic (`mosaic`): Each cut tile is an element.
 - Fracture/Wear (`crack` in `"shatter"` mode, `damage`): Each broken shard is an element.
+- Voronoi (`voronoi`): Each clipped cell is an element.
 - Groups (`kind: "group"`): Each child node acts as an element.
+
+**Rigid Pieces** (`rigidpieces`) marks each current element as a rigid plate for compatible deformers below it. Place it after a generator and before Spherize, Twist, Bend, Wave, Ripple, Noise, Taper, Shear, Cylinder or Perspective. Those deformers move and rotate each marked piece as a whole, preserving its shape and size; other geometry keeps its normal point-by-point deformation. For example: `Voronoi → Rigid Pieces → Spherize`. This is a geometry behavior, not a physics simulation; Gravity and Physics still control falling and collisions.
 
 The **Effector** modifiers (`step`, `stagger`, `range`, `field`, `explosion`, `color`) distribute procedural values across elements:
 - `step`: Multiplies child modifier parameters by the element index (0, 1, 2...).

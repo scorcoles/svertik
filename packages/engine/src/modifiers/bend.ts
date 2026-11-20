@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
 /**
@@ -22,7 +22,7 @@ export const bend = defineModifier({
     const R = L / theta;
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       // u: along the axis; v: across it.
       const u = horizontal ? x - cx : y - cy;
       const v = horizontal ? y - cy : cx - x;
@@ -31,6 +31,6 @@ export const bend = defineModifier({
       const nu = r * Math.sin(phi);
       const nv = R - r * Math.cos(phi);
       return horizontal ? [cx + nu, cy + nv] : [cx - nv, cy + nu];
-    });
+    }, ctx.resolution);
   },
 });

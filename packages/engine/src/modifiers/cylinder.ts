@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
 /**
@@ -22,11 +22,11 @@ export const cylinder = defineModifier({
     // Radius such that the drawing's width covers `wrap` of the circumference.
     const R = W / (2 * Math.PI * Math.max(0.01, p.wrap));
     const rot = deg(p.rotation);
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       const theta = (x - cx) / R + rot;
       const depth = Math.cos(theta); // 1 in front, −1 behind
       const k = 1 + p.perspective * (depth - 1) * 0.5;
       return [cx + R * Math.sin(theta) * k, cy + (y - cy) * k];
-    });
+    }, ctx.resolution);
   },
 });

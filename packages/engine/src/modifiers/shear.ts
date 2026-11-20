@@ -1,4 +1,4 @@
-import { mapPoints } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
 /** Slants: X shifts with the height and Y with the width, around the centre. */
@@ -17,6 +17,6 @@ export const shear = defineModifier({
     const cy = b.y + b.height / 2;
     const tx = Math.tan(deg(Math.max(-85, Math.min(85, p.x))));
     const ty = Math.tan(deg(Math.max(-85, Math.min(85, p.y))));
-    return mapPoints(geo, ([x, y]) => [x + tx * (y - cy), y + ty * (x - cx)]);
+    return mapDeformer(geo, ([x, y]) => [x + tx * (y - cy), y + ty * (x - cx)]);
   },
 });

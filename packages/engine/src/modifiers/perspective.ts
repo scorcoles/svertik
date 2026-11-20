@@ -1,4 +1,4 @@
-import { mapPoints, subdivide, type Vec2 } from '../geometry';
+import { mapDeformer, type Vec2 } from '../geometry';
 import { defineModifier, fromFraction } from '../modifier';
 
 /** Homography from the unit square to the quadrilateral (a, b, c, d) = corners TL, TR, BR, BL. */
@@ -35,6 +35,6 @@ export const perspective = defineModifier({
     const b = ctx.bounds;
     if (b.width === 0 || b.height === 0) return geo;
     const map = squareToQuad([p.topLeft, p.topRight, p.bottomRight, p.bottomLeft].map((q) => fromFraction(b, q)));
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => map((x - b.x) / b.width, (y - b.y) / b.height));
+    return mapDeformer(geo, ([x, y]) => map((x - b.x) / b.width, (y - b.y) / b.height), ctx.resolution);
   },
 });

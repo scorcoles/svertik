@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, fromFraction } from '../modifier';
 
 /**
@@ -24,13 +24,13 @@ export const spherize = defineModifier({
       p.strength > 0
         ? (d: number) => d + (Math.sin((d * Math.PI) / 2) - d) * k
         : (d: number) => d + (1 - Math.cos((d * Math.PI) / 2) - d) * k;
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       const dx = x - cx;
       const dy = y - cy;
       const r = Math.hypot(dx, dy);
       if (r === 0 || r >= R) return [x, y];
       const f = (profile(r / R) * R) / r;
       return [cx + dx * f, cy + dy * f];
-    });
+    }, ctx.resolution);
   },
 });

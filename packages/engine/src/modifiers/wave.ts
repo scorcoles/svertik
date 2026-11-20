@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, deg } from '../modifier';
 
 /** Makes the drawing wavy: moves each point across the direction of the wave. */
@@ -21,10 +21,10 @@ export const wave = defineModifier({
     const ux = Math.cos(dir);
     const uy = Math.sin(dir);
     const ph = deg(p.phase);
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       const s = x * ux + y * uy;
       const off = A * Math.sin((2 * Math.PI * s) / lambda + ph);
       return [x - uy * off, y + ux * off];
-    });
+    }, ctx.resolution);
   },
 });

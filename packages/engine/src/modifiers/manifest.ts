@@ -36,6 +36,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   roundcorners: one(() => import('./roundcorners'), 'roundcorners'),
   shear: one(() => import('./shear'), 'shear'),
   spherize: one(() => import('./spherize'), 'spherize'),
+  rigidpieces: one(() => import('./rigidpieces'), 'rigidpieces'),
   spikes: one(() => import('./spikes'), 'spikes'),
   taper: one(() => import('./taper'), 'taper'),
   gather: one(() => import('./gather'), 'gather'),

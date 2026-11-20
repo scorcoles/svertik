@@ -2,6 +2,8 @@
 
 `type: "spherize"` · Deformer: moves the points of the drawing. · Editor menu: **Deform**.
 
+Place **Rigid Pieces** before Spherize to move and rotate each generated element as a plate. Without it, Spherize bends the geometry point by point.
+
 Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. The edge of the circle does not move, so there is no jump with what is outside.
 
 ## Parameters

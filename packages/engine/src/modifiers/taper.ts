@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier } from '../modifier';
 
 /** Narrows (or widens) one end: the width across the axis changes along it. */
@@ -17,12 +17,12 @@ export const taper = defineModifier({
     const vertical = p.axis !== 'horizontal';
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       // t ∈ [0, 1] along the axis; with amount > 0 it narrows towards the end.
       const t = vertical ? (y - b.y) / (b.height || 1) : (x - b.x) / (b.width || 1);
       const shaped = p.curve === 0 ? t : Math.pow(Math.max(0, t), Math.pow(2, -p.curve * 2));
       const f = Math.max(0, 1 - p.amount * shaped);
       return vertical ? [cx + (x - cx) * f, y] : [x, cy + (y - cy) * f];
-    });
+    }, ctx.resolution);
   },
 });

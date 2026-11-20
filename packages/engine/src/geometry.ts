@@ -39,6 +39,8 @@ export interface Shape {
   patternTransform?: Mat;
   /** Runtime rigid-body grouping, independent of the per-element clone indices used by effectors. */
   bodyGroup?: number;
+  /** Elements marked by Rigid Pieces; compatible deformers move each group without bending it. */
+  rigidGroup?: number;
   impulse?: Impulse;
   /** Embedded or linked raster image carried by a rectangular path footprint. */
   image?: { href: string; width: number; height: number; preserveAspectRatio: string };
@@ -203,6 +205,52 @@ export function mapPoints(geo: Geometry, fn: (p: Vec2) => Vec2): Geometry {
     segs: sp.segs.map((s) => ({ c1: fn(s.c1), c2: fn(s.c2), p: fn(s.p) })),
     closed: sp.closed,
   }));
+}
+
+/** Maps geometry while preserving marked pieces as rigid translations and rotations. */
+export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0): Geometry {
+  if (!geo.shapes.some((shape) => shape.rigidGroup !== undefined)) {
+    return mapPoints(maxLength > 0 ? subdivide(geo, maxLength) : geo, fn);
+  }
+  const flexible = geo.shapes.filter((shape) => shape.rigidGroup === undefined);
+  const refined = maxLength > 0 && flexible.length
+    ? subdivide({ viewBox: geo.viewBox, shapes: flexible }, maxLength).shapes
+    : flexible;
+  let flexibleIndex = 0;
+  const shapes = geo.shapes.map((shape) => shape.rigidGroup === undefined ? refined[flexibleIndex++]! : shape);
+  const groups = new Map<number, Shape[]>();
+  for (const shape of shapes) if (shape.rigidGroup !== undefined) {
+    const group = groups.get(shape.rigidGroup) ?? [];
+    group.push(shape);
+    groups.set(shape.rigidGroup, group);
+  }
+  const transforms = new Map<number, (point: Vec2) => Vec2>();
+  for (const [id, members] of groups) {
+    const b = bounds({ viewBox: geo.viewBox, shapes: members });
+    const center: Vec2 = [b.x + b.width / 2, b.y + b.height / 2];
+    const target = fn(center);
+    const epsilon = Math.max(Math.hypot(b.width, b.height) * 1e-4, 1e-3);
+    let vx = fn([center[0] + epsilon, center[1]])[0] - target[0];
+    let vy = fn([center[0] + epsilon, center[1]])[1] - target[1];
+    if (Math.hypot(vx, vy) < 1e-10) {
+      const vertical = fn([center[0], center[1] + epsilon]);
+      vx = vertical[1] - target[1];
+      vy = target[0] - vertical[0];
+    }
+    const angle = Math.atan2(vy, vx), c = Math.cos(angle), s = Math.sin(angle);
+    transforms.set(id, ([x, y]) => {
+      const dx = x - center[0], dy = y - center[1];
+      return [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
+    });
+  }
+  return mapSubPaths({ viewBox: geo.viewBox, shapes }, (path, shape) => {
+    const map = shape.rigidGroup === undefined ? fn : transforms.get(shape.rigidGroup)!;
+    return {
+      start: map(path.start),
+      segs: path.segs.map((segment) => ({ c1: map(segment.c1), c2: map(segment.c2), p: map(segment.p) })),
+      closed: path.closed,
+    };
+  });
 }
 
 /** Box containing every point (controls included). */

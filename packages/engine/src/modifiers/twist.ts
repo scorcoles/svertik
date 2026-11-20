@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /** Whirl: turns more the closer to the centre; at the edge of the radius, nothing. */
@@ -16,7 +16,7 @@ export const twist = defineModifier({
     const R = p.radius * Math.max(ctx.bounds.width, ctx.bounds.height);
     if (R <= 0 || p.angle === 0) return geo;
     const a = deg(p.angle);
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       const dx = x - cx;
       const dy = y - cy;
       const r = Math.hypot(dx, dy);
@@ -26,6 +26,6 @@ export const twist = defineModifier({
       const c = Math.cos(th);
       const s = Math.sin(th);
       return [cx + dx * c - dy * s, cy + dx * s + dy * c];
-    });
+    }, ctx.resolution);
   },
 });

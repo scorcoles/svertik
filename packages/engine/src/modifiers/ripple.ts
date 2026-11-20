@@ -1,4 +1,4 @@
-import { mapPoints, subdivide } from '../geometry';
+import { mapDeformer } from '../geometry';
 import { defineModifier, deg, fromFraction } from '../modifier';
 
 /** Concentric waves from a point, like a drop in water; they fade with the distance. */
@@ -20,13 +20,13 @@ export const ripple = defineModifier({
     if (A === 0 || L <= 0) return geo;
     const [cx, cy] = fromFraction(ctx.bounds, p.center);
     const ph = deg(p.phase);
-    return mapPoints(subdivide(geo, ctx.resolution), ([x, y]) => {
+    return mapDeformer(geo, ([x, y]) => {
       const dx = x - cx;
       const dy = y - cy;
       const r = Math.hypot(dx, dy);
       if (r === 0) return [x, y];
       const off = A * Math.sin((2 * Math.PI * r) / L - ph) * Math.exp((-p.decay * r) / size);
       return [x + (dx / r) * off, y + (dy / r) * off];
-    });
+    }, ctx.resolution);
   },
 });
