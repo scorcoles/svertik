@@ -10,9 +10,17 @@ export const rigidbody = defineModifier({
     velocity: { type: 'point', default: [0, 0], unit: 'px', label: 'Velocity' },
     spin: { type: 'number', default: 0, step: 1, unit: '°/s', label: 'Spin' },
     immovable: { type: 'boolean', default: false, label: 'Immovable' },
+    attractor: { type: 'boolean', default: false, label: 'Attractor', group: 'Attraction' },
+    attractionStrength: { type: 'number', default: 1, min: 0, max: 10, step: 0.01, unit: 'fraction', label: 'Strength', group: 'Attraction' },
+    attractionRange: { type: 'number', default: 0, min: 0, max: 10, step: 0.1, unit: 'fraction', label: 'Range', group: 'Attraction' },
   },
   apply(geo, p) {
-    const impulse: Impulse = { velocity: p.velocity, spin: (p.spin * Math.PI) / 180, ...(p.immovable ? { immovable: true } : {}) };
+    const impulse: Impulse = {
+      velocity: p.velocity,
+      spin: (p.spin * Math.PI) / 180,
+      ...(p.immovable ? { immovable: true } : {}),
+      ...(p.attractor ? { attractor: true, attractionStrength: p.attractionStrength, attractionRange: p.attractionRange } : {}),
+    };
     return { ...geo, shapes: geo.shapes.map((shape) => ({ ...shape, impulse })) };
   },
 });

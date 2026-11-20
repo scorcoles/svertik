@@ -33,6 +33,9 @@ export interface Impulse {
   velocity: Vec2;
   spin: number;
   immovable?: boolean;
+  attractor?: boolean;
+  attractionStrength?: number;
+  attractionRange?: number;
 }
 
 export interface SoftMaterial {

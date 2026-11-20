@@ -79,8 +79,8 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Explosion](effects/explosion.md) | `explosion` | Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. |
 | [Gravity](effects/gravity.md) | `gravity` | Drops each element onto a virtual floor, rigid by default or elastic when it carries Soft Body material, inheriting velocity and spin from Explosion or Rigid body. |
 | [Soft Body](effects/softbody.md) | `softbody` | Elastic material for open fibres and closed bodies. |
-| [Physics](effects/physics.md) | `physics` | A deterministic 2D dynamics simulation for a group: rigid by default, with elastic deformation on children carrying Soft Body material. |
-| [Rigid body](effects/rigidbody.md) | `rigidbody` | Initial linear velocity and spin for a child inside a Physics group (or Gravity). |
+| [Physics](effects/physics.md) | `physics` | A deterministic 2D dynamics simulation for a group; Rigid body children can add attractor fields. |
+| [Rigid body](effects/rigidbody.md) | `rigidbody` | Sets initial motion, immovability, or an attractor field for a child body. |
 
 ### Style
 

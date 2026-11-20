@@ -205,6 +205,7 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     replay = world.replay = { key, checkpoints: [initial], pending: [pending], latest: { step: 0, states: initial, pending } };
   }
   const size = Math.max(...world.bodies.filter((b) => !b.fixed).map((b) => Math.sqrt(b.body.inertia)), 1);
+  const softening = Math.max(size * 0.02, 1);
   const slop = size * 0.0001;
   // Slow approaches don't bounce: bodies resting against each other (pieces of a fracture, a stack) stay in contact
   // instead of trading tiny rebounds. Without acceleration the floor of size × 0.5/s keeps it above zero.
@@ -232,8 +233,24 @@ function simulateWorld(world: CollisionWorld, floor: Vec2 | null, rotation: numb
     const stillPending = new Set<number>();
     const states = before.map((state, i) => {
       if (world.bodies[i]!.fixed) return { ...state };
-      const ax = floor ? acceleration[1] * sn : acceleration[0];
-      const ay = floor ? acceleration[1] * cs : acceleration[1];
+      let ax = floor ? acceleration[1] * sn : acceleration[0];
+      let ay = floor ? acceleration[1] * cs : acceleration[1];
+      for (let j = 0; j < world.bodies.length; j++) {
+        if (j === i) continue;
+        const source = world.bodies[j]!;
+        const strength = source.impulse?.attractor ? Math.max(0, source.impulse.attractionStrength ?? 1) : 0;
+        if (!strength) continue;
+        const dx = before[j]!.x - state.x, dy = before[j]!.y - state.y;
+        const distance2 = dx * dx + dy * dy;
+        const range = Math.max(0, source.impulse?.attractionRange ?? 0) * size;
+        if ((range > 0 && distance2 > range * range) || distance2 < 1e-12) continue;
+        const inverseDistance = 1 / Math.sqrt(Math.max(distance2, softening * softening));
+        // Inverse-square field: Strength is the acceleration fraction of the scene scale at one scene scale away.
+        // Cap the singularity near the attractor so a close pass cannot launch a body out of the simulation.
+        const magnitude = Math.min(strength * size * 20, strength * size * size * size * inverseDistance * inverseDistance);
+        ax += dx * inverseDistance * magnitude;
+        ay += dy * inverseDistance * magnitude;
+      }
       return { ...state, x: state.x + state.vx * dt + ax * dt * dt / 2, y: state.y + state.vy * dt + ay * dt * dt / 2, vx: state.vx + ax * dt, vy: state.vy + ay * dt, angle: state.angle + state.omega * dt };
     });
     const placed = world.bodies.flatMap((collider, index) => collider.fixed ? [] : [place(collider, states[index]!, index)]);

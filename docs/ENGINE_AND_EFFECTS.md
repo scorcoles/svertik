@@ -666,12 +666,13 @@ Effectors and generators added after the first catalog: oscillators, physics, pa
     - `collisions` (boolean, def false), `solids` (nodes, def []), `physics` (boolean, def true), `friction` (number, def 0.7, 0..1)
     - `bounce` (number, def 0.15, 0..1)
 
-65. **`physics`** (effector): A deterministic 2D rigid-body simulation for a group.
+65. **`physics`** (effector): A deterministic 2D rigid-body simulation for a group. Rigid body children can enable inverse-square attraction fields with strength and range relative to the largest moving body.
     - `time` (number, def 0, 0..60), `acceleration` (point, def [0, 0], px), `collisions` (boolean, def true), `solids` (nodes, def [])
     - `friction` (number, def 0, 0..1), `bounce` (number, def 1, 0..1)
 
-66. **`rigidbody`** (deformer): Initial linear velocity and spin for a child inside a Physics group (or Gravity).
+66. **`rigidbody`** (deformer): Initial linear velocity and spin for a child inside a Physics group (or Gravity); can also attract other rigid bodies in Physics.
     - `velocity` (point, def [0, 0], px), `spin` (number, def 0, °/s), `immovable` (boolean, def false)
+    - `attractor` (boolean, def false), `attractionStrength` (number, def 1, 0..10, fraction), `attractionRange` (number, def 0, 0..10, fraction of largest moving body; 0 = unlimited)
 
 67. **`rope`** (deformer): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings.
     - `time` (number, def 0, 0..100000), `gravity` (number, def 1, 0..10, fraction), `wind` (number, def 0, 0..5), `damping` (number, def 0.8, 0..20)
@@ -783,7 +784,7 @@ The internal deformable solver uses fixed 120 Hz steps and cached checkpoints, u
 
 ### Physics (`physics`)
 
-A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin or fixed state you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. The whole group shares one simulation and time.
+A general rigid-body simulation for the children of a group. Add **Physics** to the group, then add **Rigid body** to any child whose initial velocity, spin, fixed state or attraction field you want to set. Children without a Rigid body start at rest and can still be pushed by collisions. Make a child **Immovable** to use it as a fixed collider; other bodies collide with it but cannot move it. Enable **Attractor** to pull other rigid bodies toward that child. Its inverse-square field has a **Strength** and a **Range** relative to the largest moving body; a range of 0 is unlimited. The field affects other bodies without a reciprocal force on the attractor. The whole group shares one simulation and time.
 
 - `time`: simulation time in seconds; the editor links it to `scene.time` when added.
 - `acceleration`: constant `[x, y]` acceleration in px/s²; `[0, 0]` gives free, frictionless motion between impacts.

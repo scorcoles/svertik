@@ -874,7 +874,7 @@ function hashGeo(geo: Geometry): number {
       h ^= char.charCodeAt(0);
       h = Math.imul(h, 16777619);
     }
-    if (s.impulse) { add(s.impulse.velocity[0]); add(s.impulse.velocity[1]); add(s.impulse.spin); }
+    if (s.impulse) for (const char of JSON.stringify(s.impulse)) { h ^= char.charCodeAt(0); h = Math.imul(h, 16777619); }
     for (const sp of s.subpaths) {
       add(sp.start[0]);
       add(sp.start[1]);
