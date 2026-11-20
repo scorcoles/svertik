@@ -82,7 +82,7 @@ export const selectors = new Set(['range', 'field']);
 /** Time-signal effectors that can run inside a selector. */
 export const signalEffectors = new Set(['oscillate', 'wiggle', 'pulse', 'shake']);
 /** Modifiers that accept children and apply them according to their own semantics. */
-export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics']);
+export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics', 'rigidpieces']);
 export const containers = new Set([...effectors, 'rgbsplit']);
 /**
  * Can `child` go inside `parent`? Selectors can scope time signals to their selected elements. Other
@@ -90,6 +90,7 @@ export const containers = new Set([...effectors, 'rgbsplit']);
  */
 export function canNest(parent: string, child: string): boolean {
   if (!containers.has(parent)) return false;
+  if (parent === 'rigidpieces') return registry.get(child)?.kind === 'deformer';
   if (selectors.has(parent) && signalEffectors.has(child)) return true;
   if (effectors.has(parent)) return !effectors.has(child);
   return child !== 'rgbsplit';

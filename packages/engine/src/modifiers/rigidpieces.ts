@@ -1,26 +1,50 @@
-import { defineModifier } from '../modifier';
+import { bounds, type Geometry, type Shape } from '../geometry';
+import { defineModifier, type ModifierContext, type ResolvedModifier } from '../modifier';
 
 /** Marks each current element as a rigid piece for compatible downstream deformers. */
 export const rigidpieces = defineModifier({
   type: 'rigidpieces',
   label: 'Rigid Pieces',
-  kind: 'deformer',
+  kind: 'effector',
   params: {
     tilt: { type: 'number', default: 0, min: 0, max: 90, step: 1, unit: '°', label: 'Tilt', ramp: false },
-    alternate: { type: 'boolean', default: false, label: 'Alternate direction' },
+    alternate: { type: 'boolean', default: false, label: 'Alternate tilt' },
+    pivot: { type: 'enum', default: 'center', options: ['center', 'n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const, label: 'Pivot', animatable: false },
   },
-  apply(geo, p) {
-    const groups = new Map<string, number>();
-    return {
+  apply(geo, p, ctx) {
+    const groupIds = new Map<string, number>();
+    const marked: Geometry = {
       ...geo,
       shapes: geo.shapes.map((shape, index) => {
         const key = shape.rigidGroup !== undefined ? `rigid:${shape.rigidGroup}`
           : shape.bodyGroup !== undefined ? `body:${shape.bodyGroup}`
             : shape.clone !== undefined ? `clone:${shape.clone}` : `shape:${index}`;
-        let group = groups.get(key);
-        if (group === undefined) groups.set(key, (group = groups.size));
-        return { ...shape, rigidGroup: group, rigidTilt: p.tilt, rigidTiltAlternate: p.alternate };
+        let group = groupIds.get(key);
+        if (group === undefined) groupIds.set(key, (group = groupIds.size));
+        return { ...shape, rigidGroup: group, rigidTilt: p.tilt, rigidTiltAlternate: p.alternate, rigidPivot: p.pivot as Shape['rigidPivot'] };
       }),
     };
+    const children = ctx.children.filter((child) => child.enabled && child.def.kind === 'deformer');
+    if (!children.length) return marked;
+
+    // Apply child deformers to each rigid element in isolation so their own bounds,
+    // pivots and 3D projection are measured per piece rather than across the whole mosaic.
+    const pieces = new Map<number, Shape[]>();
+    for (const shape of marked.shapes) {
+      const group = shape.rigidGroup!;
+      const members = pieces.get(group) ?? [];
+      members.push(shape);
+      pieces.set(group, members);
+    }
+    const transformed = new Map<number, Geometry>();
+    for (const [group, shapes] of pieces) {
+      let part: Geometry = { viewBox: marked.viewBox, shapes };
+      for (const child of children) {
+        const local: ModifierContext = { ...ctx, bounds: bounds(part), children: child.children };
+        part = child.def.apply(part, child.params as never, local);
+      }
+      transformed.set(group, part);
+    }
+    return { ...marked, shapes: [...transformed.values()].flatMap((part) => part.shapes) };
   },
 });

@@ -45,6 +45,8 @@ export interface Shape {
   rigidTilt?: number;
   /** Whether Rigid Pieces alternates the tilt direction by element. */
   rigidTiltAlternate?: boolean;
+  /** Anchor point used when compatible deformers rotate this rigid piece. */
+  rigidPivot?: 'center' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
   impulse?: Impulse;
   /** Embedded or linked raster image carried by a rectangular path footprint. */
   image?: { href: string; width: number; height: number; preserveAspectRatio: string };
@@ -232,21 +234,29 @@ export function mapDeformer(geo: Geometry, fn: (p: Vec2) => Vec2, maxLength = 0)
   for (const [id, members] of groups) {
     const b = bounds({ viewBox: geo.viewBox, shapes: members });
     const center: Vec2 = [b.x + b.width / 2, b.y + b.height / 2];
-    const target = fn(center);
+    const pivot = members[0]?.rigidPivot ?? 'center';
+    const fractions: Record<NonNullable<Shape['rigidPivot']>, Vec2> = {
+      center: [0.5, 0.5], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1],
+      s: [0.5, 1], sw: [0, 1], w: [0, 0.5], nw: [0, 0],
+    };
+    const [fx, fy] = fractions[pivot];
+    const anchor: Vec2 = [b.x + b.width * fx, b.y + b.height * fy];
+    const target = fn(anchor);
+    const movedCenter = fn(center);
     const epsilon = Math.max(Math.hypot(b.width, b.height) * 1e-4, 1e-3);
-    let vx = fn([center[0] + epsilon, center[1]])[0] - target[0];
-    let vy = fn([center[0] + epsilon, center[1]])[1] - target[1];
+    let vx = fn([anchor[0] + epsilon, anchor[1]])[0] - target[0];
+    let vy = fn([anchor[0] + epsilon, anchor[1]])[1] - target[1];
     if (Math.hypot(vx, vy) < 1e-10) {
-      const vertical = fn([center[0], center[1] + epsilon]);
+      const vertical = fn([anchor[0], anchor[1] + epsilon]);
       vx = vertical[1] - target[1];
       vy = target[0] - vertical[0];
     }
-    const movement = Math.hypot(target[0] - center[0], target[1] - center[1]);
+    const movement = Math.hypot(movedCenter[0] - center[0], movedCenter[1] - center[1]);
     const tilt = (members[0]?.rigidTilt ?? 0) * Math.min(1, movement / Math.max(b.width, b.height, 1));
     const direction = members[0]?.rigidTiltAlternate && id % 2 ? -1 : 1;
     const angle = Math.atan2(vy, vx) + (tilt * direction * Math.PI) / 180, c = Math.cos(angle), s = Math.sin(angle);
     transforms.set(id, ([x, y]) => {
-      const dx = x - center[0], dy = y - center[1];
+      const dx = x - anchor[0], dy = y - anchor[1];
       return [target[0] + dx * c - dy * s, target[1] + dx * s + dy * c];
     });
   }
