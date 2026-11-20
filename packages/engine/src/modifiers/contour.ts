@@ -44,21 +44,29 @@ export const contour = defineModifier({
     while ((cols - 1) * (rows - 1) * levels > MAX_STEPS) { spacing *= 1.2; grid(); }
 
     const tones = new Float32Array(cols * rows);
+    const valid = new Uint8Array(cols * rows);
+    let minTone = Infinity, maxTone = -Infinity;
     for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
       const x = ctx.bounds.x + (col0 + col) * spacing;
       const y = ctx.bounds.y + (row0 + row) * spacing;
       const hit = paintAt([x, y]);
-      if (!hit) continue; // Transparent space is paper (zero darkness).
+      if (!hit) continue; // Keep transparent space open; contours should end at the drawing silhouette.
       let value = darkness(hit.rgba);
       if (p.invert) value = 1 - value;
-      tones[row * cols + col] = Math.max(0, Math.min(1, Math.pow(value, p.gamma)));
+      value = Math.max(0, Math.min(1, Math.pow(value, p.gamma)));
+      const index = row * cols + col;
+      valid[index] = 1;
+      tones[index] = value;
+      minTone = Math.min(minTone, value);
+      maxTone = Math.max(maxTone, value);
     }
+    if (!Number.isFinite(minTone) || maxTone - minTone < 1e-5) return { viewBox: geo.viewBox, shapes: [] };
 
     const output: Shape[] = [];
     const byStyle = new Map<string, Shape>();
     for (let levelIndex = 0; levelIndex < levels; levelIndex++) {
-      const threshold = (levelIndex + 1) / (levels + 1);
-      const paths = isolate(tones, cols, rows, spacing, col0, row0, ctx.bounds.x, ctx.bounds.y, threshold);
+      const threshold = minTone + (levelIndex + 1) / (levels + 1) * (maxTone - minTone);
+      const paths = isolate(tones, valid, cols, rows, spacing, col0, row0, ctx.bounds.x, ctx.bounds.y, threshold);
       for (const path of paths) {
         const middle = path.segs[Math.floor(path.segs.length / 2)]?.p ?? path.start;
         const sample = p.color === 'original' ? paintAt(middle) : null;
@@ -80,7 +88,7 @@ export const contour = defineModifier({
 
 type SegmentPair = readonly [number, number];
 
-function isolate(tones: Float32Array, cols: number, rows: number, spacing: number, col0: number, row0: number, ox: number, oy: number, level: number): SubPath[] {
+function isolate(tones: Float32Array, valid: Uint8Array, cols: number, rows: number, spacing: number, col0: number, row0: number, ox: number, oy: number, level: number): SubPath[] {
   const points = new Map<string, Vec2>();
   const links = new Map<string, string[]>();
   const value = (x: number, y: number) => tones[y * cols + x]!;
@@ -105,6 +113,7 @@ function isolate(tones: Float32Array, cols: number, rows: number, spacing: numbe
   };
 
   for (let y = 0; y < rows - 1; y++) for (let x = 0; x < cols - 1; x++) {
+    if (!valid[y * cols + x] || !valid[y * cols + x + 1] || !valid[(y + 1) * cols + x + 1] || !valid[(y + 1) * cols + x]) continue;
     const tl = value(x, y), tr = value(x + 1, y), br = value(x + 1, y + 1), bl = value(x, y + 1);
     const code = Number(tl >= level) | (Number(tr >= level) << 1) | (Number(br >= level) << 2) | (Number(bl >= level) << 3);
     if (code === 0 || code === 15) continue;
