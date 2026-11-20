@@ -1,4 +1,4 @@
-import { bounds, mapPoints, type Geometry, type Shape } from '../geometry';
+import { bounds, mapPoints, networkLinkShape, type Geometry, type Shape } from '../geometry';
 import { collisionBody, fallWorld, type CollisionBody, type CollisionWorld } from './gravity-collisions';
 import { fallBody, gravityBody, type FallPose } from './gravity-physics';
 import { defineModifier, deg, fromFraction } from '../modifier';
@@ -228,33 +228,23 @@ export const gravity = defineModifier({
       const path = shape.subpaths[0];
       if (!path || !from || !to) return shape;
       const end = path.segs.at(-1)?.p ?? path.start;
-      const start = from(path.start), finish = to(end);
-      return {
-        ...shape,
-        subpaths: shape.subpaths.map((subpath, index) => index === 0 ? {
-          ...subpath,
-          start,
-          segs: [{
-            c1: [start[0] + (finish[0] - start[0]) / 3, start[1] + (finish[1] - start[1]) / 3] as [number, number],
-            c2: [start[0] + (finish[0] - start[0]) * 2 / 3, start[1] + (finish[1] - start[1]) * 2 / 3] as [number, number],
-            p: finish,
-          }],
-          closed: false,
-        } : subpath),
-      };
+      return networkLinkShape(shape, from(path.start), to(end));
     };
     return {
       ...geo,
       ...(diagnostics ? { diagnostics } : {}),
-      shapes: geo.shapes.map((shape) => {
-        if (shape.networkLink) return moveLink(shape);
+      shapes: geo.shapes.flatMap((shape) => {
+        if (shape.networkLink) {
+          const updated = moveLink(shape);
+          return updated ? [updated] : [];
+        }
         const move = transforms.get(shape) ?? (([x, y]: readonly [number, number]) => [x, y]);
         const origin = move([0, 0]), x = move([1, 0]), y = move([0, 1]);
         const matrix: Mat = [x[0] - origin[0], x[1] - origin[1], y[0] - origin[0], y[1] - origin[1], origin[0], origin[1]];
         const moved = { ...mapPoints({ ...geo, shapes: [shape] }, move).shapes[0]!, patternTransform: multiply(matrix, shape.patternTransform ?? IDENTITY) };
-        if (!p.physics || !moved.impulse) return moved;
+        if (!p.physics || !moved.impulse) return [moved];
         const { impulse: _consumed, ...result } = moved;
-        return result;
+        return [result];
       }),
     };
   },

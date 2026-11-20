@@ -1,4 +1,4 @@
-import { bounds, mapPoints, type Geometry, type Shape } from '../geometry';
+import { bounds, mapPoints, networkLinkShape, type Geometry, type Shape } from '../geometry';
 import { defineModifier, fromFraction } from '../modifier';
 import { rng } from '../random';
 
@@ -28,14 +28,16 @@ export const explosion = defineModifier({
     const t = Math.max(0, Math.min(1, p.amount));
     if (t === 0) return geo;
     // Group by element.
-    const tagged = geo.shapes.some((s) => s.clone !== undefined);
+    const movingShapes = geo.shapes.filter((shape) => !shape.networkLink);
+    const tagged = movingShapes.some((s) => s.clone !== undefined);
     const groups = new Map<number, Shape[]>();
-    geo.shapes.forEach((s, i) => {
+    movingShapes.forEach((s, i) => {
       const k = tagged ? (s.clone ?? -1) : i;
       groups.set(k, [...(groups.get(k) ?? []), s]);
     });
     const rand = rng(p.seed);
     const out: Shape[] = [];
+    const networkMotions = new Map<string, Map<number, (point: readonly [number, number]) => [number, number]>>();
     for (const [, shapes] of groups) {
       const part: Geometry = { viewBox: geo.viewBox, shapes };
       const pb = bounds(part);
@@ -55,10 +57,17 @@ export const explosion = defineModifier({
       const k = 1 - p.shrink * t * (0.5 + rand() * 0.5);
       const physical = p.motion === 'impulse';
       const [cs, sn] = [Math.cos(physical ? 0 : rot) * k, Math.sin(physical ? 0 : rot) * k];
-      const moved = mapPoints(part, ([x, y]) => {
+      const move = (point: readonly [number, number]): [number, number] => {
+        const [x, y] = point;
         const [lx, ly] = [x - pc[0], y - pc[1]];
         return [pc[0] + lx * cs - ly * sn + (physical ? 0 : ux * dist), pc[1] + lx * sn + ly * cs + (physical ? 0 : uy * dist)];
-      });
+      };
+      for (const shape of shapes) for (const ref of shape.networkNodes ?? []) {
+        const nodes = networkMotions.get(ref.networkId) ?? new Map();
+        nodes.set(ref.node, physical ? (point: readonly [number, number]) => [point[0], point[1]] : move);
+        networkMotions.set(ref.networkId, nodes);
+      }
+      const moved = mapPoints(part, move);
       out.push(...moved.shapes.map((shape) => ({
         ...shape,
         impulse: {
@@ -67,6 +76,17 @@ export const explosion = defineModifier({
         },
       })));
     }
-    return { viewBox: geo.viewBox, shapes: out };
+    const links = geo.shapes.flatMap((shape) => {
+      const link = shape.networkLink;
+      if (!link) return [];
+      const path = shape.subpaths[0];
+      const nodes = networkMotions.get(link.networkId);
+      const from = nodes?.get(link.from), to = nodes?.get(link.to);
+      if (!path || !from || !to) return [shape];
+      const end = path.segs.at(-1)?.p ?? path.start;
+      const updated = networkLinkShape(shape, from(path.start), to(end));
+      return updated ? [updated] : [];
+    });
+    return { viewBox: geo.viewBox, shapes: [...links, ...out] };
   },
 });

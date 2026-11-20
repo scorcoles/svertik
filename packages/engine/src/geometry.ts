@@ -26,7 +26,7 @@ export interface RigidPieceTransform {
 }
 
 export interface NetworkNodeRef { networkId: string; node: number }
-export interface NetworkLinkRef { networkId: string; from: number; to: number }
+export interface NetworkLinkRef { networkId: string; from: number; to: number; restLength: number; elasticity: number; resistance: number }
 
 /** Initial motion metadata consumed by the next rigid-body simulation. */
 export interface Impulse {
@@ -224,6 +224,33 @@ export function mapPoints(geo: Geometry, fn: (p: Vec2) => Vec2): Geometry {
     segs: sp.segs.map((s) => ({ c1: fn(s.c1), c2: fn(s.c2), p: fn(s.p) })),
     closed: sp.closed,
   }));
+}
+
+/** Rebuilds a Network wire between its live endpoints, preserving slack and snapping it when over-tensioned. */
+export function networkLinkShape(shape: Shape, start: Vec2, end: Vec2): Shape | null {
+  const link = shape.networkLink;
+  const source = shape.subpaths[0];
+  if (!link || !source) return shape;
+  const dx = end[0] - start[0], dy = end[1] - start[1];
+  const distance = Math.hypot(dx, dy);
+  const rest = Math.max(1e-6, link.restLength);
+  if (distance > rest * Math.max(1, link.resistance)) return null;
+  const slack = Math.max(0, rest - distance) * Math.max(0, Math.min(1, link.elasticity));
+  const bow = Math.min(slack * 0.5, distance * 0.35);
+  const normal: Vec2 = distance > 1e-6 ? [-dy / distance, dx / distance] : [0, -1];
+  return {
+    ...shape,
+    subpaths: shape.subpaths.map((path, index) => index === 0 ? {
+      ...source,
+      start,
+      segs: [{
+        c1: [start[0] + dx / 3 + normal[0] * bow, start[1] + dy / 3 + normal[1] * bow],
+        c2: [start[0] + 2 * dx / 3 + normal[0] * bow, start[1] + 2 * dy / 3 + normal[1] * bow],
+        p: end,
+      }],
+      closed: false,
+    } : path),
+  };
 }
 
 /** Maps geometry while preserving marked pieces as rigid translations and rotations. */

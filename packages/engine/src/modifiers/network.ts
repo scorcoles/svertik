@@ -18,6 +18,8 @@ export const network = defineModifier({
     neighbors: { type: 'number', default: 2, min: 1, max: 8, step: 1, label: 'Neighbors', ramp: false },
     maxDistance: { type: 'number', default: 180, min: 0, max: 1200, step: 5, unit: 'px', label: 'Max distance', ramp: false },
     gap: { type: 'number', default: 2, min: 0, max: 100, step: 0.5, unit: 'px', label: 'Edge gap', ramp: false },
+    elasticity: { type: 'number', default: 0.35, min: 0, max: 1, step: 0.01, label: 'Elasticity', ramp: false },
+    resistance: { type: 'number', default: 3, min: 1, max: 8, step: 0.1, label: 'Resistance', ramp: false },
     color: { type: 'color', default: '#09fdd1', solid: true, label: 'Link color' },
     width: { type: 'number', default: 1.5, min: 0.1, max: 24, step: 0.1, unit: 'px', label: 'Link width', ramp: false },
   },
@@ -126,7 +128,7 @@ export const network = defineModifier({
       lineShapes.push({
         style: { fill: 'none', stroke: p.color, 'stroke-width': String(p.width), 'stroke-linecap': 'round' },
         subpaths: [{ start, segs: [{ c1: [start[0] + (end[0] - start[0]) / 3, start[1] + (end[1] - start[1]) / 3], c2: [start[0] + (end[0] - start[0]) * 2 / 3, start[1] + (end[1] - start[1]) * 2 / 3], p: end }], closed: false }],
-        networkLink: { networkId, from: i, to: j },
+        networkLink: { networkId, from: i, to: j, restLength: Math.hypot(end[0] - start[0], end[1] - start[1]), elasticity: p.elasticity, resistance: p.resistance },
         ...(tagged ? { clone: nextClone++ } : {}),
       });
     }
