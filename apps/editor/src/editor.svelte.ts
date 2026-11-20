@@ -83,14 +83,15 @@ export const selectors = new Set(['range', 'field']);
 export const signalEffectors = new Set(['oscillate', 'wiggle', 'pulse', 'shake']);
 /** Modifiers that accept children and apply them according to their own semantics. */
 export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics', 'rigidpieces']);
+const rigidPieceStyles = new Set(['color', 'tint', 'opacity', 'paint', 'gradient', 'feather']);
 export const containers = new Set([...effectors, 'rgbsplit']);
 /**
- * Can `child` go inside `parent`? Selectors can scope time signals to their selected elements. Other
- * effectors do not contain effectors; RGB Split accepts everything except another RGB Split.
+ * Can `child` go inside `parent`? Selectors can scope time signals to their selected elements. Rigid Pieces
+ * also scopes geometry and per-piece style effects; other effectors do not contain effectors.
  */
 export function canNest(parent: string, child: string): boolean {
   if (!containers.has(parent)) return false;
-  if (parent === 'rigidpieces') return registry.get(child)?.kind === 'deformer';
+  if (parent === 'rigidpieces') return registry.get(child)?.kind === 'deformer' || rigidPieceStyles.has(child);
   if (selectors.has(parent) && signalEffectors.has(child)) return true;
   if (effectors.has(parent)) return !effectors.has(child);
   return child !== 'rgbsplit';

@@ -11,6 +11,7 @@ const CONTAINERS: Record<string, string> = {
   stagger: 'Takes nested effects (`children`): each element goes from them to its rest (in) or the other way (out), one after another. Nested effectors are not allowed.',
   range: 'Takes nested effects (`children`), weighted per element by its order. Nested effectors are not allowed.',
   field: 'Takes nested effects (`children`), weighted per element by its position. Nested effectors are not allowed.',
+  rigidpieces: 'Takes nested deformers and per-piece style effects (`color`, `tint`, `opacity`, `paint`, `gradient`, `feather`). Transform and Rotate 3D are deferred until a downstream deformer moves the piece. Nested effectors are not allowed.',
   rgbsplit: 'Takes nested effects (`children`): they apply only to the coloured copies. Anything but another RGB Split.',
 };
 

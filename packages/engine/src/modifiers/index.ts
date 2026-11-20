@@ -53,6 +53,7 @@ import { boolean } from './boolean';
 import { color } from './color';
 import { clone } from './clone';
 import { connect } from './connect';
+import { network } from './network';
 import { crack } from './crack';
 import { damage } from './damage';
 import { noise } from './noise';
@@ -66,7 +67,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, crack, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, fractal, gradient, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, fractal, gradient, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -93,6 +94,7 @@ export const builtins = [
   pathwrap,
   followpath,
   connect,
+  network,
   trace,
   lookat,
   morph,

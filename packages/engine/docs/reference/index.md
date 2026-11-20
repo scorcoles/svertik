@@ -113,6 +113,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | --- | --- | --- |
 | [Follow Path](effects/followpath.md) | `followpath` | Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). |
 | [Connect](effects/connect.md) | `connect` | Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. |
+| [Network](effects/network.md) | `network` | Draws links between each shape and its nearest neighbours while leaving the source shapes in place. |
 | [Trace](effects/trace.md) | `trace` | A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. |
 | [Look At](effects/lookat.md) | `lookat` | Turns the object so that it faces another one (its center), around `pivot`. |
 

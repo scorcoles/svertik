@@ -1,12 +1,9 @@
 import { bounds, type Geometry, type Shape } from '../geometry';
 import { defineModifier, type ModifierContext } from '../modifier';
 
-const pivotPoint: Record<NonNullable<Shape['rigidPivot']>, [number, number]> = {
-  center: [0.5, 0.5], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1],
-  s: [0.5, 1], sw: [0, 1], w: [0, 0.5], nw: [0, 0],
-};
+const RIGID_PIECE_STYLES = new Set(['color', 'tint', 'opacity', 'paint', 'gradient', 'feather']);
 
-/** Marks each current element as a rigid piece for compatible downstream deformers. */
+/** Applies nested geometry and per-piece style effects independently, then marks pieces for downstream rigid motion. */
 export const rigidpieces = defineModifier({
   type: 'rigidpieces',
   label: 'Rigid Pieces',
@@ -28,7 +25,7 @@ export const rigidpieces = defineModifier({
         return { ...shape, rigidGroup: group, rigidAmount: p.amount, rigidPivot: p.pivot as Shape['rigidPivot'] };
       }),
     };
-    const children = ctx.children.filter((child) => child.enabled && child.def.kind === 'deformer');
+    const children = ctx.children.filter((child) => child.enabled && (child.def.kind === 'deformer' || RIGID_PIECE_STYLES.has(child.def.type)));
     if (!children.length) return marked;
 
     // Apply child deformers to each rigid element in isolation so their own bounds,

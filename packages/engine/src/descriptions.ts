@@ -7,7 +7,7 @@ export const effectDescriptions: Record<string, string> = {
   transform: 'Moves, rotates and scales the whole drawing, around a pivot. Offsets are in drawing units (px).',
   rotate3d: 'Rotates the drawing in 3D (X, Y, Z) around a pivot and projects it with perspective. Tilting on X or Y gives the classic tilt; Z is a flat spin.',
   spherize: 'Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. The edge of the circle does not move, so there is no jump with what is outside. After Rigid Pieces, each marked element moves and turns as a plate instead of bending.',
-  rigidpieces: 'Marks each current element as a rigid piece. Amount blends normal pointwise deformation with whole-piece motion: 0 bends normally, 1 preserves the piece shape. Nested Transform and Rotate 3D wait until a downstream deformer actually moves the piece; Pivot sets their shared rotation anchor.',
+  rigidpieces: 'Marks each current element as a rigid piece. Amount blends normal pointwise deformation with whole-piece motion: 0 bends normally, 1 preserves the piece shape. Nested Transform and Rotate 3D wait until a downstream deformer actually moves the piece. Nest Color, Tint, Opacity, Paint, Gradient or Feather to style pieces individually; Pivot sets the shared rotation anchor.',
   twist: 'A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius.',
   bend: 'Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. Positive angles bend the ends down (∩), negative ones up (∪).',
   bones: 'A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.',
@@ -32,6 +32,7 @@ export const effectDescriptions: Record<string, string> = {
   lookat: "Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.",
   // Generate
   connect: "Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. Straight, arc, horizontal or vertical; from edge to edge with a `gap`; optional arrowheads. Utils → Connector creates it.",
+  network: 'Draws links between each shape and its nearest neighbours while leaving the source shapes in place. Links stop at the shapes’ edges and have adjustable neighbour count, maximum distance, colour and width.',
   trace: "A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.",
   crack: 'Branching cracks from an impact point. `cut` cuts them as gaps of `width` px; `shatter` cuts them and pushes each loose piece away from the impact (each piece, an element).',
   damage: 'Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.',

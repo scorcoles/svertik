@@ -195,7 +195,7 @@ Many advanced procedural effects operate on collections of **individual elements
 - Voronoi (`voronoi`): Each clipped cell is an element.
 - Groups (`kind: "group"`): Each child node acts as an element.
 
-**Rigid Pieces** (`rigidpieces`) marks each current element as a rigid plate. Place it after a generator such as Voronoi, Mosaic or Clone; nested deformers then apply independently to each piece using its own bounds. Nested Transform and Rotate 3D are deferred until a downstream deformer actually moves a piece; a neutral deformer or a piece outside its influence leaves them inactive. Rotate 3D provides three-axis rotation. **Amount** blends downstream deformation from normal point-by-point bending (0) to whole-piece rigid motion (1). **Pivot** is shared with nested Transform and Rotate 3D, so it sets their rotation/scale anchor and the anchor for compatible downstream deformers such as Spherize, Twist, Bend, Wave, Ripple, Noise, Taper, Shear, Cylinder and Perspective. Only deformers can be nested. For example: `Voronoi → Rigid Pieces [Rotate 3D] → Spherize`. This is a geometry behavior, not a physics simulation; Gravity and Physics still control falling and collisions.
+**Rigid Pieces** (`rigidpieces`) marks each current element as a rigid plate. Place it after a generator such as Voronoi, Mosaic or Clone; nested deformers then apply independently to each piece using its own bounds. **Color, Tint, Opacity, Paint, Gradient** and **Feather** can also be nested to style each piece independently. Feather expands each piece's boundary; Mask remains outside because it applies to the whole object after its stack. Nested Transform and Rotate 3D are deferred until a downstream deformer actually moves a piece; a neutral deformer or a piece outside its influence leaves them inactive. Rotate 3D provides three-axis rotation. **Amount** blends downstream deformation from normal point-by-point bending (0) to whole-piece rigid motion (1). **Pivot** is shared with nested Transform and Rotate 3D, so it sets their rotation/scale anchor and the anchor for compatible downstream deformers such as Spherize, Twist, Bend, Wave, Ripple, Noise, Taper, Shear, Cylinder and Perspective. For example: `Voronoi → Rigid Pieces [Rotate 3D] → Spherize`. This is a geometry behavior, not a physics simulation; Gravity and Physics still control falling and collisions.
 
 The **Effector** modifiers (`step`, `stagger`, `range`, `field`, `explosion`, `color`) distribute procedural values across elements:
 - `step`: Multiplies child modifier parameters by the element index (0, 1, 2...).
@@ -412,6 +412,12 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `gap` (number, def 8, px): Distance buffer from node silhouettes.
     - `arrow` (`"none" | "end" | "start" | "both"`, def `"none"`)
     - `arrowSize` (number, def 10, px)
+
+24. **`network`**: Draws deduplicated links between each input element and its nearest neighbours. The source elements stay visible; links are drawn behind them and clipped to the edge of closed shapes. With Clone, each copy is treated as one node.
+    - `neighbors` (number, default 2, 1–8): Number of nearest neighbours considered per element. Undirected duplicate links are merged.
+    - `maxDistance` (number, default 180 px; 0 = unlimited): Maximum centre-to-centre distance for a link.
+    - `gap` (number, default 2 px): Extra space between a shape edge and the link.
+    - `color` (solid color, default `#09fdd1`) and `width` (number, default 1.5 px): Link appearance.
 
 24. **`trace`**: Generates a trailing motion curve following another node's centroid over past animation time.
     - `target` (node): Target node ID.

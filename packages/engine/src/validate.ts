@@ -81,7 +81,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       if (mods.has(m.id)) warnings.push(`Modifier id "${m.id}" is used more than once`);
       mods.set(m.id, { inst: m, node });
       const where = `${path} › ${def.label} (${m.id})`;
-      if (parentType === 'rigidpieces' && def.kind !== 'deformer') warnings.push(`${where}: Rigid Pieces only accepts nested deformers`);
+      if (parentType === 'rigidpieces' && def.kind !== 'deformer' && !['color', 'tint', 'opacity', 'paint', 'gradient', 'feather'].includes(m.type)) warnings.push(`${where}: Rigid Pieces accepts deformers and per-piece style effects only`);
       checkParams(def.params, m.params, where);
       if (m.type === 'range' && m.params?.selector === 'nth' && !nthSelector((m.params.nth ?? '2n') as string)) warnings.push(`${where}: invalid An+B selector; no elements will be selected`);
       if (m.children !== undefined) checkStack(m.children, node, where, m.type);
