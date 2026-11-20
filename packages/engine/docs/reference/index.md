@@ -47,6 +47,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Vector Grain](effects/vectorgrain.md) | `vectorgrain` | Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). |
 | [Crosshatch](effects/crosshatch.md) | `crosshatch` | Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. |
 | [Dithering](effects/dithering.md) | `dithering` | Converts sampled tone into a binary grid of vector cells. |
+| [Contour](effects/contour.md) | `contour` | Draws vector isolines through equal tones in the input, like elevation lines on a map. |
 | [Boolean](effects/boolean.md) | `boolean` | Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. |
 | [Metaball](effects/metaball.md) | `metaball` | The elements melt into each other like drops when they get close: each one gives its signed distance, joined with a smooth union of reach `reach` (px). |
 | [Pixelate](effects/pixelate.md) | `pixelate` | Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). |

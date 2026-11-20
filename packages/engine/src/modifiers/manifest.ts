@@ -55,6 +55,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   vectorgrain: one(() => import('./vectorgrain'), 'vectorGrain'),
   crosshatch: one(() => import('./crosshatch'), 'crosshatch'),
   dithering: one(() => import('./dithering'), 'dithering'),
+  contour: one(() => import('./contour'), 'contour'),
   metaball: one(() => import('./metaball'), 'metaball'),
   mirror: one(() => import('./mirror'), 'mirror'),
   morph: one(() => import('./morph'), 'morph'),
