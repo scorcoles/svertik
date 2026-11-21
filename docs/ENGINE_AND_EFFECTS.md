@@ -536,8 +536,8 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
 37. **`boolean`**: Vector CSG boolean operations between node elements (group children or clone copies).
     - `operation` (`"union" | "subtract" | "intersect" | "exclude"`, def `"union"`)
 
-38. **`metaball`**: Organic fluid fusion (lava lamp drop merging). Computes signed distance fields (SDF) with smooth polynomial union and produces clean vector Bézier outlines.
-    - `reach` (number, def 40, px), `grow` (number, def 0, px), `quality` (number, def 100)
+38. **`metaball`**: Organic fluid fusion (lava lamp drop merging). Computes signed distance fields (SDF) with smooth polynomial union and produces clean vector Bézier outlines. Each point blends its two nearest fields to keep joins at multiway junctions stable; repeatedly blending every shape can create pinched folds. Quality is auto-capped to about 120,000 field samples to bound work. Negative Grow contracts the field and can separate narrow joins; increase Reach or move Grow closer to zero to keep them connected.
+    - `reach` (number, def 30, px), `grow` (number, def 0, px), `quality` (number, def 100, 30..400)
 
 39. **`pixelate`**: Vector voxelization into pixel art where cells sample color at their centers.
     - `size` (number, def 8, px), `gap` (number, def 0, px), `shape` (`"square" | "dot"`, def `"square"`), `offset` (point, def [0, 0], px)

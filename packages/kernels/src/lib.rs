@@ -490,21 +490,27 @@ pub extern "C" fn metaball(
         .collect();
 
     let field_at = |x: f64, y: f64, row: usize| -> f64 {
-        let mut f = f64::INFINITY;
+        let mut first = f64::INFINITY;
+        let mut second = f64::INFINITY;
         for sh in &shapes {
             let b = sh.bounds;
             let dx = (b[0] - x).max(0.0).max(x - b[2]);
             let dy = (b[1] - y).max(0.0).max(y - b[3]);
             let box_d = (dx * dx + dy * dy).sqrt();
-            // Outside its box the signed distance is at least `box_d`, so if even that cannot bring
-            // the smooth union down (smin(f, d, k) is f when d >= f + k), the shape is left out.
-            if (dx > 0.0 || dy > 0.0) && box_d >= f + k {
+            // Use the two nearest fields for a stable local join. Folding every shape into a
+            // pairwise smooth-min is order-dependent and over-deepens triple junctions.
+            if (dx > 0.0 || dy > 0.0) && box_d >= second + k {
                 continue;
             }
-                let d = if box_d > near { box_d } else { sh.signed_distance(x, y, row) };
-            f = smin(f, d, k);
+            let d = if box_d > near { box_d } else { sh.signed_distance(x, y, row) };
+            if d < first {
+                second = first;
+                first = d;
+            } else if d < second {
+                second = d;
+            }
         }
-        f - grow
+        (if second.is_finite() { smin(first, second, k) } else { first }) - grow
     };
 
     let mut coarse = vec![0.0f64; (cx * cy) as usize];

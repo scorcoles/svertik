@@ -2,7 +2,9 @@
 
 `type: "metaball"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-The elements melt into each other like drops when they get close: each one gives its signed distance, joined with a smooth union of reach `reach` (px). The outline (where the field equals `grow`) comes out as a real path with smooth curves.
+The elements melt into each other like drops when they get close. A smooth union of the two nearest distance fields gives stable joins at multiway junctions; accumulating every pairwise join can deepen those junctions into folds. The outline is emitted as a smooth vector path.
+
+**Reach** controls how wide the blend is. **Grow** offsets the resulting field: positive values expand it, while negative values contract it. A strong negative Grow can cut through narrow joins; increase Reach or move Grow closer to zero to keep neighboring forms connected. Quality controls contour detail and is automatically capped to about 120,000 field samples, so very high values do not create unbounded work.
 
 ## Parameters
 
@@ -10,7 +12,7 @@ The elements melt into each other like drops when they get close: each one gives
 | --- | --- | --- | --- | --- |
 | `reach` | number | `30` | min 0, max 400, step 0.5 | unit: px |
 | `grow` | number | `0` | min -100, max 100, step 0.5 | unit: px |
-| `quality` | number | `100` | min 30, max 400, step 1 | not animatable |
+| `quality` | number | `100` | min 30, max 400, step 1 | not animatable; the effective value is capped to bound field samples |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
 

@@ -4,6 +4,8 @@ import type { Cubic, Shape, SubPath, Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 import { kernels } from '../kernels';
 
+const MAX_FIELD_SAMPLES = 120_000;
+
 /**
  * Metaball: the elements (children of a group, copies of a Clone…; untagged, each shape) melt like drops
  * when they get close. Each one gives its signed distance (negative inside); they join with a smooth union
@@ -33,11 +35,15 @@ export const metaball = defineModifier({
       x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]);
     }
     if (!(x1 > x0) && !(y1 > y0)) return geo;
-    const quality = Math.max(30, Math.min(400, Math.round(p.quality)));
     const k = Math.max(0, p.reach);
     const grow = p.grow;
     const pad = k + Math.max(0, grow) + 2;
-    const cell = Math.max(x1 - x0, y1 - y0, 1) / quality;
+    const width = Math.max(x1 - x0, 1), height = Math.max(y1 - y0, 1);
+    const longest = Math.max(width, height);
+    const areaFactor = ((width + 2 * pad) / longest) * ((height + 2 * pad) / longest);
+    const qualityCap = Math.sqrt(MAX_FIELD_SAMPLES / areaFactor);
+    const quality = Math.max(30, Math.min(400, Math.round(Math.min(p.quality, qualityCap))));
+    const cell = longest / quality;
     // The rings, with segments of about three cells: the error on a curve is much smaller than a cell.
     const step = cell * 3;
 
@@ -114,17 +120,19 @@ function contourOf(
   // Far from an element (more than twice the reach), its distance to the box is enough: the outline doesn't change.
   const near = 2 * k + Math.abs(grow) + 2 * cell;
   const fieldAt = (x: number, y: number) => {
-    let f = Infinity;
+    let first = Infinity, second = Infinity;
     for (const el of solids) {
       const [bx0, by0, bx1, by1] = el.box;
       const dx = Math.max(bx0 - x, 0, x - bx1), dy = Math.max(by0 - y, 0, y - by1);
       const boxD = Math.hypot(dx, dy);
-      // Outside its box the signed distance is at least `boxD`, so if even that cannot bring the
-      // smooth union down (`smin(f, d, k)` is `f` when `d >= f + k`), the element is left out.
-      if ((dx > 0 || dy > 0) && boxD >= f + k) continue;
-      f = smin(f, boxD > near ? boxD : signedDistance(x, y, el.rings), k);
+      // Only the two nearest fields define a stable local join. Pairwise smooth-min over every
+      // shape is order-dependent and deepens triple junctions into folds as Quality increases.
+      if ((dx > 0 || dy > 0) && boxD >= second + k) continue;
+      const d = boxD > near ? boxD : signedDistance(x, y, el.rings);
+      if (d < first) { second = first; first = d; }
+      else if (d < second) second = d;
     }
-    return f - grow;
+    return (isFinite(second) ? smin(first, second, k) : first) - grow;
   };
   // Exact values are only needed near the outline. First the field on a coarse grid (every S nodes);
   // in a coarse cell with its four corners on the same side and far from the outline (the field changes no
@@ -249,11 +257,23 @@ function orient(loops: Pair[][]): Pair[][] {
 function smooth(pts: Pair[]): SubPath {
   const n = pts.length;
   const P = (i: number) => pts[((i % n) + n) % n]!;
+  const knot = (a: Pair, b: Pair) => Math.max(Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1])), 1e-3);
   const segs: Cubic[] = [];
   for (let i = 0; i < n; i++) {
     const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-    const c1: Vec2 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
-    const c2: Vec2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    // Centripetal Catmull–Rom spaces tangents by chord length. Uniform tangents overshoot
+    // where marching squares produces uneven samples, creating loops at higher Quality.
+    const d0 = knot(p0, p1), d1 = knot(p1, p2), d2 = knot(p2, p3);
+    const m1: Vec2 = [
+      (p2[0] - p1[0]) + (p1[0] - p0[0]) * d1 / d0 - (p2[0] - p0[0]) * d1 / (d0 + d1),
+      (p2[1] - p1[1]) + (p1[1] - p0[1]) * d1 / d0 - (p2[1] - p0[1]) * d1 / (d0 + d1),
+    ];
+    const m2: Vec2 = [
+      (p2[0] - p1[0]) + (p3[0] - p2[0]) * d1 / d2 - (p3[0] - p1[0]) * d1 / (d1 + d2),
+      (p2[1] - p1[1]) + (p3[1] - p2[1]) * d1 / d2 - (p3[1] - p1[1]) * d1 / (d1 + d2),
+    ];
+    const c1: Vec2 = [p1[0] + m1[0] / 3, p1[1] + m1[1] / 3];
+    const c2: Vec2 = [p2[0] - m2[0] / 3, p2[1] - m2[1] / 3];
     segs.push({ c1, c2, p: [p2[0], p2[1]] });
   }
   return { start: [pts[0]![0], pts[0]![1]], segs, closed: true };

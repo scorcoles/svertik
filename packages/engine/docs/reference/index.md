@@ -51,7 +51,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Dithering](effects/dithering.md) | `dithering` | Converts sampled tone into a binary grid of vector cells. |
 | [Contour](effects/contour.md) | `contour` | Draws vector isolines through equal tones in the input, like elevation lines on a map. |
 | [Boolean](effects/boolean.md) | `boolean` | Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. |
-| [Metaball](effects/metaball.md) | `metaball` | The elements melt into each other like drops when they get close: each one gives its signed distance, joined with a smooth union of reach `reach` (px). |
+| [Metaball](effects/metaball.md) | `metaball` | Smoothly fuses nearby forms with stable multiway joins and bounded field sampling. |
 | [Pixelate](effects/pixelate.md) | `pixelate` | Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). |
 
 ### Glitch
