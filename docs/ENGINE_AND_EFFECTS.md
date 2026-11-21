@@ -546,6 +546,17 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
 39. **`pixelate`**: Vector voxelization into pixel art where cells sample color at their centers.
     - `size` (number, def 8, px), `gap` (number, def 0, px), `shape` (`"square" | "dot"`, def `"square"`), `offset` (point, def [0, 0], px)
 
+40. **`stringart`**: Samples evenly spaced points around each closed contour and connects each point to another a fixed number of steps ahead, drawing a modular chord pattern as editable vector lines. The source contour remains editable; the effect replaces it in the rendered result. Stroke colour is inherited, or taken from the fill when the source has no stroke.
+    - `points` (number, def 120, 8–256): Samples around each contour.
+    - `skip` (number, def 37, 1–255): Number of sample points to jump for each connection. Coprime point/skip pairs trace one loop; other pairs make several loops.
+    - `phase` (angle, def 0): Shifts the sampling start around the contour.
+
+41. **`spirograph`**: Generates a closed rolling-gear curve inside the input drawing's bounds. Hypo rolls a wheel inside a ring; Epi rolls it outside. Stroke colour is inherited from the source stroke, or from its fill when no stroke is set.
+    - `mode` (`"hypo" | "epi"`, def `"hypo"`): Inside or outside gear motion.
+    - `ring` (number, def 84, 12–160 teeth) and `wheel` (number, def 23, 2–80 teeth): Integer gear sizes; the curve closes after the rotations required by their greatest common divisor.
+    - `pen` (number, def 0.82, 0–2): Pen distance from the rolling wheel centre, in wheel radii.
+    - `phase` (angle, def 0) and `detail` (number, def 1800, 120–4096 samples).
+
 ---
 
 ### 7.3 Effectors (`kind: "effector"`)

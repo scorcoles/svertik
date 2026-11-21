@@ -41,6 +41,8 @@ import { ripple } from './ripple';
 import { roughenModifier as roughen } from './roughen';
 import { roundcorners } from './roundcorners';
 import { spikes } from './spikes';
+import { stringart } from './stringart';
+import { spirograph } from './spirograph';
 import { shear } from './shear';
 import { taper } from './taper';
 import { gather } from './gather';
@@ -68,7 +70,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, fractal, gradient, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope, weave };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, fractal, gradient, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope, weave, stringart, spirograph };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -97,6 +99,8 @@ export const builtins = [
   connect,
   network,
   weave,
+  stringart,
+  spirograph,
   trace,
   lookat,
   morph,

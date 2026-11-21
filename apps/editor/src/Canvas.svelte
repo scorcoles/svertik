@@ -1592,7 +1592,7 @@
           {#each guides.points as [cx, cy], i (i)}<circle {cx} {cy} r={i === 0 ? 5 : 4} data-root={i === 0 || undefined} />{/each}
         </svg>
       {/if}
-      {#if selection && !editor.tool}
+      {#if selection && !editor.tool && !editor.playing}
         <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
         {#each corners as c (c)}
           {@const p = cornerAt(c, selection)}
@@ -1619,7 +1619,7 @@
           {/each}
         {/if}
       {/if}
-      {#if pivotAt && selection && !editor.tool && !editor.current && editor.selectedNodes.length < 2}
+      {#if pivotAt && selection && !editor.tool && !editor.playing && !editor.current && editor.selectedNodes.length < 2}
         <button
           type="button"
           class="pivot"
@@ -1630,9 +1630,11 @@
           onpointerdown={dragPivot}
         ></button>
       {/if}
-      {#each others as o, i (i)}
-        <span class="selection other" style:left="{o.x}px" style:top="{o.y}px" style:width="{o.w}px" style:height="{o.h}px" aria-hidden="true"></span>
-      {/each}
+      {#if !editor.playing}
+        {#each others as o, i (i)}
+          <span class="selection other" style:left="{o.x}px" style:top="{o.y}px" style:width="{o.w}px" style:height="{o.h}px" aria-hidden="true"></span>
+        {/each}
+      {/if}
       {#if gesture}<span class="gesture" data-left={gesture.left || undefined} style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
       {#if gizmoScreen && !editor.tool}
         <svg class="gizmo" data-active={gizmoActive || gizmoHover || editor.busy || undefined} aria-hidden="true">

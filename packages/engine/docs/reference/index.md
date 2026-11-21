@@ -115,6 +115,8 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Connect](effects/connect.md) | `connect` | Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. |
 | [Network](effects/network.md) | `network` | Draws elastic, breakable links between each shape and its nearest neighbours. |
 | [Weave](effects/weave.md) | `weave` | Alternates over and under at crossings between open stroked paths. |
+| [String Art](effects/stringart.md) | `stringart` | Connects evenly sampled contour points with modular chords. |
+| [Spirograph](effects/spirograph.md) | `spirograph` | Draws closed rolling-gear curves inside the input bounds. |
 | [Trace](effects/trace.md) | `trace` | A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. |
 | [Look At](effects/lookat.md) | `lookat` | Turns the object so that it faces another one (its center), around `pivot`. |
 
