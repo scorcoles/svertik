@@ -19,6 +19,7 @@ export function livingVoronoiProject() {
       stack: [
         { id: 'living-voronoi-gradient', type: 'gradient', enabled: true, params: { kind: 'radial', from: '#f6d875', to: '#365d78', center: [0.32, 0.27], focus: [0.28, 0.22], radius: 0.94, apply: 'fill' } },
         { id: 'living-voronoi-cells', type: 'voronoi', enabled: true, params: { spacing: 44, jitter: 0.76, color: 'original', seed: 19, drift: 0.45, speed: 0.72, time: { $expr: 'scene.time', fallback: 0 } } },
+        { id: 'living-voronoi-rounding', type: 'roundcorners', enabled: true, params: { radius: 52, limit: 180, shape: 'round', corners: 'all', seed: 1 } },
       ],
     },
     { kind: 'shape', id: 'living-voronoi-orbit', name: 'Orbit mark', shape: 'ellipse', params: { width: 128, height: 128, fill: false, stroke: true, strokeColor: '#d45b43', strokeWidth: 2 }, transform: { x: 290, y: 260 }, stack: [] },
@@ -32,7 +33,7 @@ export function livingVoronoiProject() {
     svertik: 'project', version: 1, name: 'Living Cells · Voronoi drift', canvas: paper,
     scene: {
       version: 1, document: { width: 1000, height: 1200 },
-      notes: 'A looping Voronoi study. Playback moves the cell sites with seeded smooth noise, so each cell visibly changes shape while adjacent cells keep their shared borders. Select Living color field to tune Cell size, Jitter, Drift and Speed. Set Drift to zero for a static layout.',
+      notes: 'A looping Voronoi study. Playback moves the cell sites with seeded smooth noise, so each cell visibly changes shape while adjacent cells keep their shared borders. Round Corners softens the angular cell outlines without adding wavy deformation. Select Living color field to tune Cell size, Jitter, Drift and Speed; select Round Corners to adjust the rounding radius. Set Drift to zero for a static layout.',
       objects,
       animation: { duration: 10, loop: true, autoplay: true, fps: 30, tracks: [] },
     },
