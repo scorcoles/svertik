@@ -1070,8 +1070,7 @@
     e.preventDefault();
     // ⇧ + clic: sumar o quitar de la selección (sin mover).
     if (e.shiftKey) return editor.toggleSelect(id);
-    // If a selected sibling is hidden beneath the hit target, a drag should move that selection.
-    // A click without movement still selects the frontmost object as usual.
+    // If a selected sibling is hidden beneath the hit target, keep that selection on click or drag.
     const pointerStart = clientToDoc(e.clientX, e.clientY);
     const selectedBefore = editor.selectedNodes;
     const selectedId = selectedBefore.length === 1 ? selectedBefore[0]!.id : null;
@@ -1088,15 +1087,15 @@
     const hitAncestors = ancestors(id);
     const related = !!selectedId && selectedId !== id
       && [...ancestors(selectedId)].some((ancestor) => hitAncestors.has(ancestor));
-    const keepSelectedForDrag = !!(
+    const preserveOverlappingSelection = !!(
       pointerStart && related && selectedBox
       && pointerStart[0] >= selectedBox.x && pointerStart[0] <= selectedBox.x + selectedBox.width
       && pointerStart[1] >= selectedBox.y && pointerStart[1] <= selectedBox.y + selectedBox.height
     );
     // Clicking a selected object moves the selection; a new target replaces it unless it is
     // temporarily being used as the hit surface for a selected, overlapping sibling.
-    if (!editor.isSelected(id) && !keepSelectedForDrag) editor.selected = id;
-    let ids = keepSelectedForDrag ? selectedBefore.map((n) => n.id) : editor.selectedNodes.map((n) => n.id);
+    if (!editor.isSelected(id) && !preserveOverlappingSelection) editor.selected = id;
+    let ids = preserveOverlappingSelection ? selectedBefore.map((n) => n.id) : editor.selectedNodes.map((n) => n.id);
     const originalTree = selectedTreeIds();
     const partsFor = (which: string[]) => which.flatMap((nid) => {
       const at = locateNode(editor.scene!.objects, nid);
@@ -1170,7 +1169,6 @@
     };
     const up = () => {
       snapGuides = { x: [], y: [] };
-      if (keepSelectedForDrag && !dragStarted) editor.selected = id;
       if (cloned) { dimmedNodes = []; editor.record(true); }
       else if (dragStarted) editor.flush();
       el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
