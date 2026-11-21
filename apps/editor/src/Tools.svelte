@@ -18,13 +18,13 @@
 </script>
 
 <div class="tools" role="toolbar" aria-label="Primitives" aria-orientation="vertical">
-  <!-- Seleccionar (y mover): sin herramienta de dibujo armada. Tras crear una primitiva se vuelve aquí. -->
+  <!-- Selecting or moving uses the pointer tool. Drawing tools stay active for repeated primitives. -->
   <IconButton icon="select" label="Select (V or Esc)" active={!editor.tool} onclick={() => (editor.tool = null)} />
   <span class="sep" aria-hidden="true"></span>
   {#each shapes as s (s.type)}
     <!-- Doble clic: la primitiva aparece en el centro del lienzo, lista para editar. -->
     <span class="tool" role="none" ondblclick={() => { editor.tool = null; if (editor.scene && Date.now() - created > 600) oncenter?.(s.type); }}>
-      <IconButton icon={s.type as IconName} label={`${s.label} — drag on the canvas, or double-click to add it in the center (Esc cancels)`} active={editor.tool === s.type} onclick={() => choose(s.type)} />
+      <IconButton icon={s.type as IconName} label={`${s.label} — drag on the canvas, or double-click to add it in the center (stays active; Esc cancels)`} active={editor.tool === s.type} onclick={() => choose(s.type)} />
     </span>
   {/each}
 </div>

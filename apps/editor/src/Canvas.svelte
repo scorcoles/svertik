@@ -994,11 +994,11 @@
       const end = clientToDoc(ev.clientX, ev.clientY);
       if (!start || !end) return;
       // Un clic: a su tamaño por defecto, centrada donde se hizo clic.
-      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return editor.addShape(type, {}, { x: start[0], y: start[1] });
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return editor.addShape(type, {}, { x: start[0], y: start[1] }, { keepTool: true });
       const { params, center } = sized(type, start, end, ev.shiftKey);
       // Donut: the outer circle is drawn; now the pointer sets the hole and a click fixes it.
       if (type === 'donut') return pickDonutInner(Number(params.radius), center);
-      editor.addShape(type, params, center);
+      editor.addShape(type, params, center, { keepTool: true });
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
@@ -1026,7 +1026,7 @@
       ev.stopPropagation();
       const inner = innerAt(ev);
       stop();
-      editor.addShape('donut', { radius, innerRadius: inner }, center);
+      editor.addShape('donut', { radius, innerRadius: inner }, center, { keepTool: true });
     };
     const stop = () => {
       draft = null;

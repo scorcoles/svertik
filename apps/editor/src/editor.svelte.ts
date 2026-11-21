@@ -1154,7 +1154,7 @@ export class Editor {
   }
 
   /** Añade una primitiva (rectángulo, estrella…) en `at` (centro, en el documento) con sus parámetros. */
-  addShape(type: string, params: Record<string, unknown> = {}, at: { x: number; y: number } = { x: 0, y: 0 }) {
+  addShape(type: string, params: Record<string, unknown> = {}, at: { x: number; y: number } = { x: 0, y: 0 }, options: { keepTool?: boolean } = {}) {
     const def = shapeRegistry.get(type);
     if (!def) return;
     const taken = new Set(this.scene ? [...walkNodes(this.scene.objects)].map((x) => x.node.name) : []);
@@ -1187,7 +1187,7 @@ export class Editor {
       else if (!this.addToRoot(node)) return;
     }
     this.selected = node.id;
-    this.tool = null;
+    if (!options.keepTool) this.tool = null;
     this.record(true);
   }
 
