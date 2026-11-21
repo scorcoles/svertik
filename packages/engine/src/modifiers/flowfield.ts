@@ -66,7 +66,7 @@ export const flowfield = defineModifier({
       const forward = trace(1);
       const points = [...backward.slice(0, -1), ...forward];
       if (points.length < 4) continue;
-      const path = smoothPath(points);
+      const path = smoothPath(points, contains);
       const source = geo.shapes[0]!;
       const stroke = source.style.stroke && source.style.stroke !== 'none'
         ? source.style.stroke
@@ -78,16 +78,32 @@ export const flowfield = defineModifier({
   },
 });
 
-function smoothPath(points: Vec2[]): SubPath {
+function smoothPath(points: Vec2[], contains: (point: Vec2) => boolean): SubPath {
   const segs: Cubic[] = [];
   const at = (index: number) => points[Math.max(0, Math.min(points.length - 1, index))]!;
   for (let i = 0; i < points.length - 1; i++) {
     const a = at(i), b = at(i + 1), before = at(i - 1), after = at(i + 2);
-    segs.push({
+    const curve: Cubic = {
       c1: [a[0] + (b[0] - before[0]) / 6, a[1] + (b[1] - before[1]) / 6],
       c2: [b[0] - (after[0] - a[0]) / 6, b[1] - (after[1] - a[1]) / 6],
+      p: b,
+    };
+    // Catmull-Rom handles can overshoot the sampled silhouette near its edge.
+    // Keep the smooth curve when it stays inside; otherwise use a straight cubic.
+    const staysInside = [0.25, 0.5, 0.75].every((t) => contains(cubicPoint(a, curve, t)));
+    segs.push(staysInside ? curve : {
+      c1: [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3],
+      c2: [a[0] + (b[0] - a[0]) * 2 / 3, a[1] + (b[1] - a[1]) * 2 / 3],
       p: b,
     });
   }
   return { start: points[0]!, segs, closed: false };
+}
+
+function cubicPoint(start: Vec2, segment: Cubic, t: number): Vec2 {
+  const u = 1 - t;
+  return [
+    u * u * u * start[0] + 3 * u * u * t * segment.c1[0] + 3 * u * t * t * segment.c2[0] + t * t * t * segment.p[0],
+    u * u * u * start[1] + 3 * u * u * t * segment.c1[1] + 3 * u * t * t * segment.c2[1] + t * t * t * segment.p[1],
+  ];
 }
