@@ -2,7 +2,7 @@
 
 `type: "rope"` · Deformer: moves the points of the drawing. · Editor menu: **Deform**.
 
-Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle (bind Pointer to the cursor with a follow interaction) that pushes the ropes out of its way. Bind Time to scene.time; put it first in the stack, as it keeps its state between frames. Closed paths are left alone.
+Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle (bind Pointer to the cursor with a follow interaction) that pushes the ropes out of its way. The editor binds Time to scene.time when adding Rope; keep it first in the stack, as it keeps its state between frames. Closed paths are left alone.
 
 ## Parameters
 

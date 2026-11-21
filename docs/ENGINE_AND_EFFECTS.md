@@ -557,6 +557,14 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `pen` (number, def 0.82, 0–2): Pen distance from the rolling wheel centre, in wheel radii.
     - `phase` (angle, def 0) and `detail` (number, def 1800, 120–4096 samples).
 
+42. **`flowfield`**: Seeds streamlines inside the input silhouette and integrates each through a smooth, deterministic noise-driven direction field. Paths stop at the silhouette edge and remain separate vectors; use Color after Flow Field to assign inks per line. A 120,000-point budget bounds work on dense fields.
+    - `lines` (number, def 56, 1–256): Requested streamline count; automatically reduced if needed to stay within the geometry budget.
+    - `length` (number, def 320 px, 20–2400): Maximum total path length; lines also stop when they reach the silhouette edge.
+    - `step` (number, def 4 px, 0.5–20; not animatable): Integration step size.
+    - `scale` (number, def 3, 0.1–20): Noise field frequency across the input bounds.
+    - `curl` (number, def 1.2, 0–2) and `direction` (angle, def 0°): Field curvature and prevailing direction.
+    - `seed` (seed, def 1): Reproduces streamline starts and field noise.
+
 ---
 
 ### 7.3 Effectors (`kind: "effector"`)
@@ -691,7 +699,7 @@ Effectors and generators added after the first catalog: oscillators, physics, pa
     - `velocity` (point, def [0, 0], px), `spin` (number, def 0, °/s), `immovable` (boolean, def false), `centerOfMassMode` (`"auto" | "custom"`, def "auto"), `centerOfMass` (point, def [0.5, 0.5], fraction; shown in Custom mode)
     - `attractor` (boolean, def false), `attractionStrength` (number, def 1, 0..10, fraction), `attractionRange` (number, def 0, 0..10, fraction of largest body; 0 = unlimited), `attractionAbsorption` (number, def 0.5, 0..1, fraction; reduces bounce and damps motion; 1 absorbs all bounce), `attractionSleepThreshold` (number, def 0.03, 0..0.2, fraction of largest body per second; 0 disables settling cutoff)
 
-67. **`rope`** (deformer): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings.
+67. **`rope`** (deformer): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. When added in the editor, Time defaults to `{ "$expr": "scene.time", "fallback": 0 }` so playback drives the simulation immediately.
     - `time` (number, def 0, 0..100000), `gravity` (number, def 1, 0..10, fraction), `wind` (number, def 0, 0..5), `damping` (number, def 0.8, 0..20)
     - `stiffness` (number, def 14, 1..60), `segments` (number, def 24, 4..120), `pointer` (point, def [-2, -2], fraction), `space` (`"box" | "scene"`, def "box")
     - `radius` (number, def 0, 0..1, fraction), `settle` (number, def 0, 0..10, s), `seed` (seed, def 1)

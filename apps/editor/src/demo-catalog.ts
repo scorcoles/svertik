@@ -4,6 +4,7 @@ import { weaveProject } from './demo-weave';
 import { weaveEffectProject } from './demo-weave-effect';
 import { stringArtProject } from './demo-stringart';
 import { spirographProject } from './demo-spirograph';
+import { flowFieldProject } from './demo-flowfield';
 import { contourProject } from './demo-contour';
 import { voronoiProject } from './demo-voronoi';
 import { livingVoronoiProject } from './demo-voronoi-living';
@@ -30,6 +31,7 @@ export const DEMOS = [
   { which: 'weave-effect', label: 'Weave: warp and weft', create: weaveEffectProject, view: 'canvas' },
   { which: 'stringart', label: 'String Art: modular orbit', create: stringArtProject, view: 'canvas' },
   { which: 'spirograph', label: 'Spirograph: gear studies', create: spirographProject, view: 'canvas' },
+  { which: 'flowfield', label: 'Flow Field: thermal currents', create: flowFieldProject, view: 'canvas' },
   { which: 'contour', label: 'Contour: an isobar poster', create: contourProject, view: 'canvas' },
   { which: 'voronoi', label: 'Voronoi: a fault-line color study', create: voronoiProject, view: 'canvas' },
   { which: 'voronoi-living', label: 'Voronoi: living cells in motion', create: livingVoronoiProject, view: 'canvas' },

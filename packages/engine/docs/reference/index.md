@@ -117,6 +117,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Weave](effects/weave.md) | `weave` | Alternates over and under at crossings between open stroked paths. |
 | [String Art](effects/stringart.md) | `stringart` | Connects evenly sampled contour points with modular chords. |
 | [Spirograph](effects/spirograph.md) | `spirograph` | Draws closed rolling-gear curves inside the input bounds. |
+| [Flow Field](effects/flowfield.md) | `flowfield` | Integrates seeded vector streamlines through a noise-driven field. |
 | [Trace](effects/trace.md) | `trace` | A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. |
 | [Look At](effects/lookat.md) | `lookat` | Turns the object so that it faces another one (its center), around `pivot`. |
 

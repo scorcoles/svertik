@@ -12,6 +12,7 @@ import { rigidpieces } from './rigidpieces';
 import { explosion } from './explosion';
 import { field } from './field';
 import { followpath } from './followpath';
+import { flowfield } from './flowfield';
 import { bevel, blur, displace, glow, grain, shadow, thicken, tone } from './filters';
 import { fractal } from './fractal';
 import { blocks, rgbsplit, scanlines, slices, streaks } from './glitch';
@@ -70,7 +71,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, fractal, gradient, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope, weave, stringart, spirograph };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, flowfield, fractal, gradient, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope, weave, stringart, spirograph };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -96,6 +97,7 @@ export const builtins = [
   envelope,
   pathwrap,
   followpath,
+  flowfield,
   connect,
   network,
   weave,
