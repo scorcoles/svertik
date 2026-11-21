@@ -1087,10 +1087,18 @@
     const hitAncestors = ancestors(id);
     const related = !!selectedId && selectedId !== id
       && [...ancestors(selectedId)].some((ancestor) => hitAncestors.has(ancestor));
+    const commonGroupId = selectedId
+      ? [...ancestors(selectedId)].find((ancestor) => hitAncestors.has(ancestor) && locateNode(editor.scene!.objects, ancestor)?.node.kind === 'group')
+      : undefined;
+    const commonGroup = commonGroupId ? locateNode(editor.scene!.objects, commonGroupId)?.node : null;
+    const groupCombinesChildren = commonGroup?.kind === 'group'
+      && commonGroup.stack.some((modifier) => modifier.enabled !== false && ['metaball', 'boolean'].includes(modifier.type));
     const preserveOverlappingSelection = !!(
-      pointerStart && related && selectedBox
-      && pointerStart[0] >= selectedBox.x && pointerStart[0] <= selectedBox.x + selectedBox.width
-      && pointerStart[1] >= selectedBox.y && pointerStart[1] <= selectedBox.y + selectedBox.height
+      pointerStart && related && (
+        groupCombinesChildren || (selectedBox
+          && pointerStart[0] >= selectedBox.x && pointerStart[0] <= selectedBox.x + selectedBox.width
+          && pointerStart[1] >= selectedBox.y && pointerStart[1] <= selectedBox.y + selectedBox.height)
+      )
     );
     // Clicking a selected object moves the selection; a new target replaces it unless it is
     // temporarily being used as the hit surface for a selected, overlapping sibling.
