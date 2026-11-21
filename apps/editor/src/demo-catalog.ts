@@ -1,6 +1,7 @@
 import { printPosterProject } from './demo-poster';
 import { tileWallProject } from './demo-tiles';
 import { weaveProject } from './demo-weave';
+import { weaveEffectProject } from './demo-weave-effect';
 import { contourProject } from './demo-contour';
 import { voronoiProject } from './demo-voronoi';
 import { livingVoronoiProject } from './demo-voronoi-living';
@@ -23,7 +24,8 @@ export const DEMOS = [
   { which: 'orbit', label: 'Orbit: the Utils working together', create: orbitProject, view: 'timeline' },
   { which: 'pointer', label: 'Pointer: it follows your mouse', create: pointerProject, view: 'presenter' },
   { which: 'tilewall', label: 'Tile Wall: a procedural wall of chamfered tiles', create: tileWallProject, view: 'canvas' },
-  { which: 'weave', label: 'Weave: a breathing moiré grid with Gather', create: weaveProject, view: 'canvas' },
+  { which: 'weave', label: 'Moiré: a breathing grid with Gather', create: weaveProject, view: 'canvas' },
+  { which: 'weave-effect', label: 'Weave: warp and weft', create: weaveEffectProject, view: 'canvas' },
   { which: 'contour', label: 'Contour: an isobar poster', create: contourProject, view: 'canvas' },
   { which: 'voronoi', label: 'Voronoi: a fault-line color study', create: voronoiProject, view: 'canvas' },
   { which: 'voronoi-living', label: 'Voronoi: living cells in motion', create: livingVoronoiProject, view: 'canvas' },

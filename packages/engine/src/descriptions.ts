@@ -33,6 +33,7 @@ export const effectDescriptions: Record<string, string> = {
   // Generate
   connect: "Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. Straight, arc, horizontal or vertical; from edge to edge with a `gap`; optional arrowheads. Utils → Connector creates it.",
   network: 'Draws elastic links between each shape and its nearest neighbours while leaving the source shapes in place. Links stay attached under Explosion and Gravity, sag with slack, and break when stretched past their resistance. Neighbour count, distance and link appearance are adjustable.',
+  weave: 'At every crossing between open stroked paths, alternates which path passes over and cuts a small gap into the path underneath. Use it on linework such as two cloned grids; it keeps the source elements editable.',
   trace: "A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.",
   crack: 'Branching cracks from an impact point. `cut` cuts them as gaps of `width` px; `shatter` cuts them and pushes each loose piece away from the impact (each piece, an element).',
   damage: 'Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.',

@@ -419,6 +419,10 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `gap` (number, default 2 px): Extra space between a shape edge and the link.
     - `color` (solid color, default `#09fdd1`) and `width` (number, default 1.5 px): Link appearance.
 
+25. **`weave`**: Alternates which open stroked path passes over at each crossing, cutting a gap into the path underneath. Put it on a group containing the crossing paths (for example, two cloned line grids); source shapes remain editable. Filled paths are left intact.
+    - `gap` (number, default 12 px): Length of the underpass opening.
+    - `samples` (number, default 10, 4–24): Curve detail used to find crossings; output remains cubic vector paths.
+
 24. **`trace`**: Generates a trailing motion curve following another node's centroid over past animation time.
     - `target` (node): Target node ID.
     - `length` (number, def 1, seconds): History trail window.
