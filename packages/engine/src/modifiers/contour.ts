@@ -14,8 +14,6 @@ export const contour = defineModifier({
     levels: { type: 'number', default: 6, min: 1, max: 16, step: 1, label: 'Levels', random: [3, 10] },
     width: { type: 'number', default: 1, min: 0.1, max: 20, step: 0.1, unit: 'px', label: 'Line width', random: [0.5, 2] },
     gamma: { type: 'number', default: 1, min: 0.1, max: 4, step: 0.05, label: 'Gamma', random: [0.7, 1.6] },
-    color: { type: 'enum', default: 'ink', options: ['ink', 'original'] as const, label: 'Color', animatable: false },
-    ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     invert: { type: 'boolean', default: false, label: 'Invert' },
     merge: { type: 'boolean', default: true, label: 'Merge contours', animatable: false, random: false },
   },
@@ -23,7 +21,7 @@ export const contour = defineModifier({
     if (!(p.spacing >= 0.5) || !(p.width > 0) || !geo.shapes.length) return geo;
     const layers = geo.shapes.map((shape) => prepare(shape)).filter((layer): layer is Layer => !!layer);
     if (!layers.length) return { viewBox: geo.viewBox, shapes: [] };
-    const paintAt = colorSampler(layers, p.color !== 'ink');
+    const paintAt = colorSampler(layers);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const layer of layers) {
       x0 = Math.min(x0, layer.box[0]); y0 = Math.min(y0, layer.box[1]);
@@ -69,8 +67,8 @@ export const contour = defineModifier({
       const paths = isolate(tones, valid, cols, rows, spacing, col0, row0, ctx.bounds.x, ctx.bounds.y, threshold);
       for (const path of paths) {
         const middle = path.segs[Math.floor(path.segs.length / 2)]?.p ?? path.start;
-        const sample = p.color === 'original' ? paintAt(middle) : null;
-        const color = p.color === 'original' ? sample?.style.fill ?? p.ink : p.ink;
+        const sample = paintAt(middle);
+        const color = sample?.style.fill ?? '#111111';
         const style: Style = { fill: 'none', stroke: color, 'stroke-width': String(p.width) };
         if (sample?.style.opacity) style.opacity = sample.style.opacity;
         if (sample?.style['mix-blend-mode']) style['mix-blend-mode'] = sample.style['mix-blend-mode'];

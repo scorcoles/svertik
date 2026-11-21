@@ -2,7 +2,7 @@
 
 `type: "dithering"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Converts sampled tone into a binary grid of vector cells. Bayer uses an ordered 2×2 to 16×16 threshold matrix; Floyd–Steinberg and Atkinson diffuse quantization error for smoother tonal patterns; Noise uses a repeatable seeded random threshold. Cell size, angle, threshold, gamma, invert and ink/original colour control the result. Merge combines contiguous cells into larger rectangles and shared-colour paths. Large grids increase cell size automatically to keep sampling bounded.
+Converts sampled tone into a binary grid of vector cells. Bayer uses an ordered 2×2 to 16×16 threshold matrix; Floyd–Steinberg and Atkinson diffuse quantization error for smoother tonal patterns; Noise uses a repeatable seeded random threshold. Cell size, angle, threshold, gamma and invert control the result. Cells keep their sampled source colour; add Color or Tint after Dithering to style them. Merge combines contiguous cells into larger same-colour rectangles. Large grids increase cell size automatically to keep sampling bounded.
 
 ## Parameters
 
@@ -14,8 +14,6 @@ Converts sampled tone into a binary grid of vector cells. Bayer uses an ordered 
 | `matrix` | enum | `"4"` | `2`, `4`, `8`, `16` | not animatable; only when `algorithm` is `bayer`; label: Bayer matrix |
 | `threshold` | number | `0.5` | min 0, max 1, step 0.01 |  |
 | `gamma` | number | `1` | min 0.1, max 4, step 0.05 |  |
-| `color` | enum | `"ink"` | `ink`, `original` | not animatable |
-| `ink` | color | `"#111111"` | #rrggbb | only when `color` is `ink` |
 | `invert` | boolean | `false` |  |  |
 | `seed` | seed | `1` | integer |  |
 | `offset` | point | `[0,0]` | [x, y], fractions of the box (0–1) |  |
@@ -38,8 +36,6 @@ Inside a node's `stack` (effects run top to bottom):
     "matrix": "4",
     "threshold": 0.5,
     "gamma": 1,
-    "color": "ink",
-    "ink": "#111111",
     "invert": false,
     "seed": 1,
     "offset": [

@@ -417,7 +417,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `neighbors` (number, default 2, 1–8): Number of nearest neighbours considered per element. Undirected duplicate links are merged.
     - `maxDistance` (number, default 180 px; 0 = unlimited): Maximum centre-to-centre distance for a link.
     - `gap` (number, default 2 px): Extra space between a shape edge and the link.
-    - `color` (solid color, default `#09fdd1`) and `width` (number, default 1.5 px): Link appearance.
+    - Links inherit the source colour; add Color or Tint after Network to style them. If the stack keeps source nodes, these effects apply to the nodes and links together. `width` (number, default 1.5 px) controls link thickness.
 
 25. **`weave`**: Alternates which open stroked path passes over at each crossing, cutting a gap into the path underneath. Put it on a group containing the crossing paths (for example, two cloned line grids); source shapes remain editable. Filled paths are left intact.
     - `gap` (number, default 12 px): Length of the underpass opening.
@@ -468,8 +468,8 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `mode` (`"keep" | "transform"`, def `"keep"`): `"keep"` retains original and reflection; `"transform"` keeps reflection only.
 
 29. **`mosaic`**: Slices geometry into geometric tiles across a regular grid. Each tile is an element.
-29a. **`voronoi`**: Divides filled artwork into jittered Voronoi cells, clipped to the input silhouette. Cells are individual elements and keep the sampled source color or use one ink. For a fixed input silhouette, the deterministic site set is selected inside the fill and stays fixed during Drift; each site is constrained to the silhouette. This keeps cell count and IDs stable and prevents edge cells from appearing or disappearing. The clipped cells cover the input before later effects run. Round Corners can soften each cell but may open gaps, so use a small radius for a nearly continuous tessellation. Large grids automatically coarsen above about 1,000 sites.
-    - `spacing` (number, def 32, 8..200, px), `jitter` (number, def 0.8, 0..1), `color` (`"original" | "ink"`, def "original"), `ink` (color, def #111111), `seed` (seed, def 1)
+29a. **`voronoi`**: Divides filled artwork into jittered Voronoi cells, clipped to the input silhouette. Cells are individual elements and keep the sampled source color. For a fixed input silhouette, the deterministic site set is selected inside the fill and stays fixed during Drift; each site is constrained to the silhouette. This keeps cell count and IDs stable and prevents edge cells from appearing or disappearing. The clipped cells cover the input before later effects run. Round Corners can soften each cell but may open gaps, so use a small radius for a nearly continuous tessellation. Add Color or Tint after Voronoi to style the cells. Large grids automatically coarsen above about 1,000 sites.
+    - `spacing` (number, def 32, 8..200, px), `jitter` (number, def 0.8, 0..1), `seed` (seed, def 1)
     - `drift` (number, def 0, 0..0.5, fraction of cell spacing), `speed` (number, def 0.5, 0..3), `time` (number, def 0, seconds; link to `scene.time` for continuous playback)
     - `shape` (`"rectangle" | "triangle" | "hexagon" | "target"`, def `"rectangle"`)
     - `columns`, `rows` (number, def 6)
@@ -483,16 +483,14 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `ratio` (number, def 0.5)
     - `fit` (boolean, def true)
 
-31. **`halftone`**: Vector halftone screen reproducing tonal luminosity using dot sizes on a rotated grid.
-31a. **`dithering`**: Converts tone to a binary grid of vector cells using ordered Bayer thresholds, Floyd–Steinberg or Atkinson error diffusion, or deterministic seeded noise. Contiguous cells merge into larger rectangles; large grids raise Cell size as needed to cap work at 40,000 samples.
-31d. **`contour`**: Draws vector isolines through equal tones using marching squares. Sample spacing controls detail; Levels sets the number of bands, with a bounded adaptive grid for large inputs.
+31. **`halftone`**: Vector halftone screen reproducing tonal luminosity using dot sizes on a rotated grid. Marks keep sampled source colours; add Color or Tint after Halftone to style them.
+31a. **`dithering`**: Converts tone to a binary grid of vector cells using ordered Bayer thresholds, Floyd–Steinberg or Atkinson error diffusion, or deterministic seeded noise. Cells keep sampled source colours; add Color or Tint after Dithering to style them. Contiguous cells merge into larger same-colour rectangles; large grids raise Cell size as needed to cap work at 40,000 samples.
+31d. **`contour`**: Draws vector isolines through equal tones using marching squares. Sample spacing controls detail; Levels sets the number of bands, with a bounded adaptive grid for large inputs. Lines keep sampled source colours; add Color or Tint after Contour to style them.
     - `shape` (`"circle" | "square" | "diamond" | "line" | "ring"`, def `"circle"`)
     - `spacing` (number, def 16, px)
     - `angle` (angle, def 45, deg)
     - `minSize`, `maxSize` (number, def 1 and 14, px)
     - `gamma` (number, def 1, 0.2 to 3)
-    - `color` (`"ink" | "original"`, def `"ink"`)
-    - `inkColor` (color, def `"#0d0d10"`)
     - `invert` (boolean, def false)
     - `jitter` (number, def 0, fraction)
 
@@ -503,7 +501,7 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `distribution` (`"random" | "even"`, def `"random"`)
     - `shape` (`"circle" | "square" | "speck"`, def `"circle"`)
     - `size` (number, def 1.2, px), `sizeJitter` (number, def 0.5), `edgeSize` (number, def 1: size multiplier at the edge)
-    - `color` (`"ink" | "original"`, def `"ink"`), `ink` (color, def `"#000000"`), `blend` (CSS blend mode, def `"normal"`)
+    - Marks inherit the source fill; add Color or Tint after Vector Grain to style them. If Source is `keep`, those effects apply to the kept drawing and the marks together. `blend` (CSS blend mode, def `"normal"`)
     - `opacity` (number, def 1), `opacityJitter` (number, def 0)
     - `source` (`"keep" | "replace"`, def `"keep"`: the drawing stays, the grain goes on top), `seed` (seed, def 1)
     - At most 80 000 marks per effect (about 180 bytes of SVG each); marks of the same colour and opacity share one path.
@@ -511,10 +509,9 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
 31c. **`crosshatch`**: Pen-drawing shading with parallel lines, as real strokes. Up to four layers of hatching: the first at `angle`, then +90°, +45° and −45°. Each layer draws only where the darkness passes its threshold (evenly spread: with 3 layers at 25%, 50% and 75%), so light areas get one set of lines and the darkest get all of them. Line ends are bisected onto the edges of the drawing. Each run of line is its own element (Step, Trim… act line by line) unless `merge` is on. `fixLines: false` (default; editor: **Fix lines**) moves the hatching with the object and with fragments moved by Crack, Gravity or Transform earlier in the stack. Set `fixLines: true` to anchor its angle, spacing and phase to scene coordinates while the object moves, rotates or scales, including parent-group transforms. Effects after Crosshatch still transform the generated lines normally. For a hand-drawn line, add Roughen after it.
     - `spacing` (number, def 6, 1 to 100, px), `angle` (angle, def 45), `layers` (number, def 3, 1 to 4), `width` (number, def 1, px, line width)
     - `gamma` (number, def 1), `invert` (boolean, def false)
-    - `color` (`"ink" | "original"`, def `"ink"`), `ink` (color, def `"#111111"`)
     - `offset` (point, def `[0, 0]`, fraction of the spacing; animate it to slide the lines), `fixLines` (boolean, def false), `merge` (boolean, def false)
     - Canvas controls: the detached circular **Offset** handle slides the screen with reduced sensitivity and without wrapping its displayed position. **Angle** rotates the screen; **Spacing** changes the distance across the guide lines. Shift snaps Angle to 15°, Offset to quarter cells and Spacing to whole pixels. Arrow keys nudge the selected handle.
-    - **Merge lines** off keeps every run as an independent element and Gravity body. On joins marks into one path per colour, while all those paths remain one rigid body, including in Original colour mode. This choice applies consistently to both Gravity Solids and the Floor. With Collisions enabled, strokes that start crossed are not forcibly pushed apart at playback start: their initial pair contact is ignored until they separate, then later contacts behave normally. Line width contributes to contacts; merged strokes collide through the convex envelope of their marks, so gaps inside that envelope are solid.
+    - Lines keep their sampled source colour; add Color or Tint after Crosshatch to style them. **Merge lines** off keeps every run as an independent element and Gravity body. On joins marks into one path per sampled source style, while all those paths remain one rigid body. This choice applies consistently to both Gravity Solids and the Floor. With Collisions enabled, strokes that start crossed are not forcibly pushed apart at playback start: their initial pair contact is ignored until they separate, then later contacts behave normally. Line width contributes to contacts; merged strokes collide through the convex envelope of their marks, so gaps inside that envelope are solid.
     - Stack order matters: `Polygon → Crosshatch → Gravity` drops individual strokes with Merge off, or the complete hatched drawing with Merge on. `Polygon → Gradient → Crack → Gravity → Crosshatch` moves the fragments first; with Fix lines off their hatching follows the Crack/Gravity/Transform material frame, while on samples a screen fixed to the scene.
     - Editor selection uses the evaluated object bounds as a fallback between strokes, in both normal and Wire views. Moving or deforming the object moves this region; grabbing it does not require hitting an individual thread.
     - Sampling indexes nearby fragments and contour edges, and resolves gradient stops once per prepared input. It does not reduce the line density or colour resolution to improve performance.
@@ -564,6 +561,14 @@ Synthesize new geometry, replicate shapes, or slice vectors into elements.
     - `scale` (number, def 3, 0.1–20): Noise field frequency across the input bounds.
     - `curl` (number, def 1.2, 0–2) and `direction` (angle, def 0°): Field curvature and prevailing direction.
     - `seed` (seed, def 1): Reproduces streamline starts and field noise.
+
+43. **`wavelines`**: Samples the input tone on horizontal scanlines and turns it into editable vector paths. Darker tone changes each line's displacement and stroke weight. Output is clipped to the sampled source silhouette; use Color after Wave Lines to assign inks per line. Work is bounded to 120,000 samples.
+    - `spacing` (number, def 12 px, 2–120): Distance between scanlines.
+    - `resolution` (number, def 6 px, 1–40): Horizontal sampling interval; automatically increased to stay within the sample budget.
+    - `amplitude` (number, def 22 px, 0–160), `wavelength` (number, def 180 px, 12–1200): Displacement and horizontal wave period.
+    - `width` (number, def 1.4 px, 0.1–12), `weight` (number, def 0.8, 0–1): Base stroke width and how strongly darkness changes it. `gamma` (number, def 1, 0.1–4) remaps sampled tone.
+    - Lines keep their sampled source colour; add Color or Tint after Wave Lines to style them. `invert` (boolean, def false) swaps light and dark.
+    - `time` (number, def 0 s) and `speed` (number, def 0.35 Hz, −4–4): Animate the wave phase. The editor binds Time to `scene.time` when adding Wave Lines.
 
 ---
 
@@ -675,7 +680,7 @@ Effectors and generators added after the first catalog: oscillators, physics, pa
     - `edge` (`"inside" | "outside" | "both"`, def "inside"), `density` (number, def 2000, 0..5000), `falloff` (number, def 40, 0.5..2000, px), `curve` (number, def 1.5, 0.1..6)
     - `interior` (number, def 0, 0..1), `center` (point, def [0.5, 0.5], fraction), `focus` (number, def 1, 0..1), `focusCurve` (number, def 1, 0.1..6)
     - `distribution` (`"random" | "even"`, def "random"), `shape` (`"circle" | "square" | "speck"`, def "circle"), `size` (number, def 1.2, 0.05..50, px), `sizeJitter` (number, def 0.5, 0..1)
-    - `edgeSize` (number, def 1, 0.1..4), `color` (`"ink" | "original"`, def "ink"), `ink` (color, def "#000000"), `blend` (`"normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity"`, def "normal")
+    - `edgeSize` (number, def 1, 0.1..4). Marks inherit the source fill; add Color or Tint afterwards. With Source `keep`, they style the kept source too. `blend` (`"normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity"`, def "normal")
     - `opacity` (number, def 1, 0..1), `opacityJitter` (number, def 0, 0..1), `source` (`"keep" | "replace"`, def "keep"), `seed` (seed, def 1)
 
 63. **`particles`** (generator): Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved.

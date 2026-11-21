@@ -2,7 +2,7 @@
 
 `type: "contour"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Draws vector isolines through equal tones in the input, like elevation lines on a map. Sample spacing controls detail; Levels sets how many tone bands are outlined. Gamma and Invert reshape the tonal map; line width, ink/original colour and Merge control the paths. Large grids adapt their spacing to bound work.
+Draws vector isolines through equal tones in the input, like elevation lines on a map. Sample spacing controls detail; Levels sets how many tone bands are outlined. Gamma and Invert reshape the tonal map; line width and Merge control the paths. Lines keep their sampled source colour; add Color or Tint after Contour to style them. Large grids adapt their spacing to bound work.
 
 ## Parameters
 
@@ -12,8 +12,6 @@ Draws vector isolines through equal tones in the input, like elevation lines on 
 | `levels` | number | `6` | min 1, max 16, step 1 |  |
 | `width` | number | `1` | min 0.1, max 20, step 0.1 | unit: px; label: Line width |
 | `gamma` | number | `1` | min 0.1, max 4, step 0.05 |  |
-| `color` | enum | `"ink"` | `ink`, `original` | not animatable |
-| `ink` | color | `"#111111"` | #rrggbb | only when `color` is `ink` |
 | `invert` | boolean | `false` |  |  |
 | `merge` | boolean | `true` |  | not animatable; label: Merge contours |
 
@@ -32,8 +30,6 @@ Inside a node's `stack` (effects run top to bottom):
     "levels": 6,
     "width": 1,
     "gamma": 1,
-    "color": "ink",
-    "ink": "#111111",
     "invert": false,
     "merge": true
   }

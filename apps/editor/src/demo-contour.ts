@@ -8,7 +8,8 @@ export function contourProject() {
     return [
       { kind: 'shape', id: `${id}-contours`, name: `${name} · isolines`, ...shape, transform: { x, y }, stack: [
         { id: `${id}-contour-paint`, ...gradient },
-        { id: `${id}-contour-lines`, type: 'contour', params: { spacing, levels, width: 1.25, gamma: 0.85, color: 'ink', ink: contourColor, merge: true } },
+        { id: `${id}-contour-lines`, type: 'contour', params: { spacing, levels, width: 1.25, gamma: 0.85, merge: true } },
+        { id: `${id}-contour-ink`, type: 'color', params: { mode: 'solid', color: contourColor, target: 'stroke' } },
       ] },
       { kind: 'shape', id: `${id}-field`, name: `${name} · tone field`, ...shape, transform: { x, y }, stack: [{ id: `${id}-field-paint`, ...gradient }] },
     ];
@@ -31,7 +32,7 @@ export function contourProject() {
     svertik: 'project', version: 1, name: 'Isobars · contour study', canvas: paper,
     scene: {
       version: 1, document: { width: 1000, height: 1200 },
-      notes: 'A topographic poster built from smooth tone fields and vector isolines. Select either “isolines” object and adjust Sample spacing, Levels, Gamma or Ink. The contour geometry is generated from the gradient directly above it in the same stack.',
+      notes: 'A topographic poster built from smooth tone fields and vector isolines. Select either “isolines” object to adjust Sample spacing, Levels or Gamma; select its Color effect to change the line ink. The contour geometry is generated from the gradient directly above it in the same stack.',
       objects,
     },
   };

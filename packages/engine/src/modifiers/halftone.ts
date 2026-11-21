@@ -7,7 +7,7 @@ import { parseColor, toHex } from '../color';
  * like printed halftone. A grid of `spacing` px cells rotated `angle` degrees; each cell samples the
  * colour below its centre and places a mark sized by its darkness (light areas → small, dark → large).
  * `min`/`max`: mark size at the lightest/darkest tone (as a fraction of the cell). `shape`: the mark
- * (circle, square, diamond, line, ring). `color`: sampled from the drawing or a single ink colour.
+ * (circle, square, diamond, line, ring). Marks keep the colour sampled from the drawing.
  * `invert`: swap light and dark. `jitter`: random offset per cell (seeded). Runs of equal marks are
  * not merged (each is its own element, so Step, Color… can act mark by mark) unless `merge` is on: then the
  * marks of each colour share one path, far lighter for big screens (a checker, a print texture).
@@ -23,8 +23,6 @@ export const halftone = defineModifier({
     max: { type: 'number', default: 0.9, min: 0, max: 1.5, step: 0.01, label: 'Max', random: [0.5, 1] },
     gamma: { type: 'number', default: 1, min: 0.1, max: 4, step: 0.05, label: 'Gamma', random: [0.7, 1.6] },
     shape: { type: 'enum', default: 'circle', options: ['circle', 'square', 'diamond', 'line', 'ring'] as const, label: 'Shape', animatable: false },
-    color: { type: 'enum', default: 'original', options: ['original', 'ink'] as const, label: 'Color', animatable: false },
-    ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     invert: { type: 'boolean', default: false, label: 'Invert' },
     jitter: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Jitter', random: [0, 0.3] },
     seed: { type: 'seed', default: 1 },
@@ -83,7 +81,7 @@ export const halftone = defineModifier({
         t = Math.max(0, Math.min(1, Math.pow(t, p.gamma)));
         const r = (p.min + (p.max - p.min) * t) * 0.5 * size;
         if (!(r > 0.05)) continue;
-        const style = p.color === 'ink' ? { fill: p.ink, stroke: 'none' } : hit.style;
+        const style = hit.style;
         const subpaths = mark(p.shape, sx, sy, r, size, rad);
         shapes.push({ style, subpaths, clone: n++ });
       }

@@ -9,7 +9,7 @@ export function voronoiProject() {
     text('voronoi-kicker', 'LANDSCAPE STUDY  /  03', -510, 14, ink, 500),
     { kind: 'shape', id: 'voronoi-field', name: 'Tessellated color field', shape: 'ellipse', params: { width: 690, height: 690, fill: true, fillColor: '#ef6c45', stroke: false }, transform: { x: -25, y: -40 }, stack: [
       { id: 'voronoi-gradient', type: 'gradient', params: { kind: 'radial', from: '#f7c95c', to: '#385c82', center: [0.32, 0.3], focus: [0.28, 0.24], radius: 0.83, apply: 'fill' } },
-      { id: 'voronoi-cells', type: 'voronoi', params: { spacing: 32, jitter: 0.82, color: 'original', seed: 8 } },
+      { id: 'voronoi-cells', type: 'voronoi', params: { spacing: 32, jitter: 0.82, seed: 8 } },
       { id: 'voronoi-rigid-pieces', type: 'rigidpieces', params: { amount: 1, pivot: 's' }, children: [
         { id: 'voronoi-rotate-3d', type: 'rotate3d', enabled: true, params: { rotateX: 12, rotateY: -9, rotateZ: 0, perspective: 2, pivot: [0.5, 0.5] } },
       ] },

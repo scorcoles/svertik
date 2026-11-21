@@ -13,7 +13,7 @@ const BUDGET = 200000;
  * hatching at different angles (the first at `angle`, then +90°, +45°, −45°); each layer only draws
  * where the tone is darker than its threshold, so light areas get one set of lines and the darkest
  * get all of them. Thresholds are spread evenly: with 3 layers at 25%, 50% and 75% darkness.
- * Lines are `spacing` px apart and `width` px wide; `color` takes the colour below or one ink.
+ * Lines are `spacing` px apart and `width` px wide, with the sampled source colour.
  * Each run of line is its own element (Step, Trim… act line by line) unless `merge` is on.
  * Hand-drawn wobble is Roughen's job: put it after this effect.
  */
@@ -27,8 +27,6 @@ export const crosshatch = defineModifier({
     layers: { type: 'number', default: 3, min: 1, max: 4, step: 1, label: 'Layers', random: [1, 4] },
     width: { type: 'number', default: 1, min: 0.1, max: 20, step: 0.1, unit: 'px', label: 'Line width', random: [0.5, 2] },
     gamma: { type: 'number', default: 1, min: 0.1, max: 4, step: 0.05, label: 'Gamma', random: [0.7, 1.6] },
-    color: { type: 'enum', default: 'ink', options: ['ink', 'original'] as const, label: 'Color', animatable: false },
-    ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     invert: { type: 'boolean', default: false, label: 'Invert' },
     offset: { type: 'point', default: [0, 0], unit: 'fraction', step: 0.01, label: 'Offset', handle: false, random: false },
     fixLines: { type: 'boolean', default: false, label: 'Fix lines', animatable: false, random: false },
@@ -59,7 +57,7 @@ export const crosshatch = defineModifier({
     }
     const layers = geo.shapes.map((s) => prepare(s, 0.25)).filter((l): l is Layer => !!l);
     if (!layers.length) return { viewBox: geo.viewBox, shapes: [] };
-    const paintAt = colorSampler(layers, p.color !== 'ink');
+    const paintAt = colorSampler(layers);
     // Sample paint in object space, but construct a fixed screen in scene space.
     const world = p.fixLines ? ctx.scene?.world : undefined;
     const inverse = world ? invert(world) : undefined;
@@ -91,11 +89,11 @@ export const crosshatch = defineModifier({
       const t = Math.max(0, Math.min(1, Math.pow(p.invert ? 1 - d : d, p.gamma)));
       const fill = hit.style.fill ?? '#000000';
       const op = hit.style.opacity;
-      return { t, key: p.color === 'ink' ? '' : `${fill}|${op ?? ''}`, style: hit.style };
+      return { t, key: `${fill}|${op ?? ''}`, style: hit.style };
     };
     const styleFor = (base: Style): Style => {
-      const style: Style = { fill: 'none', stroke: p.color === 'ink' ? p.ink : (base.fill ?? '#000000'), 'stroke-width': String(p.width / widthScale) };
-      if (p.color !== 'ink' && base.opacity) style.opacity = base.opacity;
+      const style: Style = { fill: 'none', stroke: base.fill ?? '#000000', 'stroke-width': String(p.width / widthScale) };
+      if (base.opacity) style.opacity = base.opacity;
       if (base['mix-blend-mode']) style['mix-blend-mode'] = base['mix-blend-mode'];
       return style;
     };

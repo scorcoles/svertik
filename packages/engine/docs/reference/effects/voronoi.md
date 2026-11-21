@@ -10,11 +10,9 @@ Set **Drift** above 0 to move the cell sites by smooth, seeded noise, up to half
 |---|---|---:|---:|---|
 | Cell size | number | 32 | 8–200 px | Approximate distance between cell centers. |
 | Jitter | number | 0.8 | 0–1 | Moves each center by up to half a cell. |
-| Color | enum | original | original, ink | Keep the sampled source paint or use one solid ink. |
-| Ink | color | `#111111` | — | Cell fill when Color is Ink. |
 | Seed | seed | 1 | — | Changes the deterministic cell layout. |
 | Drift | number | 0 | 0–0.5 | Site movement as a fraction of cell spacing; 0 keeps the layout still. |
 | Speed | number | 0.5 | 0–3 | Rate of the smooth site movement. |
 | Time | number | 0 | seconds | Animation time; link to `scene.time` to play continuously. |
 
-Gradients are sampled at each cell center and become solid cell fills. Voronoi generates geometry; use Color or other style effects afterwards to change its appearance.
+Gradients are sampled at each cell center and become solid cell fills. Voronoi generates geometry and preserves sampled source colour; use Color or Tint afterwards to change its appearance.

@@ -1,7 +1,7 @@
 import type { Geometry, NodeInfo, SceneNode, SceneV1 } from '@svertik/engine';
 import { walkNodes } from '@svertik/engine';
 
-const SPARSE_LINE_EFFECTS = new Set(['crosshatch', 'contour', 'stringart', 'spirograph', 'flowfield', 'weave', 'network', 'trace', 'connect']);
+const SPARSE_LINE_EFFECTS = new Set(['crosshatch', 'contour', 'stringart', 'spirograph', 'flowfield', 'wavelines', 'weave', 'network', 'trace', 'connect']);
 
 /** Sparse generated linework remains easy to select: blank space inside its source box is grabbable. */
 export function generatedObjectAt(scene: SceneV1, geometry: Geometry, nodes: Map<string, NodeInfo>, x: number, y: number): string | null {

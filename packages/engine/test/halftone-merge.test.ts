@@ -3,7 +3,7 @@ import { builtins, createEngine, type StackInput } from '../src';
 
 const slab = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="#808080"/></svg>';
 const run = (params: Record<string, unknown>) =>
-  createEngine(builtins).evaluateStack({ source: slab, stack: [{ id: 'h', type: 'halftone', params: { spacing: 10, shape: 'square', color: 'ink', ...params } }] } as StackInput);
+  createEngine(builtins).evaluateStack({ source: slab, stack: [{ id: 'h', type: 'halftone', params: { spacing: 10, shape: 'square', ...params } }] } as StackInput);
 
 describe('halftone merge', () => {
   it('keeps one element per mark by default (Step, Color… can act mark by mark)', () => {

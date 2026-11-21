@@ -18,7 +18,7 @@ export function livingVoronoiProject() {
       transform: { x: 0, y: -15 },
       stack: [
         { id: 'living-voronoi-gradient', type: 'gradient', enabled: true, params: { kind: 'radial', from: '#f6d875', to: '#365d78', center: [0.32, 0.27], focus: [0.28, 0.22], radius: 0.94, apply: 'fill' } },
-        { id: 'living-voronoi-cells', type: 'voronoi', enabled: true, params: { spacing: 52, jitter: 0.82, color: 'original', seed: 19, drift: 0.38, speed: 0.55, time: { $expr: 'scene.time', fallback: 0 } } },
+        { id: 'living-voronoi-cells', type: 'voronoi', enabled: true, params: { spacing: 52, jitter: 0.82, seed: 19, drift: 0.38, speed: 0.55, time: { $expr: 'scene.time', fallback: 0 } } },
         { id: 'living-voronoi-rounding', type: 'roundcorners', enabled: true, params: { radius: 6, limit: 180, shape: 'round', corners: 'all', seed: 1 } },
         { id: 'living-voronoi-mask', type: 'mask', enabled: true, params: { source: 'living-voronoi-boundary', mode: 'shape', whole: false, invert: false } },
       ],

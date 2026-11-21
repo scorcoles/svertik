@@ -2,7 +2,7 @@
 
 `type: "vectorgrain"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). Density is highest at the edge and falls off over Falloff px, shaped by Curve, down to Interior deep inside. Edge: inside the shape, outside (a halo) or both. Marks are circles, squares or irregular specks; Size, Size jitter and Edge size control them, Color takes the shape fill or an ink, Opacity and Opacity jitter vary them, Distribution is random or even, and Source keeps or replaces the drawing. Seeded.
+Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). Density is highest at the edge and falls off over Falloff px, shaped by Curve, down to Interior deep inside. Edge: inside the shape, outside (a halo) or both. Marks are circles, squares or irregular specks; Size, Size jitter and Edge size control them. Their base colour comes from the source fill; use Color or Tint after Vector Grain to style the output. Opacity and Opacity jitter vary them, Distribution is random or even, and Source keeps or replaces the drawing. If Source is Keep, later Color and Tint effects apply to the kept drawing as well as the grain marks. Seeded.
 
 ## Parameters
 
@@ -21,8 +21,6 @@ Vector stipple that gathers at the edges, as real marks (not the SVG Grain filte
 | `size` | number | `1.2` | min 0.05, max 50, step 0.05 | unit: px |
 | `sizeJitter` | number | `0.5` | min 0, max 1, step 0.01 | label: Size jitter |
 | `edgeSize` | number | `1` | min 0.1, max 4, step 0.05 | label: Edge size |
-| `color` | enum | `"ink"` | `ink`, `original` | not animatable |
-| `ink` | color | `"#000000"` | #rrggbb | only when `color` is `ink` |
 | `blend` | enum | `"normal"` | `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`, `saturation`, `color`, `luminosity` | not animatable |
 | `opacity` | number | `1` | min 0, max 1, step 0.01 |  |
 | `opacityJitter` | number | `0` | min 0, max 1, step 0.01 | label: Opacity jitter |
@@ -56,8 +54,6 @@ Inside a node's `stack` (effects run top to bottom):
     "size": 1.2,
     "sizeJitter": 0.5,
     "edgeSize": 1,
-    "color": "ink",
-    "ink": "#000000",
     "blend": "normal",
     "opacity": 1,
     "opacityJitter": 0,

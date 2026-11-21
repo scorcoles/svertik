@@ -1,4 +1,4 @@
-import { bounds, flatten, insidePolygons, type Geometry, type Shape, type Vec2 } from '../geometry';
+import { bounds, flatten, insidePolygons, type Geometry, type Shape, type Style, type Vec2 } from '../geometry';
 import { defineModifier } from '../modifier';
 
 interface Node {
@@ -20,7 +20,6 @@ export const network = defineModifier({
     gap: { type: 'number', default: 2, min: 0, max: 100, step: 0.5, unit: 'px', label: 'Edge gap', ramp: false },
     elasticity: { type: 'number', default: 0.35, min: 0, max: 1, step: 0.01, label: 'Elasticity', ramp: false },
     resistance: { type: 'number', default: 3, min: 1, max: 8, step: 0.1, label: 'Resistance', ramp: false },
-    color: { type: 'color', default: '#09fdd1', solid: true, label: 'Link color' },
     width: { type: 'number', default: 1.5, min: 0.1, max: 24, step: 0.1, unit: 'px', label: 'Link width', ramp: false },
   },
   apply(geo, p, ctx): Geometry {
@@ -125,8 +124,17 @@ export const network = defineModifier({
       if (startOffset + endOffset >= distance) continue;
       const start: Vec2 = [a.center[0] + direction[0] * startOffset, a.center[1] + direction[1] * startOffset];
       const end: Vec2 = [b.center[0] - direction[0] * endOffset, b.center[1] - direction[1] * endOffset];
+      const source = a.geometry.shapes.find((shape) => shape.style.stroke && shape.style.stroke !== 'none')
+        ?? a.geometry.shapes.find((shape) => shape.style.fill && shape.style.fill !== 'none')
+        ?? b.geometry.shapes[0];
+      const stroke = source?.style.stroke && source.style.stroke !== 'none' ? source.style.stroke
+        : source?.style.fill && source.style.fill !== 'none' ? source.style.fill : '#333333';
+      const style: Style = { fill: 'none', stroke, 'stroke-width': String(p.width), 'stroke-linecap': 'round' };
+      if (source?.style.opacity) style.opacity = source.style.opacity;
+      if (source?.style['mix-blend-mode']) style['mix-blend-mode'] = source.style['mix-blend-mode'];
       lineShapes.push({
-        style: { fill: 'none', stroke: p.color, 'stroke-width': String(p.width), 'stroke-linecap': 'round' },
+        style,
+        ...(source?.gradients ? { gradients: source.gradients } : {}),
         subpaths: [{ start, segs: [{ c1: [start[0] + (end[0] - start[0]) / 3, start[1] + (end[1] - start[1]) / 3], c2: [start[0] + (end[0] - start[0]) * 2 / 3, start[1] + (end[1] - start[1]) * 2 / 3], p: end }], closed: false }],
         networkLink: { networkId, from: i, to: j, restLength: Math.hypot(end[0] - start[0], end[1] - start[1]), elasticity: p.elasticity, resistance: p.resistance },
         ...(tagged ? { clone: nextClone++ } : {}),

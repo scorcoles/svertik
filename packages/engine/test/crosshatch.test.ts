@@ -53,7 +53,7 @@ describe('crosshatch', () => {
     const scene = (time: number, solids: string[]): SceneV1 => ({ version: 1, objects: [
       { kind: 'shape', id: 'hex', name: 'Hexagon', shape: 'polygon', params: { radius: 40, sides: 6, fill: true, fillColor: '#000000' }, stack: [
         { id: 'tone', type: 'gradient', params: { from: '#000000', to: '#777777' } },
-        { id: 'h', type: 'crosshatch', params: { spacing: 8, color: 'original', merge: true } },
+        { id: 'h', type: 'crosshatch', params: { spacing: 8, merge: true } },
         { id: 'fall', type: 'gravity', params: { time, solids, floor: [0.5, 8], bounce: 0 } },
       ] },
       { kind: 'shape', id: 'platform', name: 'Platform', visible: false, shape: 'rectangle', params: { width: 400, height: 20, fill: true }, transform: { y: 100 }, stack: [] },
@@ -161,10 +161,11 @@ describe('crosshatch', () => {
     expect(four).toBeGreaterThan(one * 3);
   });
 
-  it('strokes with the ink, or with the colour below', () => {
-    const ink = run({ layers: 1, ink: '#ff0000' }).shapes;
-    expect(ink.every((s) => s.style.stroke === '#ff0000' && s.style.fill === 'none')).toBe(true);
-    const orig = run({ layers: 1, color: 'original', invert: true }).shapes;
+  it('keeps the sampled source colour on its strokes', () => {
+    const dark = run({ layers: 1 }).shapes;
+    expect(dark.length).toBeGreaterThan(0);
+    expect(dark.every((s) => s.style.stroke === '#000' && s.style.fill === 'none')).toBe(true);
+    const orig = run({ layers: 1, invert: true }).shapes;
     // Inverted, the light half is the one shaded, in its own grey.
     expect(orig.length).toBeGreaterThan(0);
     expect(orig.every((s) => s.style.stroke === '#eee' || s.style.stroke === '#eeeeee')).toBe(true);

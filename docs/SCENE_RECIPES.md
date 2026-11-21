@@ -566,10 +566,18 @@ A chess pawn shape rasterized into an ink halftone dot screen with tactile 3D be
             "shape": "circle",
             "spacing": 14,
             "angle": 45,
-            "minSize": 2,
-            "maxSize": 12,
-            "color": "ink",
-            "inkColor": "#0d0d10"
+            "min": 0,
+            "max": 0.9,
+            "gamma": 1
+          }
+        },
+        {
+          "id": "halftone-ink",
+          "type": "color",
+          "params": {
+            "mode": "solid",
+            "color": "#0d0d10",
+            "target": "fill"
           }
         },
         {

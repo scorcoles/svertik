@@ -15,8 +15,6 @@ export const voronoi = defineModifier({
   params: {
     spacing: { type: 'number', default: 32, min: 8, max: 200, step: 1, unit: 'px', label: 'Cell size', random: [20, 48] },
     jitter: { type: 'number', default: 0.8, min: 0, max: 1, step: 0.01, label: 'Jitter', random: [0.3, 1] },
-    color: { type: 'enum', default: 'original', options: ['original', 'ink'] as const, label: 'Color', animatable: false },
-    ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     seed: { type: 'seed', default: 1 },
     drift: { type: 'number', default: 0, min: 0, max: 0.5, step: 0.01, unit: 'fraction', group: 'Motion', label: 'Drift' },
     speed: { type: 'number', default: 0.5, min: 0, max: 3, step: 0.01, group: 'Motion', label: 'Speed' },
@@ -27,7 +25,7 @@ export const voronoi = defineModifier({
     const layers = geo.shapes.map(prepare).filter((layer): layer is Layer => !!layer);
     if (!layers.length) return { viewBox: geo.viewBox, shapes: [] };
     const spacing = Math.max(8, p.spacing);
-    const paintAt = p.color === 'original' ? colorSampler(layers) : null;
+    const paintAt = colorSampler(layers);
     const bounds: [number, number, number, number] = layers.reduce<[number, number, number, number]>((b, l) => [Math.min(b[0], l.box[0]), Math.min(b[1], l.box[1]), Math.max(b[2], l.box[2]), Math.max(b[3], l.box[3])], [Infinity, Infinity, -Infinity, -Infinity]);
     const region = regionOf(geo.shapes, Math.max(ctx.resolution, spacing / 80));
     if (!region.length) return { viewBox: geo.viewBox, shapes: [] };
@@ -85,10 +83,9 @@ export const voronoi = defineModifier({
       // Most cells are wholly inside the silhouette. Avoid a polygon boolean operation for those.
       const clipped = covers(region, cellBounds) ? polygon : intersection(region, polygon);
       if (!clipped.length) continue;
-      const sampledStyle = paintAt ? paintAt(site)?.style ?? baseStyles[index] ?? paintAt(centroid(cell))?.style : null;
-      if (p.color === 'original' && !sampledStyle) continue;
+      const sampledStyle = paintAt(site)?.style ?? baseStyles[index] ?? paintAt(centroid(cell))?.style ?? geo.shapes[0]!.style;
       const subpaths = clipped.flatMap((poly) => poly.map(toSubPath)).filter((path): path is NonNullable<typeof path> => !!path);
-      if (subpaths.length) output.push({ style: p.color === 'ink' ? { fill: p.ink, stroke: 'none' } : sampledStyle!, subpaths, clone: index });
+      if (subpaths.length) output.push({ style: sampledStyle, subpaths, clone: index });
     }
     return { viewBox: geo.viewBox, shapes: output };
   },

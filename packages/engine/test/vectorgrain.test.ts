@@ -97,11 +97,9 @@ describe('vectorgrain', () => {
     expect(kept.length).toBe(replaced.length + 1);
   });
 
-  it('uses the ink (black by default), or the shape fill', () => {
+  it('uses the source fill as the marks’ base colour', () => {
     const grain = (params: Record<string, unknown>) => run({ source: 'replace', ...params }).shapes[0]!.style.fill;
-    expect(grain({})).toBe('#000000');
-    expect(grain({ ink: '#ff0000' })).toBe('#ff0000');
-    expect(grain({ color: 'original' })).toBe('#222');
+    expect(grain({})).toBe('#222');
   });
 
   it('blends the grain with what is under it', () => {

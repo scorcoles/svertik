@@ -62,6 +62,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   morph: one(() => import('./morph'), 'morph'),
   mosaic: one(() => import('./mosaic'), 'mosaic'),
   voronoi: one(() => import('./voronoi'), 'voronoi'),
+  wavelines: one(() => import('./wavelines'), 'wavelines'),
   particles: one(() => import('./particles'), 'particles'),
   pixelate: one(() => import('./pixelate'), 'pixelate'),
   trace: one(() => import('./trace'), 'trace'),

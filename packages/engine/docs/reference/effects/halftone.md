@@ -2,7 +2,7 @@
 
 `type: "halftone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. Spacing, angle, min/max size, gamma, ink/original colour, invert and jitter control the look.
+A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. Spacing, angle, min/max size, gamma, invert and jitter control the geometry. Marks keep their sampled source colour; add Color or Tint after Halftone to style them.
 
 ## Parameters
 
@@ -14,8 +14,6 @@ A halftone screen: the drawing sampled on a rotated grid where each cell becomes
 | `max` | number | `0.9` | min 0, max 1.5, step 0.01 |  |
 | `gamma` | number | `1` | min 0.1, max 4, step 0.05 |  |
 | `shape` | enum | `"circle"` | `circle`, `square`, `diamond`, `line`, `ring` | not animatable |
-| `color` | enum | `"original"` | `original`, `ink` | not animatable |
-| `ink` | color | `"#111111"` | #rrggbb | only when `color` is `ink` |
 | `invert` | boolean | `false` |  |  |
 | `jitter` | number | `0` | min 0, max 1, step 0.01 |  |
 | `seed` | seed | `1` | integer |  |
@@ -39,8 +37,6 @@ Inside a node's `stack` (effects run top to bottom):
     "max": 0.9,
     "gamma": 1,
     "shape": "circle",
-    "color": "original",
-    "ink": "#111111",
     "invert": false,
     "jitter": 0,
     "seed": 1,

@@ -7,16 +7,16 @@ import { circlePath, insideFill, rnd } from './halftone';
  * Vector Grain (not the SVG Grain filter): vector stipple that gathers at the edges. Each shape is scattered with small marks (circles,
  * squares or irregular specks) whose density is highest at the edge and falls off over `falloff` px
  * (shaped by `curve`) down to `interior` (a fraction of the edge density) deep inside. `edge` picks the
- * side: inside the shape, outside it (a halo) or both. Marks take the shape's own fill or an ink colour;
+ * side: inside the shape, outside it (a halo) or both. Marks take the shape's own fill;
  * size, opacity and their variation are controllable, and `edgeSize` makes edge marks bigger or smaller
  * than interior ones. `center` (a point dragged on the canvas, as a fraction of the drawing's box) works as a
  * light: in the middle of the shape the band of grain is even all round the edge; moved off it, the band
  * gets thinner and sparser on the edge near it and wider and denser on the far edge. Along the edge, the
  * band's width scales by how far that edge point is from the centre, relative to its distance from the
  * shape's own middle (1 everywhere when they coincide); `focus` sets how much (0: even band, whatever the
- * centre) and `focusCurve` sharpens it. Seeded: the same seed always gives the same grain. Marks of the same colour and
- * opacity share one path, so thousands of marks stay light in the SVG. By default the source is kept and the
- * grain goes on top of it in black ink; `blend` sets how the grain mixes with what is under it.
+ * centre) and `focusCurve` sharpens it. Seeded: the same seed always gives the same grain. Marks of the same
+ * opacity share one path, so thousands of marks stay light in the SVG. The source fill sets their base colour;
+ * use Color or Tint after Vector Grain to style the output.
  */
 /** CSS blend modes for the grain over what is under it (the kept source and the rest of the scene). */
 const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'] as const;
@@ -39,8 +39,6 @@ export const vectorGrain = defineModifier({
     size: { type: 'number', default: 1.2, min: 0.05, max: 50, step: 0.05, unit: 'px', label: 'Size', random: [0.6, 3] },
     sizeJitter: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Size jitter', random: [0, 0.8] },
     edgeSize: { type: 'number', default: 1, min: 0.1, max: 4, step: 0.05, label: 'Edge size', random: [0.6, 2] },
-    color: { type: 'enum', default: 'ink', options: ['ink', 'original'] as const, label: 'Color', animatable: false },
-    ink: { type: 'color', default: '#000000', label: 'Ink', showIf: { color: ['ink'] } },
     blend: { type: 'enum', default: 'normal', options: BLENDS, label: 'Blend', animatable: false },
     opacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Opacity', random: [0.6, 1] },
     opacityJitter: { type: 'number', default: 0, min: 0, max: 1, step: 0.01, label: 'Opacity jitter', random: [0, 0.6] },
@@ -88,8 +86,6 @@ type Params = {
   size: number;
   sizeJitter: number;
   edgeSize: number;
-  color: string;
-  ink: string;
   blend: string;
   opacity: number;
   opacityJitter: number;
@@ -225,7 +221,7 @@ function grainFor(s: Shape, p: Params, index: number, budget: number, focusAt: V
   };
 
   const groups = new Map<string, { style: Style; subpaths: SubPath[] }>();
-  const baseStyle: Style = { stroke: 'none', fill: p.color === 'ink' ? p.ink : (s.style.fill && s.style.fill !== 'none' ? s.style.fill : (s.style.stroke ?? '#000000')) };
+  const baseStyle: Style = { stroke: 'none', fill: s.style.fill && s.style.fill !== 'none' ? s.style.fill : (s.style.stroke ?? '#000000') };
   const blend = p.blend !== 'normal' ? p.blend : s.style['mix-blend-mode'];
   if (blend) baseStyle['mix-blend-mode'] = blend;
   const baseOpacity = p.opacity * Number(s.style.opacity ?? 1);
@@ -265,7 +261,7 @@ function grainFor(s: Shape, p: Params, index: number, budget: number, focusAt: V
 
   // Carry what selection and per-element effects read from the source (node, word, line, clone).
   const { subpaths: _sp, style: _st, gradients, image: _im, ...meta } = s;
-  const shapes = [...groups.values()].map((g) => ({ ...meta, style: g.style, subpaths: g.subpaths, ...(p.color === 'original' && gradients ? { gradients } : {}) }));
+  const shapes = [...groups.values()].map((g) => ({ ...meta, style: g.style, subpaths: g.subpaths, ...(gradients ? { gradients } : {}) }));
   return { shapes, count };
 }
 

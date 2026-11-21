@@ -2,7 +2,7 @@
 
 `type: "crosshatch"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
 
-Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. Spacing, line width, gamma, ink/original colour, invert and offset control the look; Fix lines anchors the screen to the scene as the object moves, rotates or scales; off, the lines follow the object. Merge joins lines into one path per colour and keeps the whole drawing as one Gravity body, on both Solids and the Floor; off, each line is a separate body. Canvas handles adjust Offset, Angle and Spacing. Add Roughen after it for a hand-drawn line.
+Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. Spacing, line width, gamma, invert and offset control the look; Fix lines anchors the screen to the scene as the object moves, rotates or scales; off, the lines follow the object. Lines keep their sampled source colour; add Color or Tint after Crosshatch to style them. Merge joins lines into one path per sampled source style and keeps the whole drawing as one Gravity body, on both Solids and the Floor; off, each line is a separate body. Canvas handles adjust Offset, Angle and Spacing. Add Roughen after it for a hand-drawn line.
 
 ## Parameters
 
@@ -13,8 +13,6 @@ Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle
 | `layers` | number | `3` | min 1, max 4, step 1 |  |
 | `width` | number | `1` | min 0.1, max 20, step 0.1 | unit: px; label: Line width |
 | `gamma` | number | `1` | min 0.1, max 4, step 0.05 |  |
-| `color` | enum | `"ink"` | `ink`, `original` | not animatable |
-| `ink` | color | `"#111111"` | #rrggbb | only when `color` is `ink` |
 | `invert` | boolean | `false` |  |  |
 | `offset` | point | `[0,0]` | [x, y], fractions of the box (0–1) |  |
 | `fixLines` | boolean | `false` |  | not animatable; label: Fix lines |
@@ -36,8 +34,6 @@ Inside a node's `stack` (effects run top to bottom):
     "layers": 3,
     "width": 1,
     "gamma": 1,
-    "color": "ink",
-    "ink": "#111111",
     "invert": false,
     "offset": [
       0,

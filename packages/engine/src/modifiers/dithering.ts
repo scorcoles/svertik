@@ -17,8 +17,6 @@ export const dithering = defineModifier({
     matrix: { type: 'enum', default: '4', options: ['2', '4', '8', '16'] as const, label: 'Bayer matrix', showIf: { algorithm: ['bayer'] }, animatable: false },
     threshold: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, label: 'Threshold', random: [0.35, 0.65] },
     gamma: { type: 'number', default: 1, min: 0.1, max: 4, step: 0.05, label: 'Gamma', random: [0.7, 1.6] },
-    color: { type: 'enum', default: 'ink', options: ['ink', 'original'] as const, label: 'Color', animatable: false },
-    ink: { type: 'color', default: '#111111', label: 'Ink', showIf: { color: ['ink'] } },
     invert: { type: 'boolean', default: false, label: 'Invert' },
     seed: { type: 'seed', default: 1 },
     offset: { type: 'point', default: [0, 0], unit: 'fraction', step: 0.01, label: 'Offset', handle: false, random: false },
@@ -28,7 +26,7 @@ export const dithering = defineModifier({
     if (!(p.spacing >= 0.5) || !geo.shapes.length) return geo;
     const layers = geo.shapes.map((shape) => prepare(shape)).filter((layer): layer is Layer => !!layer);
     if (!layers.length) return { viewBox: geo.viewBox, shapes: [] };
-    const paintAt = colorSampler(layers, p.color !== 'ink');
+    const paintAt = colorSampler(layers);
 
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const layer of layers) {
@@ -77,7 +75,7 @@ export const dithering = defineModifier({
       }
     }
 
-    const regions = mergeRegions(bits, samples, cols, rows, p.color === 'ink' ? p.ink : undefined);
+    const regions = mergeRegions(bits, samples, cols, rows);
     const shapes: Shape[] = [];
     const merged = new Map<string, Shape>();
     for (const region of regions) {
@@ -129,12 +127,12 @@ function diffuse(samples: ({ tone: number; style: Style } | null)[], bits: Uint8
 interface Region { key: string; style: Style; x: number; y: number; width: number; height: number }
 
 /** Collapse identical horizontal runs into rectangles, extending matching runs across rows. */
-function mergeRegions(bits: Uint8Array, samples: ({ tone: number; style: Style } | null)[], cols: number, rows: number, ink?: string): Region[] {
+function mergeRegions(bits: Uint8Array, samples: ({ tone: number; style: Style } | null)[], cols: number, rows: number): Region[] {
   const active = new Map<string, Region>();
   const regions: Region[] = [];
   const styleFor = (sample: { style: Style }): Style => {
-    const style: Style = { fill: ink ?? sample.style.fill ?? '#111111', stroke: 'none' };
-    if (!ink && sample.style.opacity) style.opacity = sample.style.opacity;
+    const style: Style = { fill: sample.style.fill ?? '#111111', stroke: 'none' };
+    if (sample.style.opacity) style.opacity = sample.style.opacity;
     return style;
   };
   for (let y = 0; y < rows; y++) {
