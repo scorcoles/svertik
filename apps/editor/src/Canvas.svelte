@@ -1116,40 +1116,11 @@
     e.preventDefault();
     // ⇧ + clic: sumar o quitar de la selección (sin mover).
     if (e.shiftKey) return editor.toggleSelect(id);
-    // If a selected sibling is hidden beneath the hit target, keep that selection on click or drag.
     const pointerStart = clientToDoc(e.clientX, e.clientY);
-    const selectedBefore = editor.selectedNodes;
-    const selectedId = selectedBefore.length === 1 ? selectedBefore[0]!.id : null;
-    const selectedBox = selectedId ? nodes.get(selectedId)?.box : null;
-    const ancestors = (nodeId: string) => {
-      const ids = new Set<string>();
-      let at = locateNode(editor.scene!.objects, nodeId);
-      while (at) {
-        ids.add(at.node.id);
-        at = at.parent ? locateNode(editor.scene!.objects, at.parent.id) : null;
-      }
-      return ids;
-    };
-    const hitAncestors = ancestors(id);
-    const related = !!selectedId && selectedId !== id
-      && [...ancestors(selectedId)].some((ancestor) => hitAncestors.has(ancestor));
-    const commonGroupId = selectedId
-      ? [...ancestors(selectedId)].find((ancestor) => hitAncestors.has(ancestor) && locateNode(editor.scene!.objects, ancestor)?.node.kind === 'group')
-      : undefined;
-    const commonGroup = commonGroupId ? locateNode(editor.scene!.objects, commonGroupId)?.node : null;
-    const groupCombinesChildren = commonGroup?.kind === 'group'
-      && commonGroup.stack.some((modifier) => modifier.enabled !== false && ['metaball', 'boolean'].includes(modifier.type));
-    const preserveOverlappingSelection = !!(
-      pointerStart && related && (
-        groupCombinesChildren || (selectedBox
-          && pointerStart[0] >= selectedBox.x && pointerStart[0] <= selectedBox.x + selectedBox.width
-          && pointerStart[1] >= selectedBox.y && pointerStart[1] <= selectedBox.y + selectedBox.height)
-      )
-    );
-    // Clicking a selected object moves the selection; a new target replaces it unless it is
-    // temporarily being used as the hit surface for a selected, overlapping sibling.
-    if (!editor.isSelected(id) && !preserveOverlappingSelection) editor.selected = id;
-    let ids = preserveOverlappingSelection ? selectedBefore.map((n) => n.id) : editor.selectedNodes.map((n) => n.id);
+    // Clicking another hit target switches selection immediately; clicking the current
+    // target keeps it selected so the same gesture can move it.
+    if (!editor.isSelected(id)) editor.selected = id;
+    let ids = editor.selectedNodes.map((n) => n.id);
     const originalTree = selectedTreeIds();
     const partsFor = (which: string[]) => which.flatMap((nid) => {
       const at = locateNode(editor.scene!.objects, nid);
