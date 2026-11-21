@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type Geometry, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, buildShape, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type DocumentResult, type Geometry, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
@@ -36,6 +36,8 @@
   let result = $state<SVGSVGElement>();
   let wireHits = $state<SVGSVGElement>();
   let paintedGeometry = $state.raw<Geometry | null>(null);
+  let evaluatedDocument = $state.raw<DocumentResult | null>(null);
+  let hitContext: CanvasRenderingContext2D | null = null;
   let ghost = $state<SVGSVGElement>();
   let stage = $state<HTMLDivElement>();
   let renderError = $state<string | null>(null);
@@ -93,6 +95,7 @@
     try {
       const t0 = performance.now();
       const doc = engine.evaluateDocument(scene);
+      evaluatedDocument = doc;
       const heavyGravity = doc.diagnostics?.find((diagnostic) => diagnostic.code === 'gravity-collision-path-limit');
       const diagnosticKey = heavyGravity ? `${heavyGravity.effectId ?? ''}:${heavyGravity.message}` : '';
       if (diagnosticKey && diagnosticKey !== lastSceneDiagnostic) editor.notice = heavyGravity!.message;
@@ -1061,6 +1064,49 @@
       const p = clientToDoc(e.clientX, e.clientY);
       const insideClip = p && (!editor.hideOutside || (p[0] >= docViewBox[0] && p[0] <= docViewBox[0] + docViewBox[2] && p[1] >= docViewBox[1] && p[1] <= docViewBox[1] + docViewBox[3]));
       if (p && insideClip) id = hatchObjectAt(editor.scene, paintedGeometry, nodes, p[0], p[1]);
+    }
+    // Group level metaball/boolean effects merge their children into one rendered path,
+    // whose DOM hit target belongs to just one child. Resolve the click against the
+    // individual evaluated child geometries so each source object remains draggable.
+    const pointer = clientToDoc(e.clientX, e.clientY);
+    if (id && pointer && evaluatedDocument) {
+      let at = locateNode(editor.scene.objects, id);
+      let combiningGroup: SceneNode | null = null;
+      while (at) {
+        if (at.node.kind === 'group' && at.node.stack.some((m) => m.enabled !== false && ['metaball', 'boolean'].includes(m.type))) {
+          combiningGroup = at.node;
+          break;
+        }
+        at = at.parent ? locateNode(editor.scene.objects, at.parent.id) : null;
+      }
+      if (combiningGroup?.children?.length) {
+        hitContext ??= document.createElement('canvas').getContext('2d');
+        const contains = (geo: Geometry | null) => geo?.shapes.some((shape) => {
+          if (!hitContext) return false;
+          const path = new Path2D();
+          for (const sp of shape.subpaths) {
+            path.moveTo(sp.start[0], sp.start[1]);
+            for (const seg of sp.segs) path.bezierCurveTo(seg.c1[0], seg.c1[1], seg.c2[0], seg.c2[1], seg.p[0], seg.p[1]);
+            if (sp.closed) path.closePath();
+          }
+          if (shape.style.fill !== 'none' && shape.subpaths.some((sp) => sp.closed)
+            && hitContext.isPointInPath(path, pointer[0], pointer[1], shape.style['fill-rule'] === 'evenodd' ? 'evenodd' : 'nonzero')) return true;
+          const strokeWidth = Number(shape.style['stroke-width'] ?? 0);
+          if (shape.style.stroke !== 'none' && strokeWidth > 0) {
+            hitContext.lineWidth = strokeWidth;
+            return hitContext.isPointInStroke(path, pointer[0], pointer[1]);
+          }
+          return false;
+        }) ?? false;
+        const descendants: SceneNode[] = [];
+        const collect = (node: SceneNode) => {
+          if (node.kind === 'shape') descendants.push(node);
+          node.children?.forEach(collect);
+        };
+        combiningGroup.children.forEach(collect);
+        const sourceHit = descendants.find((child) => contains(evaluatedDocument!.geometryOf(child.id)));
+        if (sourceHit) id = sourceHit.id;
+      }
     }
     if (id && editor.isLocked(id)) return;
     if (!id) {
