@@ -1,5 +1,5 @@
 import { intersection, type MultiPolygon, type Pair } from '../polygon';
-import { covers, regionOf, toSubPath } from '../clip';
+import { covers, inside, regionOf, toSubPath } from '../clip';
 import type { Geometry, Shape } from '../geometry';
 import { defineModifier } from '../modifier';
 import { colorSampler, prepare, type Layer } from './halftone';
@@ -7,7 +7,7 @@ import { noise2D } from '../random';
 
 const MAX_CELLS = 1000;
 
-/** Turns filled input surfaces into clipped, tone-sampled Voronoi cells. */
+/** Turns filled input surfaces into clipped, tone-sampled Voronoi cells. Sites stay inside the source. */
 export const voronoi = defineModifier({
   type: 'voronoi',
   label: 'Voronoi',
@@ -37,37 +37,44 @@ export const voronoi = defineModifier({
     // Bound work for huge artboards. A coarser grid keeps generation and clipping responsive.
     const scale = Math.sqrt((cols * rows) / MAX_CELLS);
     const step = scale > 1 ? spacing * scale : spacing;
-    const nx = Math.max(1, Math.ceil((bounds[2] - bounds[0]) / step));
-    const ny = Math.max(1, Math.ceil((bounds[3] - bounds[1]) / step));
-    const gridX = bounds[0] + (bounds[2] - bounds[0] - nx * step) / 2;
-    const gridY = bounds[1] + (bounds[3] - bounds[1] - ny * step) / 2;
-    const sites: Pair[] = [];
+    const gridCols = Math.max(1, Math.ceil((bounds[2] - bounds[0]) / step));
+    const gridRows = Math.max(1, Math.ceil((bounds[3] - bounds[1]) / step));
+    const gridX = bounds[0] + (bounds[2] - bounds[0] - gridCols * step) / 2;
+    const gridY = bounds[1] + (bounds[3] - bounds[1] - gridRows * step) / 2;
+    // Preserve lattice IDs for every frame; only points inside the filled region become cells.
+    const sites: (Pair | null)[] = Array(gridCols * gridRows).fill(null);
+    const baseStyles: (Shape['style'] | null)[] = Array(gridCols * gridRows).fill(null);
     const driftX = p.drift > 0 ? noise2D(p.seed + 104729) : null;
     const driftY = p.drift > 0 ? noise2D(p.seed + 130363) : null;
     const phase = p.time * p.speed;
-    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
+    for (let y = 0; y < gridRows; y++) for (let x = 0; x < gridCols; x++) {
       const cx = gridX + (x + 0.5) * step;
       const cy = gridY + (y + 0.5) * step;
       const baseX = cx + (rand(p.seed, x, y, 0) - 0.5) * step * p.jitter;
       const baseY = cy + (rand(p.seed, x, y, 1) - 0.5) * step * p.jitter;
+      const base: Pair = [baseX, baseY];
+      if (!inside(base, region)) continue;
+      const latticeIndex = y * gridCols + x;
+      baseStyles[latticeIndex] = paintAt?.(base)?.style ?? null;
       const nx = x * 0.73, ny = y * 0.73;
       const dx = driftX ? Math.tanh((driftX(nx + phase, ny + phase * 0.37) - driftX(nx, ny)) * 2) * step * p.drift : 0;
       const dy = driftY ? Math.tanh((driftY(nx - phase * 0.41, ny + phase * 0.61) - driftY(nx, ny)) * 2) * step * p.drift : 0;
-      sites.push([baseX + dx, baseY + dy]);
+      sites[latticeIndex] = dx || dy ? keepInside(base, [baseX + dx, baseY + dy], region) : base;
     }
     const output: Shape[] = [];
     // Search from each site's original lattice address: recomputing this address after the sites move
     // can skip a real neighbour, leaving overlapping Voronoi regions. Expand for the maximum drift.
     const reach = 2 + Math.ceil(p.drift * 2);
     for (let index = 0; index < sites.length; index++) {
-      const site = sites[index]!;
-      const gx = index % nx;
-      const gy = Math.floor(index / nx);
+      const site = sites[index];
+      if (!site) continue;
+      const gx = index % gridCols;
+      const gy = Math.floor(index / gridCols);
       let cell: Pair[] = [[site[0] - step * 2.5, site[1] - step * 2.5], [site[0] + step * 2.5, site[1] - step * 2.5], [site[0] + step * 2.5, site[1] + step * 2.5], [site[0] - step * 2.5, site[1] + step * 2.5]];
       for (let oy = -reach; oy <= reach && cell.length; oy++) for (let ox = -reach; ox <= reach && cell.length; ox++) {
         const sx = gx + ox, sy = gy + oy;
-        if (sx < 0 || sy < 0 || sx >= nx || sy >= ny || (!ox && !oy)) continue;
-        const other = sites[sy * nx + sx];
+        if (sx < 0 || sy < 0 || sx >= gridCols || sy >= gridRows || (!ox && !oy)) continue;
+        const other = sites[sy * gridCols + sx];
         if (other) cell = clipHalfPlane(cell, site, other);
       }
       if (cell.length < 3) continue;
@@ -78,14 +85,38 @@ export const voronoi = defineModifier({
       // Most cells are wholly inside the silhouette. Avoid a polygon boolean operation for those.
       const clipped = covers(region, cellBounds) ? polygon : intersection(region, polygon);
       if (!clipped.length) continue;
-      const sample = paintAt ? paintAt(site) ?? paintAt(centroid(cell)) : null;
-      if (p.color === 'original' && !sample) continue;
+      const sampledStyle = paintAt ? paintAt(site)?.style ?? baseStyles[index] ?? paintAt(centroid(cell))?.style : null;
+      if (p.color === 'original' && !sampledStyle) continue;
       const subpaths = clipped.flatMap((poly) => poly.map(toSubPath)).filter((path): path is NonNullable<typeof path> => !!path);
-      if (subpaths.length) output.push({ style: p.color === 'ink' ? { fill: p.ink, stroke: 'none' } : sample!.style, subpaths, clone: index });
+      if (subpaths.length) output.push({ style: p.color === 'ink' ? { fill: p.ink, stroke: 'none' } : sampledStyle!, subpaths, clone: index });
     }
     return { viewBox: geo.viewBox, shapes: output };
   },
 });
+
+/** Keep each moving site inside the silhouette so its cell cannot vanish or enter from outside. */
+function keepInside(start: Pair, end: Pair, region: MultiPolygon): Pair {
+  let low = 0;
+  let high = 1;
+  let crossed = false;
+  // Check the path, not just its endpoint, so drift cannot jump across a concavity or hole.
+  for (let i = 1; i <= 4; i++) {
+    const t = i / 4;
+    const point: Pair = [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
+    if (inside(point, region)) low = t;
+    else { high = t; crossed = true; break; }
+  }
+  if (!crossed) return end;
+  for (let i = 0; i < 14; i++) {
+    const t = (low + high) / 2;
+    const point: Pair = [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
+    if (inside(point, region)) low = t;
+    else high = t;
+  }
+  const t = low * 0.999;
+  const point: Pair = [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
+  return inside(point, region) ? point : start;
+}
 
 function clipHalfPlane(poly: Pair[], a: Pair, b: Pair): Pair[] {
   const nx = b[0] - a[0], ny = b[1] - a[1];
