@@ -62,7 +62,7 @@
           title={error ?? 'A formula per copy: element.distance, element.u, element.index… plus props, scene variables and math functions.'}
           oninput={(e) => set(key, e.currentTarget.value)}
           use:formulaField={{ label: `${key} per copy`, commit: (next) => set(key, next) }}
-          onkeydown={(e) => e.stopPropagation()} /></div>
+          onkeydown={(e) => e.stopPropagation()} /><span class="fx" aria-hidden="true" title="A formula, evaluated for each copy">ƒx</span></div>
         <IconButton icon="trash" label={`Remove ${key} per copy`} onclick={() => remove(key)} />
       </div>
       {#if error}<span class="expression-error" role="status">{error}</span>{/if}
@@ -79,5 +79,7 @@
   .variable-expression:focus-within { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
   .variable-expression[data-invalid] { border-color: var(--sv-signal-error); }
   .expression-input { flex: 1; min-width: 0; padding: 0; color: var(--sv-text-primary); background: none; border: 0; outline: none; font: inherit; }
+  /* Always a formula: the same ƒx mark the other formula fields show, in the accent colour. */
+  .fx { flex: none; padding-left: var(--sv-space-4); color: var(--sv-accent-fill); font-size: 9px; line-height: 1; cursor: default; user-select: none; }
   .expression-error { color: var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }
 </style>
