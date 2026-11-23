@@ -10,6 +10,8 @@ import { resolveParams, type ParamSchema, type ParamValues } from './modifier';
 export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   type: string;
   label: string;
+  /** Title of the panel section that holds the shape's own parameters, when it should differ from the label. */
+  section?: string;
   params: P;
   /** Geometry centred on the origin. */
   build(p: ParamValues<P>): SubPath[];
@@ -140,9 +142,10 @@ export const ellipseShape = defineShape({
 export const donut = defineShape({
   type: 'donut',
   label: 'Donut',
+  section: 'Donut radius',
   params: {
-    radius: { type: 'number', default: 80, min: 1, step: 1, unit: 'px', label: 'Outer radius' },
-    innerRadius: { type: 'number', default: 45, min: 0, step: 1, unit: 'px', label: 'Inner radius' },
+    radius: { type: 'number', default: 80, min: 1, step: 1, unit: 'px', label: 'Outer' },
+    innerRadius: { type: 'number', default: 45, min: 0, step: 1, unit: 'px', label: 'Inner' },
     ...style,
   },
   build: ({ radius, innerRadius }) => {

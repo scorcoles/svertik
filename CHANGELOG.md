@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.7
+
+### Changed
+
+- Donut: its panel section is titled Donut radius, and its parameters are labelled Outer and Inner.
+
 ## 0.0.6
 
 ### Added

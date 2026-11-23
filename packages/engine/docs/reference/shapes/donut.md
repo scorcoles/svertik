@@ -2,14 +2,14 @@
 
 Primitive · `shape: "donut"`.
 
-A ring: a circle of Outer radius with a round hole of Inner radius, both exact curves. Inner radius 0 (or not smaller than the outer one) leaves a plain circle. Stretch the object for an elliptical ring.
+A ring: a circle of radius Outer with a round hole of radius Inner, both exact curves. Inner 0 (or not smaller than Outer) leaves a plain circle. Stretch the object for an elliptical ring.
 
 ## Parameters
 
 | Param | Type | Default | Range | Notes |
 | --- | --- | --- | --- | --- |
-| `radius` | number | `80` | min 1, step 1 | unit: px; label: Outer radius |
-| `innerRadius` | number | `45` | min 0, step 1 | unit: px; label: Inner radius |
+| `radius` | number | `80` | min 1, step 1 | unit: px; label: Outer |
+| `innerRadius` | number | `45` | min 0, step 1 | unit: px; label: Inner |
 | `fill` | boolean | `true` |  | not animatable; group: Style |
 | `fillColor` | color | `"#d9d9d9"` | #rrggbb | group: Style; label: Fill color |
 | `stroke` | boolean | `false` |  | not animatable; group: Style |

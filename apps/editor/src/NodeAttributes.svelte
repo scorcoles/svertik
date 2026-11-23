@@ -224,7 +224,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   {/if}
   {#if node.kind === 'shape' && shapeDef}
     {#if shapeMain.length || isText}
-      <Section title={shapeDef.label}>
+      <Section title={shapeDef.section ?? shapeDef.label}>
         <ParamList swatches={editor.docColors} params={beforeFont} values={node.params} schema={Object.entries(shapeDef.params)} unitContext={{ document: editor.scene?.document ?? null }} keyOf={shapeKey} onkey={(n) => editor.toggleKey({ node: node.id, on: 'shape', param: n })} onchange={setShapeParam} />
         {#if isText}
           <FontField {editor} {node} />

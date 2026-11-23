@@ -132,7 +132,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | --- | --- | --- |
 | [Rectangle](shapes/rectangle.md) | `rectangle` | A rectangle, with optional rounded corners. |
 | [Ellipse](shapes/ellipse.md) | `ellipse` | An ellipse (a circle when width and height match). |
-| [Donut](shapes/donut.md) | `donut` | A ring: a circle of Outer radius with a round hole of Inner radius, both exact curves. |
+| [Donut](shapes/donut.md) | `donut` | A ring: a circle of radius Outer with a round hole of radius Inner, both exact curves. |
 | [Polygon](shapes/polygon.md) | `polygon` | A regular polygon with any number of sides. |
 | [Star](shapes/star.md) | `star` | A star with any number of points and an inner radius (2 points make a needle or a diamond). |
 | [Cross](shapes/cross.md) | `cross` | A filled plus sign: Size controls the overall extent and Width the thickness of its arms, clamped to Size. |

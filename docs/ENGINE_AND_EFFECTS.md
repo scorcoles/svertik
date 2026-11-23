@@ -253,9 +253,9 @@ All shapes share these style parameters:
 2. **`ellipse`** (Ellipse): An ellipse (a circle when width and height match).
    - `width`: number, default `140`, 1..∞, px
    - `height`: number, default `140`, 1..∞, px
-3. **`donut`** (Donut): A ring: a circle of Outer radius with a round hole of Inner radius, both exact curves. Inner radius 0 (or not smaller than the outer one) leaves a plain circle. Stretch the object for an elliptical ring.
-   - `radius` (**Outer radius**): number, default `80`, 1..∞, px
-   - `innerRadius` (**Inner radius**): number, default `45`, 0..∞, px
+3. **`donut`** (Donut): A ring: a circle of radius Outer with a round hole of radius Inner, both exact curves. Inner 0 (or not smaller than Outer) leaves a plain circle. Stretch the object for an elliptical ring.
+   - `radius` (**Outer**): number, default `80`, 1..∞, px
+   - `innerRadius` (**Inner**): number, default `45`, 0..∞, px
 4. **`polygon`** (Polygon): A regular polygon with any number of sides.
    - `radius`: number, default `80`, 1..∞, px
    - `sides`: number, default `6`, 3..64
