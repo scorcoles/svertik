@@ -349,7 +349,12 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `axis`: "x" | "y", default `"x"`, not animatable
    - `start`: number, default `0.5`, -0.99..0.99
    - `end`: number, default `-0.5`, -0.99..0.99
-9. **`rope`** (Rope): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle that pushes the ropes out of its way (bind Pointer to the cursor with `scene.mouse` formulas, Space set to Scene). Time follows scene.time unless it is set; keep Rope first in the stack, as it keeps its state between frames. Closed paths are left alone.
+9. **`compress`** (Compress): Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. The center goes from Center start at one edge (top for axis x, left for axis y) to Center end at the other. With Rigid Pieces first, evenly spaced marks keep their shape and pile into a solid bar at the center, so a Clone grid gets a dense band that can sweep diagonally row by row.
+   - `axis`: "x" | "y", default `"x"`, not animatable
+   - `start` (**Center start**): number, default `0.5`, 0..1, fraction
+   - `end` (**Center end**): number, default `0.5`, 0..1, fraction
+   - `strength`: number, default `0.7`, -1..1
+10. **`rope`** (Rope): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle that pushes the ropes out of its way (bind Pointer to the cursor with `scene.mouse` formulas, Space set to Scene). Time follows scene.time unless it is set; keep Rope first in the stack, as it keeps its state between frames. Closed paths are left alone.
    - `time` (**Time (s)**): number, default `scene.time` (ƒx; `0` as fallback), 0..100000
    - `gravity`: number, default `1`, 0..10, fraction
    - `wind`: number, default `0`, 0..5
@@ -361,63 +366,63 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `radius`: number, default `0`, 0..1, fraction
    - `settle` (**Settle (s)**): number, default `0`, 0..10, s, not animatable
    - `seed`: seed, default `1`
-10. **`shear`** (Shear): Slants the drawing: X shifts with the height and Y with the width, around the center.
+11. **`shear`** (Shear): Slants the drawing: X shifts with the height and Y with the width, around the center.
    - `x` (**Shear X**): angle, default `20`
    - `y` (**Shear Y**): angle, default `0`
-11. **`wave`** (Wave): Makes the drawing wavy: moves each point across the direction of the wave.
+12. **`wave`** (Wave): Makes the drawing wavy: moves each point across the direction of the wave.
    - `amplitude`: number, default `0.05`, 0..0.5, fraction
    - `wavelength`: number, default `0.5`, 0.01..2, fraction
    - `phase`: angle, default `0`
    - `direction`: angle, default `0`
-12. **`ripple`** (Ripple): Concentric waves from a point, like a drop in water; they fade with the distance.
+13. **`ripple`** (Ripple): Concentric waves from a point, like a drop in water; they fade with the distance.
    - `amplitude`: number, default `0.03`, 0..0.2, fraction
    - `wavelength`: number, default `0.15`, 0.02..1, fraction
    - `phase`: angle, default `0`
    - `decay`: number, default `1`, 0..5
    - `center`: point, default `[0.5,0.5]`, fraction
-13. **`noise`** (Noise): Moves each point with smooth noise: an organic, hand-drawn look.
+14. **`noise`** (Noise): Moves each point with smooth noise: an organic, hand-drawn look.
    - `amount`: number, default `0.03`, 0..∞, fraction
    - `scale` (**Frequency**): number, default `4`, 0.1..∞
    - `evolution`: number, default `0`
    - `seed`: seed, default `1`
-14. **`roughen`** (Roughen): Fractal edges on any drawing: `organic` tears the outline (midpoint displacement, like a coastline or torn paper); `koch` turns each segment into a Koch peak, `iterations` times. Curves become straight segments.
+15. **`roughen`** (Roughen): Fractal edges on any drawing: `organic` tears the outline (midpoint displacement, like a coastline or torn paper); `koch` turns each segment into a Koch peak, `iterations` times. Curves become straight segments.
    - `mode`: "organic" | "koch", default `"organic"`, not animatable
    - `amount`: number, default `0.5`, 0..1
    - `detail`: number, default `0.02`, 0.004..0.2, fraction
    - `seed`: seed, default `1`
    - `iterations`: number, default `2`, 1..4
    - `height` (**Peak**): number, default `0.29`, -0.6..0.6
-15. **`roundcorners`** (Round Corners): Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). A corner radius is capped at half the length of either adjoining side. Smooth curves are left alone; `limit` keeps corners wider than that angle. Set Corners to Random to choose a stable seeded subset independently for each clone.
+16. **`roundcorners`** (Round Corners): Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). A corner radius is capped at half the length of either adjoining side. Smooth curves are left alone; `limit` keeps corners wider than that angle. Set Corners to Random to choose a stable seeded subset independently for each clone.
    - `radius`: number, default `12`, 0..500, px
    - `limit` (**Angle limit**): number, default `180`, 0..180, °
    - `shape`: "round" | "chamfer", default `"round"`, not animatable
    - `corners`: "all" | "random", default `"all"`, not animatable
    - `seed`: seed, default `1`
-16. **`blob`** (Blob): Turns every outline into a blob: a smooth closed curve with no straight sides or corners. Inset first pulls the outline inwards (px; negative grows it), which on touching cells such as Voronoi or Mosaic opens the gaps between them; a cell smaller than the inset disappears. Roundness sets how much of each side the corners take: 0 keeps the polygon, 1 is a tangent-continuous curve through the middle of every side. Curved input is sampled first, so circles stay round and straight sides keep their real corners. Open paths keep their ends. Stack Noise or Displace after it for an irregular, organic edge.
+17. **`blob`** (Blob): Turns every outline into a blob: a smooth closed curve with no straight sides or corners. Inset first pulls the outline inwards (px; negative grows it), which on touching cells such as Voronoi or Mosaic opens the gaps between them; a cell smaller than the inset disappears. Roundness sets how much of each side the corners take: 0 keeps the polygon, 1 is a tangent-continuous curve through the middle of every side. Curved input is sampled first, so circles stay round and straight sides keep their real corners. Open paths keep their ends. Stack Noise or Displace after it for an irregular, organic edge.
    - `roundness`: number, default `1`, 0..1
    - `inset`: number, default `0`, -100..200, px
-17. **`spikes`** (Spikes): Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards). `curve` shapes the sides: 0 straight, towards 1 hollow like thorns, towards -1 bulging like petals. `width` leaves outline between spikes, `lean` tilts the tips and `phase` slides them along.
+18. **`spikes`** (Spikes): Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards). `curve` shapes the sides: 0 straight, towards 1 hollow like thorns, towards -1 bulging like petals. `width` leaves outline between spikes, `lean` tilts the tips and `phase` slides them along.
    - `count`: number, default `12`, 1..200
    - `height`: number, default `30`, -500..500, px
    - `curve`: number, default `0`, -1..1
    - `width`: number, default `1`, 0.05..1, fraction
    - `lean`: number, default `0`, -1..1
    - `phase`: number, default `0`, 0..1, fraction
-18. **`melt`** (Melt): The drawing drips downwards, more the lower it is; noise decides where the drops fall.
+19. **`melt`** (Melt): The drawing drips downwards, more the lower it is; noise decides where the drops fall.
    - `amount`: number, default `0.25`, 0..1, fraction
    - `drips`: number, default `6`, 1..30
    - `sharpness`: number, default `2`, 0.5..6
    - `seed`: seed, default `1`
-19. **`cylinder`** (Cylinder): Wraps the drawing around a vertical cylinder (like the label of a can). `wrap` is the part of the turn the drawing covers; the sides compress and move closer or away.
+20. **`cylinder`** (Cylinder): Wraps the drawing around a vertical cylinder (like the label of a can). `wrap` is the part of the turn the drawing covers; the sides compress and move closer or away.
    - `wrap`: number, default `0.5`, 0.01..1
    - `rotation`: angle, default `0`
    - `perspective`: number, default `0.15`, 0..1
-20. **`perspective`** (Perspective): Free perspective: each corner of the drawing goes where you drag its handle.
+21. **`perspective`** (Perspective): Free perspective: each corner of the drawing goes where you drag its handle.
    - `topLeft` (**Top left**): point, default `[0.1,0]`, fraction
    - `topRight` (**Top right**): point, default `[0.9,0]`, fraction
    - `bottomRight` (**Bottom right**): point, default `[1,1]`, fraction
    - `bottomLeft` (**Bottom left**): point, default `[0,1]`, fraction
-21. **`envelope`** (Envelope): Envelope distortion: drag the nine points of the mesh and the drawing bends with it.
+22. **`envelope`** (Envelope): Envelope distortion: drag the nine points of the mesh and the drawing bends with it.
    - `p00` (**Top left**): point, default `[0,0]`, fraction
    - `p10` (**Top**): point, default `[0.5,0]`, fraction
    - `p20` (**Top right**): point, default `[1,0]`, fraction
@@ -427,34 +432,34 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `p02` (**Bottom left**): point, default `[0,1]`, fraction
    - `p12` (**Bottom**): point, default `[0.5,1]`, fraction
    - `p22` (**Bottom right**): point, default `[1,1]`, fraction
-22. **`pathwrap`** (Path Wrap): Wraps the drawing along another object's path (its longest one). The drawing's axis follows the path; what is across it moves away from it. `stretch` fills the whole path; `keep` keeps its length and starts at `offset`.
+23. **`pathwrap`** (Path Wrap): Wraps the drawing along another object's path (its longest one). The drawing's axis follows the path; what is across it moves away from it. `stretch` fills the whole path; `keep` keeps its length and starts at `offset`.
    - `target` (**Path**): node, default `""`
    - `axis`: "horizontal" | "vertical", default `"horizontal"`, not animatable
    - `fit`: "stretch" | "keep", default `"stretch"`, not animatable
    - `offset`: number, default `0`, -1..1, fraction
-23. **`followpath`** (Follow Path, menu Utils): Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). `anchor` is the point of the object that sits on the path; `orient` turns it with the path.
+24. **`followpath`** (Follow Path, menu Utils): Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). `anchor` is the point of the object that sits on the path; `orient` turns it with the path.
    - `target` (**Path**): node, default `""`
    - `position`: number, default `0`, 0..1
    - `orient`: boolean, default `true`
    - `angle`: angle, default `0`
    - `offset`: number, default `0`, -500..500, px
    - `anchor`: point, default `[0.5,0.5]`, fraction
-24. **`lookat`** (Look At, menu Utils): Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.
+25. **`lookat`** (Look At, menu Utils): Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.
    - `target`: node, default `""`
    - `facing`: angle, default `0`
    - `amount`: number, default `1`, 0..1
    - `pivot`: point, default `[0.5,0.5]`, fraction
-25. **`morph`** (Morph): Morphs this drawing into another object's shape. Paths are paired (largest with largest), resampled to the same number of points and interpolated; extra paths grow from (or shrink to) a point. Fill and stroke blend too. With `steps`, the in-between shapes as separate elements.
+26. **`morph`** (Morph): Morphs this drawing into another object's shape. Paths are paired (largest with largest), resampled to the same number of points and interpolated; extra paths grow from (or shrink to) a point. Fill and stroke blend too. With `steps`, the in-between shapes as separate elements.
    - `target` (**To**): node, default `""`
    - `amount`: number, default `0.5`, 0..1
    - `points`: number, default `200`, 16..1000
    - `colors` (**Blend colors**): boolean, default `true`, not animatable
    - `steps`: number, default `0`, 0..100
-26. **`trim`** (Trim): Trims paths (draws them): only the part of each path between Start and End (fractions of its length) remains, shifted by Offset; closed paths wrap around. Animate End from 0 to 1 and the stroke draws itself.
+27. **`trim`** (Trim): Trims paths (draws them): only the part of each path between Start and End (fractions of its length) remains, shifted by Offset; closed paths wrap around. Animate End from 0 to 1 and the stroke draws itself.
    - `start`: number, default `0`, 0..1
    - `end`: number, default `0.5`, 0..1
    - `offset`: number, default `0`, -1..1
-27. **`softbody`** (Soft Body, menu Effect): Elastic material for open fibres and closed bodies. Stiffness, Bending, Keep area, Damping and Recovery define deformation and recovery; fibres may be free or pinned. Body model defaults to Outline; Beam adds a flexible internal spine and cross-sections that carry a broad bend through a closed, elongated body, then recover toward its rigid rest shape as impacts settle. Recovery controls how strongly it returns once internal motion dies down; Bounce and floor contacts still come from Gravity or Physics. Changes no geometry by itself. Apply to chooses both, fibres only or closed bodies only.
+28. **`softbody`** (Soft Body, menu Effect): Elastic material for open fibres and closed bodies. Stiffness, Bending, Keep area, Damping and Recovery define deformation and recovery; fibres may be free or pinned. Body model defaults to Outline; Beam adds a flexible internal spine and cross-sections that carry a broad bend through a closed, elongated body, then recover toward its rigid rest shape as impacts settle. Recovery controls how strongly it returns once internal motion dies down; Bounce and floor contacts still come from Gravity or Physics. Changes no geometry by itself. Apply to chooses both, fibres only or closed bodies only.
    - `mode` (**Apply to**): "auto" | "fibers" | "bodies", default `"auto"`, not animatable
    - `body` (**Body model**): "outline" | "beam", default `"outline"`, not animatable
    - `stiffness`: number, default `0.8`, 0..1
@@ -464,7 +469,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `recovery`: number, default `10`, 0..100
    - `pins` (**Pin fibers**): "free" | "start" | "ends", default `"free"`, not animatable
    - `segments` (**Resolution**): number, default `24`, 4..64, not animatable
-28. **`rigidbody`** (Rigid Body, menu Effect): How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
+29. **`rigidbody`** (Rigid Body, menu Effect): How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
    - `velocity`: point, default `[0,0]`, px
    - `spin`: number, default `0`, °/s
    - `immovable`: boolean, default `false`

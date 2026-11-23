@@ -41,6 +41,7 @@ export const effectLoaders: Record<string, EffectLoader> = {
   spikes: one(() => import('./spikes'), 'spikes'),
   taper: one(() => import('./taper'), 'taper'),
   gather: one(() => import('./gather'), 'gather'),
+  compress: one(() => import('./compress'), 'compress'),
   rope: one(() => import('./rope'), 'rope'),
   transform: one(() => import('./transform'), 'transform'),
   twist: one(() => import('./twist'), 'twist'),

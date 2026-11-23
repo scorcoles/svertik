@@ -50,6 +50,7 @@ import { spirograph } from './spirograph';
 import { shear } from './shear';
 import { taper } from './taper';
 import { gather } from './gather';
+import { compress } from './compress';
 import { rope } from './rope';
 import { tint } from './tint';
 import { trace } from './trace';
@@ -75,7 +76,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, radialcut, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, flowfield, wavelines, fractal, gradient, imagefill, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, blob, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, rope, weave, stringart, spirograph };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, radialcut, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, flowfield, wavelines, fractal, gradient, imagefill, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, blob, shear, spherize, spikes, stagger, step, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, compress, rope, weave, stringart, spirograph };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [
@@ -87,6 +88,7 @@ export const builtins = [
   bones,
   taper,
   gather,
+  compress,
   rope,
   shear,
   wave,
