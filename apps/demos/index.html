@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>svertik · chain</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>svertik <span>/ chain</span></h1>
+      <p>A rectangle, and a stack of modifiers applied one after another. Every step is re-evaluated each frame from the same untouched source.</p>
+      <nav>
+        <button type="button" data-action="pause">Pause</button>
+        <button type="button" data-action="svg">Download SVG</button>
+        <button type="button" data-action="json">Copy JSON</button>
+      </nav>
+    </header>
+    <main>
+      <figure class="result">
+        <svg data-result aria-label="Result"></svg>
+      </figure>
+      <ol class="steps" data-steps></ol>
+    </main>
+    <script type="module" src="/src/chain.ts"></script>
+  </body>
+</html>

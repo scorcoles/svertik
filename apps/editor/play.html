@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A scene made with svertik." />
+    <title>svertik · play</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=pawn-2" />
+    <style>
+      /* Only the scene: no editor (the engine and the player, nothing else). */
+      html, body { margin: 0; height: 100%; background: #b0b0b0; overflow: hidden; }
+      body { display: grid; place-items: center; font: 11px/1.4 'Commit Mono', ui-monospace, monospace; color: #b5b5b5; }
+      /* Loading screen: while the engine chunks arrive, in stages (as in index.html). */
+      #boot { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; background: #0b0b0b; color: #ededed; font: 600 13px/1.4 'Commit Mono', ui-monospace, monospace; letter-spacing: 0.04em; transition: opacity 200ms; }
+      #boot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; justify-items: center; }
+      #boot li { display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity 260ms ease; }
+      #boot li.active, #boot li.done { opacity: 1; }
+      #boot li .status { width: 14px; text-align: center; color: #09fdd1; }
+      #boot li .status::before { content: ''; display: inline-block; width: 8px; height: 8px; border: 1px solid currentColor; border-radius: 50%; animation: boot-spin 0.8s linear infinite; }
+      #boot li.done .status::before { content: '✓'; border: 0; width: auto; height: auto; animation: none; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot { transition: opacity 0ms linear; } #boot li { transition: opacity 0ms linear; } #boot li .status::before { animation: none; } }
+      body.wire { background: #101216 !important; }
+      #stage { width: min(92vw, 100%); height: 92vh; overflow: visible; }
+      #stage.full-viewport { width: 100vw; height: 100dvh; overflow: hidden; }
+      #tools { position: fixed; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0.46; transition: opacity 180ms; }
+      #tools[hidden] { display: none; }
+      #tools[data-active], #tools:focus-within { opacity: 1; }
+      #tools button {
+        display: grid; place-items: center; height: 28px; padding: 0 10px; font: inherit; color: #fff; text-decoration: none;
+        background: rgb(10 12 16 / 0.94); border: 1px solid rgb(255 255 255 / 0.48); cursor: pointer;
+      }
+      #tools button:disabled { opacity: 0.45; cursor: wait; }
+      #tools svg { width: 16px; height: 16px; fill: none; stroke: currentColor; }
+      #msg { position: fixed; bottom: 16px; margin: 0; padding: 4px 8px; background: rgb(0 0 0 / 0.4); transition: opacity 400ms; }
+      #msg[hidden] { display: block; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="boot" role="status" aria-label="Loading svertik"><ul></ul></div>
+    <svg id="stage" aria-label="svertik scene"></svg>
+    <nav id="tools">
+      <button type="button" id="capture" disabled aria-label="Download current frame as PNG" title="Download current frame as PNG">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13v11h-13z M4 6a1.25 1.25 0 1 0 2.5 0A1.25 1.25 0 1 0 4 6 M2 12l4-4 2.5 2 2.5-3 3 4" /></svg>
+      </button>
+      <button type="button" id="video" disabled aria-label="Export one cycle as MP4" title="Export one cycle as MP4">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13v11h-13z M4.5 2.5v11 M11.5 2.5v11 M1.5 6h3 M1.5 10h3 M11.5 6h3 M11.5 10h3" /></svg>
+      </button>
+    </nav>
+    <p id="msg" hidden aria-live="polite"></p>
+    <script type="module" src="./src/play.ts"></script>
+  </body>
+</html>

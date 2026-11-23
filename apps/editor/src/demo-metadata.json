@@ -1,0 +1,14 @@
+[
+  { "which": "title", "title": "Title Sequence", "description": "A title card on tape" },
+  { "which": "playground", "title": "Playground", "description": "Paint a kaleidoscope with the pointer" },
+  { "which": "orrery", "title": "Orrery", "description": "Clockwork orbits and real gravity" },
+  { "which": "printlab", "title": "Print Lab", "description": "A risograph sheet that reprints itself" },
+  { "which": "plotter", "title": "Plotter", "description": "Six line generators drawn by pen" },
+  { "which": "cells", "title": "Cells", "description": "A living specimen under the microscope" },
+  { "which": "fireworks", "title": "Harbor Fireworks", "description": "A particle show over the water" },
+  { "which": "softcells", "title": "Soft Cells", "description": "Soft bodies pile up into blobs" },
+  { "which": "liftsink", "title": "Lift & Sink", "description": "Drop, push, throw and burst soft cells and balloons" },
+  { "which": "magnets", "title": "Fridge Magnets", "description": "Throw, knock and break letter magnets" },
+  { "which": "wires", "title": "Wires", "description": "48 ropes in the wind, parted by the pointer" },
+  { "which": "shatter", "title": "Shatter", "description": "A triangle that explodes" }
+]

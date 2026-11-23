@@ -1,0 +1,54 @@
+{
+  "name": "@svertik/engine",
+  "version": "0.0.5",
+  "description": "Non-destructive SVG effects and motion: a scene in JSON, an effect stack per object, keyframes and interactions, evaluated to plain SVG.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scorcoles/svertik.git",
+    "directory": "packages/engine"
+  },
+  "keywords": [
+    "svg",
+    "effects",
+    "animation",
+    "motion",
+    "generative",
+    "vector"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./engine": "./src/engine.ts",
+    "./effects": "./src/modifiers/index.ts",
+    "./player": "./src/player.ts",
+    "./scene": "./src/scene.ts",
+    "./import": "./src/import.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "corpus:bench": "tsx test/corpus/bench.ts",
+    "corpus:update": "tsx test/corpus/update.ts"
+  },
+  "dependencies": {
+    "earcut": "3.0.2",
+    "opentype.js": "2.0.0",
+    "polygon-clipping": "0.15.7",
+    "svgpath": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/opentype.js": "^1.3.10",
+    "happy-dom": "^21.0.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "tsx": "4.23.15"
+  },
+  "files": [
+    "src",
+    "docs",
+    "AGENTS.md",
+    "README.md"
+  ]
+}

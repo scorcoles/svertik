@@ -1,0 +1,102 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Particles",
+  "canvas": "#F2E8DA",
+  "scene": {
+    "version": 1,
+    "document": {
+      "width": 1280,
+      "height": 900
+    },
+    "notes": "Two continuous particle emitters on a 1280×900 canvas. Each Particles generator duplicates its own complete source geometry and colours: a circle on the left, and a two-colour rectangle on the right. Time follows scene.time. Seeded births are reproducible when seeking.",
+    "objects": [
+      {
+        "kind": "shape",
+        "id": "mixed-emitter",
+        "name": "Circle",
+        "shape": "ellipse",
+        "params": {
+          "width": 420,
+          "height": 420,
+          "fill": true,
+          "fillColor": "#D2502F",
+          "stroke": false
+        },
+        "transform": {
+          "x": -285,
+          "y": 220
+        },
+        "stack": [
+          {
+            "id": "mixed-particles",
+            "type": "particles",
+            "params": {
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 1
+              },
+              "emission": "stream",
+              "count": 150,
+              "lifetime": 3,
+              "emitter": "line",
+              "area": [
+                0.3,
+                0.15
+              ],
+              "size": 0.045,
+              "direction": -90,
+              "spread": 65,
+              "speed": 1.2,
+              "gravity": 0.85,
+              "spin": 210
+            }
+          }
+        ]
+      },
+      {
+        "kind": "object",
+        "id": "object-emitter",
+        "name": "Confetti",
+        "transform": {
+          "x": 285,
+          "y": 220
+        },
+        "stack": [
+          {
+            "id": "object-particles",
+            "type": "particles",
+            "params": {
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 1
+              },
+              "emission": "stream",
+              "count": 55,
+              "lifetime": 3,
+              "emitter": "line",
+              "area": [
+                0.3,
+                0.15
+              ],
+              "size": 0.065,
+              "direction": -90,
+              "spread": 65,
+              "speed": 1.2,
+              "gravity": 0.85,
+              "spin": 160
+            }
+          }
+        ],
+        "source": "<svg viewBox=\"0 0 420 252\"><rect width=\"210\" height=\"252\" fill=\"#D2502F\"/><rect x=\"210\" width=\"210\" height=\"252\" fill=\"#455A64\"/></svg>"
+      }
+    ],
+    "animation": {
+      "duration": 8,
+      "fps": 30,
+      "loop": true,
+      "autoplay": true,
+      "tracks": []
+    }
+  }
+}

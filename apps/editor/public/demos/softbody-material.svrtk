@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "document": {
+    "width": 1400,
+    "height": 900
+  },
+  "objects": [
+    {
+      "kind": "shape",
+      "id": "cross-avl5bu",
+      "name": "Cross",
+      "shape": "cross",
+      "params": {
+        "size": 129,
+        "width": 22,
+        "fill": true,
+        "fillColor": "#333333"
+      },
+      "stack": [
+        {
+          "id": "clone-bbat1a",
+          "type": "clone",
+          "params": {
+            "mode": "grid",
+            "columns": 3.019855,
+            "rows": 3.019855,
+            "spacing": [
+              1.22,
+              1.47
+            ]
+          }
+        },
+        {
+          "id": "range-tx6sfd",
+          "type": "range",
+          "params": {
+            "selector": "even",
+            "unit": "elements",
+            "shape": "square"
+          },
+          "children": [
+            {
+              "id": "transform-3lk0iv",
+              "type": "transform",
+              "params": {
+                "rotation": 50,
+                "scale": 1.73
+              }
+            },
+            {
+              "id": "softbody-05k05j",
+              "type": "softbody",
+              "params": {
+                "mode": "bodies",
+                "stiffness": 0.7,
+                "bending": 0.69,
+                "volume": 0.9,
+                "damping": 0.56,
+                "pins": "free",
+                "segments": 37
+              }
+            }
+          ]
+        },
+        {
+          "id": "gravity-sd2lk7",
+          "type": "gravity",
+          "params": {
+            "time": {
+              "$expr": "scene.time",
+              "fallback": 1
+            },
+            "gravity": 1,
+            "floor": [
+              0.493,
+              1.258
+            ],
+            "rotation": 0,
+            "collisions": true,
+            "solids": [],
+            "physics": true,
+            "friction": 0.7,
+            "bounce": 0.37
+          }
+        }
+      ]
+    }
+  ],
+  "animation": {
+    "duration": 3,
+    "loop": true,
+    "fps": 30,
+    "tracks": []
+  },
+  "notes": "Firm-rubber material on even copies. Stack order is Clone, then Range (Transform + Soft Body), then Gravity. Select Range in the stack and press W to inspect its selection. Gravity owns the clock, forces and contacts; Soft Body owns only material properties."
+}

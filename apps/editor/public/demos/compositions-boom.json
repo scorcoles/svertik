@@ -1,0 +1,543 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Compositions",
+  "canvas": "#F2E8DA",
+  "scene": {
+    "version": 1,
+    "document": {
+      "width": 1400,
+      "height": 900
+    },
+    "notes": "Two independent copies of the BOOM scene. Boom runs at normal speed; Boom slow at 60%. Open either composition to edit its own Circle, Boom and confetti. Return with the breadcrumb above. Both scenes have identical local IDs safely isolated from one another. Their effects, physics, expressions and keyframes follow their local clocks.",
+    "animation": {
+      "duration": 5,
+      "loop": true,
+      "autoplay": true,
+      "fps": 30,
+      "tracks": []
+    },
+    "objects": [
+      {
+        "kind": "group",
+        "id": "boom-normal",
+        "name": "Boom",
+        "children": [],
+        "stack": [],
+        "transform": {
+          "x": -350,
+          "scale": 0.45
+        },
+        "composition": {
+          "scene": {
+            "version": 1,
+            "document": {
+              "width": 1280,
+              "height": 900
+            },
+            "notes": "A centred circle on a 1280×900 canvas, coloured #D2502F. Damage with five Through cuts, followed by Explosion and Gravity with rigid bodies. At the start the circle is centred; the cuts grow between 0.4 and 1.1 s, it gets the Explosion impulse between 1.2 and 1.24 s, and Gravity integrates the exit velocity and spin from 1.2 s. A very energetic explosion (force 3, spin 900°/s) with a wide spread: many pieces deliberately leave the frame and keep their inertia. The virtual floor sits at Y=378. Select Gravity to move or rotate the floor. Use the bottom controls to play without opening the timeline. The pieces collide with the floor, not with each other. BOOM appears behind the fragments, in capitals and the same #D2502F, with a very fast near-simultaneous entrance from 1.26 to 1.44 s and a small bounce. It stays large and centred (400 px text size). Circle makes a small scale anticipation before bursting (0.94 → 1.06 → 1), easing back to normal scale by 1.42 s. Confetti bursts 200 #D2502F particles as it explodes, with fast spin, fall and fade; it is hidden before 1.2 s.",
+            "objects": [
+              {
+                "kind": "shape",
+                "id": "gravity-circle",
+                "name": "Circle",
+                "shape": "ellipse",
+                "params": {
+                  "width": 420,
+                  "height": 420,
+                  "fill": true,
+                  "fillColor": "#D2502F",
+                  "stroke": false
+                },
+                "transform": {
+                  "x": 0,
+                  "y": 0
+                },
+                "stack": [
+                  {
+                    "id": "gravity-circle-damage",
+                    "type": "damage",
+                    "params": {
+                      "seed": 12,
+                      "growth": {
+                        "$expr": "clamp((scene.time - 0.4) / 0.7, 0, 1)",
+                        "fallback": 0
+                      },
+                      "through": 5,
+                      "cracks": 5,
+                      "width": 0.007,
+                      "jagged": 0.45,
+                      "roughness": 0.25,
+                      "chips": 0,
+                      "specks": 0
+                    }
+                  },
+                  {
+                    "id": "gravity-circle-explosion",
+                    "type": "explosion",
+                    "params": {
+                      "motion": "impulse",
+                      "amount": {
+                        "$expr": "clamp((scene.time - 1.2) / 0.04, 0, 1)",
+                        "fallback": 0
+                      },
+                      "force": 3,
+                      "spin": 900,
+                      "shrink": 0,
+                      "chaos": 0.8,
+                      "seed": 7,
+                      "center": [
+                        0.5,
+                        0.5
+                      ]
+                    }
+                  },
+                  {
+                    "id": "gravity-circle-gravity",
+                    "type": "gravity",
+                    "params": {
+                      "time": {
+                        "$expr": "max(0, scene.time - 1.2)",
+                        "fallback": 0
+                      },
+                      "gravity": 1.6,
+                      "floor": [
+                        0.5,
+                        1.4
+                      ],
+                      "rotation": 0,
+                      "physics": true,
+                      "friction": 0.55,
+                      "bounce": 0.35
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "shape",
+                "id": "gravity-confetti",
+                "name": "Confetti",
+                "shape": "rectangle",
+                "params": {
+                  "width": 420,
+                  "height": 147,
+                  "fill": true,
+                  "fillColor": "#D2502F",
+                  "stroke": false
+                },
+                "transform": {
+                  "x": 0,
+                  "y": 0
+                },
+                "stack": [
+                  {
+                    "id": "gravity-confetti-particles",
+                    "type": "particles",
+                    "params": {
+                      "time": {
+                        "$expr": "max(0, scene.time - 1.2)",
+                        "fallback": 0
+                      },
+                      "emission": "burst",
+                      "count": 60,
+                      "lifetime": 3.4,
+                      "emitter": "point",
+                      "center": [
+                        0.5,
+                        0.5
+                      ],
+                      "motion": "free",
+                      "direction": -90,
+                      "spread": 260,
+                      "speed": 2.1,
+                      "speedRandom": 0.55,
+                      "spin": 650,
+                      "gravity": 1.2,
+                      "size": 0.03,
+                      "sizeRandom": 0.55,
+                      "fade": 0.35,
+                      "seed": 23
+                    }
+                  },
+                  {
+                    "id": "gravity-confetti-reveal",
+                    "type": "opacity",
+                    "params": {
+                      "opacity": {
+                        "$expr": "clamp((scene.time - 1.2) / 0.035, 0, 1)",
+                        "fallback": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "shape",
+                "id": "gravity-boom",
+                "name": "Boom",
+                "shape": "text",
+                "params": {
+                  "text": "BOOM",
+                  "font": "Commit Mono",
+                  "weight": 700,
+                  "size": 400,
+                  "tracking": -45,
+                  "align": "center",
+                  "fill": true,
+                  "fillColor": "#D2502F",
+                  "stroke": false
+                },
+                "transform": {
+                  "x": 0,
+                  "y": 0
+                },
+                "stack": [
+                  {
+                    "id": "gravity-boom-entrance",
+                    "type": "stagger",
+                    "params": {
+                      "progress": {
+                        "$expr": "clamp((scene.time - 1.26) / 0.18, 0, 1)",
+                        "fallback": 0
+                      },
+                      "direction": "in",
+                      "stagger": 0.06,
+                      "ease": "back-out",
+                      "order": "forward"
+                    },
+                    "children": [
+                      {
+                        "id": "gravity-boom-rise",
+                        "type": "transform",
+                        "params": {
+                          "y": 25,
+                          "rotation": -5,
+                          "scale": 0.5
+                        }
+                      },
+                      {
+                        "id": "gravity-boom-fade",
+                        "type": "opacity",
+                        "params": {
+                          "opacity": 0
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "animation": {
+              "duration": 8,
+              "fps": 30,
+              "loop": true,
+              "autoplay": true,
+              "tracks": [
+                {
+                  "id": "gravity-circle-anticipation",
+                  "node": "gravity-circle",
+                  "on": "node",
+                  "param": "scale",
+                  "keys": [
+                    {
+                      "t": 0,
+                      "value": 1,
+                      "ease": "linear"
+                    },
+                    {
+                      "t": 0.78,
+                      "value": 1,
+                      "ease": "ease-in"
+                    },
+                    {
+                      "t": 1.04,
+                      "value": 0.94,
+                      "ease": "ease-out"
+                    },
+                    {
+                      "t": 1.17,
+                      "value": 1.06,
+                      "ease": "ease-in-out"
+                    },
+                    {
+                      "t": 1.42,
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "params": {
+            "time": {
+              "$expr": "scene.time",
+              "fallback": 0
+            },
+            "speed": 1,
+            "loop": "hold"
+          }
+        }
+      },
+      {
+        "kind": "group",
+        "id": "boom-slow",
+        "name": "Boom slow",
+        "children": [],
+        "stack": [],
+        "transform": {
+          "x": 350,
+          "scale": 0.45
+        },
+        "composition": {
+          "scene": {
+            "version": 1,
+            "document": {
+              "width": 1280,
+              "height": 900
+            },
+            "notes": "A centred circle on a 1280×900 canvas, coloured #D2502F. Damage with five Through cuts, followed by Explosion and Gravity with rigid bodies. At the start the circle is centred; the cuts grow between 0.4 and 1.1 s, it gets the Explosion impulse between 1.2 and 1.24 s, and Gravity integrates the exit velocity and spin from 1.2 s. A very energetic explosion (force 3, spin 900°/s) with a wide spread: many pieces deliberately leave the frame and keep their inertia. The virtual floor sits at Y=378. Select Gravity to move or rotate the floor. Use the bottom controls to play without opening the timeline. The pieces collide with the floor, not with each other. BOOM appears behind the fragments, in capitals and the same #D2502F, with a very fast near-simultaneous entrance from 1.26 to 1.44 s and a small bounce. It stays large and centred (400 px text size). Circle makes a small scale anticipation before bursting (0.94 → 1.06 → 1), easing back to normal scale by 1.42 s. Confetti bursts 200 #D2502F particles as it explodes, with fast spin, fall and fade; it is hidden before 1.2 s.",
+            "objects": [
+              {
+                "kind": "shape",
+                "id": "gravity-circle",
+                "name": "Circle",
+                "shape": "ellipse",
+                "params": {
+                  "width": 420,
+                  "height": 420,
+                  "fill": true,
+                  "fillColor": "#D2502F",
+                  "stroke": false
+                },
+                "transform": {
+                  "x": 0,
+                  "y": 0
+                },
+                "stack": [
+                  {
+                    "id": "gravity-circle-damage",
+                    "type": "damage",
+                    "params": {
+                      "seed": 12,
+                      "growth": {
+                        "$expr": "clamp((scene.time - 0.4) / 0.7, 0, 1)",
+                        "fallback": 0
+                      },
+                      "through": 5,
+                      "cracks": 5,
+                      "width": 0.007,
+                      "jagged": 0.45,
+                      "roughness": 0.25,
+                      "chips": 0,
+                      "specks": 0
+                    }
+                  },
+                  {
+                    "id": "gravity-circle-explosion",
+                    "type": "explosion",
+                    "params": {
+                      "motion": "impulse",
+                      "amount": {
+                        "$expr": "clamp((scene.time - 1.2) / 0.04, 0, 1)",
+                        "fallback": 0
+                      },
+                      "force": 3,
+                      "spin": 900,
+                      "shrink": 0,
+                      "chaos": 0.8,
+                      "seed": 7,
+                      "center": [
+                        0.5,
+                        0.5
+                      ]
+                    }
+                  },
+                  {
+                    "id": "gravity-circle-gravity",
+                    "type": "gravity",
+                    "params": {
+                      "time": {
+                        "$expr": "max(0, scene.time - 1.2)",
+                        "fallback": 0
+                      },
+                      "gravity": 1.6,
+                      "floor": [
+                        0.5,
+                        1.4
+                      ],
+                      "rotation": 0,
+                      "physics": true,
+                      "friction": 0.55,
+                      "bounce": 0.35
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "shape",
+                "id": "gravity-confetti",
+                "name": "Confetti",
+                "shape": "rectangle",
+                "params": {
+                  "width": 420,
+                  "height": 147,
+                  "fill": true,
+                  "fillColor": "#D2502F",
+                  "stroke": false
+                },
+                "transform": {
+                  "x": 0,
+                  "y": 0
+                },
+                "stack": [
+                  {
+                    "id": "gravity-confetti-particles",
+                    "type": "particles",
+                    "params": {
+                      "time": {
+                        "$expr": "max(0, scene.time - 1.2)",
+                        "fallback": 0
+                      },
+                      "emission": "burst",
+                      "count": 60,
+                      "lifetime": 3.4,
+                      "emitter": "point",
+                      "center": [
+                        0.5,
+                        0.5
+                      ],
+                      "motion": "free",
+                      "direction": -90,
+                      "spread": 260,
+                      "speed": 2.1,
+                      "speedRandom": 0.55,
+                      "spin": 650,
+                      "gravity": 1.2,
+                      "size": 0.03,
+                      "sizeRandom": 0.55,
+                      "fade": 0.35,
+                      "seed": 23
+                    }
+                  },
+                  {
+                    "id": "gravity-confetti-reveal",
+                    "type": "opacity",
+                    "params": {
+                      "opacity": {
+                        "$expr": "clamp((scene.time - 1.2) / 0.035, 0, 1)",
+                        "fallback": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "shape",
+                "id": "gravity-boom",
+                "name": "Boom",
+                "shape": "text",
+                "params": {
+                  "text": "BOOM",
+                  "font": "Commit Mono",
+                  "weight": 700,
+                  "size": 400,
+                  "tracking": -45,
+                  "align": "center",
+                  "fill": true,
+                  "fillColor": "#D2502F",
+                  "stroke": false
+                },
+                "transform": {
+                  "x": 0,
+                  "y": 0
+                },
+                "stack": [
+                  {
+                    "id": "gravity-boom-entrance",
+                    "type": "stagger",
+                    "params": {
+                      "progress": {
+                        "$expr": "clamp((scene.time - 1.26) / 0.18, 0, 1)",
+                        "fallback": 0
+                      },
+                      "direction": "in",
+                      "stagger": 0.06,
+                      "ease": "back-out",
+                      "order": "forward"
+                    },
+                    "children": [
+                      {
+                        "id": "gravity-boom-rise",
+                        "type": "transform",
+                        "params": {
+                          "y": 25,
+                          "rotation": -5,
+                          "scale": 0.5
+                        }
+                      },
+                      {
+                        "id": "gravity-boom-fade",
+                        "type": "opacity",
+                        "params": {
+                          "opacity": 0
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "animation": {
+              "duration": 8,
+              "fps": 30,
+              "loop": true,
+              "autoplay": true,
+              "tracks": [
+                {
+                  "id": "gravity-circle-anticipation",
+                  "node": "gravity-circle",
+                  "on": "node",
+                  "param": "scale",
+                  "keys": [
+                    {
+                      "t": 0,
+                      "value": 1,
+                      "ease": "linear"
+                    },
+                    {
+                      "t": 0.78,
+                      "value": 1,
+                      "ease": "ease-in"
+                    },
+                    {
+                      "t": 1.04,
+                      "value": 0.94,
+                      "ease": "ease-out"
+                    },
+                    {
+                      "t": 1.17,
+                      "value": 1.06,
+                      "ease": "ease-in-out"
+                    },
+                    {
+                      "t": 1.42,
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "params": {
+            "time": {
+              "$expr": "scene.time",
+              "fallback": 0
+            },
+            "speed": 0.6,
+            "loop": "hold"
+          }
+        }
+      }
+    ]
+  }
+}

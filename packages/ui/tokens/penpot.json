@@ -1,0 +1,146 @@
+{
+  "$source": "Source of truth for the design tokens (edited here by hand; originally exported from the Penpot file \u00abSvertik\u00bb, no longer synced). Regenerate tokens.css with `pnpm tokens`.",
+  "primitives": {
+    "color": {
+      "gray.100": "#EDEDED",
+      "gray.200": "#D0D0D0",
+      "gray.300": "#A8A8A8",
+      "gray.400": "#8C8C8C",
+      "gray.500": "#5A5A5A",
+      "gray.600": "#3D3D3D",
+      "gray.700": "#2E2E2E",
+      "gray.800": "#232323",
+      "gray.850": "#1B1B1B",
+      "gray.900": "#141414",
+      "gray.950": "#0B0B0B",
+      "turquesa.500": "#09FDD1",
+      "turquesa.900": "#00211B",
+      "turquesa.950": "#0F2A26",
+      "red.400": "#FF6B5E",
+      "amber.400": "#FFD166",
+      "blue.400": "#7AA2FF",
+      "violet.400": "#B894F6",
+      "green.400": "#6BD98A",
+      "pink.400": "#F58DC2",
+      "orange.400": "#FF9A52",
+      "ochre.400": "#D8C26A"
+    },
+    "spacing": {
+      "space.2": 2,
+      "space.4": 4,
+      "space.6": 6,
+      "space.8": 8,
+      "space.12": 12,
+      "space.16": 16,
+      "space.24": 24,
+      "space.32": 32
+    },
+    "fontFamilies": {
+      "font.mono": "Commit Mono"
+    },
+    "fontSizes": {
+      "font.size.10": 10,
+      "font.size.11": 11,
+      "font.size.12": 12,
+      "font.size.14": 14
+    },
+    "fontWeights": {
+      "font.weight.regular": 400,
+      "font.weight.bold": 700
+    },
+    "borderRadius": {
+      "radius.none": 0
+    },
+    "borderWidth": {
+      "border.1": 1
+    },
+    "sizing": {
+      "size.row": 24,
+      "size.icon": 16
+    }
+  },
+  "theme/dark": {
+    "color": {
+      "surface.app": "{gray.900}",
+      "surface.panel": "{gray.850}",
+      "surface.field": "{gray.950}",
+      "surface.hover": "{gray.800}",
+      "surface.raised": "{gray.700}",
+      "rule.default": "{gray.700}",
+      "rule.strong": "{gray.600}",
+      "text.primary": "{gray.100}",
+      "text.secondary": "{gray.300}",
+      "text.muted": "{gray.400}",
+      "text.disabled": "{gray.500}",
+      "accent.fill": "{turquesa.500}",
+      "accent.on": "{turquesa.900}",
+      "accent.selection": "{turquesa.950}",
+      "signal.error": "{red.400}",
+      "signal.warning": "{amber.400}",
+      "family.deform": "{blue.400}",
+      "family.generate": "{violet.400}",
+      "family.effect": "{green.400}",
+      "family.style": "{pink.400}",
+      "family.glitch": "{orange.400}",
+      "family.filters": "{ochre.400}",
+      "family.utils": "{gray.300}",
+      "timeline.playhead": "{gray.100}",
+      "code.keyword": "{turquesa.500}",
+      "code.string": "{gray.300}",
+      "code.number": "{gray.100}",
+      "code.property": "{gray.200}",
+      "code.punctuation": "{gray.400}",
+      "code.comment": "{gray.400}",
+      "code.gutter": "{gray.400}",
+      "overlay.ink.soft": "rgb(0 0 0 / 0.35)",
+      "overlay.ink": "rgb(0 0 0 / 0.5)",
+      "overlay.ink.strong": "rgb(0 0 0 / 0.75)",
+      "overlay.light.soft": "rgb(255 255 255 / 0.15)",
+      "overlay.light": "rgb(255 255 255 / 0.25)",
+      "overlay.light.strong": "rgb(255 255 255 / 0.76)",
+      "canvas.accent": "#09fdd1"
+    }
+  },
+  "theme/light": {
+    "color": {
+      "surface.app": "#dededb",
+      "surface.panel": "#e6e6e2",
+      "surface.field": "#ebebe7",
+      "surface.hover": "#d8d8d2",
+      "surface.raised": "#d0d0c9",
+      "rule.default": "#d0d0c9",
+      "rule.strong": "#aaaaa1",
+      "text.primary": "#202522",
+      "text.secondary": "#505950",
+      "text.muted": "#646d64",
+      "text.disabled": "#858b82",
+      "accent.fill": "#4ccab3",
+      "accent.on": "#123d34",
+      "accent.selection": "#4ccab3",
+      "signal.error": "#b52c22",
+      "signal.warning": "#876000",
+      "family.deform": "#315eb4",
+      "family.generate": "#7750a6",
+      "family.effect": "#237741",
+      "family.style": "#a33371",
+      "family.glitch": "#a64c14",
+      "family.filters": "#786414",
+      "family.utils": "#505950",
+      "timeline.playhead": "#202522",
+      "code.keyword": "#007d66",
+      "code.string": "#526d2c",
+      "code.number": "#924711",
+      "code.property": "#263e50",
+      "code.punctuation": "#646d64",
+      "code.comment": "#646d64",
+      "code.gutter": "#646d64",
+      "overlay.ink.soft": "rgb(0 0 0 / 0.35)",
+      "overlay.ink": "rgb(0 0 0 / 0.5)",
+      "overlay.ink.strong": "rgb(0 0 0 / 0.75)",
+      "overlay.light.soft": "rgb(255 255 255 / 0.15)",
+      "overlay.light": "rgb(255 255 255 / 0.25)",
+      "overlay.light.strong": "rgb(255 255 255 / 0.76)",
+      "canvas.accent": "#09fdd1"
+    }
+  }
+}

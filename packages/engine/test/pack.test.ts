@@ -1,0 +1,148 @@
+import { describe, expect, it } from 'vitest';
+import { builtins, createEngine, hasMissingPacks, outlineNode, packNode, restorePacks, stripPackGeometry, unpackNode, type SceneV1 } from '../src';
+
+const scene = (): SceneV1 => ({
+  version: 1,
+  objects: [
+    {
+      kind: 'group',
+      id: 'g',
+      name: 'g',
+      stack: [],
+      transform: { x: 40, y: -10, rotation: 20, scale: 1.5 },
+      children: [
+        { kind: 'shape', id: 'star', name: 'Star', shape: 'star', params: {}, stack: [{ id: 'tw', type: 'twist', params: { angle: 90 } }], transform: { x: 30, rotation: 10 }, opacity: 0.8 },
+        { kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 50, height: 20 }, stack: [] },
+      ],
+    },
+  ],
+  animation: { duration: 2, tracks: [{ id: 'tr', node: 'star', on: 'modifier', modifier: 'tw', param: 'angle', keys: [{ t: 0, value: 0 }, { t: 2, value: 90 }] }] },
+  interactions: [{ id: 'i', node: 'box', trigger: 'hover', target: { node: 'box', on: 'node', param: 'scale' }, to: 1.2, duration: 0.3 }],
+});
+const round = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === 'number' ? Math.round(x * 1000) / 1000 : x)));
+const strip = (shapes: { node?: string; clone?: number }[]) => shapes.map(({ node: _n, clone: _c, ...s }) => s);
+
+describe('pack', () => {
+  it('the pack looks the same as the original, inside a turned and scaled group', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    const before = e.evaluateDocument(s);
+    const r = packNode(s, 'star', before, 'k1');
+    expect(r?.animated).toBe(true);
+    const after = e.evaluateDocument(s);
+    expect(round(strip(after.geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
+    // Its animation and interactions go inside; those of others do not.
+    expect(s.animation!.tracks).toHaveLength(0);
+    expect(s.interactions).toHaveLength(1);
+    expect(s.objects[0]!.kind === 'group' && s.objects[0]!.children[0]!.id).toBe('star');
+  });
+
+  it('unpacking gives back the original, moved as much as the pack moved', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    packNode(s, 'star', e.evaluateDocument(s), 'k1');
+    const g = s.objects[0]!;
+    if (g.kind !== 'group') throw new Error();
+    g.children[0]!.transform = { ...g.children[0]!.transform, x: (g.children[0]!.transform?.x ?? 0) + 5 };
+    g.children[0]!.stack.push({ id: 'w', type: 'wave', params: {} });
+    expect(unpackNode(s, 'star', (x) => `${x}-2`)).toBe('star');
+    const back = g.children[0]!;
+    expect(back.transform?.x).toBeCloseTo(35);
+    expect(back.opacity).toBe(0.8);
+    expect(back.stack.map((m) => m.id)).toEqual(['tw', 'w']);
+    expect(s.animation!.tracks.map((t) => t.id)).toEqual(['tr']);
+  });
+
+  it('what used it as a reference still finds it', () => {
+    const e = createEngine(builtins);
+    const s: SceneV1 = {
+      version: 1,
+      objects: [
+        { kind: 'shape', id: 'r', name: 'r', shape: 'rectangle', params: { width: 100, height: 100 }, stack: [{ id: 'm', type: 'mosaic', params: { tile: 'shape', source: 'star', columns: 2, rows: 2, fit: 'whole', gutter: [0, 0] } }] },
+        { kind: 'shape', id: 'star', name: 'Star', shape: 'star', params: {}, stack: [{ id: 'tw', type: 'twist', params: { angle: 90 } }], visible: false },
+      ],
+    };
+    const before = e.evaluateDocument(s);
+    packNode(s, 'star', before, 'k1');
+    const after = e.evaluateDocument(s);
+    expect(round(strip(after.geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
+  });
+
+  it('a duplicated pack: when both are unpacked, the second gets new ids', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    packNode(s, 'star', e.evaluateDocument(s), 'k1');
+    const g = s.objects[0]!;
+    if (g.kind !== 'group') throw new Error();
+    g.children.push({ ...JSON.parse(JSON.stringify(g.children[0])), id: 'pack-2' });
+    unpackNode(s, 'star', (x) => `${x}-a`);
+    expect(unpackNode(s, 'pack-2', (x) => `${x}-b`)).toBe('star-b');
+    const copy = g.children.at(-1)!;
+    expect(copy.stack[0]!.id).toBe('tw-b');
+    expect(s.animation!.tracks.map((t) => [t.node, t.modifier])).toEqual([['star', 'tw'], ['star-b', 'tw-b']]);
+  });
+});
+
+describe('convert to outlines', () => {
+  it('the primitive becomes an object of paths that looks the same, with its effects', () => {
+    const e = createEngine(builtins);
+    const s: SceneV1 = {
+      version: 1,
+      objects: [{ kind: 'shape', id: 'st', name: 'Star', shape: 'star', params: { points: 6 }, stack: [{ id: 'tw', type: 'twist', params: { angle: 60 } }], transform: { x: 40, y: -20, rotation: 15, scale: 1.3 }, opacity: 0.7 }],
+      animation: { duration: 2, tracks: [
+        { id: 'a', node: 'st', on: 'shape', param: 'points', keys: [{ t: 0, value: 5 }, { t: 2, value: 8 }] },
+        { id: 'b', node: 'st', on: 'node', param: 'x', keys: [{ t: 0, value: 40 }, { t: 2, value: 80 }] },
+      ] },
+    };
+    const before = e.evaluateDocument(s);
+    expect(outlineNode(s, 'st')).toEqual({ removed: 1 });
+    const n = s.objects[0]!;
+    expect(n.kind).toBe('object');
+    expect(n.stack[0]!.id).toBe('tw');
+    expect(n.opacity).toBe(0.7);
+    expect(s.animation!.tracks.map((t) => t.id)).toEqual(['b']);
+    const after = e.evaluateDocument(s);
+    // The SVG keeps numbers with two decimals: equal to a hundredth.
+    const a = after.nodes.get('st')!.box, b = before.nodes.get('st')!.box;
+    for (const k of ['x', 'y', 'width', 'height'] as const) expect(a[k]).toBeCloseTo(b[k], 1);
+  });
+
+  it('an object (not a primitive) is not converted', () => {
+    const s = scene();
+    expect(outlineNode(s, 'g')).toBeNull();
+  });
+});
+
+describe('packs saved without their geometry', () => {
+  it('are left out of the saved scene and rebuilt the same on evaluation', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    packNode(s, 'star', e.evaluateDocument(s), 'k1');
+    const before = e.evaluateDocument(s);
+    const saved = stripPackGeometry(s);
+    expect(JSON.stringify(saved)).not.toContain('"geometry"');
+    // The scene itself keeps it (the editor goes on drawing from it).
+    expect(JSON.stringify(s)).toContain('"geometry"');
+    const loaded = JSON.parse(JSON.stringify(saved)) as SceneV1;
+    expect(hasMissingPacks(loaded)).toBe(true);
+    const fresh = createEngine(builtins);
+    expect(round(strip(fresh.evaluateDocument(loaded).geometry.shapes))).toEqual(round(strip(before.geometry.shapes)));
+    // Rebuilt in place, the same as the packed one; the pack's own moves and effects stay on top.
+    expect(restorePacks(loaded, (x) => fresh.evaluateDocument(x))).toBe(1);
+    expect(hasMissingPacks(loaded)).toBe(false);
+    const g = loaded.objects[0]!;
+    if (g.kind !== 'group') throw new Error();
+    g.children[0]!.transform = { ...g.children[0]!.transform, rotation: 30 };
+    g.children[0]!.stack.push({ id: 'w', type: 'wave', params: {} });
+    const moved = JSON.parse(JSON.stringify(stripPackGeometry(loaded))) as SceneV1;
+    expect(round(strip(fresh.evaluateDocument(moved).geometry.shapes))).toEqual(round(strip(fresh.evaluateDocument(loaded).geometry.shapes)));
+  });
+
+  it('a pack without its original keeps its geometry', () => {
+    const e = createEngine(builtins);
+    const s = scene();
+    const r = packNode(s, 'star', e.evaluateDocument(s), 'k1')!;
+    delete r.node.packed!.original;
+    expect(stripPackGeometry(s)).toBe(s);
+  });
+});

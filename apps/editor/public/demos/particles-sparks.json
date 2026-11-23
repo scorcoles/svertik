@@ -1,0 +1,111 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Particles — Sparks",
+  "scene": {
+    "version": 1,
+    "document": {
+      "width": 1000,
+      "height": 900
+    },
+    "notes": "Particle study: Sparks. Fast upward sparks that settle and shrink. Uses the complete source shape, motion/lifecycle controls and a separate Color effect. Deterministic seeking, including times beyond sixty seconds.",
+    "objects": [
+      {
+        "kind": "shape",
+        "id": "emitter",
+        "name": "Sparks",
+        "shape": "rectangle",
+        "params": {
+          "width": 24,
+          "height": 4,
+          "fill": true,
+          "fillColor": "#fff4b1"
+        },
+        "transform": {
+          "x": 0,
+          "y": 260
+        },
+        "stack": [
+          {
+            "id": "particles",
+            "type": "particles",
+            "params": {
+              "emission": "stream",
+              "count": 220,
+              "lifetime": 1.8,
+              "lifetimeRandom": 0.45,
+              "rate": 150,
+              "prewarm": true,
+              "referenceSize": 450,
+              "emitter": "point",
+              "direction": -90,
+              "spread": 58,
+              "speed": 2,
+              "speedRandom": 0.65,
+              "gravity": 0.6,
+              "drag": 0.8,
+              "turbulence": 0.025,
+              "turbulenceFrequency": 1.1,
+              "size": 0.04,
+              "sizeRandom": 0.6,
+              "rotationRandom": 0,
+              "spin": 0,
+              "alignToMotion": true,
+              "fadeIn": 0.02,
+              "fade": 0.6,
+              "sizeEnd": 0.05,
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 0
+              }
+            }
+          },
+          {
+            "id": "colors",
+            "type": "color",
+            "params": {
+              "mode": "palette",
+              "palette": [
+                "#fff4b1",
+                "#ffbd59",
+                "#f37937"
+              ],
+              "paletteMode": "random",
+              "target": "fill",
+              "seed": 17
+            }
+          },
+          {
+            "id": "halo",
+            "type": "glow",
+            "params": {
+              "size": 3,
+              "strength": 0.7,
+              "color": "#fff4b1"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "background",
+        "name": "Background",
+        "shape": "rectangle",
+        "params": {
+          "width": 1000,
+          "height": 900,
+          "fill": true,
+          "fillColor": "#101a21"
+        },
+        "stack": []
+      }
+    ],
+    "animation": {
+      "duration": 8,
+      "fps": 30,
+      "infinite": true,
+      "loop": false,
+      "tracks": []
+    }
+  }
+}

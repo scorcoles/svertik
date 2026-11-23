@@ -1,0 +1,58 @@
+@import '@fontsource/commit-mono/400.css';
+@import '@fontsource/commit-mono/700.css';
+@import './tokens.css';
+
+:root {
+  color-scheme: dark;
+  font-family: var(--sv-font-mono);
+  font-size: var(--sv-font-size-11);
+  line-height: 1.3;
+  color: var(--sv-text-primary);
+  background: var(--sv-surface-app);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+body { margin: 0; background: var(--sv-surface-app); }
+*, *::before, *::after { box-sizing: border-box; }
+:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+::selection { background: var(--sv-accent-fill); color: var(--sv-accent-on); }
+
+:root[data-sv-theme='light'] { color-scheme: light; }
+
+/* A brighter mint surface makes selected controls stand out in the light workspace. */
+[data-sv-theme='light'] .sv-segment[data-state='on'],
+[data-sv-theme='light'] .sv-select-item[data-selected] {
+  color: var(--sv-accent-on);
+  background: var(--sv-accent-fill);
+  box-shadow: inset 0 0 0 1px var(--sv-accent-fill);
+}
+[data-sv-theme='light'] .sv-select-item[data-selected][data-highlighted] {
+  background: var(--sv-accent-fill);
+}
+
+/* Writing surfaces stay charcoal in either workspace theme. */
+.sv-writing-theme[data-sv-theme='dark'] {
+  color-scheme: dark;
+  --sv-surface-app: #25282c;
+  --sv-surface-panel: #2d3136;
+  --sv-surface-field: #25282c;
+  --sv-surface-hover: #383e44;
+  --sv-surface-raised: #414850;
+  --sv-rule-default: #484f57;
+  --sv-rule-strong: #68727c;
+  --sv-text-primary: #e9edf0;
+  --sv-text-secondary: #c1cad2;
+  --sv-text-muted: #a3afb9;
+  --sv-text-disabled: #7e8993;
+  --sv-accent-fill: #4ccab3;
+  --sv-accent-on: #123d34;
+  --sv-accent-selection: #224d45;
+  --sv-code-keyword: #79dfc8;
+  --sv-code-string: #c4dda0;
+  --sv-code-number: #f0c18a;
+  --sv-code-property: #d7e5ef;
+  --sv-code-punctuation: #b2bdc7;
+  --sv-code-comment: #a3afb9;
+  --sv-code-gutter: #a3afb9;
+  color: var(--sv-text-primary);
+}

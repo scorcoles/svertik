@@ -1,0 +1,247 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Particles — Swirl",
+  "scene": {
+    "version": 1,
+    "document": {
+      "width": 1000,
+      "height": 900
+    },
+    "notes": "Particle study: Swirl. A continuous spiral with smooth seeded wandering. Uses the complete source shape, motion/lifecycle controls and a separate Color effect. Deterministic seeking, including times beyond sixty seconds.",
+    "objects": [
+      {
+        "kind": "shape",
+        "id": "emitter-2",
+        "name": "Swirl arm 2",
+        "shape": "ellipse",
+        "params": {
+          "width": 20,
+          "height": 20,
+          "fill": true,
+          "fillColor": "#89ded0"
+        },
+        "transform": {
+          "x": 0,
+          "y": 0
+        },
+        "stack": [
+          {
+            "id": "particles-2",
+            "type": "particles",
+            "params": {
+              "emission": "stream",
+              "count": 280,
+              "lifetime": 5,
+              "lifetimeRandom": 0.15,
+              "rate": 65,
+              "prewarm": true,
+              "referenceSize": 320,
+              "emitter": "circle",
+              "area": [
+                0.08,
+                0.08
+              ],
+              "direction": 240,
+              "spread": 24,
+              "speed": 0.5,
+              "speedRandom": 0.2,
+              "gravity": 0,
+              "drag": 0.3,
+              "swirl": 150,
+              "turbulence": 0.025,
+              "turbulenceFrequency": 0.3,
+              "size": 0.024,
+              "sizeRandom": 0.5,
+              "spin": 40,
+              "fadeIn": 0.08,
+              "fade": 0.45,
+              "sizeEnd": 0.1,
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 0
+              },
+              "seed": 75
+            }
+          },
+          {
+            "id": "colors-2",
+            "type": "color",
+            "params": {
+              "mode": "palette",
+              "palette": [
+                "#89ded0",
+                "#a7baf1",
+                "#f3c3a0"
+              ],
+              "paletteMode": "random",
+              "target": "fill",
+              "seed": 17
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "emitter-1",
+        "name": "Swirl arm 1",
+        "shape": "ellipse",
+        "params": {
+          "width": 20,
+          "height": 20,
+          "fill": true,
+          "fillColor": "#89ded0"
+        },
+        "transform": {
+          "x": 0,
+          "y": 0
+        },
+        "stack": [
+          {
+            "id": "particles-1",
+            "type": "particles",
+            "params": {
+              "emission": "stream",
+              "count": 280,
+              "lifetime": 5,
+              "lifetimeRandom": 0.15,
+              "rate": 65,
+              "prewarm": true,
+              "referenceSize": 320,
+              "emitter": "circle",
+              "area": [
+                0.08,
+                0.08
+              ],
+              "direction": 120,
+              "spread": 24,
+              "speed": 0.5,
+              "speedRandom": 0.2,
+              "gravity": 0,
+              "drag": 0.3,
+              "swirl": 150,
+              "turbulence": 0.025,
+              "turbulenceFrequency": 0.3,
+              "size": 0.024,
+              "sizeRandom": 0.5,
+              "spin": 40,
+              "fadeIn": 0.08,
+              "fade": 0.45,
+              "sizeEnd": 0.1,
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 0
+              },
+              "seed": 38
+            }
+          },
+          {
+            "id": "colors-1",
+            "type": "color",
+            "params": {
+              "mode": "palette",
+              "palette": [
+                "#89ded0",
+                "#a7baf1",
+                "#f3c3a0"
+              ],
+              "paletteMode": "random",
+              "target": "fill",
+              "seed": 17
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "emitter",
+        "name": "Swirl",
+        "shape": "ellipse",
+        "params": {
+          "width": 20,
+          "height": 20,
+          "fill": true,
+          "fillColor": "#89ded0"
+        },
+        "transform": {
+          "x": 0,
+          "y": 0
+        },
+        "stack": [
+          {
+            "id": "particles",
+            "type": "particles",
+            "params": {
+              "emission": "stream",
+              "count": 280,
+              "lifetime": 5,
+              "lifetimeRandom": 0.15,
+              "rate": 65,
+              "prewarm": true,
+              "referenceSize": 320,
+              "emitter": "circle",
+              "area": [
+                0.08,
+                0.08
+              ],
+              "direction": 0,
+              "spread": 24,
+              "speed": 0.5,
+              "speedRandom": 0.2,
+              "gravity": 0,
+              "drag": 0.3,
+              "swirl": 150,
+              "turbulence": 0.025,
+              "turbulenceFrequency": 0.3,
+              "size": 0.024,
+              "sizeRandom": 0.5,
+              "spin": 40,
+              "fadeIn": 0.08,
+              "fade": 0.45,
+              "sizeEnd": 0.1,
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 0
+              }
+            }
+          },
+          {
+            "id": "colors",
+            "type": "color",
+            "params": {
+              "mode": "palette",
+              "palette": [
+                "#89ded0",
+                "#a7baf1",
+                "#f3c3a0"
+              ],
+              "paletteMode": "random",
+              "target": "fill",
+              "seed": 17
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "background",
+        "name": "Background",
+        "shape": "rectangle",
+        "params": {
+          "width": 1000,
+          "height": 900,
+          "fill": true,
+          "fillColor": "#101a21"
+        },
+        "stack": []
+      }
+    ],
+    "animation": {
+      "duration": 8,
+      "fps": 30,
+      "infinite": true,
+      "loop": false,
+      "tracks": []
+    }
+  }
+}

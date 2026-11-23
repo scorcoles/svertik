@@ -1,0 +1,57 @@
+<script lang="ts">
+  import { IconButton, NumberField } from '@svertik/ui';
+  import type { Editor } from './editor.svelte';
+
+  let { editor }: { editor: Editor } = $props();
+  const duration = $derived(editor.animation?.duration ?? 3);
+  const fps = $derived(editor.animation?.fps ?? 30);
+  function seek(time: number) {
+    editor.playing = false;
+    editor.setTime(time);
+  }
+</script>
+
+<div class="time-controls" role="group" aria-label="Playback controls">
+  {#if editor.animation?.markers?.length}
+    <select class="marker-jump" aria-label="Jump to marker" title="Jump to marker" value="" onchange={(e) => {
+      const marker = editor.animation?.markers?.find(m => m.id === e.currentTarget.value);
+      if (marker) seek(marker.t);
+      e.currentTarget.value = '';
+    }}>
+      <option value="">Markers</option>
+      {#each editor.animation.markers as marker (marker.id)}<option value={marker.id}>{marker.name} · {marker.t.toFixed(2)} s</option>{/each}
+    </select>
+  {/if}
+  <IconButton icon="to-start" label="Go to start" onclick={() => seek(0)} />
+  <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause animation (Space)' : 'Play animation (Space)'} active={editor.playing} onclick={() => editor.togglePlayback()} />
+  <input
+    class="scrubber"
+    type="range"
+    aria-label="Animation time"
+    aria-valuetext={`${editor.time.toFixed(2)} seconds`}
+    min="0"
+    max={duration}
+    step={1 / fps}
+    value={Math.min(editor.time, duration)}
+    oninput={(event) => seek(event.currentTarget.valueAsNumber)}
+  />
+  <NumberField decimals={2} label="Current time" value={editor.time} min={0} max={editor.animation?.infinite ? undefined : duration} step={1 / fps} unit="s" width="64px" onchange={seek} />
+  <span class="separator" aria-hidden="true">/</span>
+  <NumberField decimals={2} label="Animation duration" value={duration} min={0.1} step={0.1} unit="s" width="58px" onchange={(value) => editor.setDuration(value)} />
+</div>
+
+<style>
+  .time-controls { display: flex; align-items: center; gap: var(--sv-space-4); color: var(--sv-text-secondary); }
+  .time-controls :global(.sv-icon-button) { width: 20px; height: 20px; }
+  .time-controls :global(.sv-icon) { width: 13px; height: 13px; }
+  .scrubber { appearance: none; width: clamp(64px, 9vw, 140px); height: 22px; margin: 0 var(--sv-space-4); padding: 0; background: transparent; cursor: ew-resize; }
+  .scrubber::-webkit-slider-runnable-track { height: 2px; background: var(--sv-rule-strong); }
+  .scrubber::-moz-range-track { height: 2px; background: var(--sv-rule-strong); }
+  .scrubber::-webkit-slider-thumb { appearance: none; width: 6px; height: 6px; margin-top: -2px; border: 0; border-radius: 50%; background: var(--sv-text-muted); transition: background 120ms, box-shadow 120ms; }
+  .scrubber::-moz-range-thumb { width: 6px; height: 6px; border: 0; border-radius: 50%; background: var(--sv-text-muted); transition: background 120ms, box-shadow 120ms; }
+  .scrubber:hover::-webkit-slider-thumb, .scrubber:focus-visible::-webkit-slider-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
+  .scrubber:hover::-moz-range-thumb, .scrubber:focus-visible::-moz-range-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
+  .scrubber:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
+  .marker-jump { max-width: 130px; height: 20px; font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-default); }
+  .separator { color: var(--sv-text-muted); }
+</style>

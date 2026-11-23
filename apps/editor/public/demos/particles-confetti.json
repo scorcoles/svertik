@@ -1,0 +1,102 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Particles — Confetti",
+  "scene": {
+    "version": 1,
+    "document": {
+      "width": 1000,
+      "height": 900
+    },
+    "notes": "Particle study: Confetti. A wide burst with resistance, drifting wind and varied lifetimes. Uses the complete source shape, motion/lifecycle controls and a separate Color effect. Deterministic seeking, including times beyond sixty seconds.",
+    "objects": [
+      {
+        "kind": "shape",
+        "id": "emitter",
+        "name": "Confetti",
+        "shape": "rectangle",
+        "params": {
+          "width": 20,
+          "height": 10,
+          "fill": true,
+          "fillColor": "#c98219"
+        },
+        "transform": {
+          "x": 0,
+          "y": 260
+        },
+        "stack": [
+          {
+            "id": "particles",
+            "type": "particles",
+            "params": {
+              "emission": "burst",
+              "count": 180,
+              "lifetime": 5,
+              "lifetimeRandom": 0.4,
+              "referenceSize": 320,
+              "emitter": "point",
+              "direction": -90,
+              "spread": 130,
+              "speed": 1.6,
+              "speedRandom": 0.55,
+              "gravity": 0.5,
+              "drag": 0.65,
+              "wind": [
+                0.08,
+                0
+              ],
+              "turbulence": 0.08,
+              "turbulenceFrequency": 0.65,
+              "spin": 300,
+              "size": 0.055,
+              "sizeRandom": 0.55,
+              "fade": 0.3,
+              "sizeEnd": 0.65,
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 0
+              }
+            }
+          },
+          {
+            "id": "colors",
+            "type": "color",
+            "params": {
+              "mode": "palette",
+              "palette": [
+                "#c98219",
+                "#d44e48",
+                "#268a78",
+                "#416cb2",
+                "#32454f"
+              ],
+              "paletteMode": "random",
+              "target": "fill",
+              "seed": 17
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "background",
+        "name": "Background",
+        "shape": "rectangle",
+        "params": {
+          "width": 1000,
+          "height": 900,
+          "fill": true,
+          "fillColor": "#ece6da"
+        },
+        "stack": []
+      }
+    ],
+    "animation": {
+      "duration": 6,
+      "fps": 30,
+      "loop": true,
+      "tracks": []
+    }
+  }
+}

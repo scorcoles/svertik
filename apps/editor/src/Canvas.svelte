@@ -1,0 +1,2115 @@
+<script lang="ts">
+  import type { DemoName } from './demo-catalog';
+  import { untrack } from 'svelte';
+  import { apply, bounds, builtins, buildShape, hasTextExpressions, type PathContour, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type DocumentResult, type Geometry, type Mat, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { IconButton, type IconName } from '@svertik/ui';
+  import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
+  import { align, distribute, type Align, type Move } from './arrange';
+  import { hatchObjectAt } from './hit-regions';
+  import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
+  import PathEdit from './PathEdit.svelte';
+  import TextEdit from './TextEdit.svelte';
+  import DropArea from './DropArea.svelte';
+    import { actualSize, FIT, fitScale, wheelFactor, wheelIntent, zoomAt, type View } from './viewport';
+  import type { CanvasStatus } from './canvas-status';
+
+  interface Props {
+    editor: Editor;
+    onimport: () => void;
+    onfile: (file: File) => void;
+    /** Opens a demo (it replaces the current scene, asking if there are changes). */
+    ondemo: (which: DemoName) => void;
+    /** The canvas publishes here how to place a primitive at the centre of the view (the rail uses it). */
+    placeAtCenter?: (type: string) => void;
+    status?: CanvasStatus | null;
+    ondiagnostic?: (level: 'error' | 'warning', message: string, stack?: string) => void;
+    profileFrame?: { runId: number; index: number } | null;
+    onprofileframe?: (runId: number, index: number, ms: number) => void;
+  }
+  let { editor, onimport, onfile, ondemo, placeAtCenter = $bindable(), status = $bindable(null), ondiagnostic, profileFrame = null, onprofileframe }: Props = $props();
+
+  // Canvas engine; "Redraw" swaps it for a new one (with nothing kept from before) and repaints everything.
+  let engine = $state.raw(createEngine(builtins));
+  function redraw() {
+    engine = createEngine(builtins);
+    editor.fontsTick++;
+  }
+  let result = $state<SVGSVGElement>();
+  let wireHits = $state<SVGSVGElement>();
+  let paintedGeometry = $state.raw<Geometry | null>(null);
+  let evaluatedDocument = $state.raw<DocumentResult | null>(null);
+  let hitContext: CanvasRenderingContext2D | null = null;
+  let ghost = $state<SVGSVGElement>();
+  let stage = $state<HTMLDivElement>();
+  let renderError = $state<string | null>(null);
+  let dimmedNodes = $state<string[]>([]);
+  $effect(() => {
+    const node = editor.currentNode;
+    if (editor.tool === 'nodes' && node?.kind === 'shape' && node.shape === 'path' && !editor.isLocked(node.id)) editor.editingPath = node.id;
+    else if (editor.editingPath && (editor.selected !== editor.editingPath || !editor.scene || !locateNode(editor.scene.objects, editor.editingPath) || editor.tool !== null && editor.tool !== 'nodes')) editor.editingPath = null;
+  });
+  /** How long recomputing and painting take (ms, smoothed). Above SLOW, a warning. */
+  let cost = $state<number | null>(null);
+  const SLOW = 50;
+  /** ms without a redraw before the cost readout counts as idle. */
+  const IDLE_AFTER = 600;
+  let idle = $state(false);
+  let smoothCost: number | null = null;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let slowReported = false;
+  let lastSceneDiagnostic = '';
+
+  function slowCandidates(items: SceneNode[]): string[] {
+    const found: string[] = [];
+    const modifierTypes = (stack: SceneNode['stack']): string[] => stack.flatMap((m) => [m.type, ...modifierTypes(m.children ?? [])]);
+    const visit = (node: SceneNode) => {
+      const types = modifierTypes(node.stack);
+      if (types.length) {
+        const effects = [...new Set(types)].map((type) => builtins.find((m) => m.type === type)?.label ?? type);
+        found.push(`${node.name || node.id}: ${effects.join(', ')}`);
+      }
+      node.children?.forEach(visit);
+    };
+    items.forEach(visit);
+    return found.slice(0, 4);
+  }
+  function updateWirePatterns() { if (result) refreshWirePatterns(result, editor.showWire); }
+  let dropping = $state(false);
+  /**
+   * Canvas framing, in document coordinates. Set on opening and with Fit (⇧1);
+   * moving or deforming does not change it, so the canvas does not jump while editing.
+   */
+  let viewBox = $state<[number, number, number, number]>([0, 0, 1, 1]);
+  /** The viewBox the document would have now (it fits the content): the one Fit uses. */
+  let docViewBox = $state.raw<[number, number, number, number]>([0, 0, 1, 1]);
+  let framed = false;
+  /** Info on each node after evaluation: reference box, matrix to the document and final box. */
+  let nodes = $state.raw<Map<string, NodeInfo>>(new Map());
+
+  // ── Pintar
+
+  $effect(() => {
+    if (!editor.scene || !result) return;
+    // A profile frame can request a fresh render even when it lands at the same playhead time.
+    void profileFrame?.index;
+    void editor.fontsTick; // when a font arrives, the text is drawn again
+    const scene = $state.snapshot(editor.scene) as SceneV1;
+    // While the script animates, its objects are painted (without touching the saved scene).
+    if (editor.preview) scene.objects = $state.snapshot(editor.preview) as SceneNode[];
+    // The time, for what comes with a delay (Effector Delay).
+    scene.at = editor.time;
+    try {
+      const t0 = performance.now();
+      const doc = engine.evaluateDocument(scene);
+      evaluatedDocument = doc;
+      const heavyGravity = doc.diagnostics?.find((diagnostic) => diagnostic.code === 'gravity-collision-path-limit');
+      const diagnosticKey = heavyGravity ? `${heavyGravity.effectId ?? ''}:${heavyGravity.message}` : '';
+      if (diagnosticKey && diagnosticKey !== lastSceneDiagnostic) editor.notice = heavyGravity!.message;
+      lastSceneDiagnostic = diagnosticKey;
+      docViewBox = doc.geometry.viewBox;
+      editor.contentBox = bounds(doc.geometry);
+      if (!framed) {
+        viewBox = docViewBox;
+        framed = true;
+      }
+      renderInto(result, doc.geometry);
+      paintedGeometry = doc.geometry;
+      const colors = wireColors(scene);
+      const bodyKinds = wireBodyKinds(scene);
+      updateWirePatterns();
+      // Typing in a text: its result (with effects), dimmed under the field.
+      const editing = editor.editingText;
+      const dimmed = new Set(dimmedNodes);
+      for (const p of result.querySelectorAll<SVGElement>('path[data-node], image[data-node]')) {
+        const id = p.getAttribute('data-node');
+        const bodyKind = bodyKinds.get(id ?? '');
+        if (bodyKind) {
+          p.setAttribute('data-wire-body', bodyKind);
+          const color = bodyKind === 'fixed' ? '#facc15' : '#22d3ee';
+          p.style.setProperty('--wire-color', color);
+          p.style.setProperty('--wire-fill', `url(#wire-hatch-${bodyKind})`);
+        } else {
+          p.removeAttribute('data-wire-body');
+          p.style.removeProperty('--wire-fill');
+          p.style.setProperty('--wire-color', colors.get(id ?? '') ?? '#22d3ee');
+        }
+        p.style.opacity = editing && id === editing ? '0.25' : id && dimmed.has(id) ? '0.35' : '';
+      }
+      if (ghost) {
+        renderInto(ghost, doc.sources);
+      }
+      nodes = doc.nodes;
+      editor.infos = doc.nodes;
+      renderError = null;
+      // Recompute time, smoothed (for the performance warning).
+      const ms = performance.now() - t0;
+      // The warning follows a smoothed cost (one spike is not "slow"), restarted after the canvas has been
+      // still: the first redraw after a pause (which may build caches) doesn't weigh on the ones after it.
+      const prev = untrack(() => (idle ? null : smoothCost));
+      const nextCost = prev === null ? ms : prev * 0.7 + ms * 0.3;
+      smoothCost = nextCost;
+      // The readout shows what the last redraw really took.
+      cost = ms;
+      // The readout says when the canvas has gone still (the cost stays as "last redraw").
+      idle = false;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => (idle = true), IDLE_AFTER);
+      if (profileFrame) onprofileframe?.(profileFrame.runId, profileFrame.index, ms);
+      if (nextCost > SLOW && !slowReported) {
+        const candidates = slowCandidates(scene.objects);
+        const detail = candidates.length ? ` Inspect: ${candidates.join(' · ')}.` : ' Inspect imported path and text complexity.';
+        ondiagnostic?.('warning', `Render time is ${Math.round(nextCost)} ms (warning threshold: ${SLOW} ms).${detail}`);
+        slowReported = true;
+      } else if (nextCost <= SLOW) slowReported = false;
+    } catch (e) {
+      renderError = e instanceof Error ? e.message : String(e);
+      ondiagnostic?.('error', renderError, e instanceof Error ? e.stack : undefined);
+    }
+  });
+
+  // Pan and zoom only update the viewport; they must not reevaluate the scene geometry.
+  $effect(() => {
+    void paintedGeometry;
+    if (!result) return;
+    const current = editor.current;
+    const ranges: string[] = [];
+    const visit = (stack: { id: string; type: string; children?: unknown[] }[]) => {
+      for (const item of stack) { if (item.type === 'range') ranges.push(item.id); if (item.children) visit(item.children as typeof stack); }
+    };
+    if (editor.currentNode) visit(editor.currentNode.stack);
+    highlightWireRange(result, current?.type === 'range' ? current.id : null, Math.max(0, ranges.indexOf(current?.id ?? '')));
+  });
+  $effect(() => {
+    if (!wireHits || !paintedGeometry) return;
+    // Keep the original fill, stroke width, opacity and masks for interaction. Wire is only paint.
+    renderInto(wireHits, paintedGeometry);
+    wireHits.setAttribute('viewBox', viewBox.join(' '));
+  });
+  $effect(() => {
+    const box = viewBox.join(' ');
+    const wireWidth = `${1 / Math.max(view.zoom, 0.001)}px`;
+    if (result) {
+      result.setAttribute('viewBox', box);
+      result.style.setProperty('--wire-width', wireWidth);
+      updateWirePatterns();
+    }
+    ghost?.setAttribute('viewBox', box);
+  });
+
+  // ── Onion skin: the scene a few frames before and after the playhead, faded, under the result.
+  // Paused only (while playing it would multiply the work); about 1/6 s apart, so motion reads at a glance.
+  // Drawn once edits settle (ONION_DELAY ms without changes), so dragging a value costs one render, not five.
+  const ONION = [-2, -1, 1, 2];
+  const ONION_DELAY = 150;
+  let onion = $state<SVGSVGElement[]>([]);
+  $effect(() => {
+    if (!editor.onionSkin || !editor.scene?.animation || editor.playing || editor.preview) return;
+    void editor.fontsTick;
+    const base = $state.snapshot(editor.scene) as SceneV1;
+    const time = editor.time;
+    const vb = viewBox.join(' ');
+    const timer = setTimeout(() => drawOnion(base, time, vb), ONION_DELAY);
+    return () => clearTimeout(timer);
+  });
+  function drawOnion(base: SceneV1, time: number, vb: string) {
+    const fps = base.animation?.fps ?? 30;
+    const duration = base.animation?.duration ?? 3;
+    const step = Math.max(1, Math.round(fps / 6)) / fps;
+    ONION.forEach((offset, i) => {
+      const svg = onion[i];
+      if (!svg) return;
+      const t = time + offset * step;
+      if (t < -1e-6 || t > duration + 1e-6) return void svg.replaceChildren();
+      try {
+        renderInto(svg, engine.evaluateDocument(sampleScene(base, t)).geometry);
+        svg.setAttribute('viewBox', vb);
+      } catch {
+        svg.replaceChildren();
+      }
+    });
+  }
+
+  // ── Vista: zoom y desplazamiento
+
+  let view = $state<View>(FIT);
+  let stageSize = $state<[number, number]>([1, 1]);
+  $effect(() => {
+    if (!stage) return;
+    const ro = new ResizeObserver(([e]) => (stageSize = [e!.contentRect.width, e!.contentRect.height]));
+    ro.observe(stage);
+    return () => ro.disconnect();
+  });
+  // Margin around the drawing (as in .view's CSS): fitting is measured inside it.
+  // The ruler is 20 px and its separator 1 px: Fit starts on the other side of the edge.
+  const INSET = $derived({ left: editor.showRulers ? 21 : 48, top: editor.showRulers ? 21 : 48, right: 48, bottom: 56 });
+  const box = $derived([stageSize[0] - INSET.left - INSET.right, stageSize[1] - INSET.top - INSET.bottom] as const);
+  const fit = $derived(fitScale(box[0], box[1], viewBox[2], viewBox[3]));
+  const documentClip = $derived.by(() => {
+    if (!editor.hideOutside) return undefined;
+    const [vx, vy, vw, vh] = viewBox;
+    const [width, height] = box;
+    if (vw <= 0 || vh <= 0 || width <= 0 || height <= 0) return undefined;
+    const scale = Math.min(width / vw, height / vh);
+    const d = editor.scene?.document;
+    const x0 = d ? (d.x ?? 0) - d.width / 2 : docViewBox[0];
+    const y0 = d ? (d.y ?? 0) - d.height / 2 : docViewBox[1];
+    const x1 = d ? x0 + d.width : docViewBox[0] + docViewBox[2];
+    const y1 = d ? y0 + d.height : docViewBox[1] + docViewBox[3];
+    const offsetX = (width - vw * scale) / 2;
+    const offsetY = (height - vh * scale) / 2;
+    const px = (x: number) => Math.max(0, Math.min(width, offsetX + (x - vx) * scale));
+    const py = (y: number) => Math.max(0, Math.min(height, offsetY + (y - vy) * scale));
+    const left = px(x0), right = width - px(x1), top = py(y0), bottom = height - py(y1);
+    return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+  });
+  const percent = $derived(Math.round(fit * view.zoom * 100));
+
+  $effect(() => {
+    // Publishes the canvas state and actions to the global bottom bar.
+    void percent;
+    void viewBox[2];
+    void viewBox[3];
+    void cost;
+    void idle;
+    status = editor.scene ? {
+      percent,
+      width: Math.round(viewBox[2]),
+      height: Math.round(viewBox[3]),
+      cost,
+      slow: smoothCost !== null && smoothCost > SLOW,
+      idle,
+      fit: refit,
+      actualSize: () => (view = actualSize(view, fit, box[0], box[1])),
+      redraw,
+      clearSelection: () => ((editor.selected = null), (editor.also = [])),
+    } : null;
+  });
+
+  /** Fit: the framing becomes the current content's, with no zoom or pan. */
+  function refit() {
+    viewBox = docViewBox;
+    view = FIT;
+  }
+
+  // When the document size is set or changed, it is fitted.
+  let lastDoc = '';
+  $effect(() => {
+    const d = JSON.stringify(editor.scene?.document ?? null);
+    if (d === lastDoc) return;
+    const first = lastDoc === '';
+    lastDoc = d;
+    if (!first) untrack(() => queueMicrotask(refit));
+  });
+
+  // When a scene starts (or the document changes), it is fitted again.
+  let lastFirst = '';
+  $effect(() => {
+    const first = editor.scene?.objects[0]?.id ?? '';
+    if (first !== lastFirst) {
+      lastFirst = first;
+      framed = false;
+      view = FIT;
+    }
+  });
+
+  /** Pointer coordinates relative to the origin of the scaled layer. */
+  const local = (e: { clientX: number; clientY: number }) => {
+    const r = stage!.getBoundingClientRect();
+    return [e.clientX - r.left - INSET.left, e.clientY - r.top - INSET.top] as const;
+  };
+
+  function wheel(e: WheelEvent) {
+    if (!stage || !editor.scene) return;
+    e.preventDefault();
+    if (wheelIntent(e) === 'zoom') {
+      const [x, y] = local(e);
+      view = zoomAt(view, wheelFactor(e.deltaY, e.ctrlKey || e.metaKey), x, y);
+    } else {
+      view = { zoom: view.zoom, pan: { x: view.pan.x - e.deltaX, y: view.pan.y - e.deltaY } };
+    }
+  }
+  // The wheel needs a non-passive listener to be able to cancel page scroll.
+  $effect(() => {
+    if (!stage) return;
+    stage.addEventListener('wheel', wheel, { passive: false });
+    return () => stage?.removeEventListener('wheel', wheel);
+  });
+
+  // Hold Space and drag, or use the middle button, to pan the canvas.
+  let space = $state(false);
+  let spacePanned = false;
+  let panning = $state(false);
+  const typing = (e: Event) => {
+    const t = e.target as HTMLElement | null;
+    return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+  };
+  const shortcutBlocked = (e: Event) => {
+    const target = e.target;
+    return typing(e) || target instanceof Element && !!target.closest('button, select, a[href], [role="button"], [role="slider"]');
+  };
+  function canvasKeydown(e: KeyboardEvent) {
+    if (typing(e) || editor.presenting || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (e.key.toLowerCase() === 'w') {
+      editor.showWire = !editor.showWire;
+      e.preventDefault();
+    }
+  }
+  function keydown(e: KeyboardEvent) {
+    if (typing(e) || !editor.scene || editor.presenting) return;
+    if (e.key === 'Escape' && donutPicking) { donutPicking(); e.preventDefault(); }
+    else if (e.key === 'Escape' && editor.tool) { penPoints = []; editor.tool = null; e.preventDefault(); }
+    else if (e.key === 'Enter' && editor.tool === 'pen' && penPoints.length >= 2) { e.preventDefault(); finishPen(); }
+    else if (e.key.toLowerCase() === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey && !shortcutBlocked(e)) { e.preventDefault(); editor.startPointEditing(); }
+    else if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) { editor.tool = null; editor.editingPath = null; }
+    else if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey && !shortcutBlocked(e)) {
+      e.preventDefault();
+      if (!e.repeat) { space = true; spacePanned = false; }
+    }
+    else if (ARROWS[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey && (e.target === document.body || e.target === stage)) arrowKey(e, ARROWS[e.key]!);
+    else if (e.shiftKey && e.code === 'Digit1') { e.preventDefault(); refit(); }
+    else if (e.shiftKey && e.code === 'Digit0') { e.preventDefault(); view = actualSize(view, fit, box[0], box[1]); }
+    // Enter, with a text selected: type into it.
+    else if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && editor.currentNode?.kind === 'shape' && ['text', 'path'].includes(editor.currentNode.shape)) { e.preventDefault(); editCanvasNode(editor.currentNode.id); }
+  }
+  const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  /**
+   * Arrow keys: adjust the handle dragged last (1 screen px, 10 with Shift), or else move the selected
+   * objects (1 document px, 10 with Shift). Repeated presses join one undo step (history is debounced).
+   */
+  function arrowKey(e: KeyboardEvent, [dx, dy]: [number, number]) {
+    const step = e.shiftKey ? 10 : 1;
+    const m = editor.current;
+    const target = arrowTarget && m && arrowTarget.effect === m.id ? arrowTarget : null;
+    if (target?.point) {
+      const h = handles.find((x) => x.name === target.point);
+      if (h) { e.preventDefault(); nudgePoint(h, dx * step, dy * step); return; }
+    }
+    if (target?.gizmo && gizmoScreen && stage) {
+      const h = gizmoScreen.handles.find((x) => x.label === target.gizmo);
+      const r = stage.getBoundingClientRect();
+      const from = h && toLocalNode(r.left + h.x, r.top + h.y);
+      const to = h && toLocalNode(r.left + h.x + dx * step, r.top + h.y + dy * step);
+      if (h && from && to) {
+        e.preventDefault();
+        for (const [k, v] of Object.entries(h.drag(liveParams(m!), from, to, false))) editor.setParam(k, v);
+        return;
+      }
+    }
+    const nodes = editor.selectedNodes.filter((n) => !editor.isLocked(n.id));
+    if (!nodes.length) return;
+    e.preventDefault();
+    for (const n of nodes) {
+      if (dx) editor.setNode(n.id, 'x', (n.transform?.x ?? 0) + dx * step);
+      if (dy) editor.setNode(n.id, 'y', (n.transform?.y ?? 0) + dy * step);
+    }
+  }
+  const isText = (n: SceneNode | null | undefined): n is SceneNode & { kind: 'shape' } => n?.kind === 'shape' && n.shape === 'text';
+  let lastCanvasClick: { id: string; time: number; x: number; y: number } | null = null;
+  function editCanvasNode(id: string) {
+    const n = editor.scene ? locateNode(editor.scene.objects, id)?.node : null;
+    if (!n || editor.isLocked(id)) return false;
+    if (n.kind === 'group' && n.composition) {
+      editor.selected = n.id;
+      editor.openComposition(n.id);
+      return true;
+    }
+    if (n.kind === 'shape' && n.shape === 'path') { editor.selected = n.id; editor.startPointEditing(n.id); return true; }
+    if (!isText(n)) return false;
+    editor.tool = null; editor.editingPath = null;
+    editor.selected = n.id;
+    if (hasTextExpressions(n.params.text)) editor.openTextFx(n.id);
+    else editor.editingText = n.id;
+    return true;
+  }
+  /** Double-click on a text: type into it, on the canvas. */
+  function dblclick(e: MouseEvent) {
+    if (editor.tool === 'pen') { e.preventDefault(); finishPen(); return; }
+    // What is under the pointer (not e.target: on press the stage captures the pointer to drag
+    // and the double-click reaches it, not the letter).
+    const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('path[data-node], image[data-node]'));
+    const id = hit?.getAttribute('data-node');
+    if (id && editCanvasNode(id)) { e.preventDefault(); e.stopPropagation(); }
+  }
+  function keyup(e: KeyboardEvent) {
+    if (e.code !== 'Space' || !space) return;
+    e.preventDefault();
+    space = false;
+    if (!spacePanned && !shortcutBlocked(e) && editor.scene && !editor.presenting) editor.togglePlayback();
+  }
+  /** The canvas takes keyboard focus (arrows, shortcuts), leaving any inspector field it was in. */
+  const takeFocus = () => stage?.focus({ preventScroll: true });
+  function pointerdown(e: PointerEvent) {
+    if (e.button === 0 && !shortcutBlocked(e)) { e.preventDefault(); takeFocus(); }
+    if (!(space || e.button === 1)) return pick(e);
+    e.preventDefault();
+    if (space) spacePanned = true;
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    panning = true;
+    const x0 = e.clientX, y0 = e.clientY, p0 = view.pan;
+    const move = (ev: PointerEvent) => (view = { zoom: view.zoom, pan: { x: p0.x + ev.clientX - x0, y: p0.y + ev.clientY - y0 } });
+    const up = () => { panning = false; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  // ── Handles: the selected effect's points are dragged over the drawing
+
+  interface Handle { name: string; label: string; x: number; y: number }
+  let hover = $state<string | null>(null);
+  let grabbing = $state<string | null>(null);
+  /**
+   * The handle the arrow keys adjust: the last one dragged (a point handle by param name, or an actuator
+   * handle by label), while the same effect stays selected. Without one, arrows move the selection.
+   */
+  let arrowTarget = $state<{ effect: string; point?: string; gizmo?: string } | null>(null);
+
+  const handleParams = $derived.by(() => {
+    const m = editor.current;
+    // Step gives each copy its own centre; Oscillate shares the nested modifier's pivot.
+    const sharedPivot = editor.currentParent?.type === 'oscillate';
+    const wiggleTransformPivot = editor.currentParent?.type === 'wiggle' && m?.type === 'transform';
+    if (!m || (editor.currentParent && !sharedPivot && !wiggleTransformPivot)) return [];
+    const def = registry.get(m.type);
+    const params = def?.params ?? {};
+    // Without those not shown (showIf): a filter's area centre, only with an area.
+    const shown = (s: (typeof params)[string]) =>
+      !s.showIf || Object.entries(s.showIf).every(([o, allowed]) => allowed.includes(String(m.params?.[o] ?? params[o]?.default)));
+    return Object.entries(params)
+      .filter(([, s]) => s.type === 'point' && s.handle !== false && shown(s))
+      .map(([name, s]) => ({ name, label: s.label ?? name }));
+  });
+
+  /** The node owning the selected effect: its reference box and its matrix to the document. */
+  const ownerInfo = (): NodeInfo | undefined => {
+    const node = editor.activeNode;
+    const info = node ? nodes.get(node.id) : undefined;
+    // A Field in an Effector node is a place in the scene: it measures on the document, not on a target.
+    const effect = editor.currentParent ?? editor.current;
+    if (!info || node?.kind !== 'effector' || effect?.type !== 'field') return info;
+    const d = editor.scene?.document;
+    const frame = d ? { x: (d.x ?? 0) - d.width / 2, y: (d.y ?? 0) - d.height / 2, width: d.width, height: d.height } : { x: -500, y: -500, width: 1000, height: 1000 };
+    return { ...info, matrix: [1, 0, 0, 1, 0, 0], bounds: frame, refs: {} };
+  };
+  /**
+   * The box the selected effect measures on (its fractions): the node's or, if it comes after a
+   * Clone or a Mirror, what those generate. Inside Step or Range, its parent's.
+   */
+  const refBox = (info: NodeInfo) => {
+    const id = editor.currentParent?.id ?? editor.current?.id;
+    return (id && info.refs?.[id]) || info.bounds;
+  };
+
+  /** Document → stage pixels (with the current zoom and fit). */
+  const docToStage = (x: number, y: number): [number, number] | null => {
+    const ctm = result?.getScreenCTM();
+    if (!ctm || !stage) return null;
+    const p = new DOMPoint(x, y).matrixTransform(ctm);
+    const r = stage.getBoundingClientRect();
+    return [p.x - r.left, p.y - r.top];
+  };
+  let pathStageMatrix = $state<Mat>();
+  $effect(() => {
+    void view; void stageSize; void viewBox; void editor.showRulers;
+    const frame = requestAnimationFrame(() => {
+      const o = docToStage(0, 0), x = docToStage(1, 0), y = docToStage(0, 1);
+      if (o && x && y) pathStageMatrix = [x[0]-o[0], x[1]-o[1], y[0]-o[0], y[1]-o[1], o[0], o[1]];
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+  const clientToDoc = (clientX: number, clientY: number): [number, number] | null => {
+    const ctm = result?.getScreenCTM();
+    if (!ctm) return null;
+    const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
+    return [p.x, p.y];
+  };
+
+  const toScreen = (fx: number, fy: number): [number, number] | null => {
+    const info = ownerInfo();
+    if (!info) return null;
+    const b = refBox(info);
+    const [x, y] = apply(info.matrix, [b.x + fx * b.width, b.y + fy * b.height]);
+    return docToStage(x, y);
+  };
+  const toFraction = (clientX: number, clientY: number): [number, number] | null => {
+    const info = ownerInfo();
+    const d = clientToDoc(clientX, clientY);
+    const b = info && refBox(info);
+    if (!info || !b || !d || b.width === 0 || b.height === 0) return null;
+    const [x, y] = apply(invert(info.matrix), d);
+    const r = (n: number) => Math.round(n * 1000) / 1000;
+    return [r((x - b.x) / b.width), r((y - b.y) / b.height)];
+  };
+
+  // ── Selection: the selected node's frame; click to select and drag to move
+
+  type Rect = { x: number; y: number; w: number; h: number };
+  type SnapFeatures = { x: number[]; y: number[] };
+  let snapGuides = $state<SnapFeatures>({ x: [], y: [] });
+  type GuideDrag = { axis: 'x' | 'y'; value: number; index: number | null };
+  type RulerTick = { value: number; screen: number; label: string };
+  let guideDrag = $state<GuideDrag | null>(null);
+  let rulerTicks = $state<{ x: RulerTick[]; y: RulerTick[] }>({ x: [], y: [] });
+  let selection = $state<Rect | null>(null);
+  /** The other selected nodes (⇧ + click): only their frame. */
+  let others = $state<Rect[]>([]);
+  const rectOf = (id: string): Rect | null => {
+    const info = nodes.get(id);
+    if (!info || info.box.width + info.box.height === 0) return null;
+    const a = docToStage(info.box.x, info.box.y);
+    const b = docToStage(info.box.x + info.box.width, info.box.y + info.box.height);
+    return a && b ? { x: a[0], y: a[1], w: b[0] - a[0], h: b[1] - a[1] } : null;
+  };
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const node = editor.currentNode;
+    const rest = editor.selectedNodes.filter((n) => n.id !== node?.id).map((n) => n.id);
+    const frame = requestAnimationFrame(() => {
+      others = rest.map(rectOf).filter((r): r is Rect => !!r);
+      const main = node ? rectOf(node.id) : null;
+      const boxes = [...(main ? [main] : []), ...others];
+      if (boxes.length > 1) {
+        const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
+        selection = { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y };
+      } else selection = boxes[0] ?? null;
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function selectedTreeIds(): Set<string> {
+    const ids = new Set<string>();
+    const add = (node: SceneNode) => { ids.add(node.id); node.children?.forEach(add); };
+    editor.selectedNodes.forEach(add);
+    return ids;
+  }
+  function snapTargets(excluded: Set<string>): SnapFeatures {
+    const x = [...(editor.scene?.guides?.x ?? [])], y = [...(editor.scene?.guides?.y ?? [])];
+    if (editor.smartGuides) {
+      for (const [id, info] of nodes) {
+        if (excluded.has(id) || info.kind === 'effector' || info.box.width + info.box.height === 0) continue;
+        const b = info.box;
+        x.push(b.x, b.x + b.width / 2, b.x + b.width);
+        y.push(b.y, b.y + b.height / 2, b.y + b.height);
+      }
+      const d = editor.scene?.document;
+      const [x0, y0, width, height] = d
+        ? [(d.x ?? 0) - d.width / 2, (d.y ?? 0) - d.height / 2, d.width, d.height]
+        : docViewBox;
+      const x1 = x0 + width, y1 = y0 + height;
+      x.push(x0, (x0 + x1) / 2, x1);
+      y.push(y0, (y0 + y1) / 2, y1);
+    }
+    return { x, y };
+  }
+  function snapAxis(moving: number[], targets: number[], threshold: number): { delta: number; guide: number } | null {
+    let best: { delta: number; guide: number } | null = null;
+    for (const a of moving) for (const b of targets) {
+      const delta = b - a;
+      if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta))) best = { delta, guide: b };
+    }
+    return best;
+  }
+  function snapBox(b: Rect, dx: number, dy: number, targets: SnapFeatures, threshold: number, axes: { x: boolean; y: boolean }) {
+    const sx = axes.x ? snapAxis([b.x + dx, b.x + b.w / 2 + dx, b.x + b.w + dx], targets.x, threshold) : null;
+    const sy = axes.y ? snapAxis([b.y + dy, b.y + b.h / 2 + dy, b.y + b.h + dy], targets.y, threshold) : null;
+    snapGuides = { x: sx ? [sx.guide] : [], y: sy ? [sy.guide] : [] };
+    return { dx: dx + (sx?.delta ?? 0), dy: dy + (sy?.delta ?? 0) };
+  }
+  function snapPoint(point: [number, number], targets: SnapFeatures, threshold: number, axes: { x: boolean; y: boolean }): [number, number] {
+    const sx = axes.x ? snapAxis([point[0]], targets.x, threshold) : null;
+    const sy = axes.y ? snapAxis([point[1]], targets.y, threshold) : null;
+    snapGuides = { x: sx ? [sx.guide] : [], y: sy ? [sy.guide] : [] };
+    return [point[0] + (sx?.delta ?? 0), point[1] + (sy?.delta ?? 0)];
+  }
+  function rebuildRulers() {
+    const rect = stage?.getBoundingClientRect();
+    const ctm = result?.getScreenCTM();
+    if (!rect || !ctm) return (rulerTicks = { x: [], y: [] });
+    const scale = Math.abs(ctm.a) || 1;
+    const raw = 64 / scale;
+    const power = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map((n) => n * power).find((n) => n >= raw) ?? 10 * power;
+    // One layout read for the whole pass: asking the DOM per tick (and per grid line) forced a layout
+    // each time — hundreds per redraw on a tall document.
+    const toStage = (x: number, y: number): [number, number] => {
+      const p = new DOMPoint(x, y).matrixTransform(ctm);
+      return [p.x - rect.left, p.y - rect.top];
+    };
+    const inv = ctm.inverse();
+    const clientToDoc = (cx: number, cy: number): [number, number] => {
+      const p = new DOMPoint(cx, cy).matrixTransform(inv);
+      return [p.x, p.y];
+    };
+    const docToStage = toStage;
+    const rulerTop = INSET.top;
+    const x0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[0] ?? 0;
+    const x1 = clientToDoc(rect.right, rect.top + rulerTop)?.[0] ?? 0;
+    const y0 = clientToDoc(rect.left + INSET.left, rect.top + rulerTop)?.[1] ?? 0;
+    const y1 = clientToDoc(rect.left + INSET.left, rect.bottom)?.[1] ?? 0;
+    const make = (a: number, b: number, axis: 'x' | 'y'): RulerTick[] => {
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      const first = Math.ceil(lo / step) * step;
+      const decimals = step >= 1 ? 0 : Math.min(4, Math.max(1, -Math.floor(Math.log10(step))));
+      const out: RulerTick[] = [];
+      for (let value = first, guard = 0; value <= hi && guard < 300; value += step, guard++) {
+        const p = axis === 'x' ? docToStage(value, 0) : docToStage(0, value);
+        if (p) out.push({ value, screen: axis === 'x' ? p[0] : p[1], label: Number(value.toFixed(decimals)).toString() });
+      }
+      return out;
+    };
+    rulerTicks = { x: make(x0, x1, 'x'), y: make(y0, y1, 'y') };
+    rebuildGrid(rect, scale, toStage, clientToDoc);
+  }
+
+  // ── Grid (View > Grid): document-aligned lines in stage pixels. The step is the smallest 1-2-5 step that
+  // keeps lines at least GRID_MIN px apart on screen; every 5th (step 2…) or 10th line is a major one.
+  const GRID_MIN = 12;
+  let grid = $state<{ minor: string; major: string }>({ minor: '', major: '' });
+  function rebuildGrid(rect: DOMRect, scale: number, docToStage: (x: number, y: number) => [number, number], clientToDoc: (x: number, y: number) => [number, number]) {
+    if (!editor.showGrid) return void (grid = { minor: '', major: '' });
+    const raw = GRID_MIN / scale;
+    const power = 10 ** Math.floor(Math.log10(raw));
+    const mantissa = [1, 2, 5, 10].find((n) => n * power >= raw) ?? 10;
+    const step = mantissa * power;
+    const every = mantissa === 2 ? 5 : 10;
+    const a = clientToDoc(rect.left, rect.top), b = clientToDoc(rect.right, rect.bottom);
+    if (!a || !b) return void (grid = { minor: '', major: '' });
+    let minor = '', major = '';
+    const lines = (lo: number, hi: number, axis: 'x' | 'y') => {
+      const first = Math.ceil(Math.min(lo, hi) / step);
+      const last = Math.floor(Math.max(lo, hi) / step);
+      for (let k = first, guard = 0; k <= last && guard < 2000; k++, guard++) {
+        const p = axis === 'x' ? docToStage(k * step, 0) : docToStage(0, k * step);
+        if (!p) continue;
+        const v = Math.round(axis === 'x' ? p[0] : p[1]) + 0.5;
+        const d = axis === 'x' ? `M${v} 0V${rect.height}` : `M0 ${v}H${rect.width}`;
+        if (k % every === 0) major += d;
+        else minor += d;
+      }
+    };
+    lines(a[0], b[0], 'x');
+    lines(a[1], b[1], 'y');
+    grid = { minor, major };
+  }
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes; void editor.scene?.document; void editor.showGrid;
+    const frame = requestAnimationFrame(rebuildRulers);
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function setGuides(axis: 'x' | 'y', values: number[]) {
+    if (!editor.scene) return;
+    editor.scene.guides = { x: [...(editor.scene.guides?.x ?? [])], y: [...(editor.scene.guides?.y ?? [])], [axis]: values };
+    if (!editor.scene.guides.x.length && !editor.scene.guides.y.length) delete editor.scene.guides;
+    editor.record(true);
+  }
+  function removeGuide(axis: 'x' | 'y', index: number, e: MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    const values = [...(editor.scene?.guides?.[axis] ?? [])];
+    values.splice(index, 1);
+    setGuides(axis, values);
+  }
+  function dragGuide(axis: 'x' | 'y', e: PointerEvent, index: number | null = null) {
+    if (!editor.scene || !stage || e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const initial = index === null ? clientToDoc(e.clientX, e.clientY)?.[axis === 'x' ? 0 : 1] : editor.scene.guides?.[axis][index];
+    if (initial === undefined) return;
+    guideDrag = { axis, index, value: initial };
+    const move = (ev: PointerEvent) => {
+      const p = clientToDoc(ev.clientX, ev.clientY);
+      if (p) guideDrag = { axis, index, value: p[axis === 'x' ? 0 : 1] };
+    };
+    const up = (ev: PointerEvent) => {
+      const current = guideDrag;
+      const rect = stage!.getBoundingClientRect();
+      const onRuler = editor.showRulers && (axis === 'x'
+        ? ev.clientY >= rect.top && ev.clientY <= rect.top + 20
+        : ev.clientX >= rect.left && ev.clientX <= rect.left + 20);
+      if (current && (index !== null || !onRuler)) {
+        const values = [...(editor.scene?.guides?.[axis] ?? [])];
+        if (onRuler && index !== null) values.splice(index, 1);
+        else if (index === null) values.push(current.value);
+        else values[index] = current.value;
+        setGuides(axis, values);
+      }
+      guideDrag = null;
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  // ── Arrange: align and distribute the selection (in the document), flip
+
+  function arrange(moves: Move[]) {
+    if (!editor.scene) return;
+    // From the document to each one's group coordinates.
+    editor.moveNodes(
+      moves.map(({ id, dx, dy }) => {
+        const at = locateNode(editor.scene!.objects, id);
+        const parentInfo = at?.parent ? nodes.get(at.parent.id) : undefined;
+        if (!parentInfo) return { id, dx, dy };
+        const m = invert(parentInfo.matrix);
+        return { id, dx: m[0] * dx + m[2] * dy, dy: m[1] * dx + m[3] * dy };
+      }),
+    );
+  }
+  const items = () => editor.selectedNodes.flatMap((n) => {
+    const info = nodes.get(n.id);
+    return info ? [{ id: n.id, box: info.box }] : [];
+  });
+  const booleans = [
+    { mode: 'union', icon: 'bool-union', label: 'union' },
+    { mode: 'subtract', icon: 'bool-subtract', label: 'subtract (back minus front)' },
+    { mode: 'intersect', icon: 'bool-intersect', label: 'intersect' },
+    { mode: 'exclude', icon: 'bool-exclude', label: 'exclude' },
+  ];
+  // Arrange toolbar readout: the label of the button under the pointer or with focus.
+  let arrangeHint = $state<string | null>(null);
+  let arrangeHintHideTimer: ReturnType<typeof setTimeout> | undefined;
+  function showArrangeHint(e: Event) {
+    clearTimeout(arrangeHintHideTimer);
+    const label = (e.target as Element).closest('button')?.getAttribute('aria-label');
+    // Separators have no label: keep the previous hint while the pointer crosses them.
+    if (label) arrangeHint = label;
+  }
+  function hideArrangeHintSoon() {
+    clearTimeout(arrangeHintHideTimer);
+    arrangeHintHideTimer = setTimeout(() => (arrangeHint = null), 140);
+  }
+  const alignments: { how: Align; icon: string; label: string }[] = [
+    { how: 'left', icon: 'align-left', label: 'Align left' },
+    { how: 'hcenter', icon: 'align-hcenter', label: 'Align centers horizontally' },
+    { how: 'right', icon: 'align-right', label: 'Align right' },
+    { how: 'top', icon: 'align-top', label: 'Align top' },
+    { how: 'vcenter', icon: 'align-vcenter', label: 'Align centers vertically' },
+    { how: 'bottom', icon: 'align-bottom', label: 'Align bottom' },
+  ];
+
+  // ── Scale and rotate from the frame: corners to scale (uniformly), just outside them to rotate.
+  // Everything rotates and scales around the node's centre (its pivot), as in its attributes.
+
+  type Corner = 'nw' | 'ne' | 'se' | 'sw';
+  const corners: Corner[] = ['nw', 'ne', 'se', 'sw'];
+  type Edge = 'n' | 'e' | 's' | 'w';
+  const edges: Edge[] = ['n', 'e', 's', 'w'];
+  const cornerAt = (c: Corner, b: { x: number; y: number; w: number; h: number }) => ({
+    x: c === 'nw' || c === 'sw' ? b.x : b.x + b.w,
+    y: c === 'nw' || c === 'ne' ? b.y : b.y + b.h,
+  });
+  const edgeAt = (edge: Edge, b: { x: number; y: number; w: number; h: number }) => ({
+    x: edge === 'w' ? b.x : edge === 'e' ? b.x + b.w : b.x + b.w / 2,
+    y: edge === 'n' ? b.y : edge === 's' ? b.y + b.h : b.y + b.h / 2,
+  });
+  /** What is being done with the frame, for the label next to the pointer. */
+  let gesture = $state<{ text: string; x: number; y: number; left?: boolean } | null>(null);
+
+  function transformFrom(e: PointerEvent, mode: 'scale' | 'rotate' | 'stretch-x-left' | 'stretch-x-right' | 'stretch-y-top' | 'stretch-y-bottom') {
+    const node = editor.currentNode && nodes.has(editor.currentNode.id) ? editor.currentNode : editor.selectedNodes.find(n => nodes.has(n.id));
+    const info = node ? nodes.get(node.id) : undefined;
+    if (!node || !info || !stage || space) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // Cancelling the pointerdown keeps focus where it was (an inspector field…): take it, so the
+    // arrow keys move the object just scaled or rotated, not the last effect handle.
+    takeFocus();
+    arrowTarget = null;
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const multiple = editor.selectedNodes.length > 1;
+    const scaleAll = multiple && mode === 'scale' ? editor.captureSelectionScale() : null;
+    const pivot: [number, number] | null = multiple && selection ? [selection.x + selection.w / 2, selection.y + selection.h / 2] : docToStage(...apply(info.matrix, pivotPoint(info.bounds, placementOf(node).pivot)));
+    if (!pivot) return;
+    const r = stage.getBoundingClientRect();
+    const at = (ev: PointerEvent) => [ev.clientX - r.left - pivot[0], ev.clientY - r.top - pivot[1]] as const;
+    const [x0, y0] = at(e);
+    const p0 = placementOf(node);
+    const d0 = Math.hypot(x0, y0) || 1;
+    const a0 = Math.atan2(y0, x0);
+    const startDoc = clientToDoc(e.clientX, e.clientY);
+    const pivotDoc = apply(info.matrix, pivotPoint(info.bounds, p0.pivot));
+    const toLocal = invert(info.matrix);
+    const localStart = startDoc ? apply(toLocal, startDoc) : null;
+    const localPivot = apply(toLocal, pivotDoc);
+    const targets = snapTargets(selectedTreeIds());
+    const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
+    const move = (ev: PointerEvent) => {
+      let [x, y] = at(ev);
+      const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+      if (mode === 'scale' || mode.startsWith('stretch-')) {
+        let doc = clientToDoc(ev.clientX, ev.clientY);
+        if (doc) {
+          const axes = mode === 'stretch-x-left' || mode === 'stretch-x-right' ? { x: true, y: false }
+            : mode === 'stretch-y-top' || mode === 'stretch-y-bottom' ? { x: false, y: true }
+              : { x: true, y: true };
+          doc = snapPoint(doc, targets, threshold, axes);
+          const snapped = docToStage(doc[0], doc[1]);
+          if (snapped) [x, y] = [snapped[0] - pivot[0], snapped[1] - pivot[1]];
+        } else snapGuides = { x: [], y: [] };
+        const edgeStretch = mode.startsWith('stretch-');
+        const freeform = edgeStretch || (ev.shiftKey && !multiple);
+        if (freeform && !multiple && localStart && doc) {
+          const local = apply(toLocal, doc);
+          const fixedX = mode === 'stretch-x-left' ? info.bounds.x + info.bounds.width : info.bounds.x;
+          const fixedY = mode === 'stretch-y-top' ? info.bounds.y + info.bounds.height : info.bounds.y;
+          const measureX = edgeStretch ? fixedX : localPivot[0];
+          const measureY = edgeStretch ? fixedY : localPivot[1];
+          const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * Math.max(0.01, Math.abs((local[0] - measureX) / (localStart[0] - measureX || 1)));
+          const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * Math.max(0.01, Math.abs((local[1] - measureY) / (localStart[1] - measureY || 1)));
+          const next: [number, number] = [mode.startsWith('stretch-y-') ? (p0.stretch?.[0] ?? 1) : sx, mode.startsWith('stretch-x-') ? (p0.stretch?.[1] ?? 1) : sy];
+          editor.setNode(node.id, 'stretch', next);
+          if (edgeStretch) {
+            const axisX = mode.startsWith('stretch-x-');
+            const factor = axisX ? next[0] / (p0.stretch?.[0] ?? 1) - 1 : next[1] / (p0.stretch?.[1] ?? 1) - 1;
+            const distance = (axisX ? fixedX - localPivot[0] : fixedY - localPivot[1]) * factor;
+            const dx = axisX ? -info.matrix[0] * distance : -info.matrix[2] * distance;
+            const dy = axisX ? -info.matrix[1] * distance : -info.matrix[3] * distance;
+            const parent = editor.scene ? locateNode(editor.scene.objects, node.id)?.parent : null;
+            const parentMatrix = parent ? nodes.get(parent.id)?.matrix : null;
+            const parentInv = parentMatrix ? invert(parentMatrix) : [1, 0, 0, 1, 0, 0] as const;
+            const px = parentInv[0] * dx + parentInv[2] * dy;
+            const py = parentInv[1] * dx + parentInv[3] * dy;
+            editor.setNode(node.id, 'x', p0.x + px);
+            editor.setNode(node.id, 'y', p0.y + py);
+          }
+          gesture = { text: `${next[0].toFixed(2)} × ${next[1].toFixed(2)}`, ...label };
+          return;
+        }
+        const factor = Math.max(0.01, Math.hypot(x, y) / d0);
+        const k = Math.round((scaleAll ? factor : p0.scale * factor) * 100) / 100;
+        if (scaleAll) scaleAll(k); else editor.setNode(node.id, 'scale', k);
+        gesture = { text: `× ${k.toFixed(2)}`, ...label };
+      } else {
+        snapGuides = { x: [], y: [] };
+        let deg = p0.rotation + ((Math.atan2(y, x) - a0) * 180) / Math.PI;
+        deg = ev.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
+        deg = ((((deg + 180) % 360) + 360) % 360) - 180;
+        editor.setNode(node.id, 'rotation', deg);
+        gesture = { text: `${deg}°`, ...label };
+      }
+    };
+    const up = () => {
+      gesture = null;
+      snapGuides = { x: [], y: [] };
+      editor.flush();
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  // ── Transform centre: a cross with a circle that is dragged (⇧ = corners, edges and centre)
+
+  let pivotAt = $state<[number, number] | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const node = editor.currentNode;
+    const pv = node ? $state.snapshot(placementOf(node).pivot) : undefined;
+    const frame = requestAnimationFrame(() => {
+      const info = node ? nodes.get(node.id) : undefined;
+      pivotAt = info ? docToStage(...apply(info.matrix, pivotPoint(info.bounds, pv as [number, number] | undefined))) : null;
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
+  function dragPivot(e: PointerEvent) {
+    const node = editor.currentNode;
+    const info = node ? nodes.get(node.id) : undefined;
+    if (!node || !info || space) return;
+    e.preventDefault();
+    e.stopPropagation();
+    takeFocus();
+    arrowTarget = null;
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const b = info.bounds;
+    // The starting matrix: while dragging, the object does not move.
+    const inv = invert(info.matrix);
+    const r = stage!.getBoundingClientRect();
+    const move = (ev: PointerEvent) => {
+      const d = clientToDoc(ev.clientX, ev.clientY);
+      if (!d || !b.width || !b.height) return;
+      const [lx, ly] = apply(inv, d);
+      let f: [number, number] = [(lx - b.x) / b.width, (ly - b.y) / b.height];
+      if (ev.shiftKey) f = [Math.round(f[0] * 2) / 2, Math.round(f[1] * 2) / 2];
+      editor.setPivot(node.id, f);
+      gesture = { text: `pivot ${f[0].toFixed(2)}, ${f[1].toFixed(2)}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+    };
+    const up = () => {
+      gesture = null;
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  // ── Drawing primitives: with a tool armed, dragging sets size and place.
+  // While dragging, the real shape shows (with its default style), not a rectangle.
+
+  /** Parameters and centre (in the document) of a primitive drawn from `a` to `b`. */
+  function sized(type: string, a: [number, number], b: [number, number], square: boolean) {
+    let dx = b[0] - a[0], dy = b[1] - a[1];
+    if ((square || type === 'donut') && type !== 'line') dx = dy = Math.max(Math.abs(dx), Math.abs(dy)) * Math.sign(dx || 1);
+    const center = { x: a[0] + dx / 2, y: a[1] + dy / 2 };
+    const r2 = (n: number) => Math.max(1, Math.round(n));
+    const params: Record<string, unknown> =
+      type === 'rectangle' || type === 'ellipse'
+        ? { width: r2(Math.abs(dx)), height: r2(Math.abs(dy)) }
+        : type === 'line'
+          ? { length: r2(Math.hypot(dx, dy)), angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI) }
+          : type === 'arrow'
+            ? { length: r2(Math.abs(dx)), width: r2(Math.abs(dy) / 3) }
+          : type === 'cross'
+            ? { size: r2(Math.max(Math.abs(dx), Math.abs(dy))), width: r2(Math.max(Math.abs(dx), Math.abs(dy)) * 0.2) }
+          : type === 'donut'
+            ? { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2), innerRadius: r2(Math.max(Math.abs(dx), Math.abs(dy)) * 0.28) }
+          : type === 'pawn'
+            ? { height: r2(Math.max(Math.abs(dy), Math.abs(dx) * (200 / 120))) }
+            : type === 'text'
+              ? { size: r2(Math.abs(dy)) }
+            : { radius: r2(Math.max(Math.abs(dx), Math.abs(dy)) / 2) };
+    return { params, center };
+  }
+
+  /** The shape being drawn: path and style, already placed in the document. */
+  let draft = $state<{ d: string; fill: string; stroke?: string; width?: string; x: number; y: number; inner?: number } | null>(null);
+  let penPoints = $state<{ x: number; y: number; hx: number; hy: number }[]>([]);
+  let penPreview = $derived(penPoints.map((p, i) => i === 0 ? `M${p.x} ${p.y}` : `C${penPoints[i - 1]!.hx} ${penPoints[i - 1]!.hy} ${p.x - (p.hx - p.x)} ${p.y - (p.hy - p.y)} ${p.x} ${p.y}`).join(' '));
+  function finishPen(closed = false) {
+    if (penPoints.length < 2 || !editor.scene) return;
+    const points = [...penPoints];
+    const last = points.at(-1)!, before = points.at(-2)!;
+    if (Math.hypot(last.x - before.x, last.y - before.y) < 1) points.pop();
+    if (points.length < 2) return;
+    const group = editor.currentNode;
+    const parent = group?.kind === 'group' && !group.composition ? nodes.get(group.id) : undefined;
+    if (parent) {
+      const inv = invert(parent.matrix);
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i]!, anchor = apply(inv, [p.x, p.y]), handle = apply(inv, [p.hx, p.hy]);
+        points[i] = { x: anchor[0], y: anchor[1], hx: handle[0], hy: handle[1] };
+      }
+    }
+    const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+    const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+    const contours: PathContour[] = [{ closed, points: points.map(p => ({
+      point: [p.x-cx, p.y-cy], in: [p.x-p.hx, p.y-p.hy], out: [p.hx-p.x, p.hy-p.y],
+      mode: Math.hypot(p.hx-p.x, p.hy-p.y) > .01 ? 'symmetric' : 'corner',
+    })) }];
+    editor.addShape('path', { contours, fill: closed, stroke: true, strokeColor: editor.strokeOn ? editor.strokeColor : editor.fillColor, strokeWidth: 2 }, { x: cx, y: cy });
+    penPoints = []; editor.startPointEditing();
+  }
+  function drawPen(e: PointerEvent) {
+    const q = clientToDoc(e.clientX, e.clientY); if (!q) return;
+    e.preventDefault();
+    if (penPoints.length >= 3) { const first = docToStage(penPoints[0]!.x, penPoints[0]!.y), r = stage!.getBoundingClientRect(); if (first && Math.hypot(first[0]+r.left-e.clientX, first[1]+r.top-e.clientY) < 10) return finishPen(true); }
+    const p = { x: q[0], y: q[1], hx: q[0], hy: q[1] };
+    penPoints = [...penPoints, p];
+    const el = e.currentTarget as HTMLElement; el.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => { const h = clientToDoc(ev.clientX, ev.clientY); if (h) penPoints[penPoints.length - 1] = { ...p, hx: h[0], hy: h[1] }; };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+  function drawShape(e: PointerEvent) {
+    const type = editor.tool;
+    if (!type || !stage) return;
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const sx = e.clientX, sy = e.clientY;
+    const start = clientToDoc(sx, sy);
+    const move = (ev: PointerEvent) => {
+      const now = clientToDoc(ev.clientX, ev.clientY);
+      if (!start || !now || Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return (draft = null);
+      const { params, center } = sized(type, start, now, ev.shiftKey);
+      const shape = buildShape(type, params).shapes[0]!;
+      const st = shape.style;
+      draft = { d: toPathData(shape), fill: st.fill ?? 'none', stroke: st.stroke, width: st['stroke-width'], x: center.x, y: center.y };
+    };
+    const up = (ev: PointerEvent) => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+      draft = null;
+      const end = clientToDoc(ev.clientX, ev.clientY);
+      if (!start || !end) return;
+      // A click: at its default size, centred where clicked.
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return editor.addShape(type, {}, { x: start[0], y: start[1] }, { keepTool: true });
+      const { params, center } = sized(type, start, end, ev.shiftKey);
+      // Donut: the outer circle is drawn; now the pointer sets the hole and a click fixes it.
+      if (type === 'donut') return pickDonutInner(Number(params.radius), center);
+      editor.addShape(type, params, center, { keepTool: true });
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  /**
+   * Second step of drawing a Donut: its inner circle, highlighted, follows the pointer (its distance to
+   * the centre) until a click fixes it. Escape cancels the donut.
+   */
+  let donutPicking: (() => void) | null = null;
+  function pickDonutInner(radius: number, center: { x: number; y: number }) {
+    const show = (inner: number) => {
+      const shape = buildShape('donut', { radius, innerRadius: inner }).shapes[0]!;
+      const st = shape.style;
+      draft = { d: toPathData(shape), fill: st.fill ?? 'none', stroke: st.stroke, width: st['stroke-width'], x: center.x, y: center.y, inner };
+    };
+    const innerAt = (ev: PointerEvent) => {
+      const p = clientToDoc(ev.clientX, ev.clientY);
+      return p ? Math.min(radius, Math.max(0, Math.round(Math.hypot(p[0] - center.x, p[1] - center.y)))) : (draft?.inner ?? 0);
+    };
+    const move = (ev: PointerEvent) => show(innerAt(ev));
+    const down = (ev: PointerEvent) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const inner = innerAt(ev);
+      stop();
+      editor.addShape('donut', { radius, innerRadius: inner }, center, { keepTool: true });
+    };
+    const stop = () => {
+      draft = null;
+      donutPicking = null;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerdown', down, true);
+    };
+    donutPicking = stop;
+    show(Math.round(radius * 0.56));
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerdown', down, true);
+  }
+  $effect(() => () => donutPicking?.());
+
+  /** Double-click on the tool: the primitive, at its default size, at the centre of the view. */
+  function centerShape(type: string) {
+    const r = stage?.getBoundingClientRect();
+    const c = r && clientToDoc(r.left + r.width / 2, r.top + r.height / 2);
+    editor.addShape(type, {}, c ? { x: c[0], y: c[1] } : undefined);
+  }
+  // Passed to the app so the rail (outside the canvas) can place primitives at the centre.
+  $effect(() => {
+    placeAtCenter = centerShape;
+  });
+
+  function pick(e: PointerEvent) {
+    if (space || e.button !== 0 || !editor.scene) return;
+    if (editor.tool === 'pen') return drawPen(e);
+    if (editor.tool && editor.tool !== 'nodes') return drawShape(e);
+    let id = (e.target as Element).closest?.('path[data-node], image[data-node]')?.getAttribute('data-node');
+    if (!id && paintedGeometry) {
+      const p = clientToDoc(e.clientX, e.clientY);
+      const insideClip = p && (!editor.hideOutside || (p[0] >= docViewBox[0] && p[0] <= docViewBox[0] + docViewBox[2] && p[1] >= docViewBox[1] && p[1] <= docViewBox[1] + docViewBox[3]));
+      if (p && insideClip) id = hatchObjectAt(editor.scene, paintedGeometry, nodes, p[0], p[1]);
+    }
+    // Group level metaball/boolean effects merge their children into one rendered path,
+    // whose DOM hit target belongs to just one child. Resolve the click against the
+    // individual evaluated child geometries so each source object remains draggable.
+    const pointer = clientToDoc(e.clientX, e.clientY);
+    if (id && pointer && evaluatedDocument) {
+      let at = locateNode(editor.scene.objects, id);
+      let combiningGroup: SceneNode | null = null;
+      while (at) {
+        if (at.node.kind === 'group' && at.node.stack.some((m) => m.enabled !== false && ['metaball', 'boolean'].includes(m.type))) {
+          combiningGroup = at.node;
+          break;
+        }
+        at = at.parent ? locateNode(editor.scene.objects, at.parent.id) : null;
+      }
+      if (combiningGroup?.children?.length) {
+        hitContext ??= document.createElement('canvas').getContext('2d');
+        const contains = (geo: Geometry | null) => geo?.shapes.some((shape) => {
+          if (!hitContext) return false;
+          const path = new Path2D();
+          for (const sp of shape.subpaths) {
+            path.moveTo(sp.start[0], sp.start[1]);
+            for (const seg of sp.segs) path.bezierCurveTo(seg.c1[0], seg.c1[1], seg.c2[0], seg.c2[1], seg.p[0], seg.p[1]);
+            if (sp.closed) path.closePath();
+          }
+          if (shape.style.fill !== 'none' && shape.subpaths.some((sp) => sp.closed)
+            && hitContext.isPointInPath(path, pointer[0], pointer[1], shape.style['fill-rule'] === 'evenodd' ? 'evenodd' : 'nonzero')) return true;
+          const strokeWidth = Number(shape.style['stroke-width'] ?? 0);
+          if (shape.style.stroke !== 'none' && strokeWidth > 0) {
+            hitContext.lineWidth = strokeWidth;
+            return hitContext.isPointInStroke(path, pointer[0], pointer[1]);
+          }
+          return false;
+        }) ?? false;
+        const descendants: SceneNode[] = [];
+        const collect = (node: SceneNode) => {
+          if (node.kind === 'shape') descendants.push(node);
+          node.children?.forEach(collect);
+        };
+        combiningGroup.children.forEach(collect);
+        const sourceHit = descendants.find((child) => contains(evaluatedDocument!.geometryOf(child.id)));
+        if (sourceHit) id = sourceHit.id;
+      }
+    }
+    if (id && editor.isLocked(id)) return;
+    if (!id) {
+      lastCanvasClick = null;
+      if (!e.shiftKey) editor.selected = null;
+      return;
+    }
+    e.preventDefault();
+    if (editor.tool === 'nodes') { editor.selected = id; editor.startPointEditing(id); return; }
+    // ⇧ + click: add to or remove from the selection (without moving).
+    if (e.shiftKey) { lastCanvasClick = null; return editor.toggleSelect(id); }
+    // Selection redraws SVG paths between clicks; native dblclick can lose its target.
+    const previous = lastCanvasClick;
+    lastCanvasClick = null;
+    if (previous?.id === id && e.timeStamp - previous.time <= 500
+      && Math.hypot(e.clientX - previous.x, e.clientY - previous.y) <= 5
+      && editCanvasNode(id)) return;
+    const pointerStart = clientToDoc(e.clientX, e.clientY);
+    // Clicking another hit target switches selection immediately; clicking the current
+    // target keeps it selected so the same gesture can move it.
+    if (!editor.isSelected(id)) editor.selected = id;
+    let ids = editor.selectedNodes.map((n) => n.id);
+    const originalTree = selectedTreeIds();
+    const partsFor = (which: string[]) => which.flatMap((nid) => {
+      const at = locateNode(editor.scene!.objects, nid);
+      if (!at) return [];
+      const parentInfo = at.parent ? nodes.get(at.parent.id) : undefined;
+      return [{ id: nid, toParent: parentInfo ? invert(parentInfo.matrix) : null, t0: { x: at.node.transform?.x ?? 0, y: at.node.transform?.y ?? 0 } }];
+    });
+    const boxFor = (which: string[]): Rect | null => {
+      const bs = which.flatMap((nid) => { const b = nodes.get(nid)?.box; return b ? [b] : []; });
+      if (!bs.length) return null;
+      const x = Math.min(...bs.map(b => b.x)), y = Math.min(...bs.map(b => b.y));
+      return { x, y, w: Math.max(...bs.map(b => b.x + b.width)) - x, h: Math.max(...bs.map(b => b.y + b.height)) - y };
+    };
+    let parts = partsFor(ids);
+    const originalBox = boxFor(ids);
+    let startBox = originalBox;
+    let targets = snapTargets(originalTree);
+    const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
+    const cloneOnStart = e.altKey;
+    let cloned = false;
+    let dragStarted = false;
+    let dragOrigin = pointerStart;
+    let appliedDelta = { dx: 0, dy: 0 };
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      const now = clientToDoc(ev.clientX, ev.clientY);
+      if (!dragOrigin || !now || !editor.scene) return;
+      if (!dragStarted && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) >= 3) dragStarted = true;
+      const cloneRequested = cloneOnStart || ev.altKey;
+      if (cloneRequested && !dragStarted) return;
+      if (cloneRequested && dragStarted && !cloned) {
+        const copied = editor.copySelection();
+        if (copied && editor.paste(copied, 0, false)) {
+          cloned = true;
+          ids = editor.selectedNodes.map((n) => n.id);
+          parts = partsFor(ids);
+          dimmedNodes = [...selectedTreeIds()];
+          if (!cloneOnStart) {
+            startBox = originalBox ? { ...originalBox, x: originalBox.x + appliedDelta.dx, y: originalBox.y + appliedDelta.dy } : null;
+            dragOrigin = now;
+            appliedDelta = { dx: 0, dy: 0 };
+          } else startBox = originalBox;
+          const excluded = selectedTreeIds();
+          originalTree.forEach((oldId) => excluded.add(oldId));
+          targets = snapTargets(excluded);
+        }
+      }
+      const r = (n: number) => Math.round(n * 100) / 100;
+      // ⇧: only along the axis it moved most (horizontal or vertical, in the document).
+      let mx = now[0] - dragOrigin[0];
+      let my = now[1] - dragOrigin[1];
+      if (ev.shiftKey) {
+        if (Math.abs(mx) >= Math.abs(my)) my = 0;
+        else mx = 0;
+      }
+      if (startBox) ({ dx: mx, dy: my } = snapBox(startBox, mx, my, targets, threshold, {
+        x: !ev.shiftKey || Math.abs(now[0] - dragOrigin[0]) >= Math.abs(now[1] - dragOrigin[1]),
+        y: !ev.shiftKey || Math.abs(now[1] - dragOrigin[1]) > Math.abs(now[0] - dragOrigin[0]),
+      }));
+      else snapGuides = { x: [], y: [] };
+      for (const p of parts) {
+        let dx = mx;
+        let dy = my;
+        if (p.toParent) [dx, dy] = [p.toParent[0] * dx + p.toParent[2] * dy, p.toParent[1] * dx + p.toParent[3] * dy];
+        const n = locateNode(editor.scene.objects, p.id)?.node;
+        if (n) n.transform = { ...n.transform, x: r(p.t0.x + dx), y: r(p.t0.y + dy) };
+      }
+      appliedDelta = { dx: mx, dy: my };
+      if (!cloned) editor.record();
+    };
+    const up = (ev: PointerEvent) => {
+      lastCanvasClick = !dragStarted && !cloned && ev.type === 'pointerup'
+        ? { id, time: ev.timeStamp, x: ev.clientX, y: ev.clientY } : null;
+      snapGuides = { x: [], y: [] };
+      if (cloned) { dimmedNodes = []; editor.record(true); }
+      else if (dragStarted) editor.flush();
+      el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  // Computed after painting (with the zoom already applied in the DOM), not before.
+  let handles = $state<Handle[]>([]);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const m = editor.current;
+    // A point the scene doesn't store (written by hand or by an agent) still has its default: show it too.
+    const defaults = m ? registry.get(m.type)?.params : undefined;
+    const values = handleParams.map(({ name }) => ($state.snapshot(m?.params?.[name]) ?? defaults?.[name]?.default) as [number, number] | undefined);
+    const frame = requestAnimationFrame(() => {
+      handles = handleParams.flatMap(({ name, label }, i) => {
+        const v = values[i];
+        const at = v && toScreen(v[0], v[1]);
+        return at ? [{ name, label, x: at[0], y: at[1] }] : [];
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
+  // ── Guides of the selected effect (Bones' bones), in stage pixels.
+  let guides = $state<{ lines: string[]; points: [number, number][] } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const m = editor.current;
+    const def = m && !editor.currentParent ? registry.get(m.type) : undefined;
+    const params = def?.guides && m ? resolveParams(def.params, $state.snapshot(m.params) as Record<string, unknown>) : null;
+    const frame = requestAnimationFrame(() => {
+      const info = ownerInfo();
+      if (!def?.guides || !params || !info) return (guides = null);
+      const g = def.guides(params as never, refBox(info));
+      const at = (q: readonly [number, number]) => docToStage(...apply(info.matrix, q));
+      guides = {
+        lines: g.lines.map((l) => l.map(at).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')),
+        points: g.points.map(at).filter((q): q is [number, number] => !!q),
+      };
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+
+  // ── Actuators of the selected effect: its wire and its handles (see gizmos.ts)
+
+  /**
+   * The effect's params as the actuator should draw them: formulas resolved at the playhead, so a handle
+   * sits where the drawing is. (Dragging still writes a plain number, replacing the formula.)
+   */
+  function liveParams(m: { id: string; params?: Record<string, unknown> }): Record<string, unknown> {
+    const raw = $state.snapshot(m.params ?? {}) as Record<string, unknown>;
+    const formula = (v: unknown) => isNumericExpression(v) || (Array.isArray(v) && v.some(isNumericExpression));
+    if (!editor.scene || !Object.values(raw).some(formula)) return raw;
+    const resolved = evaluateSceneExpressions(sampleScene($state.snapshot(editor.scene) as SceneV1, editor.time));
+    type Item = { id: string; params?: Record<string, unknown>; children?: Item[] };
+    const inStack = (items: Item[] | undefined): Item | undefined => {
+      for (const it of items ?? []) { if (it.id === m.id) return it; const hit = inStack(it.children); if (hit) return hit; }
+    };
+    const inNodes = (nodes: SceneNode[]): Item | undefined => {
+      for (const n of nodes) { const hit = inStack(n.stack as Item[] | undefined) ?? inNodes(n.children ?? []); if (hit) return hit; }
+    };
+    return inNodes(resolved.objects)?.params ?? raw;
+  }
+
+  const gizmo = $derived.by(() => {
+    const m = editor.current;
+    const info = ownerInfo();
+    // Inside Step each copy uses its own centre; the actuator is drawn over the whole object
+    // and changes the values just the same (the first copy's; the others multiply them).
+    if (!m || !info || cornerTypes.has(m.type)) return null;
+    return gizmoFor(m.type, liveParams(m), refBox(info), info.matrix);
+  });
+  /** The actuator in the corner box (Rotate 3D), in its own pixels. */
+  const cornerGizmo = $derived.by(() => {
+    const m = editor.current;
+    if (!m || !cornerTypes.has(m.type)) return null;
+    const g = gizmoFor(m.type, $state.snapshot(m.params ?? {}) as Record<string, unknown>, CORNER_BOX);
+    if (!g) return null;
+    const d = (pts: readonly (readonly [number, number])[], closed?: boolean) =>
+      pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (closed ? 'Z' : '');
+    return {
+      lines: g.lines.map((l) => ({ d: d(l.pts, l.closed), tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, area: !!l.area, drag: l.drag, label: l.label })),
+      handles: g.handles.map((h) => ({ x: h.at[0], y: h.at[1], label: h.label, drag: h.drag, tone: h.tone ?? 'accent' })),
+    };
+  });
+  let cornerEl = $state<HTMLDivElement>();
+  /** From the pointer to corner box pixels. */
+  const toCorner = (clientX: number, clientY: number): Vec2 | null => {
+    const r = cornerEl?.querySelector('svg')?.getBoundingClientRect();
+    return r ? [clientX - r.left, clientY - r.top] : null;
+  };
+  /** The gizmo already in stage pixels (recomputed after painting, like the handles). */
+  let gizmoScreen = $state<{ lines: { d: string; tone: string; dashed: boolean; ribbon: boolean; drag?: Drag; label?: string }[]; handles: { x: number; y: number; label: string; drag: Drag; tone: string }[] } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox;
+    const g = gizmo;
+    const frame = requestAnimationFrame(() => {
+      const info = ownerInfo();
+      if (!g || !info) return (gizmoScreen = null);
+      const s = (pt: Vec2) => docToStage(...apply(info.matrix, pt));
+      gizmoScreen = {
+        lines: g.lines.map((l) => {
+          const pts = l.pts.map(s).filter((q): q is [number, number] => !!q);
+          const d = pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('') + (l.closed ? 'Z' : '');
+          return { d, tone: l.tone ?? 'accent', dashed: !!l.dashed, ribbon: !!l.ribbon, drag: l.drag, label: l.label };
+        }),
+        handles: g.handles.flatMap((h) => {
+          const q = s(h.at);
+          return q ? [{ x: q[0], y: q[1], label: h.label, drag: h.drag, tone: h.tone ?? 'accent' }] : [];
+        }),
+      };
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+  let gizmoActive = $state(false);
+  let gizmoHover = $state(false);
+
+  // ── Donut: a handle for its inner radius (right after drawing it, and whenever it is selected).
+  /** A number param as drawn: a formula counts as its fallback. */
+  const drawnNumber = (v: unknown, fallback: number) =>
+    typeof v === 'number' ? v : v && typeof v === 'object' && typeof (v as { fallback?: unknown }).fallback === 'number' ? (v as { fallback: number }).fallback : fallback;
+  /** Where the inner radius handle sits, in local coordinates: on the hole's edge, up and to the right. */
+  const DONUT_ANGLE = -Math.PI / 4;
+  let donutScreen = $state<{ x: number; y: number } | null>(null);
+  $effect(() => {
+    void view; void stageSize; void viewBox; void nodes;
+    const n = editor.activeNode;
+    const ok = n?.kind === 'shape' && n.shape === 'donut' && !editor.current && !editor.isLocked(n.id);
+    const inner = ok ? drawnNumber(n.params.innerRadius, 45) : 0;
+    const frame = requestAnimationFrame(() => {
+      const info = ok ? nodes.get(n.id) : undefined;
+      const q = info && docToStage(...apply(info.matrix, [Math.cos(DONUT_ANGLE) * inner, Math.sin(DONUT_ANGLE) * inner]));
+      donutScreen = q ? { x: q[0], y: q[1] } : null;
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+  function dragDonutInner(e: PointerEvent) {
+    const n = editor.activeNode;
+    if (space || n?.kind !== 'shape' || n.shape !== 'donut' || !stage) return;
+    e.preventDefault();
+    e.stopPropagation();
+    takeFocus();
+    const el = e.currentTarget as Element;
+    el.setPointerCapture(e.pointerId);
+    const outer = drawnNumber(n.params.radius, 80);
+    const r = stage.getBoundingClientRect();
+    gizmoActive = true;
+    const move = (ev: PointerEvent) => {
+      const info = nodes.get(n.id);
+      const d = clientToDoc(ev.clientX, ev.clientY);
+      if (!info || !d) return;
+      const local = apply(invert(info.matrix), d);
+      const inner = Math.min(outer, Math.max(0, Math.round(Math.hypot(local[0], local[1]))));
+      editor.setShapeParam(n.id, 'innerRadius', inner);
+      gesture = { text: `Inner radius ${inner}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+    };
+    const up = () => {
+      gizmoActive = false;
+      gesture = null;
+      editor.flush();
+      el.removeEventListener('pointermove', move as EventListener);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move as EventListener);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  /** From the pointer to local coordinates of the node owning the effect. */
+  const toLocalNode = (clientX: number, clientY: number): Vec2 | null => {
+    const info = ownerInfo();
+    const d = clientToDoc(clientX, clientY);
+    return info && d ? apply(invert(info.matrix), d) : null;
+  };
+
+  function dragGizmo(e: PointerEvent, drag: Drag, label: string, toLocal = toLocalNode) {
+    const m = editor.current;
+    if (space || !m) return;
+    e.preventDefault();
+    e.stopPropagation();
+    takeFocus();
+    const el = e.currentTarget as Element;
+    el.setPointerCapture(e.pointerId);
+    const from = toLocal(e.clientX, e.clientY);
+    if (toLocal === toLocalNode) arrowTarget = { effect: m.id, gizmo: label };
+    // Start from the values as drawn (formulas resolved), so a handle never jumps on the first move.
+    const p0 = liveParams(m);
+    const r = stage!.getBoundingClientRect();
+    gizmoActive = true;
+    const move = (ev: PointerEvent) => {
+      const to = toLocal(ev.clientX, ev.clientY);
+      if (!from || !to) return;
+      const changed = drag(p0, from, to, ev.shiftKey);
+      for (const [k, v] of Object.entries(changed)) editor.setParam(k, v);
+      const vals = Object.values(changed);
+      const v = vals.length > 1 ? vals.map((x) => (typeof x === 'number' ? x : '')).join(' · ') : vals[0];
+      // In the corner box, the value goes on its left (next to the pointer it would cover the rings).
+      const box = toLocal === toCorner ? cornerEl?.getBoundingClientRect() : undefined;
+      const text = `${label} ${typeof v === 'number' || typeof v === 'string' ? v : ''}`;
+      gesture = box
+        ? { text, x: box.left - r.left - 8, y: box.top - r.top + box.height / 2 - 8, left: true }
+        : { text, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+    };
+    const up = () => {
+      gizmoActive = false;
+      gesture = null;
+      el.removeEventListener('pointermove', move as EventListener);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    };
+    el.addEventListener('pointermove', move as EventListener);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+
+  function grab(e: PointerEvent, h: Handle) {
+    if (space) return;
+    e.preventDefault();
+    e.stopPropagation();
+    takeFocus();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    grabbing = h.name;
+    if (editor.current) arrowTarget = { effect: editor.current.id, point: h.name };
+    const v0 = $state.snapshot(editor.current?.params?.[h.name]) as [number, number] | undefined;
+    const move = (ev: PointerEvent) => {
+      const f = toFraction(ev.clientX, ev.clientY);
+      if (!f) return;
+      // ⇧: only the value (the point's X or Y) that moved most changes; the other stays as it was.
+      if (ev.shiftKey && v0) {
+        if (Math.abs(f[0] - v0[0]) >= Math.abs(f[1] - v0[1])) f[1] = v0[1];
+        else f[0] = v0[0];
+      }
+      editor.setParam(h.name, f);
+    };
+    const up = () => { grabbing = null; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+  function nudgeHandle(e: KeyboardEvent, h: Handle) {
+    const d = ARROWS[e.key];
+    if (!d || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (editor.current) arrowTarget = { effect: editor.current.id, point: h.name };
+    const step = e.shiftKey ? 10 : 1;
+    nudgePoint(h, d[0] * step, d[1] * step);
+  }
+  /** Moves a point handle by (dx, dy) screen pixels, as dragging it would. */
+  function nudgePoint(h: Handle, dx: number, dy: number) {
+    const v = (liveParams(editor.current!)[h.name] ?? registry.get(editor.current!.type)?.params?.[h.name]?.default) as [number, number] | undefined;
+    if (!v || !stage) return;
+    const r = stage.getBoundingClientRect();
+    // The change in fraction that the same move would make when dragging (any offset cancels out).
+    const a = toFraction(r.left + h.x, r.top + h.y), b = toFraction(r.left + h.x + dx, r.top + h.y + dy);
+    if (!a || !b) return;
+    const q = (n: number) => Math.round(n * 1000) / 1000;
+    editor.setParam(h.name, [q(v[0] + b[0] - a[0]), q(v[1] + b[1] - a[1])]);
+  }
+
+  function drop(e: DragEvent) {
+    e.preventDefault();
+    dropping = false;
+    // Several files at once: one object for each.
+    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg|json|image\/(png|webp|jpeg)/i.test(file.type) || /\.(svg|png|webp|jpe?g|svrtk|json)$/i.test(file.name)) onfile(file);
+  }
+</script>
+
+<svelte:window onkeydown={keydown} onkeyup={keyup} onblur={() => { space = false; spacePanned = false; }} />
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<section
+  class="canvas"
+  aria-label="Canvas"
+  style:--canvas={editor.canvas || DEFAULT_CANVAS}
+  data-wire={editor.showWire && editor.scene ? true : undefined}
+  data-empty={!editor.scene || undefined}
+  data-dragging={dropping || undefined}
+  ondragover={(e) => { e.preventDefault(); dropping = true; }}
+  ondragleave={() => (dropping = false)}
+  ondrop={drop}
+>
+  {#if editor.compositionPath.length > 0}
+    <button class="composition-back" style:top="{editor.showRulers ? 28 : 12}px" type="button" onclick={() => editor.leaveComposition()} aria-label="Back to parent composition" title="Back to parent composition">← Back</button>
+  {/if}
+  {#if editor.scene}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex: the canvas takes focus for its keyboard shortcuts. -->
+    <div class="stage" bind:this={stage} tabindex="0" aria-label="Canvas workspace. Press W to toggle Wire view." data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} onkeydown={canvasKeydown} ondblclick={dblclick}>
+      <div class="view" data-hide-outside={editor.hideOutside || undefined} style:--document-clip={documentClip} style:inset="{editor.showRulers ? '21px 48px 56px 21px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
+        {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
+        {#if editor.onionSkin && editor.animation && !editor.playing}
+          {#each ONION as offset, i (offset)}
+            <svg class="onion" data-side={offset < 0 ? 'before' : 'after'} style:opacity={Math.abs(offset) === 1 ? 0.32 : 0.14} bind:this={onion[i]} aria-hidden="true"></svg>
+          {/each}
+        {/if}
+        <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
+        {#if editor.showWire}<svg class="wire-hits" bind:this={wireHits} aria-hidden="true"></svg>{/if}
+        {#if editor.showBounds}
+          {@const [bx, by, bw, bh] = docViewBox}
+          {@const fixed = !!editor.scene.document}
+          <!-- The document border (what is exported). Fixed: the outside darkened; automatic: dashed. -->
+          <svg class="bounds" viewBox={viewBox.join(' ')} aria-hidden="true">
+            {#if fixed}<path class="outside" fill-rule="evenodd" d="M{bx - 1e5} {by - 1e5}h{bw + 2e5}v{bh + 2e5}h{-(bw + 2e5)}z M{bx} {by}h{bw}v{bh}h{-bw}z" />{/if}
+            <rect class="frame" data-auto={!fixed || undefined} x={bx} y={by} width={bw} height={bh} />
+          </svg>
+        {/if}
+        {#if draft}
+          <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true">
+            <path d={draft.d} transform="translate({draft.x} {draft.y})" fill={draft.fill} stroke={draft.stroke} stroke-width={draft.width} stroke-linejoin="round" stroke-linecap="round" />
+            <path class="outline" d={draft.d} transform="translate({draft.x} {draft.y})" />
+            {#if draft.inner !== undefined}<circle class="inner" cx={draft.x} cy={draft.y} r={draft.inner} />{/if}
+          </svg>
+        {/if}
+        {#if penPoints.length}
+          <svg class="draft" viewBox={viewBox.join(' ')} aria-hidden="true"><path d={penPreview} fill="none" stroke={editor.strokeOn ? editor.strokeColor : editor.fillColor} stroke-width="2" vector-effect="non-scaling-stroke"/>{#each penPoints as p, i}
+            <line x1={2*p.x-p.hx} y1={2*p.y-p.hy} x2={p.hx} y2={p.hy} stroke="var(--sv-canvas-accent)" stroke-width="1" vector-effect="non-scaling-stroke" />
+            <circle cx={p.x} cy={p.y} r={4 / (Math.abs(result?.getScreenCTM()?.a ?? 1) || 1)} fill={i === 0 ? 'var(--sv-canvas-accent)' : 'var(--sv-surface-panel)'} stroke="var(--sv-canvas-accent)" vector-effect="non-scaling-stroke" />
+          {/each}</svg>
+        {/if}
+      </div>
+      {#if snapGuides.x.length || snapGuides.y.length}
+        <svg class="snap-guides" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+          {#each snapGuides.x as x (x)}
+            {@const p = docToStage(x, 0)}
+            {#if p}<line x1={p[0]} y1="0" x2={p[0]} y2={stageSize[1]} />{/if}
+          {/each}
+          {#each snapGuides.y as y (y)}
+            {@const p = docToStage(0, y)}
+            {#if p}<line x1="0" y1={p[1]} x2={stageSize[0]} y2={p[1]} />{/if}
+          {/each}
+        </svg>
+      {/if}
+      {#if editor.showGrid}
+        <svg class="grid" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+          <path class="grid-minor" d={grid.minor} />
+          <path class="grid-major" d={grid.major} />
+        </svg>
+      {/if}
+      {#if editor.showRulers}
+      <svg class="rulers" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+        <rect class="ruler-corner" x="0" y="0" width="20" height="20" />
+        <rect class="ruler-bg" x="20" y="0" width={Math.max(0, stageSize[0] - 20)} height="20" />
+        <rect class="ruler-bg" x="0" y="20" width="20" height={Math.max(0, stageSize[1] - 20)} />
+        <line class="ruler-edge" x1="20" y1="20" x2={stageSize[0]} y2="20" />
+        <line class="ruler-edge" x1="20" y1="20" x2="20" y2={stageSize[1]} />
+        {#each rulerTicks.x as tick (tick.value)}
+          <line class="ruler-tick" x1={tick.screen} y1="14" x2={tick.screen} y2="20" />
+          <text class="ruler-label" x={tick.screen + 2} y="11">{tick.label}</text>
+        {/each}
+        {#each rulerTicks.y as tick (tick.value)}
+          <line class="ruler-tick" x1="14" y1={tick.screen} x2="20" y2={tick.screen} />
+          <text class="ruler-label vertical" transform="rotate(-90 12 {tick.screen - 2})" x="12" y={tick.screen - 2}>{tick.label}</text>
+        {/each}
+      </svg>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="ruler-zone horizontal" style:left="{editor.showRulers ? 20 : 48}px" title="Drag to create a horizontal guide" onpointerdown={(e) => dragGuide('y', e)}></div>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="ruler-zone vertical" style:left={editor.showRulers ? '0px' : '28px'} style:width={editor.showRulers ? '20px' : '20px'} title="Drag to create a vertical guide" onpointerdown={(e) => dragGuide('x', e)}></div>
+      {/if}
+      {#if editor.showGuides}<svg class="document-guides" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
+        {#each editor.scene?.guides?.x ?? [] as value, i (`x-${i}`)}
+          {@const p = docToStage(value, 0)}
+          {#if p}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <line class="guide-hit" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} onpointerdown={(e) => dragGuide('x', e, i)} ondblclick={(e) => removeGuide('x', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-line" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} />
+          {/if}
+        {/each}
+        {#each editor.scene?.guides?.y ?? [] as value, i (`y-${i}`)}
+          {@const p = docToStage(0, value)}
+          {#if p}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <line class="guide-hit" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} onpointerdown={(e) => dragGuide('y', e, i)} ondblclick={(e) => removeGuide('y', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-line" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} />
+          {/if}
+        {/each}
+        {#if guideDrag}
+          {@const p = guideDrag.axis === 'x' ? docToStage(guideDrag.value, 0) : docToStage(0, guideDrag.value)}
+          {#if p}<line class="guide-preview" x1={guideDrag.axis === 'x' ? p[0] : (editor.showRulers ? 21 : 0)} y1={guideDrag.axis === 'x' ? (editor.showRulers ? 21 : 0) : p[1]} x2={guideDrag.axis === 'x' ? p[0] : stageSize[0]} y2={guideDrag.axis === 'x' ? stageSize[1] : p[1]} />{/if}
+        {/if}
+      </svg>
+      {/if}
+      {#if editor.tool === 'pen' && penPoints.length >= 2}
+        <button class="finish-pen" type="button" onclick={() => finishPen()}>Finish path <kbd>Enter</kbd></button>
+      {/if}
+      {#if editor.editingPath && editor.scene && editor.selected === editor.editingPath}
+        {@const pn = locateNode(editor.scene.objects, editor.editingPath)?.node}
+        {@const pi = nodes.get(editor.editingPath)}
+        {#if pn?.kind === 'shape' && pn.shape === 'path' && pi && !editor.isLocked(pn.id)}
+          {#key pn.id}<PathEdit {editor} node={pn} info={pi} stageMatrix={pathStageMatrix} {docToStage} {clientToDoc} />{/key}
+        {/if}
+      {/if}
+      {#if editor.editingText && editor.scene}
+        {@const tn = locateNode(editor.scene.objects, editor.editingText)?.node}
+        {@const ti = nodes.get(editor.editingText)}
+        {#if tn && tn.kind === 'shape' && ti}
+          {#key tn.id}<TextEdit {editor} node={tn} info={ti} {docToStage} onclose={() => (editor.editingText = null)} />{/key}
+        {/if}
+      {/if}
+      {#if guides && !editor.tool}
+        <!-- Effect guides (the bones): segments and joints. -->
+        <svg class="guides" aria-hidden="true">
+          <!-- A dark stroke below and a light one on top: readable over any colour. -->
+          {#each guides.lines as l, i (i)}<polyline class="under" points={l} /><polyline points={l} />{/each}
+          {#each guides.points as [cx, cy], i (i)}<circle {cx} {cy} r={i === 0 ? 5 : 4} data-root={i === 0 || undefined} />{/each}
+        </svg>
+      {/if}
+      {#if selection && !editor.tool && !editor.playing && !editor.editingPath}
+        {#if editor.currentNode?.kind === 'shape' && editor.currentNode.shape === 'text' && hasTextExpressions(editor.currentNode.params.text)}
+          <button class="text-fx-badge" type="button" style:left="{selection.x + selection.w + 10}px" style:top="{selection.y - 22}px" title="Edit text expressions" onpointerdown={(e) => e.stopPropagation()} onclick={() => { if (editor.currentNode) editor.openTextFx(editor.currentNode.id); }}>ƒx</button>
+        {/if}
+        <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
+        {#each corners as c (c)}
+          {@const p = cornerAt(c, selection)}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          {#if editor.selectedNodes.length < 2}<span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Rotate (⇧ snaps to 15°)" onpointerdown={(e) => transformFrom(e, 'rotate')}></span>{/if}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale (hold ⇧ to stretch freely)" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
+        {/each}
+        {#if editor.selectedNodes.length < 2}
+          {#each edges as edge (edge)}
+            {@const p = edgeAt(edge, selection)}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <span
+              class="edge-zone"
+              data-edge={edge}
+              style:left="{p.x}px"
+              style:top="{p.y}px"
+              style:width="{edge === 'n' || edge === 's' ? Math.max(12, selection.w - 24) : 16}px"
+              style:height="{edge === 'e' || edge === 'w' ? Math.max(12, selection.h - 24) : 16}px"
+              title={edge === 'n' || edge === 's' ? 'Stretch height' : 'Stretch width'}
+              onpointerdown={(e) => transformFrom(e,
+                edge === 'n' ? 'stretch-y-top' : edge === 's' ? 'stretch-y-bottom' : edge === 'w' ? 'stretch-x-left' : 'stretch-x-right')}
+            ></span>
+          {/each}
+        {/if}
+      {/if}
+      {#if pivotAt && selection && !editor.editingPath && !editor.tool && !editor.playing && !editor.current && editor.selectedNodes.length < 2}
+        <button
+          type="button"
+          class="pivot"
+          style:left="{pivotAt[0]}px"
+          style:top="{pivotAt[1]}px"
+          title="Transform center: drag to move it (⇧ snaps to corners, edges and center)"
+          aria-label="Transform center"
+          onpointerdown={dragPivot}
+        ></button>
+      {/if}
+      {#if !editor.playing}
+        {#each others as o, i (i)}
+          <span class="selection other" style:left="{o.x}px" style:top="{o.y}px" style:width="{o.w}px" style:height="{o.h}px" aria-hidden="true"></span>
+        {/each}
+      {/if}
+      {#if gesture}<span class="gesture" data-left={gesture.left || undefined} style:left="{gesture.x}px" style:top="{gesture.y}px">{gesture.text}</span>{/if}
+      {#if gizmoScreen && !editor.tool}
+        <svg class="gizmo" data-active={gizmoActive || gizmoHover || editor.busy || undefined} aria-hidden="true">
+          {#each gizmoScreen.lines as l, i (i)}
+            <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
+            <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} data-ribbon={l.ribbon || undefined} />
+            {#if l.drag}
+              {@const drag = l.drag}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <path
+                class="hit"
+                data-ribbon={l.ribbon || undefined}
+                d={l.d}
+                onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '')}
+                onpointerenter={() => (gizmoHover = true)}
+                onpointerleave={() => (gizmoHover = false)}
+              ><title>{l.label}</title></path>
+            {/if}
+          {/each}
+        </svg>
+        {#each gizmoScreen.handles as h (h.label)}
+          <button
+            type="button"
+            class="gizmo-handle"
+            data-tone={h.tone}
+            data-handle={h.label}
+            data-offset={editor.current?.type === 'crosshatch' && h.label === 'Offset' ? '' : undefined}
+            style:left="{h.x}px"
+            style:top="{h.y}px"
+            title={h.label}
+            aria-label={`${h.label} (arrow keys nudge)`}
+            onpointerdown={(e) => dragGizmo(e, h.drag, h.label)}
+            onkeydown={(e) => {
+              if (!ARROWS[e.key] || e.metaKey || e.ctrlKey || e.altKey || !editor.current) return;
+              e.stopPropagation();
+              arrowTarget = { effect: editor.current.id, gizmo: h.label };
+              arrowKey(e, ARROWS[e.key]!);
+            }}
+            onpointerenter={() => (gizmoHover = true)}
+            onpointerleave={() => (gizmoHover = false)}
+          ></button>
+        {/each}
+      {/if}
+      {#if donutScreen && !editor.tool}
+        <button
+          type="button"
+          class="gizmo-handle"
+          data-handle="Inner radius"
+          style:left="{donutScreen.x}px"
+          style:top="{donutScreen.y}px"
+          title="Inner radius"
+          aria-label="Inner radius"
+          onpointerdown={dragDonutInner}
+          onpointerenter={() => (gizmoHover = true)}
+          onpointerleave={() => (gizmoHover = false)}
+        ></button>
+      {/if}
+      {#each handles as h (h.name)}
+        <button
+          type="button"
+          class="handle"
+          style:left="{h.x}px"
+          style:top="{h.y}px"
+          data-active={editor.marker || hover === h.name || grabbing === h.name ? '' : undefined}
+          aria-label={`Move ${h.label} (arrow keys nudge)`}
+          title={h.label}
+          onpointerdown={(e) => grab(e, h)}
+          onpointerenter={() => (hover = h.name)}
+          onpointerleave={() => (hover = null)}
+          onkeydown={(e) => nudgeHandle(e, h)}
+        ></button>
+      {/each}
+    </div>
+    {#if cornerGizmo && !editor.tool}
+      <div class="corner-gizmo" bind:this={cornerEl} data-active={gizmoActive || gizmoHover || editor.busy || undefined}>
+        <svg class="gizmo" width={CORNER_SIZE} height={CORNER_SIZE} viewBox="0 0 {CORNER_SIZE} {CORNER_SIZE}" aria-hidden="true">
+          {#each cornerGizmo.lines as l, i (i)}
+            {#if !l.area}
+              <path class="halo" d={l.d} data-ribbon={l.ribbon || undefined} />
+              <path class="line" d={l.d} data-tone={l.tone} data-dashed={l.dashed || undefined} data-ribbon={l.ribbon || undefined} />
+            {/if}
+            {#if l.drag}
+              {@const drag = l.drag}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <path
+                class="hit"
+                data-ribbon={l.ribbon || undefined}
+                data-area={l.area || undefined}
+                d={l.d}
+                onpointerdown={(e) => dragGizmo(e, drag, l.label ?? '', toCorner)}
+                onpointerenter={() => (gizmoHover = true)}
+                onpointerleave={() => (gizmoHover = false)}
+              ><title>{l.label}</title></path>
+            {/if}
+          {/each}
+        </svg>
+        {#each cornerGizmo.handles as h (h.label)}
+          <button
+            type="button"
+            class="gizmo-handle"
+            data-tone={h.tone}
+            style:left="{h.x}px"
+            style:top="{h.y}px"
+            title={h.label}
+            aria-label={h.label}
+            onpointerdown={(e) => dragGizmo(e, h.drag, h.label, toCorner)}
+          ></button>
+        {/each}
+      </div>
+    {/if}
+    {#if editor.selectedNodes.length && !editor.tool}
+      {@const n = editor.selectedNodes.length}
+      {@const canBool = n > 1 || editor.selectedNodes[0]?.kind === 'group'}
+      <!-- Readout: says what the button under the pointer (or with focus) does, disabled ones included with
+           their reason. Native tooltips don't show on disabled buttons, so these use aria-disabled. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="arrange"
+        role="toolbar"
+        aria-label="Arrange"
+        tabindex="-1"
+        onpointerover={showArrangeHint}
+        onfocusin={showArrangeHint}
+        onpointerleave={hideArrangeHintSoon}
+        onfocusout={hideArrangeHintSoon}
+      >
+        <!-- With one object, align/distribute (and booleans, unless it is a group) don't apply: a short note
+             replaces those 12 disabled buttons. -->
+        {#if n >= 2}
+          {#each alignments as a (a.how)}
+            <IconButton icon={a.icon as IconName} label={a.label} title={undefined} onclick={() => arrange(align(items(), a.how))} />
+          {/each}
+          <span class="rule" aria-hidden="true"></span>
+          <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'x'))} />
+          <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'y'))} />
+        {:else}
+          {#if editor.showInfo}<span class="arrange-note">⇧-click another object to align</span>{/if}
+        {/if}
+        <span class="rule" aria-hidden="true"></span>
+        <IconButton icon="flip-h" label="Flip horizontally" title={undefined} onclick={() => editor.flip('x')} />
+        <IconButton icon="flip-v" label="Flip vertically" title={undefined} onclick={() => editor.flip('y')} />
+        <span class="rule" aria-hidden="true"></span>
+        {#if canBool}
+          {#each booleans as b (b.mode)}
+            <IconButton icon={b.icon as IconName} label={`Boolean: ${b.label}`} title={undefined} onclick={() => editor.booleanize(b.mode)} />
+          {/each}
+          <span class="rule" aria-hidden="true"></span>
+        {/if}
+        <IconButton icon="order-front" label="Bring to front (⇧⌘])" title={undefined} onclick={() => editor.reorder('front')} />
+        <IconButton icon="order-forward" label="Bring forward (⌘])" title={undefined} onclick={() => editor.reorder('forward')} />
+        <IconButton icon="order-backward" label="Send backward (⌘[)" title={undefined} onclick={() => editor.reorder('backward')} />
+        <IconButton icon="order-back" label="Send to back (⇧⌘[)" title={undefined} onclick={() => editor.reorder('back')} />
+        {#if arrangeHint && editor.showInfo}<p class="arrange-hint" aria-hidden="true">{arrangeHint}</p>{/if}
+      </div>
+    {/if}
+    {#if renderError}<p class="error" role="alert">{renderError}</p>{/if}
+  {:else}
+    <DropArea {editor} {onimport} {ondemo} />
+  {/if}
+</section>
+
+<style>
+  .canvas {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--canvas, #ffffff);
+  }
+  /* Wire view: a fixed dark background behind the grey wires, whatever canvas colour the user picked. */
+  .stage { --sv-accent-fill: var(--sv-canvas-accent); }
+  .canvas[data-wire] { background: #101216; }
+  /* No scene yet: the night console, not the default document colour (which new documents still get). */
+  .canvas[data-empty] { background: color-mix(in srgb, var(--sv-surface-app) 81%, #000); }
+  .canvas[data-dragging] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -8px; }
+  .composition-back { position: absolute; z-index: 20; top: var(--sv-space-12); right: var(--sv-space-12); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 88%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
+  .composition-back:hover { border-color: var(--sv-accent-fill); }
+  /* Panning is handled by the view transform. Focus/caret scrolling must not move the stage. */
+  .stage { position: absolute; inset: 0; overflow: clip; user-select: none; }
+  .text-fx-badge { position: absolute; z-index: 6; padding: 0 4px; height: 18px; border: 0; border-radius: 0; color: #123d34; background: var(--sv-canvas-accent); font: 11px var(--sv-font-mono); cursor: pointer; }
+  .stage:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
+  .stage[data-space] { cursor: grab; }
+  .stage[data-tool] { cursor: crosshair; }
+  .stage[data-tool] :global(path[data-node]), .stage[data-tool] :global(image[data-node]) { cursor: crosshair; }
+  .stage { --sv-point-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 2v16l4-4 3 7 3-1-3-7h6z' fill='white' stroke='%23202522' stroke-width='1.5'/%3E%3Crect x='17' y='3' width='5' height='5' fill='%236fe4c7' stroke='%23202522'/%3E%3C/svg%3E") 3 2, crosshair; }
+  .stage[data-tool='nodes'], .stage[data-tool='nodes'] :global(path[data-node]), .stage[data-tool='nodes'] :global(image[data-node]) { cursor: var(--sv-point-cursor); }
+  .draft { pointer-events: none; }
+  .finish-pen { position: absolute; right: var(--sv-space-12); bottom: var(--sv-space-12); z-index: 12; display: flex; align-items: center; gap: var(--sv-space-8); height: 32px; padding: 0 var(--sv-space-8); color: var(--sv-text-primary); background: color-mix(in srgb, var(--sv-surface-panel) 90%, transparent); border: var(--sv-border-1) solid var(--sv-rule-strong); font: inherit; cursor: pointer; backdrop-filter: blur(8px); }
+  .finish-pen:hover { border-color: var(--sv-accent-fill); }
+  .finish-pen kbd { color: var(--sv-text-muted); font: inherit; font-size: var(--sv-font-size-10); }
+  .guides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .guides polyline { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .guides polyline.under { stroke: var(--sv-overlay-ink-strong); stroke-width: 5; }
+  .guides circle { fill: #fff; stroke: var(--sv-overlay-ink-strong); stroke-width: 2; }
+  .guides circle[data-root] { fill: var(--sv-accent-fill); }
+  .snap-guides { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .snap-guides line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .rulers { position: absolute; z-index: 4; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .ruler-bg { fill: var(--sv-surface-panel); }
+  .ruler-corner { fill: var(--sv-surface-field); }
+  .ruler-edge { stroke: var(--sv-rule-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ruler-tick { stroke: var(--sv-text-muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ruler-label { fill: var(--sv-text-secondary); font: 8px var(--sv-font-mono); }
+  .ruler-zone { position: absolute; z-index: 5; touch-action: none; background: transparent; }
+  .ruler-zone.horizontal { top: 0; right: 0; left: 48px; height: 20px; cursor: ns-resize; }
+  .ruler-zone.vertical { top: 20px; bottom: 0; left: 28px; width: 20px; cursor: ew-resize; }
+  /* Grid: white lines in difference blend, so they read on light and dark artwork alike. */
+  .grid { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: difference; }
+  .grid path { fill: none; stroke: #fff; stroke-width: 1; shape-rendering: crispEdges; }
+  .grid-minor { opacity: 0.12; }
+  .grid-major { opacity: 0.28; }
+  .document-guides { position: absolute; z-index: 6; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .document-guides .guide-hit { stroke: transparent; stroke-width: 12; pointer-events: stroke; touch-action: none; }
+  .document-guides .guide-line { stroke: var(--sv-accent-fill); stroke-width: 1; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .document-guides .guide-preview { stroke: var(--sv-accent-fill); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .bounds { pointer-events: none; }
+  .bounds .outside { fill: color-mix(in srgb, var(--sv-overlay-ink) 81%, #000); }
+  .bounds .frame { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .bounds .frame[data-auto] { stroke: var(--sv-text-muted); stroke-dasharray: 4 4; }
+  .draft .outline { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .draft .inner { fill: none; stroke: var(--sv-accent-fill); stroke-width: 2.5px; vector-effect: non-scaling-stroke; }
+  .stage[data-panning] { cursor: grabbing; }
+  .view { position: absolute; inset: 48px 48px 56px; transform-origin: 0 0; }
+  .view svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .view[data-hide-outside] svg:not(.bounds) { clip-path: var(--document-clip); }
+  /* Handle: a small square at rest; with the cross on hover, while dragging, or when the point changes from the field. */
+  /* Effect point handle (centre, pivot…): a white ring with a turquoise dot, easy to see. */
+  .handle {
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    padding: 0;
+    translate: -50% -50%;
+    background: radial-gradient(circle, var(--sv-accent-fill) 0 2.5px, transparent 3px);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--sv-overlay-ink), inset 0 0 0 1px var(--sv-overlay-ink-soft);
+    cursor: move;
+  }
+  .handle:hover { scale: 1.15; }
+  .handle::before,
+  .handle::after { content: ''; position: absolute; display: none; background: var(--sv-signal-error); pointer-events: none; }
+  .handle::before { left: 50%; top: -9px; width: 1px; height: 27px; translate: -50% 0; }
+  .handle::after { top: 50%; left: -9px; height: 1px; width: 27px; translate: 0 -50%; }
+  .handle[data-active]::before,
+  .handle[data-active]::after { display: block; }
+  .handle:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
+  .stage[data-space] .handle { pointer-events: none; }
+  .result :global(path[data-node]), .result :global(image[data-node]) { cursor: default; }
+  /* Frame of the selected object or group. */
+  .selection { position: absolute; pointer-events: none; outline: 1px solid var(--sv-accent-fill); box-shadow: 0 0 0 2px rgb(0 0 0 / 0.4); }
+  .selection.other { outline-style: dashed; }
+  /* Transform centre: a circle with a cross. */
+  .pivot {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    padding: 0;
+    translate: -50% -50%;
+    background: none;
+    border: 1px solid var(--sv-accent-fill);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px #26594f, 0 0 0 2px rgb(255 255 255 / 0.8);
+    cursor: move;
+  }
+  .pivot::before,
+  .pivot::after { content: ''; position: absolute; background: var(--sv-accent-fill); }
+  .pivot::before { left: 50%; top: -4px; bottom: -4px; width: 1px; translate: -50% 0; }
+  .pivot::after { top: 50%; left: -4px; right: -4px; height: 1px; translate: 0 -50%; }
+  .stage[data-space] .pivot { pointer-events: none; }
+  /* Actuator in a corner (Rotate 3D): a fixed box at the bottom right, over the canvas footer. */
+  .corner-gizmo {
+    position: absolute;
+    right: var(--sv-space-16);
+    bottom: 40px;
+    z-index: 2;
+  }
+  .corner-gizmo .gizmo { position: static; display: block; width: auto; height: auto; opacity: 1; }
+  /* Arrange: at the top, centre of the canvas, while something is selected. */
+  /* Docked to the canvas bottom: that band (56 px) always fits it, with or without rulers, so it never
+     covers a fitted artboard. */
+  .arrange {
+    position: absolute;
+    bottom: var(--sv-space-12);
+    left: 50%;
+    translate: -50% 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-2);
+    padding: var(--sv-space-4);
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+  }
+  .arrange .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-4); background: var(--sv-rule-default); }
+  .arrange-note { padding: 0 var(--sv-space-6); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
+  .arrange-hint {
+    position: absolute;
+    bottom: 100%;
+    left: -1px;
+    right: -1px;
+    margin: 0;
+    padding: var(--sv-space-4) var(--sv-space-8);
+    color: var(--sv-text-secondary);
+    font-size: var(--sv-font-size-10);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    border-bottom: 0;
+    pointer-events: none;
+  }
+  /* Corners: scale; sides: stretch one axis; outside the corners: rotate. */
+  .corner,
+  .rotate { position: absolute; translate: -50% -50%; }
+  .corner { width: 9px; height: 9px; background: var(--sv-accent-fill); box-shadow: 0 0 0 1px #26594f, 0 0 0 2px rgb(255 255 255 / 0.8); }
+  .corner::before { content: ''; position: absolute; inset: -4px; }
+  .corner[data-corner='nw'],
+  .corner[data-corner='se'] { cursor: nwse-resize; }
+  .corner[data-corner='ne'],
+  .corner[data-corner='sw'] { cursor: nesw-resize; }
+  .edge-zone { position: absolute; z-index: 1; translate: -50% -50%; }
+  .edge-zone[data-edge='n'],
+  .edge-zone[data-edge='s'] { cursor: ns-resize; }
+  .edge-zone[data-edge='e'],
+  .edge-zone[data-edge='w'] { cursor: ew-resize; }
+  .rotate {
+    width: 28px;
+    height: 28px;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M4 11a6 6 0 1 0 2-5' fill='none' stroke='%23000' stroke-width='3'/%3E%3Cpath d='M4 11a6 6 0 1 0 2-5' fill='none' stroke='%23fff' stroke-width='1.2'/%3E%3Cpath d='M3 3v5h5' fill='none' stroke='%23000' stroke-width='3'/%3E%3Cpath d='M3 3v5h5' fill='none' stroke='%23fff' stroke-width='1.2'/%3E%3C/svg%3E") 10 10, alias;
+  }
+  /* The rotate zone sticks out of the frame, not into it. */
+  .rotate[data-corner='nw'] { translate: -80% -80%; }
+  .rotate[data-corner='ne'] { translate: -20% -80%; }
+  .rotate[data-corner='se'] { translate: -20% -20%; }
+  .rotate[data-corner='sw'] { translate: -80% -20%; }
+  .stage[data-space] .corner,
+  .stage[data-space] .edge-zone,
+  .stage[data-space] .rotate { pointer-events: none; }
+  .gesture[data-left] { translate: -100% 0; }
+  .gesture {
+    position: absolute;
+    z-index: 5;
+    padding: 1px var(--sv-space-4);
+    pointer-events: none;
+    background: var(--sv-surface-panel);
+    color: var(--sv-text-primary);
+    font-size: var(--sv-font-size-10);
+    white-space: nowrap;
+  }
+  /* Effect wire: faint at rest; lit on hover, while dragging or when its values change. */
+  .gizmo { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0.8; transition: opacity 120ms; }
+  .gizmo[data-active] { opacity: 1; }
+  .gizmo .halo { fill: none; stroke: var(--sv-overlay-ink); stroke-width: 3.5; }
+  .gizmo .line { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.25; }
+  .gizmo .line[data-tone='x'], .gizmo .line[data-tone='y'], .gizmo .line[data-tone='z'] { stroke-width: 1.75; }
+  .gizmo .line[data-dashed] { stroke-dasharray: 4 3; }
+  .gizmo .line[data-tone='x'] { stroke: #ff5c5c; }
+  .gizmo .line[data-tone='y'] { stroke: #6bdc6b; }
+  .gizmo .line[data-tone='z'] { stroke: #5c8cff; }
+  /* Ribbons: a wide translucent band of their colour, with a dark edge below. */
+  .gizmo .halo[data-ribbon] { stroke: var(--sv-overlay-ink-soft); stroke-width: 11; }
+  .gizmo .line[data-ribbon] { stroke-width: 8; stroke-opacity: 0.8; }
+  .gizmo .hit[data-ribbon] { stroke-width: 12; }
+  /* The ball: grabbed from inside (invisible fill). */
+  .gizmo .hit[data-area] { fill: transparent; stroke: none; pointer-events: fill; cursor: move; }
+  .gizmo .hit { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: grab; }
+  .gizmo-handle {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    translate: -50% -50%;
+    background: var(--sv-accent-fill);
+    border: 0;
+    border-radius: 0;
+    box-shadow: 0 0 0 1px var(--sv-overlay-ink);
+    cursor: move;
+  }
+  .gizmo-handle::before { content: ''; position: absolute; inset: -4px; }
+  .gizmo-handle[data-offset] { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--sv-surface-panel); background: var(--sv-accent-fill); }
+  .gizmo-handle[data-offset]::before { inset: -7px; border-radius: 50%; }
+  .gizmo-handle[data-tone='x'],
+  .gizmo-handle[data-tone='y'],
+  .gizmo-handle[data-tone='z'] { width: 9px; height: 9px; border-radius: 50%; }
+  .gizmo-handle[data-tone='x'] { background: #ff5c5c; }
+  .gizmo-handle[data-tone='y'] { background: #6bdc6b; }
+  .gizmo-handle[data-tone='z'] { background: #5c8cff; }
+  .gizmo-handle[data-handle='Emitter position'] { width: 11px; height: 11px; border: 2px solid var(--sv-surface-panel); border-radius: 50%; background: var(--sv-accent-fill); }
+  .stage[data-space] .gizmo-handle,
+  .stage[data-space] .gizmo .hit { pointer-events: none; }
+  .ghost { opacity: 0.2; }
+  .result.wire { pointer-events: none; }
+  .wire-hits { opacity: 0; }
+  /* Onion skin tint: before the playhead bluish, after it greenish (as in classic animation tools). */
+  .onion { pointer-events: none; }
+  .onion[data-side='before'] { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(4); }
+  .onion[data-side='after'] { filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4); }
+  .wire :global(path[data-svertik-shape]) {
+    fill: none !important;
+    stroke: var(--wire-color, #22d3ee) !important;
+    stroke-width: var(--wire-width, 1px) !important;
+    opacity: 0.78;
+    vector-effect: non-scaling-stroke;
+  }
+  .wire :global(path[data-svertik-shape][data-wire-body]) { fill: var(--wire-fill) !important; }
+  .wire :global(path[data-svertik-shape][data-wire-selected]) { stroke: var(--wire-selection-color, #ff6b9d) !important; }
+  .wire :global(path[data-svertik-shape][data-wire-body][data-wire-selected]) { fill: url(#wire-hatch-selected) !important; }
+  .error { margin: 0; color: var(--sv-signal-error); font-size: var(--sv-font-size-11); }
+  .canvas > .error { position: absolute; top: 28px; left: var(--sv-space-12); }
+</style>

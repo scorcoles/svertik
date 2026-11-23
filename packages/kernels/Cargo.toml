@@ -1,0 +1,17 @@
+[package]
+name = "svertik-kernels"
+version = "0.0.2"
+edition = "2021"
+description = "The svertik engine's heavy computations, in Rust (wasm)."
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

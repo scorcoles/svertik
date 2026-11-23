@@ -1,0 +1,18 @@
+node_modules
+dist
+.DS_Store
+storybook-static
+*.log
+# Test SVGs with third-party marks (not published)
+demo/
+
+# Local working notes (not published)
+private/
+.private/
+TODO_TOP.MD
+opencode.json
+docs/PLAN.md
+docs/recap.md
+TODO.md
+apps/editor/DESIGN.md
+apps/editor/PRODUCT.md

@@ -1,0 +1,53 @@
+{
+  "name": "svertik",
+  "version": "0.1.0",
+  "description": "svertik for the web: drop a scene JSON into any page and it plays. Only the engine, and only the effects the scene uses.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scorcoles/svertik.git",
+    "directory": "apps/player"
+  },
+  "keywords": [
+    "svg",
+    "animation",
+    "motion",
+    "generative",
+    "player",
+    "embed",
+    "vector",
+    "effects"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/svertik.js"
+  },
+  "module": "./dist/svertik.js",
+  "unpkg": "dist/svertik.js",
+  "jsdelivr": "dist/svertik.js",
+  "sideEffects": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --config vite.lib.config.ts",
+    "build:demo": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@svertik/engine": "workspace:^",
+    "happy-dom": "^21.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.7",
+    "vitest": "^5.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "svertik": "project",
+  "version": 1,
+  "name": "Particles — Dust",
+  "scene": {
+    "version": 1,
+    "document": {
+      "width": 1000,
+      "height": 900
+    },
+    "notes": "Particle study: Dust. Prewarmed drifting dust with gentle turbulence. Uses the complete source shape, motion/lifecycle controls and a separate Color effect. Deterministic seeking, including times beyond sixty seconds.",
+    "objects": [
+      {
+        "kind": "shape",
+        "id": "emitter",
+        "name": "Dust",
+        "shape": "ellipse",
+        "params": {
+          "width": 20,
+          "height": 20,
+          "fill": true,
+          "fillColor": "#f0eddf"
+        },
+        "transform": {
+          "x": 0,
+          "y": 0
+        },
+        "stack": [
+          {
+            "id": "particles",
+            "type": "particles",
+            "params": {
+              "emission": "stream",
+              "count": 160,
+              "lifetime": 8,
+              "lifetimeRandom": 0.5,
+              "rate": 24,
+              "prewarm": true,
+              "referenceSize": 400,
+              "emitter": "box",
+              "area": [
+                2,
+                1.2
+              ],
+              "speed": 0.03,
+              "speedRandom": 0.8,
+              "spread": 360,
+              "gravity": 0,
+              "drag": 1.2,
+              "wind": [
+                0.035,
+                -0.015
+              ],
+              "turbulence": 0.09,
+              "turbulenceFrequency": 0.16,
+              "size": 0.01,
+              "sizeRandom": 0.75,
+              "spin": 15,
+              "fadeIn": 0.2,
+              "fade": 0.4,
+              "sizeEnd": 0.5,
+              "time": {
+                "$expr": "scene.time",
+                "fallback": 0
+              }
+            }
+          },
+          {
+            "id": "colors",
+            "type": "color",
+            "params": {
+              "mode": "palette",
+              "palette": [
+                "#f0eddf",
+                "#b4d8d1",
+                "#91acb8"
+              ],
+              "paletteMode": "random",
+              "target": "fill",
+              "seed": 17
+            }
+          },
+          {
+            "id": "halo",
+            "type": "glow",
+            "params": {
+              "size": 1,
+              "strength": 0.25,
+              "color": "#f0eddf"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "shape",
+        "id": "background",
+        "name": "Background",
+        "shape": "rectangle",
+        "params": {
+          "width": 1000,
+          "height": 900,
+          "fill": true,
+          "fillColor": "#101a21"
+        },
+        "stack": []
+      }
+    ],
+    "animation": {
+      "duration": 8,
+      "fps": 30,
+      "infinite": true,
+      "loop": false,
+      "tracks": []
+    }
+  }
+}

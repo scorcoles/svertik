@@ -1,0 +1,56 @@
+import { mixColor, parseColor, toHex } from '../color';
+import type { Style } from '../geometry';
+import { defineModifier, type ParamSpec } from '../modifier';
+import { strokeExtras, strokeExtraStyle } from '../shapes';
+
+/**
+ * Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke.
+ * Unfilled shapes (lines) stay unfilled unless "Fill empty" is on.
+ */
+export const paint = defineModifier({
+  type: 'paint',
+  label: 'Paint',
+  kind: 'style',
+  params: {
+    fill: { type: 'boolean', default: true, label: 'Fill', group: 'Fill', animatable: false },
+    fillColor: { type: 'color', default: '#09fdd1', label: 'Color', group: 'Fill' },
+    fillAmount: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Amount', group: 'Fill' },
+    fillOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Opacity', group: 'Fill', ramp: false, random: [0.4, 1] },
+    fillEmpty: { type: 'boolean', default: false, label: 'Fill empty', group: 'Fill', animatable: false },
+    stroke: { type: 'boolean', default: false, label: 'Stroke', group: 'Stroke', animatable: false },
+    strokeColor: { type: 'color', default: '#000000', label: 'Color', group: 'Stroke' },
+    strokeWidth: { type: 'number', default: 1, min: 0, max: 200, step: 0.1, unit: 'px', label: 'Width', group: 'Stroke', random: [0.5, 6] },
+    strokeOpacity: { type: 'number', default: 1, min: 0, max: 1, step: 0.01, label: 'Opacity', group: 'Stroke', ramp: false, random: [0.4, 1] },
+    // Stroke joins and caps; "keep" respects what the drawing has.
+    strokeJoin: { type: 'enum', default: 'keep', options: ['keep', 'miter', 'round', 'bevel'] as const, label: 'Join', group: 'Stroke', animatable: false },
+    strokeCap: { type: 'enum', default: 'keep', options: ['keep', 'butt', 'round', 'square'] as const, label: 'Cap', group: 'Stroke', animatable: false },
+    ...(strokeExtras('Stroke') as Record<'dash' | 'gap' | 'dashOffset' | 'behind', ParamSpec>),
+  },
+  apply(geo, p) {
+    const overlay = parseColor(p.fillColor);
+    const shapes = geo.shapes.map((shape) => {
+      const style: Style = { ...shape.style };
+      if (p.fill && overlay) {
+        const current = style.fill;
+        const empty = current === 'none' || current === 'transparent';
+        if (!empty || p.fillEmpty) {
+          // Without a declared fill, SVG paints black; "none" counts as transparent.
+          const base = parseColor(empty ? undefined : (current ?? '#000000'));
+          style.fill = toHex(base ? mixColor(base, overlay, Math.max(0, Math.min(1, p.fillAmount))) : overlay);
+          if (p.fillOpacity < 1) style['fill-opacity'] = String(p.fillOpacity);
+        }
+      }
+      if (p.stroke) {
+        style.stroke = p.strokeColor;
+        style['stroke-width'] = String(p.strokeWidth);
+        if (p.strokeOpacity < 1) style['stroke-opacity'] = String(p.strokeOpacity);
+        if (p.strokeJoin !== 'keep') style['stroke-linejoin'] = p.strokeJoin;
+        else style['stroke-linejoin'] ??= 'round';
+        if (p.strokeCap !== 'keep') style['stroke-linecap'] = p.strokeCap;
+        Object.assign(style, strokeExtraStyle(p as Record<string, unknown>));
+      }
+      return { ...shape, style };
+    });
+    return { viewBox: geo.viewBox, shapes };
+  },
+});
