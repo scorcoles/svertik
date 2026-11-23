@@ -14,6 +14,10 @@ svertik is alpha software. Save project files regularly.
 
 - The editor is no longer published to GitHub Pages; GitHub Actions only run the tests.
 
+### Fixed
+
+- Saving the scene in the editor URL no longer raises an unhandled error when compression fails or is cut short; the URL is left as it was.
+
 ## 0.0.5
 
 - Non-destructive SVG editing with 86 modifiers, parametric expressions, and animation timelines.

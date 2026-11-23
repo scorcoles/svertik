@@ -3181,7 +3181,13 @@ export class Editor {
     }
     this.flush();
     const state = this.#history[this.#index];
-    const encoded = await encodeState({ scene: stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1), name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    let encoded: string;
+    try {
+      encoded = await encodeState({ scene: stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1), name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    } catch {
+      // Keeping the scene in the URL is a convenience: if compression fails (or is cut short), leave the URL as it is.
+      return;
+    }
     const fits = encoded.length < MAX_HASH;
     history.replaceState(null, '', `${location.pathname}${location.search}${fits ? `#s=${encoded}` : ''}`);
     this.#inURL = fits ? state : undefined;
