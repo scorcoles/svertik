@@ -12,6 +12,7 @@ svertik is alpha software. Save project files regularly.
 
 - Effect menus regrouped by purpose: Deform (now also Crack, Radial Cut, Damage, Mosaic, Voronoi, Boolean, Metaball), Repeat (Clone, Mirror, Fractal, Particles), Draw (tone to marks and new lines: Halftone, Wave Lines, Vector Grain, Crosshatch, Dithering, Contour, Pixelate, Flow Field, Network, Weave, String Art, Spirograph, Connect, Trace, Random Wave/Bars), Effect, Motion (Gravity, Physics, Rigid Body, Soft Body, Rope, Explosion, Follow Path, Look At), Style, Glitch and Filters. Utils keeps compositions, Instance, Mouse Instance, Effector, Connector and Tracer.
 - Long parameter labels wrap to a second line instead of being cut.
+- The On checkbox is gone from effect and Effector panels: the stack's toggle and eye already do it.
 - The node-level `each` of 0.0.8 becomes an Each › Shape; the editor converts saved scenes when it opens them.
 
 ## 0.0.8

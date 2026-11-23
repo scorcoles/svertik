@@ -151,14 +151,6 @@
       {#snippet children(t)}
         {#if t === 'Params'}
           <div class="params">
-            {#if m.type !== 'particles'}
-              <!-- The stack eye handles visibility; this control also supports keyframing enabled. -->
-              <div class:rigid-body-toggle={m.type === 'rigidbody'}>
-                <ParamRow label="On" for="mod-on" keyState={keyOf('enabled')} onkey={() => onkey('enabled')}>
-                  <Checkbox id="mod-on" checked={m.enabled !== false} label="On" onchange={(v) => editor.setEnabled(m.id, v)} />
-                </ParamRow>
-              </div>
-            {/if}
             {#if m.type === 'particles'}
               <div class="particle-presets" role="group" aria-label="Particle motion presets">
                 {#each PARTICLE_PRESETS as preset}<Button label={preset.name} title={preset.tip} onclick={() => particlePreset(preset)} />{/each}
@@ -241,6 +233,5 @@
   .prop-reference:hover { color: var(--sv-text-primary); text-decoration: underline; }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
   .boolean-path-actions { margin-top: var(--sv-space-12); }
-  .rigid-body-toggle :global(label) { text-align: left; }
   .empty { margin: 0; padding: var(--sv-space-12); color: var(--sv-text-muted); font-size: var(--sv-font-size-11); line-height: 1.5; }
 </style>

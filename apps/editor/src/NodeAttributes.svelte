@@ -217,9 +217,6 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
       <ParamRow label="Delay" for="eff-delay">
         <NumberField id="eff-delay" value={node.delay ?? 0} min={0} step={0.05} unit="s" onchange={(v) => editor.setEffectorDelay(node.id, v)} />
       </ParamRow>
-      <ParamRow label="On" for="eff-on">
-        <Checkbox id="eff-on" checked={node.visible !== false} onchange={(v) => editor.setNode(node.id, 'visible', v, true)} />
-      </ParamRow>
     </Section>
   {/if}
   {#if node.kind === 'shape' && shapeDef}
