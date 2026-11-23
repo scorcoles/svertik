@@ -104,7 +104,7 @@
   .label-cell { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--sv-space-4); width: 84px; min-width: 0; }
   .row-info { position: relative; display: inline-flex; flex: none; }
   .info-trigger { display: inline-grid; place-items: center; width: 12px; height: 12px; padding: 0; color: var(--sv-text-secondary); opacity: .5; background: transparent; border: 1px solid currentColor; border-radius: 50%; font: inherit; font-size: 8px; font-weight: 600; line-height: 1; cursor: help; }
-  .info-trigger:hover, .info-trigger:focus-visible { color: var(--sv-accent-fill); opacity: 1; outline: none; }
+  .info-trigger:hover, .info-trigger:focus-visible { color: var(--sv-accent-text); opacity: 1; outline: none; }
   .info-popup { position: absolute; z-index: 1000; top: calc(100% + 6px); left: -4px; width: max-content; max-width: min(300px, 70vw); padding: 8px 10px; color: var(--sv-text-primary); background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-strong); box-shadow: 0 4px 14px rgb(0 0 0 / 28%); font-size: var(--sv-font-size-11); font-weight: 400; line-height: 1.45; white-space: normal; text-align: left; }
   label {
     flex: none;

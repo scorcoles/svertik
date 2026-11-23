@@ -42,7 +42,7 @@
   .sv-button[aria-pressed='true'] {
     background: var(--sv-accent-selection);
     border-color: var(--sv-accent-fill);
-    color: var(--sv-accent-fill);
+    color: var(--sv-accent-text);
   }
   .sv-button:disabled { opacity: 0.4; cursor: default; }
 </style>

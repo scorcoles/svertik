@@ -85,7 +85,7 @@
     cursor: pointer;
   }
   :global(.sv-view-trigger:hover:not(:disabled)) { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
-  :global(.sv-view-trigger[data-state='open']) { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
+  :global(.sv-view-trigger[data-state='open']) { color: var(--sv-accent-text); border-color: var(--sv-accent-fill); }
   :global(.sv-view-trigger:disabled) { opacity: 0.4; cursor: default; }
   .count { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; }
   /* Each option says what it does in a second line (tooltips were not enough). */
@@ -104,5 +104,5 @@
   :global([data-sv-theme='light']) .box[data-checked] { background: var(--sv-accent-fill); border-color: #256f60; }
   :global([data-sv-theme='light']) .box[data-checked] svg { stroke: #000; }
   :global([data-sv-theme='light'] .sv-view-trigger[data-state='open']) { color: #000; background: var(--sv-accent-fill); border-color: #256f60; }
-  .box svg { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; stroke-linecap: square; }
+  .box svg { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-text); stroke-width: 1.5; stroke-linecap: square; }
 </style>

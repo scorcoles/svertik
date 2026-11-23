@@ -125,10 +125,10 @@
   .var:hover .var-actions, .var:focus-within .var-actions, .var-actions[data-pinned] { visibility: visible; }
   .var-actions :global(.sv-icon-button) { width: 20px; height: 20px; }
   .variable-expression { position: relative; display: flex; flex: 1 1 auto; align-items: center; gap: var(--sv-space-4); height: 20px; min-width: 0; padding: 0 var(--sv-space-6); box-sizing: border-box; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
-  .variable-expression:focus-within { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .variable-expression:focus-within { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .variable-expression[data-invalid] { border-color: var(--sv-signal-error); }
   .expression-input { flex: 1; min-width: 0; padding: 0; color: var(--sv-text-primary); background: none; border: 0; outline: none; font: inherit; }
   .expression-toggle { flex: none; width: 18px; height: 16px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; font: inherit; font-size: 9px; line-height: 1; cursor: pointer; }
-  .expression-toggle:hover { color: var(--sv-accent-fill); }
+  .expression-toggle:hover { color: var(--sv-accent-text); }
   .expression-error { position: absolute; z-index: 4; top: calc(100% + var(--sv-space-4)); left: 0; width: 100%; padding: var(--sv-space-4) var(--sv-space-6); box-sizing: border-box; color: var(--sv-signal-error); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }
 </style>

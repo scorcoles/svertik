@@ -229,7 +229,7 @@
   .grid { display: grid; grid-template-columns: repeat(7, 16px); gap: 4px; }
   .chip { width: 16px; height: 16px; padding: 0; border: 0; box-shadow: 0 0 0 1px var(--sv-rule-strong), inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
-  .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .head { margin: 0; color: var(--sv-text-muted); }
   .empty { margin: 0; color: var(--sv-text-muted); }
   .pal { width: 100%; height: 20px; padding: 0 var(--sv-space-4); font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); outline: none; cursor: pointer; }

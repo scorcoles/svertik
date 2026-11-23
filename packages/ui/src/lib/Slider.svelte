@@ -61,5 +61,5 @@
     background: var(--sv-text-primary);
     cursor: ew-resize;
   }
-  :global(.sv-slider .thumb:focus-visible) { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  :global(.sv-slider .thumb:focus-visible) { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
 </style>

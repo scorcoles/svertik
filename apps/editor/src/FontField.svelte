@@ -137,15 +137,15 @@
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   :global(.sv-menu.sv-font-menu) { width: 260px; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
   .search { margin: var(--sv-space-8); padding: var(--sv-space-4) var(--sv-space-6); font: inherit; color: var(--sv-text-primary); background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
-  .search:focus { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
+  .search:focus { outline: 1px solid var(--sv-accent-text); outline-offset: -1px; }
   .cats { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 var(--sv-space-8) var(--sv-space-6); }
   .cats button { padding: 1px var(--sv-space-6); font: inherit; font-size: var(--sv-font-size-10); color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; }
-  .cats button[aria-checked='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
+  .cats button[aria-checked='true'] { color: var(--sv-accent-text); border-color: var(--sv-accent-fill); }
   .list { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; border-top: var(--sv-border-1) solid var(--sv-rule-default); }
   .font { display: block; width: 100%; padding: var(--sv-space-6) var(--sv-space-8); font-size: 15px; line-height: 1.2; color: var(--sv-text-primary); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; cursor: pointer; }
   .font:hover, .font:focus-visible { background: var(--sv-surface-hover); }
-  .font:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
-  .font[aria-selected='true'] { color: var(--sv-accent-fill); }
+  .font:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: -1px; }
+  .font[aria-selected='true'] { color: var(--sv-accent-text); }
   .more, .foot { margin: 0; padding: var(--sv-space-6) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .foot { border-top: var(--sv-border-1) solid var(--sv-rule-default); }
   .dim { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }

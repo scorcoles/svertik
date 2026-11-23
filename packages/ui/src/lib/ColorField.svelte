@@ -113,7 +113,7 @@
   .sv-color:hover { border-color: var(--sv-rule-strong); }
   .sv-color[data-compact] { width: auto; padding: 3px; }
   .sv-color[data-invalid] { border-color: var(--sv-signal-error); }
-  .sv-color:has(:focus-visible) { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .sv-color:has(:focus-visible) { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .sv-color { position: relative; }
   :global(.sv-color-swatch) { flex: none; width: 12px; height: 12px; padding: 0; border: 0; box-shadow: 0 0 0 1px var(--sv-rule-strong), inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
   :global(.sv-color-popover) {
@@ -127,7 +127,7 @@
   .grid { display: grid; grid-template-columns: repeat(8, 18px); gap: 6px; }
   .chip { width: 18px; height: 18px; padding: 0; border: 0; box-shadow: 0 0 0 1px var(--sv-rule-strong), inset 0 0 0 1px var(--sv-overlay-light-soft); cursor: pointer; }
   .chip:hover { outline: 1px solid var(--sv-text-muted); outline-offset: 1px; }
-  .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .chip[aria-selected='true'] { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .head { margin: var(--sv-space-8) 0 var(--sv-space-4); color: var(--sv-text-muted); }
   .empty { margin: var(--sv-space-4) 0 0; color: var(--sv-text-muted); }
   .pal {

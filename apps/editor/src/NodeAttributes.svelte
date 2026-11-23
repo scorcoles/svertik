@@ -486,7 +486,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
     outline: none;
   }
   .name:hover { border-bottom-color: var(--sv-rule-strong); }
-  .name:focus { border-bottom-color: var(--sv-accent-fill); }
+  .name:focus { border-bottom-color: var(--sv-accent-text); }
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .mini { display: flex; }
   .dim { color: var(--sv-text-muted); }
@@ -496,6 +496,6 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   .params { padding: var(--sv-space-6) 0; }
   .props-list { padding: 0 var(--sv-space-8) var(--sv-space-4) 100px; }
   .prop-row { display: flex; justify-content: space-between; gap: var(--sv-space-8); padding: 2px 0; color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
-  .prop-row code { color: var(--sv-accent-fill); }
+  .prop-row code { color: var(--sv-accent-text); }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sv-space-8); padding: var(--sv-space-8) var(--sv-space-8) 0 100px; }
 </style>

@@ -33,7 +33,7 @@
 }
 .sv-menu-item .sv-icon { flex: none; color: var(--sv-text-secondary); }
 .sv-menu-item[data-highlighted] { background: var(--sv-surface-hover); }
-.sv-menu-item[data-highlighted] .sv-icon { color: var(--sv-accent-fill); }
+.sv-menu-item[data-highlighted] .sv-icon { color: var(--sv-accent-text); }
 .sv-menu-item[data-disabled] { opacity: 0.38; cursor: default; }
 .sv-menu-rule { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
 
@@ -51,8 +51,8 @@
 }
 .sv-group-trigger .sv-icon { color: var(--sv-text-secondary); }
 .sv-group-trigger:hover { background: var(--sv-surface-hover); }
-.sv-group-trigger[data-state='open'] { background: var(--sv-accent-selection); color: var(--sv-accent-fill); }
-.sv-group-trigger[data-state='open'] .sv-icon { color: var(--sv-accent-fill); }
+.sv-group-trigger[data-state='open'] { background: var(--sv-accent-selection); color: var(--sv-accent-text); }
+.sv-group-trigger[data-state='open'] .sv-icon { color: var(--sv-accent-text); }
 .sv-group-trigger:disabled { opacity: 0.35; cursor: default; background: none; }
 /* In the rail: a 32 px square, icon only. */
 .sv-group-trigger.is-compact {

@@ -146,7 +146,7 @@
   .name {
     min-width: 0;
     padding: 0;
-    color: var(--sv-accent-fill);
+    color: var(--sv-accent-text);
     background: none;
     border: 0;
     font: inherit;

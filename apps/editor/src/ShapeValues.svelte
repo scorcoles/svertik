@@ -76,10 +76,10 @@
   .row { display: flex; flex-direction: column; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) var(--sv-space-6); }
   .formula { display: flex; align-items: center; gap: var(--sv-space-4); }
   .variable-expression { display: flex; flex: 1 1 auto; align-items: center; height: 20px; min-width: 0; padding: 0 var(--sv-space-6); box-sizing: border-box; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
-  .variable-expression:focus-within { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .variable-expression:focus-within { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .variable-expression[data-invalid] { border-color: var(--sv-signal-error); }
   .expression-input { flex: 1; min-width: 0; padding: 0; color: var(--sv-text-primary); background: none; border: 0; outline: none; font: inherit; }
   /* Always a formula: the same ƒx mark the other formula fields show, in the accent colour. */
-  .fx { flex: none; padding-left: var(--sv-space-4); color: var(--sv-accent-fill); font-size: 9px; line-height: 1; cursor: default; user-select: none; }
+  .fx { flex: none; padding-left: var(--sv-space-4); color: var(--sv-accent-text); font-size: 9px; line-height: 1; cursor: default; user-select: none; }
   .expression-error { color: var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }
 </style>

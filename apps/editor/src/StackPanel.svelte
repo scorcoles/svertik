@@ -364,8 +364,8 @@
   .drag[data-drop='after']::after { bottom: -1px; }
   /* Command line preview: same marks as a drop, on ::before so a drag in progress still shows its own. */
   .drag[data-insert='after']::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--sv-accent-fill); z-index: 1; pointer-events: none; }
-  .drag[data-insert='inside'] { outline: 1px dashed var(--sv-accent-fill); outline-offset: -1px; }
-  .drag[data-drop='inside'] { outline: 2px solid var(--sv-accent-fill); outline-offset: -2px; }
+  .drag[data-insert='inside'] { outline: 1px dashed var(--sv-accent-text); outline-offset: -1px; }
+  .drag[data-drop='inside'] { outline: 2px solid var(--sv-accent-text); outline-offset: -2px; }
   .drag[data-drop-invalid] { outline: 1px dashed var(--sv-signal-error); outline-offset: -1px; }
   .empty {
     margin: 0;

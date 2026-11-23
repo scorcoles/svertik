@@ -176,9 +176,9 @@
   .profile-meta span { font-variant-numeric: tabular-nums; }
   .profile svg { display: block; width: 100%; height: clamp(34px, 7vh, 64px); overflow: visible; }
   .profile line { stroke: var(--sv-rule-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .profile line.budget { stroke: var(--sv-accent-fill); stroke-dasharray: 3 5; opacity: 0.55; }
+  .profile line.budget { stroke: var(--sv-accent-text); stroke-dasharray: 3 5; opacity: 0.55; }
   .profile line.warning { stroke: var(--sv-signal-warning); stroke-dasharray: 3 5; opacity: 0.65; }
-  .profile .trace { fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .profile .trace { fill: none; stroke: var(--sv-accent-text); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .profile-axis { display: flex; gap: 10px; color: var(--sv-text-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
   .profile-axis span:last-child { margin-left: auto; }
   .output {

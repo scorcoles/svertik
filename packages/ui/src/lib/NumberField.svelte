@@ -174,7 +174,7 @@
   .sv-field[data-state='edit'] { border-color: var(--sv-text-secondary); }
   .sv-field[data-state='error'] { border-color: var(--sv-signal-error); }
   .sv-field[data-disabled] { opacity: 0.4; }
-  .sv-field:has(input:focus-visible) { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .sv-field:has(input:focus-visible) { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   input {
     flex: 1;
     min-width: 0;
@@ -191,7 +191,7 @@
   .prefix { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   /* A switchable unit reads as the plain unit until hovered: a quiet control, not a second label. */
   .unit-action { flex: none; padding: 0; font: inherit; font-size: var(--sv-font-size-10); color: var(--sv-text-secondary); background: none; border: 0; cursor: pointer; }
-  .unit-action:hover { color: var(--sv-accent-fill); }
+  .unit-action:hover { color: var(--sv-accent-text); }
   .trailing-action {
     flex: none;
     width: 12px;
@@ -206,5 +206,5 @@
     cursor: pointer;
   }
   .trailing-action:hover,
-  .trailing-action[aria-pressed='true'] { color: var(--sv-accent-fill); }
+  .trailing-action[aria-pressed='true'] { color: var(--sv-accent-text); }
 </style>

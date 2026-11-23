@@ -273,7 +273,7 @@
     border: var(--sv-border-1) solid var(--sv-rule-strong);
     cursor: pointer;
   }
-  .text-live-button:hover { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
+  .text-live-button:hover { color: var(--sv-accent-text); border-color: var(--sv-accent-fill); }
   .expression-control { position: relative; display: flex; flex: 0 0 var(--sv-field-width, 132px); flex-direction: column; width: var(--sv-field-width, 132px); min-width: 0; }
   .expression-field {
     display: flex;
@@ -287,7 +287,7 @@
     background: var(--sv-surface-field);
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
-  .expression-field:focus-within { outline: 1px solid var(--sv-accent-fill); outline-offset: 1px; }
+  .expression-field:focus-within { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .expression-field[data-invalid] { border-color: var(--sv-signal-error); }
   .expression-error {
     position: absolute;
@@ -331,7 +331,7 @@
     cursor: pointer;
   }
   .expression-toggle:hover,
-  .expression-toggle[aria-pressed='true'] { color: var(--sv-accent-fill); }
+  .expression-toggle[aria-pressed='true'] { color: var(--sv-accent-text); }
   .expression-unit { flex: none; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .sv-text:focus, .sv-font:focus { border-color: var(--sv-accent-fill); }
 </style>

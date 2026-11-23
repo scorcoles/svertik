@@ -41,7 +41,7 @@
   :global(.sv-checkbox:hover) { border-color: var(--sv-text-muted); }
   :global(.sv-checkbox) { display: inline-grid; place-items: center; }
   :global(.sv-checkbox[data-state='checked']) { border-color: var(--sv-accent-fill); }
-  :global(.sv-checkbox svg) { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; stroke-linecap: square; }
+  :global(.sv-checkbox svg) { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-text); stroke-width: 1.5; stroke-linecap: square; }
   :global([data-sv-theme='light'] .sv-checkbox[data-state='checked']) { background: var(--sv-accent-fill); border-color: #256f60; }
   :global([data-sv-theme='light'] .sv-checkbox[data-state='checked'] svg) { stroke: #000; }
   :global(.sv-checkbox:disabled) { opacity: 0.4; cursor: default; }

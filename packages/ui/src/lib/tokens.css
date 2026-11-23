@@ -57,6 +57,8 @@
   --sv-text-muted: var(--sv-gray-400);
   --sv-text-disabled: var(--sv-gray-500);
   --sv-accent-fill: var(--sv-turquesa-500);
+  /* Accent for text, icons and focus lines: the fill itself on dark, a deeper teal on light (≥ 4.5:1). */
+  --sv-accent-text: var(--sv-accent-fill);
   --sv-accent-on: var(--sv-turquesa-900);
   --sv-accent-selection: var(--sv-turquesa-950);
   --sv-signal-error: var(--sv-red-400);
@@ -100,6 +102,7 @@
   --sv-text-muted: #646d64;
   --sv-text-disabled: #858b82;
   --sv-accent-fill: #4ccab3;
+  --sv-accent-text: #0a6355;
   --sv-accent-on: #123d34;
   --sv-accent-selection: #4ccab3;
   --sv-signal-error: #b52c22;

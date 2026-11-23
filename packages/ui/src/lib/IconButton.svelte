@@ -32,7 +32,7 @@
   }
   .sv-icon-button:hover { color: var(--sv-text-primary); background: var(--sv-surface-hover); }
   .sv-icon-button[data-active],
-  .sv-icon-button[aria-expanded='true'] { color: var(--sv-accent-fill); background: var(--sv-accent-selection); }
+  .sv-icon-button[aria-expanded='true'] { color: var(--sv-accent-text); background: var(--sv-accent-selection); }
   :global([data-sv-theme='light']) .sv-icon-button[data-active],
   :global([data-sv-theme='light']) .sv-icon-button[aria-expanded='true'] { color: #000; }
   .sv-icon-button:disabled,

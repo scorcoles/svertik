@@ -84,7 +84,7 @@
   }
   svg { display: block; width: 100%; aspect-ratio: 16 / 9; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
   .tile:hover svg, .tile:focus-visible svg { border-color: var(--sv-accent-fill); }
-  .tile:hover .title, .tile:focus-visible .title { color: var(--sv-accent-fill); }
+  .tile:hover .title, .tile:focus-visible .title { color: var(--sv-accent-text); }
   .tile:focus-visible { outline: none; }
   .title { font-size: var(--sv-font-size-11); font-weight: var(--sv-font-weight-bold); }
   .description { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); line-height: 1.35; }

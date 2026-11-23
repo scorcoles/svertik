@@ -32,6 +32,6 @@
   .mini { display: flex; }
   .mini :global(.sv-icon-button) { width: 20px; height: 20px; }
   .target { flex: 1; min-width: 0; padding: 0 var(--sv-space-4); font: inherit; text-align: left; color: var(--sv-text-primary); background: none; border: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-  .target:hover { color: var(--sv-accent-fill); }
+  .target:hover { color: var(--sv-accent-text); }
   .target:disabled { color: var(--sv-text-disabled); cursor: default; }
 </style>

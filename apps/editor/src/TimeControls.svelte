@@ -51,7 +51,7 @@
   .scrubber::-moz-range-thumb { width: 6px; height: 6px; border: 0; border-radius: 50%; background: var(--sv-text-muted); transition: background 120ms, box-shadow 120ms; }
   .scrubber:hover::-webkit-slider-thumb, .scrubber:focus-visible::-webkit-slider-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
   .scrubber:hover::-moz-range-thumb, .scrubber:focus-visible::-moz-range-thumb { background: var(--sv-accent-fill); box-shadow: 0 0 0 2px var(--sv-accent-selection); }
-  .scrubber:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
+  .scrubber:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: 2px; }
   .marker-jump { max-width: 130px; height: 20px; font: inherit; color: var(--sv-text-secondary); background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-default); }
   .separator { color: var(--sv-text-muted); }
 </style>

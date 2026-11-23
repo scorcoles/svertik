@@ -60,7 +60,7 @@
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
   }
   .color-tool { display: grid; place-items: center; width: 28px; height: 24px; padding: 3px; color: var(--sv-text-secondary); background: none; border: 0; cursor: crosshair; }
-  .color-tool:hover:not(:disabled) { color: var(--sv-accent-fill); background: var(--sv-surface-hover); }
+  .color-tool:hover:not(:disabled) { color: var(--sv-accent-text); background: var(--sv-surface-hover); }
   .color-tool:disabled { display: none; }
   .color-tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
   /* Pickers a bit smaller than the buttons, with their name above. */

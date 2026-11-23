@@ -93,5 +93,5 @@
   }
   :global(.sv-select-group .sv-select-item) { padding-left: var(--sv-space-12); }
   :global(.sv-select-item[data-highlighted]) { background: var(--sv-surface-hover); }
-  :global(.sv-select-item[data-selected]) { color: var(--sv-accent-fill); }
+  :global(.sv-select-item[data-selected]) { color: var(--sv-accent-text); }
 </style>

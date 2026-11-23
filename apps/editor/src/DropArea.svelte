@@ -83,7 +83,7 @@
     line-height: 1;
     letter-spacing: -0.06em;
   }
-  .brand-suffix { color: var(--sv-accent-fill); }
+  .brand-suffix { color: var(--sv-accent-text); }
   .welcome-header {
     width: 100%;
     line-height: 0;
@@ -115,14 +115,14 @@
     cursor: pointer;
   }
   .drop-target:hover .icon, .drop-target:focus-visible .icon { border-color: var(--sv-accent-fill); background: var(--sv-accent-fill); color: var(--sv-accent-on); }
-  .drop-target:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 5px; }
+  .drop-target:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: 5px; }
   .icon {
     cursor: pointer;
     display: grid;
     place-items: center;
     width: 36px;
     height: 36px;
-    color: var(--sv-accent-fill);
+    color: var(--sv-accent-text);
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
   :global([data-sv-theme='light']) .icon { color: var(--sv-accent-on); }

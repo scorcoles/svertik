@@ -57,6 +57,6 @@
     cursor: pointer;
   }
   .pivot-cell:hover { color: var(--sv-text-primary); background: var(--sv-surface-raised); }
-  .pivot-cell[aria-pressed='true'] { color: var(--sv-accent-fill); background: var(--sv-surface-raised); }
+  .pivot-cell[aria-pressed='true'] { color: var(--sv-accent-text); background: var(--sv-surface-raised); }
   .pivot-cell.center { font-size: 17px; }
 </style>

@@ -503,7 +503,7 @@
   .prompt { flex: none; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sv-text-secondary); font-weight: var(--sv-font-weight-bold); }
   .command[data-idle] .prompt { color: var(--sv-text-muted); font-weight: var(--sv-font-weight-regular); }
   .command[data-idle]:not(:focus-within) { background: none; }
-  .command:focus-within .prompt { color: var(--sv-accent-fill); }
+  .command:focus-within .prompt { color: var(--sv-accent-text); }
   input {
     flex: 1;
     min-width: 0;
@@ -523,11 +523,11 @@
   .command:focus-within .hint { visibility: hidden; }
   kbd { font: inherit; color: var(--sv-text-secondary); }
   :global(.command-options) { display: grid; place-items: center; flex: none; width: 22px; height: 22px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; cursor: pointer; }
-  :global(.command-options:hover), :global(.command-options[data-state='open']) { color: var(--sv-accent-fill); }
+  :global(.command-options:hover), :global(.command-options[data-state='open']) { color: var(--sv-accent-text); }
   :global(.command-options .sv-icon) { width: 14px; height: 14px; }
   .box { display: inline-grid; place-items: center; flex: none; width: 12px; height: 12px; border: var(--sv-border-1) solid var(--sv-rule-strong); }
   .box[data-checked] { border-color: var(--sv-accent-fill); }
-  .box svg { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-fill); stroke-width: 1.5; stroke-linecap: square; }
+  .box svg { width: 10px; height: 10px; fill: none; stroke: var(--sv-accent-text); stroke-width: 1.5; stroke-linecap: square; }
 
   .results {
     position: absolute;
@@ -578,7 +578,7 @@
     cursor: pointer;
   }
   .option[aria-selected='true'] { background: var(--sv-surface-hover); }
-  .option[aria-selected='true'] .name { color: var(--sv-accent-fill); }
+  .option[aria-selected='true'] .name { color: var(--sv-accent-text); }
   .option[aria-disabled] { color: var(--sv-text-secondary); }
   .name { display: flex; align-items: center; gap: var(--sv-space-6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--sv-font-weight-bold); }
   /* The effect's icon in its family's colour, as in the stack. */
@@ -602,7 +602,7 @@
   th { width: 18ch; color: var(--sv-text-primary); }
   td.value { width: 100%; font-variant-numeric: tabular-nums; }
   tr[data-current] { background: var(--sv-surface-hover); }
-  tr[data-current] th { color: var(--sv-accent-fill); }
+  tr[data-current] th { color: var(--sv-accent-text); }
   tr[data-set] td.value { color: var(--sv-text-primary); }
   /* Not typable: same grey as the rest of the row (humo fails AA on the raised surface), name not in niebla. */
   tr[data-off] th, tr[data-off] td { color: var(--sv-text-secondary); }

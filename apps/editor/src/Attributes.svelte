@@ -224,12 +224,12 @@
   .info dd { margin: 0; color: var(--sv-text-primary); }
   .info .about { color: var(--sv-text-secondary); line-height: 1.5; }
   .info .about:not(.expanded) { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; line-clamp: 6; -webkit-line-clamp: 6; }
-  .about-actions button { padding: 0; color: var(--sv-accent-fill); background: none; border: 0; font: inherit; cursor: pointer; }
+  .about-actions button { padding: 0; color: var(--sv-accent-text); background: none; border: 0; font: inherit; cursor: pointer; }
   .incoming-info { margin: 0; padding: 0 var(--sv-space-8) var(--sv-space-12); }
   .incoming-info h3 { margin: var(--sv-space-4) 0 var(--sv-space-8); padding-top: var(--sv-space-8); color: var(--sv-text-secondary); border-top: var(--sv-border-1) solid var(--sv-rule-default); font: inherit; }
   .incoming-row { display: flex; justify-content: space-between; gap: var(--sv-space-8); min-height: 20px; align-items: center; }
   .incoming-row span { color: var(--sv-text-primary); text-align: right; }
-  .prop-reference { padding: 0; color: var(--sv-accent-fill); background: transparent; border: 0; font: inherit; text-align: left; cursor: copy; }
+  .prop-reference { padding: 0; color: var(--sv-accent-text); background: transparent; border: 0; font: inherit; text-align: left; cursor: copy; }
   .prop-reference:hover { color: var(--sv-text-primary); text-decoration: underline; }
   .actions { display: flex; gap: var(--sv-space-8); padding: 0 var(--sv-space-8) var(--sv-space-12) 100px; }
   .boolean-path-actions { margin-top: var(--sv-space-12); }

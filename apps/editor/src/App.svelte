@@ -834,7 +834,7 @@
     background: var(--sv-surface-panel);
     border-top: var(--sv-border-1) solid var(--sv-rule-default);
   }
-  .resize:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: -1px; }
+  .resize:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: -1px; }
   .resize:hover { background: var(--sv-accent-selection); }
   .inspector {
     grid-area: inspector;
@@ -875,7 +875,7 @@
   .status-actions { display: flex; align-items: center; gap: var(--sv-space-4); margin-left: auto; }
   .status-actions button { height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); cursor: pointer; }
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
-  .status-actions button[aria-pressed='true'] { color: var(--sv-accent-fill); border-color: var(--sv-accent-fill); }
+  .status-actions button[aria-pressed='true'] { color: var(--sv-accent-text); border-color: var(--sv-accent-fill); }
   :global([data-sv-theme='light']) .status-actions button[aria-pressed='true'] { color: #000; background: var(--sv-accent-fill); border-color: #256f60; }
   .status-meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .diagnostics-toggle { display: flex; align-items: center; }

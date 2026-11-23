@@ -530,7 +530,7 @@
   .label, .lane { height: 22px; border-bottom: var(--sv-border-1) solid var(--sv-rule-strong); }
   .label { position: relative; display: flex; align-items: center; padding: 0 var(--sv-space-8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--sv-font-size-11); }
   .label.group { gap: var(--sv-space-4); padding-left: var(--sv-space-4); background: var(--sv-surface-raised); }
-  .label.group[data-selected] .name { color: var(--sv-accent-fill); }
+  .label.group[data-selected] .name { color: var(--sv-accent-text); }
   .label.group button { padding: 0; font: inherit; color: var(--sv-text-primary); background: none; border: 0; cursor: pointer; }
   .label.group .fold { width: 14px; color: var(--sv-text-muted); }
   .label.group .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--sv-font-weight-bold); }
@@ -539,7 +539,7 @@
   .label.track .param { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .key-nav { position: absolute; right: 22px; display: flex; align-items: center; opacity: 0.55; }
   .key-nav button { width: 13px; height: 16px; padding: 0; color: var(--sv-text-secondary); background: none; border: 0; font: 14px/1 var(--sv-font-mono, monospace); cursor: pointer; }
-  .key-nav button:hover:not(:disabled), .key-nav button:focus-visible { color: var(--sv-accent-fill); opacity: 1; }
+  .key-nav button:hover:not(:disabled), .key-nav button:focus-visible { color: var(--sv-accent-text); opacity: 1; }
   .key-nav button:disabled { opacity: 0.25; cursor: default; }
   .label.track:hover .key-nav { opacity: 1; }
   .lane.group { background: rgb(255 255 255 / 0.025); }
@@ -574,15 +574,15 @@
   :global(.segment) { position: absolute; top: 0; height: 100%; padding: 0; background: none; border: 0; cursor: pointer; overflow: visible; }
   :global(.segment svg) { display: block; overflow: visible; }
   :global(.segment path) { fill: none; stroke: var(--sv-text-muted); stroke-width: 1; opacity: 0.55; }
-  :global(.segment:hover path), :global(.segment[data-on] path) { stroke: var(--sv-accent-fill); opacity: 1; }
+  :global(.segment:hover path), :global(.segment[data-on] path) { stroke: var(--sv-accent-text); opacity: 1; }
   :global(.segment:hover) { background: rgb(255 255 255 / 0.03); }
   :global(.ease-menu) { width: 160px; }
   :global(.ease-item) { width: 100%; font: inherit; background: none; border: 0; text-align: left; }
   :global(.ease-item:hover), :global(.ease-item:focus-visible) { background: var(--sv-surface-hover); }
   :global(.ease-item svg) { flex: none; overflow: visible; }
   :global(.ease-item path) { fill: none; stroke: var(--sv-text-secondary); stroke-width: 1.25; }
-  :global(.ease-item[data-current]) { color: var(--sv-accent-fill); }
-  :global(.ease-item[data-current] path) { stroke: var(--sv-accent-fill); }
+  :global(.ease-item[data-current]) { color: var(--sv-accent-text); }
+  :global(.ease-item[data-current] path) { stroke: var(--sv-accent-text); }
   .key[data-hold] { border-radius: 0; background: var(--sv-surface-panel); border-color: var(--sv-text-secondary); }
   .key[data-hold]:hover { border-color: var(--sv-text-primary); }
   .key[data-selected] { background: var(--sv-accent-fill); border-color: var(--sv-accent-fill); outline: 1px solid var(--sv-text-primary); outline-offset: 2px; }

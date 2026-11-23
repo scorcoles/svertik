@@ -39,5 +39,5 @@
   }
   :global(.sv-segment[data-icon]) { display: inline-grid; place-items: center; padding: 0; }
   :global(.sv-segment:hover) { color: var(--sv-text-secondary); }
-  :global(.sv-segment[data-state='on']) { color: var(--sv-accent-fill); background: var(--sv-surface-raised); }
+  :global(.sv-segment[data-state='on']) { color: var(--sv-accent-text); background: var(--sv-surface-raised); }
 </style>

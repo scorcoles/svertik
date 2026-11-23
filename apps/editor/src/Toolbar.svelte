@@ -122,7 +122,7 @@
     background: none;
     border: var(--sv-border-1) solid var(--sv-rule-default);
   }
-  .crumb { padding: 0; font: inherit; color: var(--sv-accent-fill); background: none; border: 0; cursor: pointer; }
+  .crumb { padding: 0; font: inherit; color: var(--sv-accent-text); background: none; border: 0; cursor: pointer; }
   .crumb:hover { text-decoration: underline; }
   .crumb[aria-current] { color: var(--sv-text-primary); cursor: default; }
   .slash { color: var(--sv-text-muted); }
@@ -138,7 +138,7 @@
     text-overflow: ellipsis;
   }
   .name:hover { color: var(--sv-text-primary); border-bottom-color: var(--sv-rule-strong); }
-  .name:focus { color: var(--sv-text-primary); border-bottom-color: var(--sv-accent-fill); }
+  .name:focus { color: var(--sv-text-primary); border-bottom-color: var(--sv-accent-text); }
   .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .demo-tag { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .make-own {
@@ -146,7 +146,7 @@
     padding: 0 var(--sv-space-6);
     font: inherit;
     font-size: var(--sv-font-size-10);
-    color: var(--sv-accent-fill);
+    color: var(--sv-accent-text);
     white-space: nowrap;
     background: none;
     border: var(--sv-border-1) solid var(--sv-accent-fill);

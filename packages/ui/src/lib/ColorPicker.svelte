@@ -133,7 +133,7 @@
     touch-action: none;
   }
   .sv:focus-visible,
-  .hue:focus-visible { outline: 1px solid var(--sv-accent-fill); outline-offset: 2px; }
+  .hue:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: 2px; }
   .thumb {
     position: absolute;
     width: 10px;
