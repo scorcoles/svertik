@@ -31,6 +31,8 @@ pnpm storybook  # UI components
 pnpm size       # what the player weighs, and what a given scene weighs
 ```
 
+`pnpm run deploy` publishes the hosted editor at https://editor.svertik.com/ from a clean, pushed `main`: it runs the tests, calls the private hosting step (outside this repository, set with `SVERTIK_HOSTED_DEPLOY`) and checks that the live editor reports the new version. `pnpm run deploy --dry-run` stops after the tests. GitHub Actions only run the tests; nothing is published from GitHub.
+
 ## Terminal CLI
 
 ```bash

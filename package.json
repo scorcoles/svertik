@@ -15,6 +15,7 @@
     "editor": "pnpm --filter @svertik/editor dev",
     "player": "pnpm --filter svertik dev",
     "size": "node scripts/size.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "svertik": "node packages/cli/bin/svertik.mjs",
     "docs": "node packages/cli/bin/svertik.mjs docs",
     "fonts:catalog": "node scripts/font-catalog.mjs"
