@@ -284,7 +284,6 @@
   .icon { display: flex; color: var(--tone, var(--sv-text-secondary)); }
   .icon-action { align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
   .icon-action:hover { color: var(--sv-accent-fill); }
-  [data-selected] .icon { color: var(--sv-accent-fill); }
   .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [data-disabled] .label { color: var(--sv-text-muted); }
   [data-disabled] .icon { color: var(--sv-text-muted); }
