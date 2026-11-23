@@ -20,6 +20,8 @@ export interface ExpressionContext {
   custom: Record<string, number>;
   /** Native and explicitly forwarded values received from the direct parent. */
   props?: Record<string, number>;
+  /** The copy being built, inside a shape's Each (`element.*`); absent elsewhere. */
+  element?: Partial<ElementValues>;
   /** Numeric values exposed by direct children, keyed by their stable scene IDs. */
   children?: Record<string, Record<string, number>>;
   /** The live pointer (`scene.mouse.*`); the neutral one when absent. */
@@ -32,6 +34,25 @@ export interface ExpressionContext {
   /** Where smooth() and spring() keep their value between frames; without it they return their target. */
   memory?: ExpressionMemory;
 }
+
+/** What `element.*` gives inside Each, for the copy being built. */
+export interface ElementValues {
+  /** Order of the copy, from 0. */
+  index: number;
+  /** How many copies there are. */
+  count: number;
+  /** Grid row and column, from 0 (0 outside a grid). */
+  row: number;
+  column: number;
+  /** Place across the grid (or along the copies), from 0 to 1. */
+  u: number;
+  v: number;
+  /** Distance from the centre of the copies: 0 at the centre, 1 for the furthest copy. */
+  distance: number;
+  /** A fixed random number from 0 to 1 for this copy. */
+  random: number;
+}
+export const ELEMENT_FIELDS = ['index', 'count', 'row', 'column', 'u', 'v', 'distance', 'random'] as const;
 
 /** What smooth() / spring() remember of the last frame: when, the value, and (spring) its speed. */
 interface FollowState { t: number; v: number; vel: number }
@@ -141,6 +162,12 @@ function parse(source: string): Expr {
         if (!id || !property || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(property)) throw new Error('Use children["child-id"].property to read a child value.');
         return { kind: 'child', id, property };
       }
+      if (token === 'element') {
+        expect('.');
+        const key = take();
+        if (!key || !(ELEMENT_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a supported element value: ${ELEMENT_FIELDS.join(', ')}.`);
+        return { kind: 'variable', name: `element.${key}` };
+      }
       if (token === 'props') {
         expect('.');
         const key = take();
@@ -230,6 +257,11 @@ function run(tree: Expr, context: ExpressionContext): number {
     return value!;
   }
   if (tree.kind === 'variable') {
+    if (tree.name.startsWith('element.')) {
+      const value = context.element?.[tree.name.slice('element.'.length) as keyof ElementValues];
+      if (!Number.isFinite(value)) throw new Error('element.* is only available in Each.');
+      return value!;
+    }
     if (tree.name.startsWith('props.')) {
       const key = tree.name.slice('props.'.length);
       const value = context.props?.[key];
@@ -388,7 +420,7 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>, points = false) => Object.values(params ?? {}).some(v => isNumericExpression(v) || (points && Array.isArray(v) && v.some(isNumericExpression)));
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params, true) || has(m.props, true) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
-    has(node.props, true) || (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
+    has(node.props, true) || (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || has(node.each) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
   // A re-seeding generator changes the drawing over time too.
   return (Number(scene.seedEvery) > 0) || Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }
@@ -463,6 +495,32 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
   return context;
 }
 
+/**
+ * Keeps, on the evaluated node, the context its Each formulas run in (scene values, props, children), so the
+ * engine can evaluate them per copy later. Runtime only: plain data (the smooth/spring memory stays out).
+ */
+function bindEach(node: { eachContext?: unknown }, context: ExpressionContext) {
+  const { memory: _memory, ...plain } = context;
+  node.eachContext = plain;
+}
+
+/**
+ * The values a shape's Each gives one copy: its numbers as they are, its formulas evaluated with `element`
+ * (in the node's own context once the scene's formulas have been evaluated). A formula that fails gives its fallback.
+ */
+export function eachValues(node: { each?: Record<string, unknown>; eachContext?: unknown }, element: ElementValues): Record<string, number> {
+  const out: Record<string, number> = {};
+  const base = (node.eachContext as ExpressionContext | undefined) ?? { time: 0, frame: 0, fps: 30, duration: 0, progress: 0, seedGenerator: 1, custom: {} };
+  for (const [key, value] of Object.entries(node.each ?? {})) {
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
+    else if (isNumericExpression(value)) {
+      try { out[key] = evaluateExpression(value.$expr, { ...base, element }); }
+      catch { out[key] = value.fallback; }
+    }
+  }
+  return out;
+}
+
 /** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
 export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number; memory?: ExpressionMemory } = {}): SceneV1 {
   if (!sceneHasExpressions(scene)) return scene;
@@ -523,6 +581,7 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
       if (node.props) node.props = ownCustom;
       const outgoingCustom = { ...inheritedCustom, ...ownCustom };
       if (node.kind === 'shape') {
+        if (node.each && Object.values(node.each).some(isNumericExpression)) bindEach(node, nodeContext);
         params(node.params, true, nodeContext);
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
           // Dynamic values such as clocks can change the string width as digits are added. Pin the
@@ -570,6 +629,17 @@ export interface ExpressionReferenceEntry {
   name: string;
   about: string;
 }
+
+const ELEMENT_ABOUT: Record<(typeof ELEMENT_FIELDS)[number], string> = {
+  index: 'Each only: order of the copy, from 0',
+  count: 'Each only: how many copies there are',
+  row: 'Each only: grid row of the copy, from 0',
+  column: 'Each only: grid column of the copy, from 0',
+  u: 'Each only: place across the grid (or along the copies), from 0 to 1',
+  v: 'Each only: place down the grid, from 0 to 1',
+  distance: 'Each only: distance from the centre of the copies, 0 at the centre to 1 at the furthest',
+  random: 'Each only: a fixed random number from 0 to 1 for the copy',
+};
 
 /** What each `scene.*` variable means, keyed like `describeSceneVariables` (`time`, `mouse.posX`…). */
 const VARIABLE_ABOUT: Record<string, string> = {
@@ -649,6 +719,7 @@ export function expressionReference(): { variables: (ExpressionReferenceEntry & 
     variables: [
       ...keys.map((key) => ({ key, name: `scene.${key}`, about: VARIABLE_ABOUT[key] ?? '' })),
       { key: 'props.*', name: 'props.name', about: VARIABLE_ABOUT['props.*']! },
+      ...ELEMENT_FIELDS.map((key) => ({ key: `element.${key}`, name: `element.${key}`, about: ELEMENT_ABOUT[key] })),
       { key: 'children["id"].property', name: 'children["id"].property', about: VARIABLE_ABOUT['children["id"].property']! },
     ],
     functions: Object.keys(ARITY).map((fn) => FUNCTION_ABOUT[fn] ?? { name: fn, about: '' }),

@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## Unreleased
+
+### Added
+
+- **Each**: per-copy values for a shape's own parameters. When the first effect is a Clone, every copy is built with its Each values, numbers or formulas that read `element.index`, `count`, `row`, `column`, `u`, `v`, `distance` (0 at the centre, 1 for the furthest copy) and `random`. For example, a grid of donuts whose hole closes towards the edges: Inner = `19 * (1 - element.distance)`. Editor: an Each section in the shape's panel. Validation warns when Each cannot apply.
+
 ## 0.0.7
 
 ### Changed

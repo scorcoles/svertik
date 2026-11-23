@@ -1896,6 +1896,16 @@ export class Editor {
     this.record();
   }
 
+  /** Each: per-copy values for a shape's own parameters (applied by a Clone at the top of its stack). */
+  setNodeEach(id: string, each: Record<string, unknown>) {
+    if (this.isLocked(id)) return;
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'shape') return;
+    if (Object.keys(each).length) at.node.each = each;
+    else delete at.node.each;
+    this.record();
+  }
+
   /** Set the placement origin in local or canvas coordinates, including moving group pivots. */
   setNodePosition(id: string, target: [number, number], space: 'local' | 'world' = 'local') {
     if (!this.scene || this.isLocked(id) || !target.every(Number.isFinite)) return;

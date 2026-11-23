@@ -109,6 +109,15 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
         errors.push(`${name(n)}: kind must be "object", "shape", "group", "instance" or "effector"`);
         continue;
       }
+      if (n.kind === 'shape' && n.each && Object.keys(n.each).length) {
+        const def = shapeRegistry.get(n.shape);
+        for (const [key, v] of Object.entries(n.each)) {
+          if (def && def.params[key]?.type !== 'number') warnings.push(`${name(n)}: Each "${key}" is not a numeric parameter of ${def.label}`);
+          if (!(typeof v === 'number' && Number.isFinite(v)) && !(isNumericExpression(v) && Number.isFinite(v.fallback))) errors.push(`${name(n)}: Each "${key}" must be a number or a numeric expression`);
+        }
+        if (n.stack[0]?.type !== 'clone') warnings.push(`${name(n)}: Each only applies when the first effect is a Clone`);
+        if (n.children?.length) warnings.push(`${name(n)}: Each does not apply to a shape with children`);
+      }
       if (n.kind === 'object' && typeof n.source !== 'string' && !n.packed) errors.push(`${name(n)}: needs a source SVG`);
       if (n.kind === 'object' && !n.source && !n.packed && n.href) warnings.push(`${name(n)}: its SVG "${n.href}" is not loaded (it draws nothing)`);
       if (n.kind === 'instance') {

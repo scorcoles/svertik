@@ -83,6 +83,14 @@ export interface ShapeNode extends NodeBase {
   kind: 'shape';
   shape: string;
   params: Record<string, unknown>;
+  /**
+   * Each: per-copy values for the shape's own parameters, by name. When the first effect of the stack is a Clone,
+   * every copy is built with these values (numbers or formulas that read `element.*`: index, count, row, column,
+   * u, v, distance, random); elsewhere they are ignored.
+   */
+  each?: Record<string, unknown>;
+  /** Runtime only: the context Each formulas run in, set when the scene's formulas are evaluated. Never author it. */
+  eachContext?: unknown;
 }
 
 export interface ClockModulation { type: 'oscillate' | 'wiggle' | 'pulse' | 'shake'; params?: Record<string, unknown>; enabled?: boolean }

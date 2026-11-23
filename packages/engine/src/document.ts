@@ -5,6 +5,7 @@ import { hasPercent } from './units';
 import { importSVG } from './importer';
 import { fontsOf, fontsVersion, hasFont, loadFont } from './fonts';
 import { buildShape, shapeRegistry } from './shapes';
+import { eachValues, type ElementValues } from './expression';
 import { apply, IDENTITY, invert, multiply, rotateScale, translate, type Mat } from './matrix';
 import { findModifier, sampleScene, trackValue } from './animation';
 import type { FilterChain, ModifierInstance, StackRefs, StepMemo } from './engine';
@@ -191,7 +192,7 @@ export type TargetLookup = (id: string) => Geometry | null;
  * and, if any asked, another one with what came out of the first. Those nodes are not cached.
  */
 export function createDocumentEvaluator(
-  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined) => Geometry,
+  runStack: (geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined, each?: { build: (element: ElementValues) => Geometry | null; key: string }) => Geometry,
   filtersOf: (stack: ModifierInstance[]) => FilterChain | null = () => null,
   options: {
     trails?: boolean;
@@ -518,11 +519,22 @@ export function createDocumentEvaluator(
           const world = multiply(parentMatrix, m);
           inScene(world);
           const childKey = childShapes.length ? '|' + hashGeo({ viewBox: [0, 0, 0, 0], shapes: childShapes }) + '|' + JSON.stringify(childShapes.map((s) => [s.style, s.clone, s.emission, s.node, s.wrap, s.gradients, s.image, s.imageFill, s.softBody, s.force, s.pokes, s.bursts, s.drags, s.rangeSelections, s.gridRow, s.gridColumn, s.bodyGroup, s.rigidGroup, s.rigidAmount, s.rigidPivot, s.rigidTransforms, s.networkNodes, s.networkLink])) : '';
+          // Each: per-copy values for the shape's own parameters, handed to the first effect (a Clone builds each copy).
+          const eachOn = node.kind === 'shape' && !childShapes.length && !!node.each && Object.keys(node.each).length > 0 && stack[0]?.type === 'clone';
+          const each = eachOn && node.kind === 'shape'
+            ? {
+                key: JSON.stringify([node.each, node.eachContext ?? 0]),
+                build: (element: ElementValues) => {
+                  const own = eachValues(node, element);
+                  return Object.keys(own).length ? buildShape(node.shape, { ...node.params, ...own }, { document: scene.document }) : null;
+                },
+              }
+            : undefined;
           // Text depends on the registered fonts: when a new one arrives, it is drawn again.
           const key =
             node.kind === 'instance'
               ? JSON.stringify([resolution, stack]) + '\n' + instSrc!.key + childKey
-              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) + childKey : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, hasPercent(node.params) ? [scene.document?.width, scene.document?.height] : 0]) + childKey;
+              : node.kind === 'object' ? JSON.stringify([resolution, stack]) + '\n' + (node.packed ? `pack:${node.packed.key}` : node.source) + childKey : JSON.stringify([resolution, stack, node.shape, node.params, node.shape === 'text' ? fontsVersion() : 0, hasPercent(node.params) ? [scene.document?.width, scene.document?.height] : 0, each?.key ?? 0]) + childKey;
           let entry = cache.get(node.id);
           // One that uses another object is valid if what it sees of it hasn't changed.
           // A trail depends on the time: it is not cached.
@@ -540,7 +552,7 @@ export function createDocumentEvaluator(
             const deps: [string, number][] = [];
             const refs: StackRefs = {};
             usedTrail = false;
-            const computed = runStack(combinedSource, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id), historyFor(node.id));
+            const computed = runStack(combinedSource, stack, ref, resolution, lookupFor(node.id, deps), memoOf(node.id), refs, trailFor(node.id), historyFor(node.id), each);
             const result = local.length ? { ...computed, shapes: computed.shapes.map(({ signalGroup: _signalGroup, ...shape }) => shape) } : computed;
             entry = { key, source, result, dynamic: asked, deps, refs, volatile: usedTrail };
             asked = asked || before;

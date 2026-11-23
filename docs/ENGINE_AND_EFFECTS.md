@@ -155,6 +155,19 @@ Numeric formulas in a node can read `props.name`. A child receives the direct pa
 
 A parent can read a numeric value from a direct child with `children["child-id"].property`, for example `children["shape-1"].rotation`. The child ID is a string, so hyphens are safe. Child references are read-only and direct-child only; use custom props to forward values across levels. Missing or unresolved references use the expression fallback. The editor’s **Props** section shows incoming values and lets you define custom numeric props, including formulas.
 
+### Each: per-copy shape values
+
+A shape node may store `each`: values for its own numeric parameters that change per copy. They apply when the first effect of the stack is a Clone: every copy is built from the shape with its Each values and placed like the others. Values are numbers or formulas, and formulas can read the copy being built with `element.index` (from 0), `element.count`, `element.row` and `element.column` (grid, from 0), `element.u` and `element.v` (place across the grid, 0–1; along the copies outside a grid), `element.distance` (0 at the centre of the copies, 1 for the furthest copy) and `element.random` (a fixed 0–1 number per copy, varied by Clone's Variation seed), plus everything else formulas read (`scene.*`, `props.*`, math). `element.*` is only available in Each.
+
+```json
+{ "kind": "shape", "id": "donut", "name": "Donut", "shape": "donut",
+  "params": { "radius": 26, "innerRadius": 19, "fill": true },
+  "each": { "innerRadius": { "$expr": "19 * (1 - element.distance)", "fallback": 19 } },
+  "stack": [{ "id": "grid", "type": "clone", "params": { "mode": "grid", "columns": 21, "rows": 14 } }] }
+```
+
+Each is ignored when the first effect is not a Clone and on shapes with children; validation warns about both, and about names that are not numeric parameters of the shape. In the editor, the shape's **Each** section adds a parameter and its formula.
+
 
 ---
 

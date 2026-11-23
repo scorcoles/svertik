@@ -3,6 +3,7 @@
 
 import type { Bounds, Geometry } from './geometry';
 import type { Mat } from './matrix';
+import type { ElementValues } from './expression';
 
 interface ParamBase {
   label?: string;
@@ -104,6 +105,11 @@ export interface ModifierContext {
   scene?: SceneSpace;
   /** Inside a group with Physics: that Physics owns the simulation (Gravity hands it its forces). */
   inWorld?: boolean;
+  /**
+   * Each: the source drawing rebuilt for one copy (the shape with its per-copy values). Only for the first effect
+   * of a shape's stack, and only when the shape has Each; a generator that makes copies (Clone) uses it.
+   */
+  each?: (element: ElementValues) => Geometry | null;
 }
 
 /** A stack's place in the scene: `world` takes its coordinates to the scene's; `frame` is the document box. */
