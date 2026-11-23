@@ -349,10 +349,10 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `axis`: "x" | "y", default `"x"`, not animatable
    - `start`: number, default `0.5`, -0.99..0.99
    - `end`: number, default `-0.5`, -0.99..0.99
-9. **`compress`** (Compress): Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. The center goes from Center start at one edge (top for axis x, left for axis y) to Center end at the other. With Rigid Pieces first, evenly spaced marks keep their shape and pile into a solid bar at the center, so a Clone grid gets a dense band that can sweep diagonally row by row.
+9. **`compress`** (Compress): Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. The center goes from Start at one edge (top for axis x, left for axis y) to End at the other (fractions across the axis). With Rigid Pieces first, evenly spaced marks keep their shape and pile into a solid bar at the center, so a Clone grid gets a dense band that can sweep diagonally row by row.
    - `axis`: "x" | "y", default `"x"`, not animatable
-   - `start` (**Center start**): number, default `0.5`, 0..1, fraction
-   - `end` (**Center end**): number, default `0.5`, 0..1, fraction
+   - `start`: number, default `0.5`, 0..1, fraction
+   - `end`: number, default `0.5`, 0..1, fraction
    - `strength`: number, default `0.7`, -1..1
 10. **`rope`** (Rope): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle that pushes the ropes out of its way (bind Pointer to the cursor with `scene.mouse` formulas, Space set to Scene). Time follows scene.time unless it is set; keep Rope first in the stack, as it keeps its state between frames. Closed paths are left alone.
    - `time` (**Time (s)**): number, default `scene.time` (ƒx; `0` as fallback), 0..100000

@@ -145,8 +145,9 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * A step that looks at another object is not reused (the other may have changed).
    */
   function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined): Geometry {
-    // Subdivision follows the size of the source; the reference box changes after an effect that reframes.
-    const res = Math.max(ref.width, ref.height) * resolution || 1;
+    // Subdivision follows the reference box, which changes after an effect that reframes (a Clone grid): a
+    // deformer after it bends at the scale of the whole grid, so tiny copies must not be cut at the source's scale.
+    let res = Math.max(ref.width, ref.height) * resolution || 1;
     let reuse = !!memo && memo.base === geo && memo.resolution === resolution;
     if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
     stack.forEach((inst, i) => {
@@ -156,6 +157,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       if (reuse && cached && cached.key === key && !cached.dynamic) {
         geo = cached.geo;
         ref = cached.ref;
+        res = Math.max(ref.width, ref.height) * resolution || 1;
         return;
       }
       reuse = false;
@@ -172,7 +174,10 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
           geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { id: inst.id, bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}), ...(inst.inWorld ? { inWorld: true } : {}) }));
           if (def.reframe) {
             const b = bounds(geo);
-            if (b.width > 0 || b.height > 0) ref = b;
+            if (b.width > 0 || b.height > 0) {
+              ref = b;
+              res = Math.max(ref.width, ref.height) * resolution || 1;
+            }
           }
         }
       }

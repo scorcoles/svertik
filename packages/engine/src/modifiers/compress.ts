@@ -16,8 +16,8 @@ export const compress = defineModifier({
   kind: 'deformer',
   params: {
     axis: { type: 'enum', default: 'x', options: ['x', 'y'] as const, label: 'Axis', animatable: false },
-    start: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, unit: 'fraction', label: 'Center start', random: [0.1, 0.9] },
-    end: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, unit: 'fraction', label: 'Center end', random: [0.1, 0.9] },
+    start: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, unit: 'fraction', label: 'Start', random: [0.1, 0.9] },
+    end: { type: 'number', default: 0.5, min: 0, max: 1, step: 0.01, unit: 'fraction', label: 'End', random: [0.1, 0.9] },
     strength: { type: 'number', default: 0.7, min: -1, max: 1, step: 0.01, random: [-0.6, 1] },
   },
   apply(geo, p, ctx) {

@@ -380,6 +380,45 @@ Object.assign(builders, {
     };
   },
 
+  compress(p: Params, b: Bounds): Gizmo {
+    // The center line (solid) from Start on the first edge to End on the other, and the guides an evenly spaced
+    // row of marks would follow (dashed), crowding towards it. Start and End slide along their edge; Strength
+    // sits beside the middle of the center line and slides across the axis (right/down crowds, left/up spreads).
+    const alongX = p.axis !== 'y';
+    const start = clamp(Number(p.start ?? 0.5), 0, 1), end = clamp(Number(p.end ?? 0.5), 0, 1);
+    const strength = clamp(Number(p.strength ?? 0.7), -1, 1);
+    const k = 1 + 5 * Math.abs(strength);
+    const profile = (u: number) => (strength >= 0 ? u ** k : 1 - (1 - u) ** k);
+    const remap = (t: number, c: number) =>
+      strength === 0 ? t : t >= c ? (c < 1 ? c + profile((t - c) / (1 - c)) * (1 - c) : t) : c > 0 ? c - profile((c - t) / c) * c : t;
+    const pt = (t: number, s: number): Vec2 => (alongX ? [b.x + t * b.width, b.y + s * b.height] : [b.x + s * b.width, b.y + t * b.height]);
+    const centerAt = (s: number) => start + (end - start) * s;
+    const guide = (t: number): GizmoLine => ({ pts: Array.from({ length: 9 }, (_, i) => pt(remap(t, centerAt(i / 8)), i / 8)), dashed: true });
+    const across = alongX ? b.width : b.height;
+    const along = (from: Vec2, to: Vec2) => (alongX ? to[0] - from[0] : to[1] - from[1]) / (across || 1);
+    const edge = (key: 'start' | 'end', s: 0 | 1): GizmoHandle => ({
+      at: pt(key === 'start' ? start : end, s),
+      label: key === 'start' ? 'Start' : 'End',
+      drag: (p0, from, to, snap) => {
+        const v = clamp(Number(p0[key] ?? 0.5) + along(from, to), 0, 1);
+        return { [key]: snap ? Math.round(v * 20) / 20 : round(v, 100) };
+      },
+    });
+    // Strength: a quarter of the box beside the middle of the center line at full strength.
+    const strengthHandle: GizmoHandle = {
+      at: pt(centerAt(0.5) + strength * 0.25, 0.5),
+      label: 'Strength',
+      drag: (p0, from, to, snap) => {
+        const v = clamp(Number(p0.strength ?? 0.7) + 4 * along(from, to), -1, 1);
+        return { strength: snap ? Math.round(v * 20) / 20 : round(v, 100) };
+      },
+    };
+    return {
+      lines: [boxLine(b), ...[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875].map(guide), { pts: [pt(start, 0), pt(end, 1)] }],
+      handles: [edge('start', 0), edge('end', 1), strengthHandle],
+    };
+  },
+
   shear(p: Params, b: Bounds): Gizmo {
     const [cx, cy] = center(b);
     const tx = Math.tan(rad(clamp(Number(p.x) || 0, -85, 85)));

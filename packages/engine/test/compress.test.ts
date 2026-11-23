@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { builtins, createEngine, type StackInput } from '../src';
+import { builtins, createEngine, type SceneV1, type StackInput } from '../src';
 
 // Nine vertical bars, evenly spaced 0..80 wide and 0..100 tall (each a 2-point path).
 const xs = [0, 10, 20, 30, 40, 50, 60, 70, 80];
@@ -48,5 +48,18 @@ describe('compress', () => {
     // Bars become rigid pieces: each one moves sideways without bending, so it stays vertical.
     const lines = run({ start: 0.5, end: 0.5, strength: 0.8 }, [{ id: 'r', type: 'rigidpieces', params: { amount: 1 } }]);
     for (const l of lines) for (const q of l) expect(q[0]).toBeCloseTo(l[0]![0], 6);
+  });
+});
+
+describe('subdivision after a Clone', () => {
+  it('follows the grid, not the tiny source: a deformer after a Clone of small marks stays light', () => {
+    // 2.6 × 15 px marks in a 44 × 34 grid. Before, the subdivision length came from the 15 px source (0.15 px),
+    // so every mark was cut into ~240 commands and a frame took ~200 ms.
+    const scene = { version: 1, objects: [{ kind: 'shape', id: 't', name: 't', shape: 'rectangle', params: { width: 2.6, height: 15, fill: true, stroke: false },
+      stack: [{ id: 'g', type: 'clone', params: { mode: 'grid', columns: 44, rows: 34, spacing: [5.6, 1.5] } },
+        { id: 'c', type: 'compress', params: { start: 0, end: 0, strength: 0.5 } }] }] } as unknown as SceneV1;
+    const svg = createEngine(builtins).toSVG(scene);
+    const commands = (svg.match(/[MLCZ]/g) ?? []).length;
+    expect(commands / (44 * 34)).toBeLessThan(40);
   });
 });

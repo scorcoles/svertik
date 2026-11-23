@@ -100,6 +100,19 @@ it('radial Clone shows each ring and lets its spacing be dragged', () => {
   expect(gizmoFor('clone', { mode: 'radial', radius: 1 }, box)!.handles).toHaveLength(1);
 });
 
+it('compress: Start and End slide along their edges, Strength beside the middle of the center line', () => {
+  const g = gizmoFor('compress', { axis: 'x', start: 0.25, end: 0.75, strength: 0.4 }, box)!;
+  const [start, end, strength] = g.handles;
+  expect(start!.at).toEqual([50, 0]);
+  expect(end!.at).toEqual([150, 100]);
+  // Middle of the center line at x = 100; 0.4 × a quarter of the 200 px box to its right.
+  expect(strength!.at).toEqual([120, 50]);
+  // 20 px right on a 200 px box = 0.1 of the width.
+  expect(start!.drag({ start: 0.25 }, [50, 0], [70, 0], false)).toEqual({ start: 0.35 });
+  expect(strength!.drag({ strength: 0.4 }, [120, 50], [130, 50], false)).toEqual({ strength: 0.6 });
+  expect(gizmoFor('compress', { axis: 'y', start: 0.5, end: 0.5, strength: 0 }, box)!.handles[0]!.at).toEqual([0, 50]);
+});
+
 it('gather: a handle per edge on the middle line; dragging it along the edge sets that end', () => {
   const g = gizmoFor('gather', { axis: 'x', start: 0.4, end: -0.4 }, box)!;
   const [start, end] = g.handles;
