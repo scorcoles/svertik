@@ -2,6 +2,18 @@
 
 svertik is alpha software. Save project files regularly.
 
+## Unreleased
+
+### Added
+
+- **Each** effect (Effect menu), like Step: the effects nested in it apply to every element separately, with formulas that read `element.index`, `count`, `row`, `column`, `u`, `v`, `distance` (0 at the centre, 1 for the furthest) and `random`. A **Shape** inside it rebuilds each Clone copy with other values for the shape's own parameters (Inner = `19 * (1 - element.distance)` closes the holes of a donut grid towards the edges).
+
+### Changed
+
+- Effect menus regrouped by purpose: Deform (now also Crack, Radial Cut, Damage, Mosaic, Voronoi, Boolean, Metaball), Repeat (Clone, Mirror, Fractal, Particles), Draw (tone to marks and new lines: Halftone, Wave Lines, Vector Grain, Crosshatch, Dithering, Contour, Pixelate, Flow Field, Network, Weave, String Art, Spirograph, Connect, Trace, Random Wave/Bars), Effect, Motion (Gravity, Physics, Rigid Body, Soft Body, Rope, Explosion, Follow Path, Look At), Style, Glitch and Filters. Utils keeps compositions, Instance, Mouse Instance, Effector, Connector and Tracer.
+- Long parameter labels wrap to a second line instead of being cut.
+- The node-level `each` of 0.0.8 becomes an Each › Shape; the editor converts saved scenes when it opens them.
+
 ## 0.0.8
 
 ### Added

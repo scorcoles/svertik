@@ -1,6 +1,6 @@
 # Vector Grain
 
-`type: "vectorgrain"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "vectorgrain"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). Density is highest at the edge and falls off over Falloff px, shaped by Curve, down to Interior deep inside. Edge: inside the shape, outside (a halo) or both. Marks are circles, squares or irregular specks; Size, Size jitter and Edge size control them. Their base colour comes from the source fill; use Color or Tint after Vector Grain to style the output. Opacity and Opacity jitter vary mark opacity, Distribution is random or even, and Source keeps or replaces the drawing. Seeded.
 

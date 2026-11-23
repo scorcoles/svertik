@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Each: per-copy values for a shape's own parameters. Every row is one parameter and its formula, which reads
-  // element.* (the copy being built by the Clone at the top of the stack).
+  // Each › Shape: per-copy values for the shape's own parameters. Every row is one parameter and its formula,
+  // which reads element.* (the copy Each is building).
   import { IconButton, Section, Select, formulaField } from '@svertik/ui';
   import { isNumericExpression, validateExpression, type ParamSchema } from '@svertik/engine';
   import InfoTip from './InfoTip.svelte';
@@ -10,12 +10,12 @@
     /** The shape's parameters (to offer only numeric ones, with their labels). */
     schema: ParamSchema;
     values: Record<string, unknown>;
-    /** Whether the first effect is a Clone (Each only applies then). */
-    active: boolean;
+    /** Why it would not apply here (outside Each, or not on a shape object); nothing when it does. */
+    problem?: string;
     showInfo?: boolean;
     onchange: (each: Record<string, unknown>) => void;
   }
-  let { each, schema, values, active, showInfo = true, onchange }: Props = $props();
+  let { each, schema, values, problem, showInfo = true, onchange }: Props = $props();
 
   const numeric = $derived(Object.entries(schema).filter(([, spec]) => spec.type === 'number').map(([key, spec]) => ({ value: key, label: spec.label ?? key })));
   const free = $derived(numeric.filter((o) => !Object.hasOwn(each, o.value)));
@@ -45,10 +45,12 @@
   }
 </script>
 
-<Section title="Each">
-  {#snippet action()}<div class="section-actions">{#if showInfo}<InfoTip text="Per-copy values for this shape's parameters, when its first effect is a Clone. Formulas read element.index, element.count, element.row, element.column, element.u and element.v (0–1 across the grid), element.distance (0 at the centre, 1 at the furthest copy) and element.random." />{/if}<IconButton icon="plus" label="Add a per-copy value" disabled={!free.length} onclick={add} /></div>{/snippet}
-  {#if Object.keys(each).length && !active}
-    <p class="note">Each applies when the first effect is a Clone.</p>
+<Section title="Per copy">
+  {#snippet action()}<div class="section-actions">{#if showInfo}<InfoTip text="Values for this shape's own parameters, copy by copy. Formulas read element.index, element.count, element.row, element.column, element.u and element.v (0–1 across the grid), element.distance (0 at the centre, 1 at the furthest copy) and element.random." />{/if}<IconButton icon="plus" label="Add a per-copy value" disabled={!free.length} onclick={add} /></div>{/snippet}
+  {#if problem}
+    <p class="note">{problem}</p>
+  {:else if !Object.keys(each).length}
+    <p class="note">Add a parameter with + and give it a formula, such as 19 * (1 - element.distance).</p>
   {/if}
   {#each Object.entries(each) as [key, value] (key)}
     {@const source = formulaOf(key, value)}

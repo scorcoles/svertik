@@ -83,14 +83,6 @@ export interface ShapeNode extends NodeBase {
   kind: 'shape';
   shape: string;
   params: Record<string, unknown>;
-  /**
-   * Each: per-copy values for the shape's own parameters, by name. When the first effect of the stack is a Clone,
-   * every copy is built with these values (numbers or formulas that read `element.*`: index, count, row, column,
-   * u, v, distance, random); elsewhere they are ignored.
-   */
-  each?: Record<string, unknown>;
-  /** Runtime only: the context Each formulas run in, set when the scene's formulas are evaluated. Never author it. */
-  eachContext?: unknown;
 }
 
 export interface ClockModulation { type: 'oscillate' | 'wiggle' | 'pulse' | 'shake'; params?: Record<string, unknown>; enabled?: boolean }
@@ -302,4 +294,28 @@ export function sceneDuration(scene: SceneV1, depth = 0): number {
   } };
   visit(scene.objects);
   return duration || 3;
+}
+
+/**
+ * Scenes saved by 0.0.8 kept per-copy shape values on the node (`each`). They are now an Each effect with a Shape
+ * inside, right after the node's first Clone. Moves them in place; a scene without them is left as it is.
+ */
+export function liftNodeEach(scene: { objects: unknown[] }): void {
+  const walk = (nodes: unknown[]) => {
+    for (const raw of nodes) {
+      const node = raw as { id: string; kind?: string; each?: Record<string, unknown>; stack?: { id: string; type: string; params?: Record<string, unknown>; children?: unknown[] }[]; children?: unknown[]; composition?: { scene?: { objects: unknown[] } } };
+      if (node.each) {
+        const values = node.each;
+        delete node.each;
+        const stack = (node.stack ??= []);
+        const at = stack.findIndex((m) => m.type === 'clone');
+        if (Object.keys(values).length && at >= 0) {
+          stack.splice(at + 1, 0, { id: `each-${node.id}`, type: 'each', params: {}, children: [{ id: `shape-${node.id}`, type: 'shapevalues', params: values }] });
+        }
+      }
+      if (node.children) walk(node.children);
+      if (node.composition?.scene) walk(node.composition.scene.objects);
+    }
+  };
+  walk(scene.objects);
 }

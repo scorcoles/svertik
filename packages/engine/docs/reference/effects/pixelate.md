@@ -1,6 +1,6 @@
 # Pixelate
 
-`type: "pixelate"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "pixelate"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). Runs of the same colour are merged; `gap` and `dot` give an LED-screen look. Vector, sharp at any size.
 

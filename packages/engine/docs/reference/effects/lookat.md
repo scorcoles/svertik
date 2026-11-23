@@ -1,6 +1,6 @@
 # Look At
 
-`type: "lookat"` · Deformer: moves the points of the drawing. · Editor menu: **Utils**.
+`type: "lookat"` · Deformer: moves the points of the drawing. · Editor menu: **Motion**.
 
 Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.
 

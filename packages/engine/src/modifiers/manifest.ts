@@ -88,6 +88,8 @@ export const effectLoaders: Record<string, EffectLoader> = {
   oscillate: one(() => import('./oscillate'), 'oscillate'),
   wiggle: one(() => import('./wiggle'), 'wiggle'),
   step: one(() => import('./step'), 'step'),
+  each: one(() => import('./each'), 'each'),
+  shapevalues: one(() => import('./each'), 'shapevalues'),
   // Style
   color: one(() => import('./color'), 'color'),
   gradient: one(() => import('./gradient'), 'gradient'),

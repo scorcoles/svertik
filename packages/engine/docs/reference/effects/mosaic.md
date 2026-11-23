@@ -1,6 +1,6 @@
 # Mosaic
 
-`type: "mosaic"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "mosaic"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). `cut` clips the drawing with each tile; `whole` places whole tiles where the drawing covers at least half.
 

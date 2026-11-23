@@ -1,6 +1,6 @@
 # Fractal
 
-`type: "fractal"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "fractal"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Repeat**.
 
 Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. Capped at 4,096 copies.
 

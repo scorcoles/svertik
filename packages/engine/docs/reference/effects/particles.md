@@ -1,6 +1,6 @@
 # Particles
 
-`type: "particles"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "particles"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Repeat**.
 
 Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved. Burst or continuous stream, lifetime and fade, emitter area, direction, spread, velocity and spin. Free motion supports gravity, drag, constant wind drift, smooth seeded turbulence and spiral motion. Lifetimes can vary; particles can fade in, fade out and change size over their life, and Stretch by speed lengthens each one along its direction of travel (motion streaks for sparks, rain or fireworks). Explicit birth rate, prewarm and reference size separate emission and motion scale from the source artwork. Burst impulse mode passes velocity and spin to a following Gravity or to the Physics of an enclosing group. Time follows scene.time unless it is set (a number, keys or a formula). Up to 512 live particles, reduced for very complex sources.
 

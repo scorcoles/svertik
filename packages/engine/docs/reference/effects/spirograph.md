@@ -1,6 +1,6 @@
 # Spirograph
 
-`type: "spirograph"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "spirograph"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Draws a closed rolling-gear curve inside the input bounds. Hypo rolls a wheel inside a ring; Epi rolls it outside. Ring teeth and Wheel teeth determine the gear ratio, Pen offset moves the drawing point away from the wheel centre, and Detail controls curve resolution.
 

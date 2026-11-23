@@ -1,6 +1,6 @@
 # Metaball
 
-`type: "metaball"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "metaball"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 The elements melt together through a smooth union of their two nearest distance fields, keeping multiway junctions stable. Reach controls the blend width; negative Grow contracts the result and can separate narrow joins. Quality adds contour detail and is automatically capped to keep field sampling responsive.
 

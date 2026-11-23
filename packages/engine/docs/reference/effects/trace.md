@@ -1,6 +1,6 @@
 # Trace
 
-`type: "trace"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "trace"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.
 

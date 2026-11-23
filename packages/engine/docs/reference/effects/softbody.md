@@ -1,6 +1,6 @@
 # Soft Body
 
-`type: "softbody"` · Deformer: moves the points of the drawing. · Editor menu: **Effect**.
+`type: "softbody"` · Deformer: moves the points of the drawing. · Editor menu: **Motion**.
 
 Elastic material for open fibres and closed bodies. Stiffness, Bending, Keep area, Damping and Recovery define deformation and recovery; fibres may be free or pinned. Body model defaults to Outline; Beam adds a flexible internal spine and cross-sections that carry a broad bend through a closed, elongated body, then recover toward its rigid rest shape as impacts settle. Recovery controls how strongly it returns once internal motion dies down; Bounce and floor contacts still come from Gravity or Physics. Changes no geometry by itself. Apply to chooses both, fibres only or closed bodies only.
 

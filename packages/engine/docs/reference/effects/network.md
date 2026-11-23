@@ -1,6 +1,6 @@
 # Network
 
-`type: "network"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "network"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Draws elastic links between each shape and its nearest neighbours while leaving the source shapes in place. Links stay attached under Explosion, Gravity and Physics, sag with slack, and break when stretched past their resistance. Neighbour count, distance and link width are adjustable; links inherit the source colour, which Color or Tint can change after Network.
 

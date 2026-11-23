@@ -1,6 +1,6 @@
 # Voronoi
 
-`type: "voronoi"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "voronoi"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 Turns filled artwork into jittered Voronoi cells, clipped to its silhouette. Cell size controls density; Jitter and Seed shape the tessellation. Gap (2 px by default) leaves an even space between neighbouring cells, so they read even on a flat fill; set it to 0 for a closed tessellation. Cells sample and preserve source colour; use Color or Tint after Voronoi to style them. Optional Drift moves the sites smoothly and recomputes all cells together, keeping their shared borders aligned. Cells remain separate elements for effects such as Step, Color and Physics. Large grids coarsen automatically above about 1,000 sites.
 

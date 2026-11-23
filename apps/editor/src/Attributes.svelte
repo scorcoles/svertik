@@ -1,10 +1,11 @@
 <script lang="ts">
   import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
-  import { effectDescriptions, resolveParams, isNumericExpression, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode } from '@svertik/engine';
+  import { effectDescriptions, resolveParams, isNumericExpression, shapeRegistry, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode } from '@svertik/engine';
   import { layerOf } from './layer-of';
   import { registry, type Editor } from './editor.svelte';
   import NodeAttributes from './NodeAttributes.svelte';
   import VariableList from './VariableList.svelte';
+  import ShapeValues from './ShapeValues.svelte';
   import InfoTip from './InfoTip.svelte';
   import { PARTICLE_PRESETS } from './particle-presets';
   import { categoryOf } from './command';
@@ -127,6 +128,7 @@
     if (def.kind === 'filter') return 'Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.';
     if (m.children) {
       if (m.type === 'rgbsplit') return 'Two colored copies, shifted. Modifiers nested under it apply only to the copies; Blur softens them and Step spreads them by element.';
+      if (m.type === 'each') return 'Applies nested effects to each element separately (Clone copies, letters, tiles…). Their formulas can read element.distance, element.u, element.index… A Shape inside rebuilds each copy with other values for the shape\'s own parameters.';
       if (m.type === 'step') return 'Applies nested modifiers to each element, stepping their numbers. Drop modifiers here or select Step and add.';
       if (m.type === 'stagger') return 'Each element makes its own transition, a little after the previous one. Animate Progress from 0 to 1. In starts with the nested effects; Out ends with them.';
       if (m.type === 'range') return 'Selects elements by order. Nested modifiers act on selected letters, words, lines, copies, tiles or pieces. Animate Offset to sweep.';
@@ -162,15 +164,22 @@
                 {#each PARTICLE_PRESETS as preset}<Button label={preset.name} title={preset.tip} onclick={() => particlePreset(preset)} />{/each}
               </div>
             {/if}
+            {#if m.type === 'shapevalues'}
+              {@const owner = editor.activeNode}
+              {@const shapeDef = owner?.kind === 'shape' ? shapeRegistry.get(owner.shape) : undefined}
+              <ShapeValues each={m.params ?? {}} schema={shapeDef?.params ?? {}} values={owner?.kind === 'shape' ? owner.params : {}} showInfo={editor.showInfo}
+                problem={editor.currentParent?.type !== 'each' ? 'Shape only works inside Each.' : !shapeDef || owner?.kind !== 'shape' || owner.shape === 'text' || owner.shape === 'path' ? 'Shape works on shape objects (not Text or Path).' : undefined}
+                onchange={(values) => editor.setFreeParams(m.id, values)} />
+            {/if}
             <ParamList swatches={editor.docColors} params={main} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
                 <ParamList swatches={editor.docColors} params={entries} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
-            <VariableList title="Props" values={m.props ?? {}} namespace="props" prefix="prop" showInfo={editor.showInfo} reserved={Object.keys(m.params ?? {})}
+            {#if m.type !== 'shapevalues'}<VariableList title="Props" values={m.props ?? {}} namespace="props" prefix="prop" showInfo={editor.showInfo} reserved={Object.keys(m.params ?? {})}
               info="Custom numeric values are forwarded to nested modifiers. Formulas can map an incoming value with props.name; native modifier parameters do not pass through automatically."
-              onchange={setModifierProp} onremove={removeModifierProp} onrename={renameModifierProp} />
+              onchange={setModifierProp} onremove={removeModifierProp} onrename={renameModifierProp} />{/if}
             {#if m.type === 'boolean' && editor.activeNode?.kind === 'group'}
               <div class="actions boolean-path-actions">
                 <Button label="To Path" title="Destructively bake the Boolean result at this frame. Its source objects, effects and animation will be removed; Undo restores them." onclick={() => editor.booleanToPath()} />

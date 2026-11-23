@@ -9,7 +9,7 @@ import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type HistoryLookup, type ModifierContext, type SceneSpace, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
-import { createExpressionMemory, evaluateSceneExpressions, type ElementValues } from './expression';
+import { createExpressionMemory, evaluateSceneExpressions } from './expression';
 import { hasMissingPacks, restorePacks } from './pack';
 
 export interface ModifierInstance {
@@ -30,6 +30,8 @@ export interface ModifierInstance {
   scene?: SceneSpace;
   /** Runtime only, never saved: inside a group with Physics (Gravity then hands its forces to it). */
   inWorld?: boolean;
+  /** Runtime only, never saved: the context an Each's children's formulas run in (from the formula pass). */
+  eachContext?: unknown;
 }
 
 /**
@@ -132,7 +134,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     return children.map((c) => {
       const def = registry.get(c.type);
       if (!def) throw new Error(`svertik: unknown modifier "${c.type}"`);
-      return { id: c.id, def, params: resolveParams(def.params, c.params), enabled: c.enabled !== false, children: resolveChildren(c.children) };
+      return { id: c.id, def, params: def.freeParams ? { ...(c.params ?? {}) } : resolveParams(def.params, c.params), enabled: c.enabled !== false, children: resolveChildren(c.children) };
     });
   }
 
@@ -144,7 +146,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * effects haven't changed, they are reused (animating the last of the stack doesn't redo the ones above).
    * A step that looks at another object is not reused (the other may have changed).
    */
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined, each?: { build: (element: ElementValues) => Geometry | null; key: string }): Geometry {
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined, rebuild?: (params: Record<string, number>) => Geometry | null): Geometry {
     // Subdivision follows the reference box, which changes after an effect that reframes (a Clone grid): a
     // deformer after it bends at the scale of the whole grid, so tiny copies must not be cut at the source's scale.
     let res = Math.max(ref.width, ref.height) * resolution || 1;
@@ -152,8 +154,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     if (memo && !reuse) Object.assign(memo, { base: geo, resolution, steps: [] });
     stack.forEach((inst, i) => {
       if (refs) refs[inst.id] = ref;
-      const eachHere = i === 0 && each ? each : undefined;
-      const key = JSON.stringify([inst.id, inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? [], inst.scene ?? 0, inst.inWorld ?? false, eachHere?.key ?? 0]);
+      const key = JSON.stringify([inst.id, inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? [], inst.scene ?? 0, inst.inWorld ?? false, inst.eachContext ?? 0]);
       const cached = memo?.steps[i];
       if (reuse && cached && cached.key === key && !cached.dynamic) {
         geo = cached.geo;
@@ -172,7 +173,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
           // What depends on its past is redone every time (the past can change without its input changing).
           const own = def.history ? history?.(inst) : undefined;
           if (own) dynamic = true;
-          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { id: inst.id, bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}), ...(inst.inWorld ? { inWorld: true } : {}), ...(eachHere ? { each: eachHere.build } : {}) }));
+          geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { id: inst.id, bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}), ...(inst.inWorld ? { inWorld: true } : {}), ...(inst.type === 'each' ? { expressions: inst.eachContext, ...(rebuild ? { rebuild } : {}) } : {}) }));
           if (def.reframe) {
             const b = bounds(geo);
             if (b.width > 0 || b.height > 0) {

@@ -58,6 +58,7 @@ import {
   type SceneV1,
   type ShapeNode,
   validateScene,
+  liftNodeEach,
   applyPalette,
   DOCUMENT_PALETTE,
   PALETTES,
@@ -69,7 +70,9 @@ import { compactJSON } from './exporters';
 import { decodeState, encodeState, MAX_HASH } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
-export const modifierTypes = builtins.map((m) => m.type);
+/** Effects that only live inside another one (Each › Shape): left out of the menus and the command line. */
+export const nestedOnly = new Set(['shapevalues']);
+export const modifierTypes = builtins.map((m) => m.type).filter((type) => !nestedOnly.has(type));
 
 /** Default canvas colour: the one used until the document sets its own. */
 export const DEFAULT_CANVAS = '#ffffff';
@@ -86,7 +89,7 @@ export const selectors = new Set(['range', 'field']);
 /** Time-signal effectors that can run inside a selector. */
 export const signalEffectors = new Set(['oscillate', 'wiggle', 'pulse', 'shake']);
 /** Modifiers that accept children and apply them according to their own semantics. */
-export const effectors = new Set(['step', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics', 'rigidpieces']);
+export const effectors = new Set(['step', 'each', 'range', 'field', 'stagger', 'oscillate', 'wiggle', 'pulse', 'shake', 'physics', 'rigidpieces']);
 const rigidPieceStyles = new Set(['color', 'tint', 'opacity', 'paint', 'gradient', 'imagefill', 'feather']);
 export const containers = new Set([...effectors, 'rgbsplit']);
 /**
@@ -94,6 +97,7 @@ export const containers = new Set([...effectors, 'rgbsplit']);
  * also scopes geometry and per-piece style effects; other effectors do not contain effectors.
  */
 export function canNest(parent: string, child: string): boolean {
+  if (child === 'shapevalues') return parent === 'each';
   if (!containers.has(parent)) return false;
   if (parent === 'rigidpieces') return registry.get(child)?.kind === 'deformer' || rigidPieceStyles.has(child);
   if (selectors.has(parent) && signalEffectors.has(child)) return true;
@@ -272,6 +276,8 @@ export class Editor {
       if (i === this.compositionPath.length - 1) { n.composition.scene = value ?? newScene(); return; }
       scene = n.composition.scene;
     }
+    // 0.0.8 kept per-copy shape values on the node: they are an Each › Shape now.
+    if (value) liftNodeEach(value);
     this.#rootScene = value;
   }
   get compositionBreadcrumbs(): { id: string; name: string }[] {
@@ -1896,16 +1902,6 @@ export class Editor {
     this.record();
   }
 
-  /** Each: per-copy values for a shape's own parameters (applied by a Clone at the top of its stack). */
-  setNodeEach(id: string, each: Record<string, unknown>) {
-    if (this.isLocked(id)) return;
-    const at = this.scene ? locateNode(this.scene.objects, id) : null;
-    if (!at || at.node.kind !== 'shape') return;
-    if (Object.keys(each).length) at.node.each = each;
-    else delete at.node.each;
-    this.record();
-  }
-
   /** Set the placement origin in local or canvas coordinates, including moving group pivots. */
   setNodePosition(id: string, target: [number, number], space: 'local' | 'world' = 'local') {
     if (!this.scene || this.isLocked(id) || !target.every(Number.isFinite)) return;
@@ -2789,6 +2785,8 @@ export class Editor {
       this.#ensureAnimation();
     }
     if (containers.has(type)) inst.children = [];
+    // Each on a shape starts with a Shape inside, ready for per-copy values of the shape's own parameters.
+    if (type === 'each' && owner.kind === 'shape' && owner.shape !== 'text' && owner.shape !== 'path') inst.children = [{ id: `shapevalues-${uid()}`, type: 'shapevalues', params: {} }];
     if (['oscillate', 'wiggle', 'pulse', 'shake'].includes(type)) {
       const params = type === 'pulse' ? { scale: 1.2 } : type === 'shake' ? { x: 12, y: 8, rotation: 3 } : { y: type === 'oscillate' ? 30 : 12, rotation: type === 'wiggle' ? 8 : 0 };
       inst.children = [{ id: `transform-${uid()}`, type: 'transform', params }];
@@ -2898,6 +2896,15 @@ export class Editor {
     this.busy = true;
     clearTimeout(this.#busyTimer);
     this.#busyTimer = setTimeout(() => (this.busy = false), 400);
+    this.record();
+  }
+
+  /** Replaces all the values of a modifier with free parameters (Each › Shape: the shape's parameter names). */
+  setFreeParams(id: string, params: Record<string, unknown>) {
+    if (this.activeNode && this.isLocked(this.activeNode.id)) return;
+    const modifier = this.scene ? locateModifier(this.scene, id)?.inst : undefined;
+    if (!modifier) return;
+    modifier.params = params;
     this.record();
   }
 

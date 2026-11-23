@@ -1,6 +1,6 @@
 # Flow Field
 
-`type: "flowfield"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "flowfield"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Seeds smooth vector streamlines inside the input silhouette and integrates them through a deterministic noise-driven direction field. Lines stops the field work at a bounded count; Length, Step, Field scale, Curl and Direction shape the paths, and Seed reproduces the same flow.
 

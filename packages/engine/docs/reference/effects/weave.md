@@ -1,6 +1,6 @@
 # Weave
 
-`type: "weave"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "weave"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 At every crossing between open stroked paths, alternates which path passes over and cuts a small gap into the path underneath. Use it on linework such as two cloned grids; it keeps the source elements editable.
 

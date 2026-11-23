@@ -62,7 +62,9 @@
   --sv-signal-error: var(--sv-red-400);
   --sv-signal-warning: var(--sv-amber-400);
   --sv-family-deform: var(--sv-blue-400);
-  --sv-family-generate: var(--sv-violet-400);
+  --sv-family-repeat: var(--sv-violet-400);
+  --sv-family-draw: var(--sv-amber-400);
+  --sv-family-motion: var(--sv-red-400);
   --sv-family-effect: var(--sv-green-400);
   --sv-family-style: var(--sv-pink-400);
   --sv-family-glitch: var(--sv-orange-400);
@@ -103,7 +105,9 @@
   --sv-signal-error: #b52c22;
   --sv-signal-warning: #876000;
   --sv-family-deform: #315eb4;
-  --sv-family-generate: #7750a6;
+  --sv-family-repeat: #7750a6;
+  --sv-family-draw: #876000;
+  --sv-family-motion: #b03a30;
   --sv-family-effect: #237741;
   --sv-family-style: #a33371;
   --sv-family-glitch: #a64c14;

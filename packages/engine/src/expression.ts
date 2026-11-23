@@ -420,7 +420,7 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>, points = false) => Object.values(params ?? {}).some(v => isNumericExpression(v) || (points && Array.isArray(v) && v.some(isNumericExpression)));
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params, true) || has(m.props, true) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
-    has(node.props, true) || (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || has(node.each) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
+    has(node.props, true) || (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
   // A re-seeding generator changes the drawing over time too.
   return (Number(scene.seedEvery) > 0) || Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }
@@ -495,28 +495,19 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
   return context;
 }
 
-/**
- * Keeps, on the evaluated node, the context its Each formulas run in (scene values, props, children), so the
- * engine can evaluate them per copy later. Runtime only: plain data (the smooth/spring memory stays out).
- */
-function bindEach(node: { eachContext?: unknown }, context: ExpressionContext) {
-  const { memory: _memory, ...plain } = context;
-  node.eachContext = plain;
-}
+/** The context formulas run in without a scene (an Each evaluated outside the scene's formula pass). */
+const BARE_CONTEXT: ExpressionContext = { time: 0, frame: 0, fps: 30, duration: 0, progress: 0, seedGenerator: 1, custom: {} };
 
 /**
- * The values a shape's Each gives one copy: its numbers as they are, its formulas evaluated with `element`
- * (in the node's own context once the scene's formulas have been evaluated). A formula that fails gives its fallback.
+ * Parameters with formulas evaluated for one element (Each): numbers stay, formulas (also inside points) run with
+ * `element` in `context` (the Each's own context from the scene's formula pass); one that fails gives its fallback.
  */
-export function eachValues(node: { each?: Record<string, unknown>; eachContext?: unknown }, element: ElementValues): Record<string, number> {
-  const out: Record<string, number> = {};
-  const base = (node.eachContext as ExpressionContext | undefined) ?? { time: 0, frame: 0, fps: 30, duration: 0, progress: 0, seedGenerator: 1, custom: {} };
-  for (const [key, value] of Object.entries(node.each ?? {})) {
-    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
-    else if (isNumericExpression(value)) {
-      try { out[key] = evaluateExpression(value.$expr, { ...base, element }); }
-      catch { out[key] = value.fallback; }
-    }
+export function evaluateForElement(params: Record<string, unknown>, element: ElementValues, context?: unknown): Record<string, unknown> {
+  const ctx: ExpressionContext = { ...((context as ExpressionContext | undefined) ?? BARE_CONTEXT), element };
+  const one = (v: NumericExpression) => { try { return evaluateExpression(v.$expr, ctx); } catch { return v.fallback; } };
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params)) {
+    out[key] = isNumericExpression(value) ? one(value) : Array.isArray(value) ? value.map((v) => (isNumericExpression(v) ? one(v) : v)) : value;
   }
   return out;
 }
@@ -557,6 +548,12 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
       for (const child of item.children ?? []) children[child.id] = numericValues(child.params);
       const ctx: ExpressionContext = { ...context, props: inherited, children: { ...exposedChildren, ...children } };
       params(item.params, true, ctx);
+      if (item.type === 'each') {
+        // Each evaluates its children's formulas per element (element.*): keep them, with the context they run in.
+        const { memory: _memory, ...plain } = ctx;
+        item.eachContext = plain;
+        continue;
+      }
       const custom = numericValues(item.props, ctx);
       if (item.props) item.props = custom;
       stack(item.children ?? [], { ...inherited, ...numericValues(item.params), ...custom }, children);
@@ -581,7 +578,6 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
       if (node.props) node.props = ownCustom;
       const outgoingCustom = { ...inheritedCustom, ...ownCustom };
       if (node.kind === 'shape') {
-        if (node.each && Object.values(node.each).some(isNumericExpression)) bindEach(node, nodeContext);
         params(node.params, true, nodeContext);
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
           // Dynamic values such as clocks can change the string width as digits are added. Pin the

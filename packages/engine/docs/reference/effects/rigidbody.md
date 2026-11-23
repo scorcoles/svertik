@@ -1,6 +1,6 @@
 # Rigid Body
 
-`type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Effect**.
+`type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Motion**.
 
 How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
 

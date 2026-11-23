@@ -1,6 +1,6 @@
 # Damage
 
-`type: "damage"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "damage"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.
 

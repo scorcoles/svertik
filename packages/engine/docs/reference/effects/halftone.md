@@ -1,6 +1,6 @@
 # Halftone
 
-`type: "halftone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "halftone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. Spacing, angle, min/max size, gamma, invert and jitter control the geometry. Marks retain sampled source colour; use Color or Tint after Halftone to style them.
 

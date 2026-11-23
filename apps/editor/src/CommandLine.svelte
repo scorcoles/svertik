@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { DropdownMenu } from 'bits-ui';
-  import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions } from '@svertik/engine';
+  import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions, EFFECT_MENUS } from '@svertik/engine';
   import { Icon, IconButton, type IconName } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import { buildCatalog, compile, complete, describeParam, familyColor, parse, pushRecent, recentEntries, resolve, search, tokenize, typable, type CommandEntry } from './command';
@@ -72,7 +72,7 @@
   const matches = $derived(browsing ? [...verbEntries, ...search(catalog, parsed.name)] : []);
   // Grouped by category, with a header per group. With nothing typed, in the top bar menus' order; while
   // typing, the group holding the best match comes first (so Enter still adds the most likely effect).
-  const CATEGORY_ORDER = ['Deform', 'Generate', 'Effect', 'Style', 'Glitch', 'Filters', 'Utils'];
+  const CATEGORY_ORDER: readonly string[] = [...EFFECT_MENUS, 'Utils'];
   const groups = $derived.by(() => {
     const byCategory = new Map<string, CommandEntry[]>();
     for (const m of matches) byCategory.set(m.category, [...(byCategory.get(m.category) ?? []), m]);

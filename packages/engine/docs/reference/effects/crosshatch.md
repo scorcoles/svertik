@@ -1,6 +1,6 @@
 # Crosshatch
 
-`type: "crosshatch"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "crosshatch"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. Spacing, line width, gamma, invert and offset control the look; Fix lines anchors the screen to the scene as the object moves, rotates or scales; off, the lines follow the object. Lines retain sampled source colour; use Color or Tint after Crosshatch to style them. Merge joins lines into one path per sampled source style and keeps the whole drawing as one physics body (Gravity or Physics), on both Solids and the Floor; off, each line is a separate body. Canvas handles adjust Offset, Angle and Spacing. Add Roughen after it for a hand-drawn line.
 

@@ -95,7 +95,7 @@
     display: flex;
     align-items: center;
     gap: var(--sv-space-8);
-    height: var(--sv-size-row);
+    min-height: var(--sv-size-row);
     padding: 0 var(--sv-space-8);
   }
   .sv-param[data-keyed] .label-cell { padding-left: var(--sv-space-8); }
@@ -113,9 +113,15 @@
     flex: 1;
     text-align: right;
     color: var(--sv-text-secondary);
-    white-space: nowrap;
+    /* Long labels wrap to a second line instead of being cut; beyond two lines they end in an ellipsis. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
+    padding-block: 2px;
   }
   label[data-scrubbable] { cursor: ew-resize; user-select: none; }
   .control { flex: 1; display: flex; align-items: center; gap: var(--sv-space-8); min-width: 0; }

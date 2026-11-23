@@ -6,15 +6,16 @@
   import UtilsMenu from './UtilsMenu.svelte';
 
   let { editor }: { editor: Editor } = $props();
-  // Each effect under its menu (categoryOf: its kind, or a menu of its own, like Rigid Body in Effect).
+  // Each effect under its menu (menuOf: what it is for). Rigid Body right after Physics: the two go together.
   const of = (menu: string) => modifierTypes.filter((type) => { const d = registry.get(type); return !!d && categoryOf(d) === menu; });
-  // Rigid Body right after Physics: the two go together.
-  const effect = of('Effect').filter((type) => type !== 'rigidbody');
-  effect.splice(effect.indexOf('physics') + 1, 0, ...(registry.get('rigidbody') ? ['rigidbody'] : []));
+  const motion = of('Motion').filter((type) => type !== 'rigidbody');
+  motion.splice(motion.indexOf('physics') + 1, 0, ...(registry.get('rigidbody') ? ['rigidbody'] : []));
   const groups = [
     { label: 'Deform', icon: 'spherize', types: of('Deform') },
-    { label: 'Generate', icon: 'clone', types: [...of('Generate'), ...autonomousGenerators.map((source) => source.type)] },
-    { label: 'Effect', icon: 'step', types: effect },
+    { label: 'Repeat', icon: 'clone', types: of('Repeat') },
+    { label: 'Draw', icon: 'halftone', types: [...of('Draw'), ...autonomousGenerators.map((source) => source.type)] },
+    { label: 'Effect', icon: 'step', types: of('Effect') },
+    { label: 'Motion', icon: 'gravity', types: motion },
     { label: 'Style', icon: 'color', types: of('Style') },
     { label: 'Glitch', icon: 'glitch', types: of('Glitch') },
     { label: 'Filters', icon: 'shadow', types: of('Filters') },

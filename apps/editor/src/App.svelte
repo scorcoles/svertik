@@ -7,7 +7,7 @@
   import { version } from '../package.json';
   import { IconButton } from '@svertik/ui';
   import Canvas from './Canvas.svelte';
-  import { DEFAULT_CANVAS, Editor, locateModifier, locateNode } from './editor.svelte';
+  import { DEFAULT_CANVAS, Editor, locateModifier, locateNode, modifierTypes } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
   import { DEMOS, type DemoName } from './demo-catalog';
   import { canPickFiles, download, saveProjectFile, sceneJSON } from './exporters';
@@ -242,7 +242,7 @@
       format: 'svertik-debug-report',
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
-      app: { version, modifierCount: builtins.length },
+      app: { version, modifierCount: modifierTypes.length },
       environment: nav ? {
         userAgent: nav.userAgent,
         language: nav.language,
@@ -776,7 +776,7 @@
     {:else}
       <div class="status-actions">{@render diagnosticsToggle()}</div>
     {/if}
-    <span class="status-meta">svertik {version} alpha · {builtins.length} modifiers</span>
+    <span class="status-meta">svertik {version} alpha · {modifierTypes.length} modifiers</span>
   </footer>
   <input
     bind:this={fileInput}

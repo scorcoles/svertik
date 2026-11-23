@@ -2,7 +2,7 @@
 // The grammar is the scene JSON's (type and parameter names as they are), so a person and an agent
 // write the same thing. No Svelte here: tested on its own (command.test.ts).
 
-import type { ParamSchema, ParamSpec } from '@svertik/engine';
+import { EFFECT_MENUS, menuOf, type ParamSchema, type ParamSpec } from '@svertik/engine';
 
 export interface CommandEntry {
   type: string;
@@ -24,31 +24,15 @@ interface DefLike {
   params: ParamSchema;
 }
 
-const CATEGORY: Record<string, string> = {
-  deformer: 'Deform',
-  generator: 'Generate',
-  effector: 'Effect',
-  style: 'Style',
-  filter: 'Filters',
-  glitch: 'Glitch',
-  utils: 'Utils',
-};
-
-/**
- * Effects shown in another menu than their kind's. Rigid Body is a deformer in the engine (it tags its
- * geometry), but it only means something under Physics, so it sits next to it, in Effect.
- */
-const MENU_OF: Record<string, string> = { rigidbody: 'Effect', softbody: 'Effect' };
-
 /** The menu category a definition belongs to ("Deform"…), so the UI uses the same words as the top bar. */
-export const categoryOf = (d: { type?: string; kind?: string; family?: string }) => (d.type && MENU_OF[d.type]) || (CATEGORY[d.family ?? d.kind ?? ''] ?? 'Other');
+export const categoryOf = (d: { type?: string; kind?: string; family?: string }): string => menuOf(d);
 
 /**
  * The colour of a menu category ("Deform"…) as a CSS value, so the command line and the stack tint an
  * effect's icon alike. Undefined for what is not an effect family (commands, recents, Other).
  */
 export function familyColor(category: string): string | undefined {
-  const known = ['Deform', 'Generate', 'Effect', 'Style', 'Glitch', 'Filters', 'Utils'];
+  const known: readonly string[] = [...EFFECT_MENUS, 'Utils'];
   return known.includes(category) ? `var(--sv-family-${category.toLowerCase()})` : undefined;
 }
 
@@ -56,7 +40,7 @@ export function buildCatalog(defs: readonly DefLike[], autonomous: readonly DefL
   const entry = (d: DefLike, isAuto: boolean): CommandEntry => ({
     type: d.type,
     label: d.label,
-    category: isAuto ? 'Generate' : categoryOf(d),
+    category: isAuto ? 'Draw' : categoryOf(d),
     description: descriptions[d.type] ?? '',
     params: d.params,
     autonomous: isAuto,

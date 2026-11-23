@@ -155,18 +155,25 @@ Numeric formulas in a node can read `props.name`. A child receives the direct pa
 
 A parent can read a numeric value from a direct child with `children["child-id"].property`, for example `children["shape-1"].rotation`. The child ID is a string, so hyphens are safe. Child references are read-only and direct-child only; use custom props to forward values across levels. Missing or unresolved references use the expression fallback. The editor’s **Props** section shows incoming values and lets you define custom numeric props, including formulas.
 
-### Each: per-copy shape values
+### Each: per-element formulas
 
-A shape node may store `each`: values for its own numeric parameters that change per copy. They apply when the first effect of the stack is a Clone: every copy is built from the shape with its Each values and placed like the others. Values are numbers or formulas, and formulas can read the copy being built with `element.index` (from 0), `element.count`, `element.row` and `element.column` (grid, from 0), `element.u` and `element.v` (place across the grid, 0–1; along the copies outside a grid), `element.distance` (0 at the centre of the copies, 1 for the furthest copy) and `element.random` (a fixed 0–1 number per copy, varied by Clone's Variation seed), plus everything else formulas read (`scene.*`, `props.*`, math). `element.*` is only available in Each.
+**Each** (`type: "each"`, Effect menu) is an effector like Step: the effects nested in it apply to every element separately (Clone copies, letters, Mosaic tiles…), and their numeric formulas can read the element being processed: `element.index` (from 0), `element.count`, `element.row` and `element.column` (Clone grid, from 0), `element.u` and `element.v` (place across the grid, 0–1; along the elements outside a grid), `element.distance` (0 at the centre of the elements, 1 for the furthest) and `element.random` (a fixed 0–1 number per element; Each's Random seed varies it), plus everything else formulas read (`scene.*`, `props.*`, math). `element.*` is only available inside Each.
+
+A **Shape** (`type: "shapevalues"`) nested in Each rebuilds every copy of a shape object with other values for the shape's own numeric parameters, by their scene names. It needs copies a Clone placed, so put Each right after the Clone.
 
 ```json
 { "kind": "shape", "id": "donut", "name": "Donut", "shape": "donut",
   "params": { "radius": 26, "innerRadius": 19, "fill": true },
-  "each": { "innerRadius": { "$expr": "19 * (1 - element.distance)", "fallback": 19 } },
-  "stack": [{ "id": "grid", "type": "clone", "params": { "mode": "grid", "columns": 21, "rows": 14 } }] }
+  "stack": [
+    { "id": "grid", "type": "clone", "params": { "mode": "grid", "columns": 21, "rows": 14 } },
+    { "id": "each-1", "type": "each", "params": { "seed": 1 }, "children": [
+      { "id": "shape-1", "type": "shapevalues", "params": { "innerRadius": { "$expr": "19 * (1 - element.distance)", "fallback": 19 } } },
+      { "id": "turn-1", "type": "transform", "params": { "rotation": { "$expr": "360 * element.random", "fallback": 0 } } }
+    ] }
+  ] }
 ```
 
-Each is ignored when the first effect is not a Clone and on shapes with children; validation warns about both, and about names that are not numeric parameters of the shape. In the editor, the shape's **Each** section adds a parameter and its formula.
+Validation warns about a Shape outside Each, on something that is not a shape object, or with names that are not numeric parameters of the shape. Scenes saved by 0.0.8 with a node-level `each` are converted to Each › Shape when the editor opens them.
 
 
 ---
@@ -317,31 +324,31 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
 
 ### 7.1 Deformers (`kind: "deformer"`): move the points of the drawing
 
-1. **`transform`** (Transform): Moves, rotates and scales the whole drawing, around a pivot. Offsets are in drawing units (px).
+1. **`transform`** (Transform, menu Deform): Moves, rotates and scales the whole drawing, around a pivot. Offsets are in drawing units (px).
    - `x`: number, default `0`, px
    - `y`: number, default `0`, px
    - `rotation`: angle, default `0`
    - `scale`: number, default `1`, 0..∞
    - `pivot`: point, default `[0.5,0.5]`, fraction
-2. **`rotate3d`** (Transform 3D): Moves and rotates the drawing in 3D around a pivot, then projects it onto 2D with perspective. Positive Translate Z moves it toward the viewer and makes it appear larger; negative values move it farther away. X/Y tilt and Z spins the drawing.
+2. **`rotate3d`** (Transform 3D, menu Deform): Moves and rotates the drawing in 3D around a pivot, then projects it onto 2D with perspective. Positive Translate Z moves it toward the viewer and makes it appear larger; negative values move it farther away. X/Y tilt and Z spins the drawing.
    - `rotateX` (**Tilt X**): angle, default `30`
    - `rotateY` (**Tilt Y**): angle, default `0`
    - `rotateZ` (**Spin Z**): angle, default `0`
    - `translateZ` (**Translate Z**): number, default `0`, px
    - `perspective`: number, default `2`, 0.5..10, fraction
    - `pivot`: point, default `[0.5,0.5]`, fraction
-3. **`spherize`** (Spherize): Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. The edge of the circle does not move, so there is no jump with what is outside. After Rigid Pieces, each marked element moves and turns as a plate instead of bending.
+3. **`spherize`** (Spherize, menu Deform): Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. The edge of the circle does not move, so there is no jump with what is outside. After Rigid Pieces, each marked element moves and turns as a plate instead of bending.
    - `center`: point, default `[0.5,0.5]`, fraction
    - `radius`: number, default `0.5`, 0..2, fraction
    - `strength`: number, default `0.5`, -1..1
-4. **`twist`** (Twist): A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius.
+4. **`twist`** (Twist, menu Deform): A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius.
    - `center`: point, default `[0.5,0.5]`, fraction
    - `radius`: number, default `0.6`, 0..2, fraction
    - `angle`: angle, default `90`
-5. **`bend`** (Bend): Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. Positive angles bend the ends down (∩), negative ones up (∪).
+5. **`bend`** (Bend, menu Deform): Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. Positive angles bend the ends down (∩), negative ones up (∪).
    - `angle`: angle, default `90`
    - `axis`: "horizontal" | "vertical", default `"horizontal"`, not animatable
-6. **`bones`** (Bones): A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.
+6. **`bones`** (Bones, menu Deform): A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.
    - `segments`: number, default `3`, 2..6
    - `angle1` (**Bone 1**): angle, default `12`, only when `ik` is `false`
    - `angle2` (**Bone 2**): angle, default `12`, only when `ik` is `false`
@@ -354,20 +361,20 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `target`: point, default `[0.8,0.1]`, fraction, only when `ik` is `true`
    - `start`: point, default `[0,0.5]`, fraction
    - `end`: point, default `[1,0.5]`, fraction
-7. **`taper`** (Taper): Narrows (or widens) one end: the width across the axis changes along it.
+7. **`taper`** (Taper, menu Deform): Narrows (or widens) one end: the width across the axis changes along it.
    - `amount`: number, default `0.5`, -1..1
    - `curve`: number, default `0`, -1..1
    - `axis`: "vertical" | "horizontal", default `"vertical"`, not animatable
-8. **`gather`** (Gather): Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom. Straight lines across the axis stay straight, so a row of bars becomes a fan whose spacing drifts (weaves, moiré, fake perspective). Strokes keep their width.
+8. **`gather`** (Gather, menu Deform): Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom. Straight lines across the axis stay straight, so a row of bars becomes a fan whose spacing drifts (weaves, moiré, fake perspective). Strokes keep their width.
    - `axis`: "x" | "y", default `"x"`, not animatable
    - `start`: number, default `0.5`, -0.99..0.99
    - `end`: number, default `-0.5`, -0.99..0.99
-9. **`compress`** (Compress): Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. The center goes from Start at one edge (top for axis x, left for axis y) to End at the other (fractions across the axis). With Rigid Pieces first, evenly spaced marks keep their shape and pile into a solid bar at the center, so a Clone grid gets a dense band that can sweep diagonally row by row.
+9. **`compress`** (Compress, menu Deform): Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. The center goes from Start at one edge (top for axis x, left for axis y) to End at the other (fractions across the axis). With Rigid Pieces first, evenly spaced marks keep their shape and pile into a solid bar at the center, so a Clone grid gets a dense band that can sweep diagonally row by row.
    - `axis`: "x" | "y", default `"x"`, not animatable
    - `start`: number, default `0.5`, 0..1, fraction
    - `end`: number, default `0.5`, 0..1, fraction
    - `strength`: number, default `0.7`, -1..1
-10. **`rope`** (Rope): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle that pushes the ropes out of its way (bind Pointer to the cursor with `scene.mouse` formulas, Space set to Scene). Time follows scene.time unless it is set; keep Rope first in the stack, as it keeps its state between frames. Closed paths are left alone.
+10. **`rope`** (Rope, menu Motion): Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. Pointer and Radius place a round obstacle that pushes the ropes out of its way (bind Pointer to the cursor with `scene.mouse` formulas, Space set to Scene). Time follows scene.time unless it is set; keep Rope first in the stack, as it keeps its state between frames. Closed paths are left alone.
    - `time` (**Time (s)**): number, default `scene.time` (ƒx; `0` as fallback), 0..100000
    - `gravity`: number, default `1`, 0..10, fraction
    - `wind`: number, default `0`, 0..5
@@ -379,63 +386,63 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `radius`: number, default `0`, 0..1, fraction
    - `settle` (**Settle (s)**): number, default `0`, 0..10, s, not animatable
    - `seed`: seed, default `1`
-11. **`shear`** (Shear): Slants the drawing: X shifts with the height and Y with the width, around the center.
+11. **`shear`** (Shear, menu Deform): Slants the drawing: X shifts with the height and Y with the width, around the center.
    - `x` (**Shear X**): angle, default `20`
    - `y` (**Shear Y**): angle, default `0`
-12. **`wave`** (Wave): Makes the drawing wavy: moves each point across the direction of the wave.
+12. **`wave`** (Wave, menu Deform): Makes the drawing wavy: moves each point across the direction of the wave.
    - `amplitude`: number, default `0.05`, 0..0.5, fraction
    - `wavelength`: number, default `0.5`, 0.01..2, fraction
    - `phase`: angle, default `0`
    - `direction`: angle, default `0`
-13. **`ripple`** (Ripple): Concentric waves from a point, like a drop in water; they fade with the distance.
+13. **`ripple`** (Ripple, menu Deform): Concentric waves from a point, like a drop in water; they fade with the distance.
    - `amplitude`: number, default `0.03`, 0..0.2, fraction
    - `wavelength`: number, default `0.15`, 0.02..1, fraction
    - `phase`: angle, default `0`
    - `decay`: number, default `1`, 0..5
    - `center`: point, default `[0.5,0.5]`, fraction
-14. **`noise`** (Noise): Moves each point with smooth noise: an organic, hand-drawn look.
+14. **`noise`** (Noise, menu Deform): Moves each point with smooth noise: an organic, hand-drawn look.
    - `amount`: number, default `0.03`, 0..∞, fraction
    - `scale` (**Frequency**): number, default `4`, 0.1..∞
    - `evolution`: number, default `0`
    - `seed`: seed, default `1`
-15. **`roughen`** (Roughen): Fractal edges on any drawing: `organic` tears the outline (midpoint displacement, like a coastline or torn paper); `koch` turns each segment into a Koch peak, `iterations` times. Curves become straight segments.
+15. **`roughen`** (Roughen, menu Deform): Fractal edges on any drawing: `organic` tears the outline (midpoint displacement, like a coastline or torn paper); `koch` turns each segment into a Koch peak, `iterations` times. Curves become straight segments.
    - `mode`: "organic" | "koch", default `"organic"`, not animatable
    - `amount`: number, default `0.5`, 0..1
    - `detail`: number, default `0.02`, 0.004..0.2, fraction
    - `seed`: seed, default `1`
    - `iterations`: number, default `2`, 1..4
    - `height` (**Peak**): number, default `0.29`, -0.6..0.6
-16. **`roundcorners`** (Round Corners): Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). A corner radius is capped at half the length of either adjoining side. Smooth curves are left alone; `limit` keeps corners wider than that angle. Set Corners to Random to choose a stable seeded subset independently for each clone.
+16. **`roundcorners`** (Round Corners, menu Deform): Rounds the corners: wherever the path changes direction sharply, it cuts both segments and joins them with an arc of `radius` px (or a straight cut, `chamfer`). A corner radius is capped at half the length of either adjoining side. Smooth curves are left alone; `limit` keeps corners wider than that angle. Set Corners to Random to choose a stable seeded subset independently for each clone.
    - `radius`: number, default `12`, 0..500, px
    - `limit` (**Angle limit**): number, default `180`, 0..180, °
    - `shape`: "round" | "chamfer", default `"round"`, not animatable
    - `corners`: "all" | "random", default `"all"`, not animatable
    - `seed`: seed, default `1`
-17. **`blob`** (Blob): Turns every outline into a blob: a smooth closed curve with no straight sides or corners. Inset first pulls the outline inwards (px; negative grows it), which on touching cells such as Voronoi or Mosaic opens the gaps between them; a cell smaller than the inset disappears. Roundness sets how much of each side the corners take: 0 keeps the polygon, 1 is a tangent-continuous curve through the middle of every side. Curved input is sampled first, so circles stay round and straight sides keep their real corners. Open paths keep their ends. Stack Noise or Displace after it for an irregular, organic edge.
+17. **`blob`** (Blob, menu Deform): Turns every outline into a blob: a smooth closed curve with no straight sides or corners. Inset first pulls the outline inwards (px; negative grows it), which on touching cells such as Voronoi or Mosaic opens the gaps between them; a cell smaller than the inset disappears. Roundness sets how much of each side the corners take: 0 keeps the polygon, 1 is a tangent-continuous curve through the middle of every side. Curved input is sampled first, so circles stay round and straight sides keep their real corners. Open paths keep their ends. Stack Noise or Displace after it for an irregular, organic edge.
    - `roundness`: number, default `1`, 0..1
    - `inset`: number, default `0`, -100..200, px
-18. **`spikes`** (Spikes): Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards). `curve` shapes the sides: 0 straight, towards 1 hollow like thorns, towards -1 bulging like petals. `width` leaves outline between spikes, `lean` tilts the tips and `phase` slides them along.
+18. **`spikes`** (Spikes, menu Deform): Regular spikes along the outline: `count` tips per path, evenly spaced, `height` px out (negative: inwards). `curve` shapes the sides: 0 straight, towards 1 hollow like thorns, towards -1 bulging like petals. `width` leaves outline between spikes, `lean` tilts the tips and `phase` slides them along.
    - `count`: number, default `12`, 1..200
    - `height`: number, default `30`, -500..500, px
    - `curve`: number, default `0`, -1..1
    - `width`: number, default `1`, 0.05..1, fraction
    - `lean`: number, default `0`, -1..1
    - `phase`: number, default `0`, 0..1, fraction
-19. **`melt`** (Melt): The drawing drips downwards, more the lower it is; noise decides where the drops fall.
+19. **`melt`** (Melt, menu Deform): The drawing drips downwards, more the lower it is; noise decides where the drops fall.
    - `amount`: number, default `0.25`, 0..1, fraction
    - `drips`: number, default `6`, 1..30
    - `sharpness`: number, default `2`, 0.5..6
    - `seed`: seed, default `1`
-20. **`cylinder`** (Cylinder): Wraps the drawing around a vertical cylinder (like the label of a can). `wrap` is the part of the turn the drawing covers; the sides compress and move closer or away.
+20. **`cylinder`** (Cylinder, menu Deform): Wraps the drawing around a vertical cylinder (like the label of a can). `wrap` is the part of the turn the drawing covers; the sides compress and move closer or away.
    - `wrap`: number, default `0.5`, 0.01..1
    - `rotation`: angle, default `0`
    - `perspective`: number, default `0.15`, 0..1
-21. **`perspective`** (Perspective): Free perspective: each corner of the drawing goes where you drag its handle.
+21. **`perspective`** (Perspective, menu Deform): Free perspective: each corner of the drawing goes where you drag its handle.
    - `topLeft` (**Top left**): point, default `[0.1,0]`, fraction
    - `topRight` (**Top right**): point, default `[0.9,0]`, fraction
    - `bottomRight` (**Bottom right**): point, default `[1,1]`, fraction
    - `bottomLeft` (**Bottom left**): point, default `[0,1]`, fraction
-22. **`envelope`** (Envelope): Envelope distortion: drag the nine points of the mesh and the drawing bends with it.
+22. **`envelope`** (Envelope, menu Deform): Envelope distortion: drag the nine points of the mesh and the drawing bends with it.
    - `p00` (**Top left**): point, default `[0,0]`, fraction
    - `p10` (**Top**): point, default `[0.5,0]`, fraction
    - `p20` (**Top right**): point, default `[1,0]`, fraction
@@ -445,34 +452,35 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `p02` (**Bottom left**): point, default `[0,1]`, fraction
    - `p12` (**Bottom**): point, default `[0.5,1]`, fraction
    - `p22` (**Bottom right**): point, default `[1,1]`, fraction
-23. **`pathwrap`** (Path Wrap): Wraps the drawing along another object's path (its longest one). The drawing's axis follows the path; what is across it moves away from it. `stretch` fills the whole path; `keep` keeps its length and starts at `offset`.
+23. **`pathwrap`** (Path Wrap, menu Deform): Wraps the drawing along another object's path (its longest one). The drawing's axis follows the path; what is across it moves away from it. `stretch` fills the whole path; `keep` keeps its length and starts at `offset`.
    - `target` (**Path**): node, default `""`
    - `axis`: "horizontal" | "vertical", default `"horizontal"`, not animatable
    - `fit`: "stretch" | "keep", default `"stretch"`, not animatable
    - `offset`: number, default `0`, -1..1, fraction
-24. **`followpath`** (Follow Path, menu Utils): Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). `anchor` is the point of the object that sits on the path; `orient` turns it with the path.
+24. **`followpath`** (Follow Path, menu Motion): Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). `anchor` is the point of the object that sits on the path; `orient` turns it with the path.
    - `target` (**Path**): node, default `""`
    - `position`: number, default `0`, 0..1
    - `orient`: boolean, default `true`
    - `angle`: angle, default `0`
    - `offset`: number, default `0`, -500..500, px
    - `anchor`: point, default `[0.5,0.5]`, fraction
-25. **`lookat`** (Look At, menu Utils): Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.
+25. **`lookat`** (Look At, menu Motion): Turns the object so that it faces another one (its center), around `pivot`. `facing` says which side is the front (0 right, -90 up, 90 down, 180 left); `amount`, how much it turns. If the other moves, it keeps looking.
    - `target`: node, default `""`
    - `facing`: angle, default `0`
    - `amount`: number, default `1`, 0..1
    - `pivot`: point, default `[0.5,0.5]`, fraction
-26. **`morph`** (Morph): Morphs this drawing into another object's shape. Paths are paired (largest with largest), resampled to the same number of points and interpolated; extra paths grow from (or shrink to) a point. Fill and stroke blend too. With `steps`, the in-between shapes as separate elements.
+26. **`morph`** (Morph, menu Deform): Morphs this drawing into another object's shape. Paths are paired (largest with largest), resampled to the same number of points and interpolated; extra paths grow from (or shrink to) a point. Fill and stroke blend too. With `steps`, the in-between shapes as separate elements.
    - `target` (**To**): node, default `""`
    - `amount`: number, default `0.5`, 0..1
    - `points`: number, default `200`, 16..1000
    - `colors` (**Blend colors**): boolean, default `true`, not animatable
    - `steps`: number, default `0`, 0..100
-27. **`trim`** (Trim): Trims paths (draws them): only the part of each path between Start and End (fractions of its length) remains, shifted by Offset; closed paths wrap around. Animate End from 0 to 1 and the stroke draws itself.
+27. **`trim`** (Trim, menu Deform): Trims paths (draws them): only the part of each path between Start and End (fractions of its length) remains, shifted by Offset; closed paths wrap around. Animate End from 0 to 1 and the stroke draws itself.
    - `start`: number, default `0`, 0..1
    - `end`: number, default `0.5`, 0..1
    - `offset`: number, default `0`, -1..1
-28. **`softbody`** (Soft Body, menu Effect): Elastic material for open fibres and closed bodies. Stiffness, Bending, Keep area, Damping and Recovery define deformation and recovery; fibres may be free or pinned. Body model defaults to Outline; Beam adds a flexible internal spine and cross-sections that carry a broad bend through a closed, elongated body, then recover toward its rigid rest shape as impacts settle. Recovery controls how strongly it returns once internal motion dies down; Bounce and floor contacts still come from Gravity or Physics. Changes no geometry by itself. Apply to chooses both, fibres only or closed bodies only.
+28. **`shapevalues`** (Shape, menu Effect): Only inside Each, on a shape object after a Clone: rebuilds every copy with other values for the shape's own parameters, by name, usually formulas with element.* (Inner = 19 * (1 - element.distance) closes the holes of a donut grid towards the edges). The new copy keeps its place and style.
+29. **`softbody`** (Soft Body, menu Motion): Elastic material for open fibres and closed bodies. Stiffness, Bending, Keep area, Damping and Recovery define deformation and recovery; fibres may be free or pinned. Body model defaults to Outline; Beam adds a flexible internal spine and cross-sections that carry a broad bend through a closed, elongated body, then recover toward its rigid rest shape as impacts settle. Recovery controls how strongly it returns once internal motion dies down; Bounce and floor contacts still come from Gravity or Physics. Changes no geometry by itself. Apply to chooses both, fibres only or closed bodies only.
    - `mode` (**Apply to**): "auto" | "fibers" | "bodies", default `"auto"`, not animatable
    - `body` (**Body model**): "outline" | "beam", default `"outline"`, not animatable
    - `stiffness`: number, default `0.8`, 0..1
@@ -482,7 +490,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `recovery`: number, default `10`, 0..100
    - `pins` (**Pin fibers**): "free" | "start" | "ends", default `"free"`, not animatable
    - `segments` (**Resolution**): number, default `24`, 4..64, not animatable
-29. **`rigidbody`** (Rigid Body, menu Effect): How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
+30. **`rigidbody`** (Rigid Body, menu Motion): How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
    - `velocity`: point, default `[0,0]`, px
    - `spin`: number, default `0`, °/s
    - `immovable`: boolean, default `false`
@@ -496,7 +504,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
 
 ### 7.2 Generators (`kind: "generator"`): make new geometry (copies, pieces, marks…)
 
-1. **`flowfield`** (Flow Field, menu Utils): Seeds smooth vector streamlines inside the input silhouette and integrates them through a deterministic noise-driven direction field. Lines stops the field work at a bounded count; Length, Step, Field scale, Curl and Direction shape the paths, and Seed reproduces the same flow.
+1. **`flowfield`** (Flow Field, menu Draw): Seeds smooth vector streamlines inside the input silhouette and integrates them through a deterministic noise-driven direction field. Lines stops the field work at a bounded count; Length, Step, Field scale, Curl and Direction shape the paths, and Seed reproduces the same flow.
    - `lines`: number, default `56`, 1..256
    - `length`: number, default `320`, 20..2400, px
    - `step`: number, default `4`, 0.5..20, px, not animatable
@@ -504,7 +512,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `curl`: number, default `1.2`, 0..2
    - `direction`: angle, default `0`
    - `seed`: seed, default `1`
-2. **`wavelines`** (Wave Lines): Turns sampled tone into horizontal vector lines. Darkness shapes each line’s offset and weight; Line spacing, Sample spacing, Wave amount and Wavelength control the texture. Speed moves the wave over Time, which follows scene.time unless it is set. Lines stay within the sampled silhouette; use Color or Tint after Wave Lines to style them.
+2. **`wavelines`** (Wave Lines, menu Draw): Turns sampled tone into horizontal vector lines. Darkness shapes each line’s offset and weight; Line spacing, Sample spacing, Wave amount and Wavelength control the texture. Speed moves the wave over Time, which follows scene.time unless it is set. Lines stay within the sampled silhouette; use Color or Tint after Wave Lines to style them.
    - `spacing` (**Line spacing**): number, default `12`, 2..120, px
    - `resolution` (**Sample spacing**): number, default `6`, 1..40, px
    - `amplitude` (**Wave amount**): number, default `22`, 0..160, px
@@ -515,7 +523,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `invert`: boolean, default `false`
    - `time`: number, default `scene.time` (ƒx; `0` as fallback), 0..3600, s
    - `speed`: number, default `0.35`, -4..4, Hz
-3. **`connect`** (Connect, menu Utils): Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. Straight, arc, horizontal or vertical; from edge to edge with a `gap`; optional arrowheads. Utils → Connector creates it.
+3. **`connect`** (Connect, menu Draw): Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. Straight, arc, horizontal or vertical; from edge to edge with a `gap`; optional arrowheads. Utils → Connector creates it.
    - `from`: node, default `""`
    - `to`: node, default `""`
    - `shape`: "straight" | "arc" | "horizontal" | "vertical", default `"straight"`, not animatable
@@ -526,33 +534,33 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `arrowSize` (**Arrow size**): number, default `10`, 1..100, px, only when `arrow` is `end` or `start` or `both`
    - `fromAnchor` (**From anchor**): point, default `[0.5,0.5]`, fraction
    - `toAnchor` (**To anchor**): point, default `[0.5,0.5]`, fraction
-4. **`network`** (Network, menu Utils): Draws elastic links between each shape and its nearest neighbours while leaving the source shapes in place. Links stay attached under Explosion, Gravity and Physics, sag with slack, and break when stretched past their resistance. Neighbour count, distance and link width are adjustable; links inherit the source colour, which Color or Tint can change after Network.
+4. **`network`** (Network, menu Draw): Draws elastic links between each shape and its nearest neighbours while leaving the source shapes in place. Links stay attached under Explosion, Gravity and Physics, sag with slack, and break when stretched past their resistance. Neighbour count, distance and link width are adjustable; links inherit the source colour, which Color or Tint can change after Network.
    - `neighbors`: number, default `2`, 1..8
    - `maxDistance` (**Max distance**): number, default `180`, 0..1200, px
    - `gap` (**Edge gap**): number, default `2`, 0..100, px
    - `elasticity`: number, default `0.35`, 0..1
    - `resistance`: number, default `3`, 1..8
    - `width` (**Link width**): number, default `1.5`, 0.1..24, px
-5. **`weave`** (Weave, menu Utils): At every crossing between open stroked paths, alternates which path passes over and cuts a small gap into the path underneath. Use it on linework such as two cloned grids; it keeps the source elements editable.
+5. **`weave`** (Weave, menu Draw): At every crossing between open stroked paths, alternates which path passes over and cuts a small gap into the path underneath. Use it on linework such as two cloned grids; it keeps the source elements editable.
    - `gap`: number, default `12`, 0..120, px
    - `samples` (**Curve detail**): number, default `10`, 4..24, not animatable
-6. **`stringart`** (String Art, menu Utils): Samples evenly spaced points around each closed contour and connects each point to another a fixed number of steps ahead, drawing a modular chord pattern as editable vector lines. Points controls the sampling resolution, Skip changes the star pattern and Phase shifts where sampling begins.
+6. **`stringart`** (String Art, menu Draw): Samples evenly spaced points around each closed contour and connects each point to another a fixed number of steps ahead, drawing a modular chord pattern as editable vector lines. Points controls the sampling resolution, Skip changes the star pattern and Phase shifts where sampling begins.
    - `points`: number, default `120`, 8..256
    - `skip`: number, default `37`, 1..255
    - `phase`: angle, default `0`
-7. **`spirograph`** (Spirograph, menu Utils): Draws a closed rolling-gear curve inside the input bounds. Hypo rolls a wheel inside a ring; Epi rolls it outside. Ring teeth and Wheel teeth determine the gear ratio, Pen offset moves the drawing point away from the wheel centre, and Detail controls curve resolution.
+7. **`spirograph`** (Spirograph, menu Draw): Draws a closed rolling-gear curve inside the input bounds. Hypo rolls a wheel inside a ring; Epi rolls it outside. Ring teeth and Wheel teeth determine the gear ratio, Pen offset moves the drawing point away from the wheel centre, and Detail controls curve resolution.
    - `mode` (**Gear**): "hypo" | "epi", default `"hypo"`, not animatable
    - `ring` (**Ring teeth**): number, default `84`, 12..160
    - `wheel` (**Wheel teeth**): number, default `23`, 2..80
    - `pen` (**Pen offset**): number, default `0.82`, 0..2
    - `phase`: angle, default `0`
    - `detail`: number, default `1800`, 120..4096, not animatable
-8. **`trace`** (Trace, menu Utils): A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.
+8. **`trace`** (Trace, menu Draw): A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. Shown while playing or scrubbing. Utils → Tracer creates it.
    - `target` (**Object**): node, default `""`
    - `length`: number, default `1`, 0.05..20, s
    - `samples`: number, default `40`, 2..240, not animatable
    - `smooth`: boolean, default `true`
-9. **`crack`** (Crack): Fractures filled shapes with either branching cracks from an impact or edge-to-edge slices. In Impact pattern, Spread controls where side branches form: lower values strongly concentrate them near the impact without reducing their expected count; 1 distributes them evenly along the cracks. `cut` cuts lines as gaps of `width` px; `shatter` cuts them into elements and pushes the loose pieces apart. Separation sets the distance and Variation controls how much that distance differs between pieces, deterministically from the seed.
+9. **`crack`** (Crack, menu Deform): Fractures filled shapes with either branching cracks from an impact or edge-to-edge slices. In Impact pattern, Spread controls where side branches form: lower values strongly concentrate them near the impact without reducing their expected count; 1 distributes them evenly along the cracks. `cut` cuts lines as gaps of `width` px; `shatter` cuts them into elements and pushes the loose pieces apart. Separation sets the distance and Variation controls how much that distance differs between pieces, deterministically from the seed.
    - `mode`: "cut" | "shatter", default `"cut"`, not animatable
    - `pattern`: "impact" | "slices", default `"impact"`, not animatable
    - `growth`: number, default `1`, 0..1
@@ -569,13 +577,13 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `angleVariation` (**Variation**): angle, default `24`, only when `pattern` is `slices`
    - `impact` (**Point**): point, default `[0.4,0.35]`, fraction, only when `pattern` is `impact`
    - `seed`: seed, default `1`
-10. **`radialcut`** (Radial Cut): Cuts filled shapes into radial sectors like slices of a cake. Count controls the number of pieces. Offset rotates the whole cut. Spin progressively rotates each sector around its own centre to create a pinwheel or spiral. Drag Center to move the pivot. Separation pulls each sector outward from that point.
+10. **`radialcut`** (Radial Cut, menu Deform): Cuts filled shapes into radial sectors like slices of a cake. Count controls the number of pieces. Offset rotates the whole cut. Spin progressively rotates each sector around its own centre to create a pinwheel or spiral. Drag Center to move the pivot. Separation pulls each sector outward from that point.
    - `count`: number, default `8`, 2..72
    - `angleOffset` (**Offset**): angle, default `0`
    - `spin`: angle, default `0`
    - `separation`: number, default `0`, 0..100, px
    - `center`: point, default `[0.5,0.5]`, fraction
-11. **`damage`** (Damage): Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.
+11. **`damage`** (Damage, menu Deform): Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. Everything comes from a seed; `growth` makes the cracks advance. Surfaces only.
    - `seed`: seed, default `1`
    - `growth`: number, default `1`, 0..1
    - `roughness`: number, default `0.5`, 0..1
@@ -590,7 +598,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `specks` (**Count**): number, default `30`, 0..300
    - `speckSize` (**Size**): number, default `0.006`, 0.001..0.03, fraction
    - `edgeBias` (**Near edges**): number, default `0.7`, 0..1
-12. **`clone`** (Clone): Duplicates the drawing in a grid, concentric rings or a line, around the original. Grid can pack 2×2 large copies by reserving their cells, so the copies do not overlap; Gap sets the clear space between cells, Big / normal sets their share and Seed shuffles their placement. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element. Fill keeps a share of the grid cells (a 2×2 copy counts as four): at random with Fill direction 0, or growing from the side Fill angle points to (90° is the bottom) towards 1, with a ragged edge; Fill seed varies it.
+12. **`clone`** (Clone, menu Repeat): Duplicates the drawing in a grid, concentric rings or a line, around the original. Grid can pack 2×2 large copies by reserving their cells, so the copies do not overlap; Gap sets the clear space between cells, Big / normal sets their share and Seed shuffles their placement. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element. Fill keeps a share of the grid cells (a 2×2 copy counts as four): at random with Fill direction 0, or growing from the side Fill angle points to (90° is the bottom) towards 1, with a ragged edge; Fill seed varies it.
    - `mode`: "grid" | "radial" | "linear" | "object", default `"grid"`, not animatable
    - `count`: number, default `6`, 1..256, only when `mode` is `radial` or `linear` or `object`
    - `columns`: number, default `3`, 1..256
@@ -621,7 +629,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `scaleMax` (**Scale max**): number, default `1`, 0.05..4
    - `rotateJitter` (**Rotation jitter**): angle, default `0`
    - `variationSeed` (**Variation seed**): seed, default `1`
-13. **`particles`** (Particles): Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved. Burst or continuous stream, lifetime and fade, emitter area, direction, spread, velocity and spin. Free motion supports gravity, drag, constant wind drift, smooth seeded turbulence and spiral motion. Lifetimes can vary; particles can fade in, fade out and change size over their life, and Stretch by speed lengthens each one along its direction of travel (motion streaks for sparks, rain or fireworks). Explicit birth rate, prewarm and reference size separate emission and motion scale from the source artwork. Burst impulse mode passes velocity and spin to a following Gravity or to the Physics of an enclosing group. Time follows scene.time unless it is set (a number, keys or a formula). Up to 512 live particles, reduced for very complex sources.
+13. **`particles`** (Particles, menu Repeat): Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved. Burst or continuous stream, lifetime and fade, emitter area, direction, spread, velocity and spin. Free motion supports gravity, drag, constant wind drift, smooth seeded turbulence and spiral motion. Lifetimes can vary; particles can fade in, fade out and change size over their life, and Stretch by speed lengthens each one along its direction of travel (motion streaks for sparks, rain or fireworks). Explicit birth rate, prewarm and reference size separate emission and motion scale from the source artwork. Burst impulse mode passes velocity and spin to a following Gravity or to the Physics of an enclosing group. Time follows scene.time unless it is set (a number, keys or a formula). Up to 512 live particles, reduced for very complex sources.
    - `time` (**Time (s)**): number, default `scene.time` (ƒx; `1` as fallback), 0..∞
    - `emission`: "burst" | "stream", default `"burst"`, not animatable
    - `count`: number, default `64`, 1..512
@@ -655,12 +663,12 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `fadeIn` (**Fade in**): number, default `0`, 0..1
    - `sizeEnd` (**End size ×**): number, default `1`, 0..5
    - `keepSource` (**Keep source**): boolean, default `false`, not animatable
-14. **`mirror`** (Mirror): Reflects the drawing on an axis at a fraction of its box. `keep` keeps the original and adds the reflection (symmetry); `transform` replaces it with its reflection. Reference optionally measures another node (even hidden), allowing a fixed axis for generated collections.
+14. **`mirror`** (Mirror, menu Repeat): Reflects the drawing on an axis at a fraction of its box. `keep` keeps the original and adds the reflection (symmetry); `transform` replaces it with its reflection. Reference optionally measures another node (even hidden), allowing a fixed axis for generated collections.
    - `reference`: node, default `""`, not animatable
    - `axis`: "horizontal" | "vertical", default `"horizontal"`, not animatable
    - `position` (**Axis at**): number, default `1`, -1..2, fraction
    - `original`: "keep" | "transform", default `"keep"`, not animatable
-15. **`mosaic`** (Mosaic): Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). `cut` clips the drawing with each tile; `whole` places whole tiles where the drawing covers at least half.
+15. **`mosaic`** (Mosaic, menu Deform): Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). `cut` clips the drawing with each tile; `whole` places whole tiles where the drawing covers at least half.
    - `columns`: number, default `8`, 1..60
    - `rows`: number, default `8`, 1..60
    - `tile`: "rect" | "triangle" | "hexagon" | "circle" | "polygon" | "star" | "shape", default `"rect"`, not animatable
@@ -669,7 +677,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `fit`: "cut" | "whole", default `"cut"`, not animatable
    - `gutter`: point, default `[4,4]`, px
    - `angle`: angle, default `0`
-16. **`voronoi`** (Voronoi): Turns filled artwork into jittered Voronoi cells, clipped to its silhouette. Cell size controls density; Jitter and Seed shape the tessellation. Gap (2 px by default) leaves an even space between neighbouring cells, so they read even on a flat fill; set it to 0 for a closed tessellation. Cells sample and preserve source colour; use Color or Tint after Voronoi to style them. Optional Drift moves the sites smoothly and recomputes all cells together, keeping their shared borders aligned. Cells remain separate elements for effects such as Step, Color and Physics. Large grids coarsen automatically above about 1,000 sites.
+16. **`voronoi`** (Voronoi, menu Deform): Turns filled artwork into jittered Voronoi cells, clipped to its silhouette. Cell size controls density; Jitter and Seed shape the tessellation. Gap (2 px by default) leaves an even space between neighbouring cells, so they read even on a flat fill; set it to 0 for a closed tessellation. Cells sample and preserve source colour; use Color or Tint after Voronoi to style them. Optional Drift moves the sites smoothly and recomputes all cells together, keeping their shared borders aligned. Cells remain separate elements for effects such as Step, Color and Physics. Large grids coarsen automatically above about 1,000 sites.
    - `spacing` (**Cell size**): number, default `32`, 8..200, px
    - `jitter`: number, default `0.8`, 0..1
    - `gap`: number, default `2`, 0..60, px
@@ -677,13 +685,13 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `drift`: number, default `0`, 0..0.5, fraction
    - `speed`: number, default `0.5`, 0..3
    - `time`: number, default `scene.time` (ƒx; `0` as fallback), 0..∞, s
-17. **`fractal`** (Fractal): Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. Capped at 4,096 copies.
+17. **`fractal`** (Fractal, menu Repeat): Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. Capped at 4,096 copies.
    - `preset`: "sierpinski" | "carpet" | "tree" | "spiral", default `"sierpinski"`, not animatable
    - `depth`: number, default `4`, 1..12
    - `ratio` (**Scale**): number, default `0.7`, 0.2..0.95
    - `angle`: angle, default `25`
    - `fit`: boolean, default `true`, not animatable
-18. **`halftone`** (Halftone): A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. Spacing, angle, min/max size, gamma, invert and jitter control the geometry. Marks retain sampled source colour; use Color or Tint after Halftone to style them.
+18. **`halftone`** (Halftone, menu Draw): A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. Spacing, angle, min/max size, gamma, invert and jitter control the geometry. Marks retain sampled source colour; use Color or Tint after Halftone to style them.
    - `spacing`: number, default `10`, 1..200, px
    - `angle`: angle, default `45`
    - `min`: number, default `0`, 0..1.5
@@ -695,7 +703,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `seed`: seed, default `1`
    - `offset`: point, default `[0,0]`, fraction
    - `merge` (**Merge marks**): boolean, default `false`, not animatable
-19. **`vectorgrain`** (Vector Grain): Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). Density is highest at the edge and falls off over Falloff px, shaped by Curve, down to Interior deep inside. Edge: inside the shape, outside (a halo) or both. Marks are circles, squares or irregular specks; Size, Size jitter and Edge size control them. Their base colour comes from the source fill; use Color or Tint after Vector Grain to style the output. Opacity and Opacity jitter vary mark opacity, Distribution is random or even, and Source keeps or replaces the drawing. Seeded.
+19. **`vectorgrain`** (Vector Grain, menu Draw): Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). Density is highest at the edge and falls off over Falloff px, shaped by Curve, down to Interior deep inside. Edge: inside the shape, outside (a halo) or both. Marks are circles, squares or irregular specks; Size, Size jitter and Edge size control them. Their base colour comes from the source fill; use Color or Tint after Vector Grain to style the output. Opacity and Opacity jitter vary mark opacity, Distribution is random or even, and Source keeps or replaces the drawing. Seeded.
    - `edge`: "inside" | "outside" | "both", default `"inside"`, not animatable
    - `density`: number, default `2000`, 0..5000
    - `falloff`: number, default `40`, 0.5..2000, px
@@ -714,7 +722,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `opacityJitter` (**Opacity jitter**): number, default `0`, 0..1
    - `source`: "keep" | "replace", default `"keep"`, not animatable
    - `seed`: seed, default `1`
-20. **`crosshatch`** (Crosshatch): Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. Spacing, line width, gamma, invert and offset control the look; Fix lines anchors the screen to the scene as the object moves, rotates or scales; off, the lines follow the object. Lines retain sampled source colour; use Color or Tint after Crosshatch to style them. Merge joins lines into one path per sampled source style and keeps the whole drawing as one physics body (Gravity or Physics), on both Solids and the Floor; off, each line is a separate body. Canvas handles adjust Offset, Angle and Spacing. Add Roughen after it for a hand-drawn line.
+20. **`crosshatch`** (Crosshatch, menu Draw): Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. Spacing, line width, gamma, invert and offset control the look; Fix lines anchors the screen to the scene as the object moves, rotates or scales; off, the lines follow the object. Lines retain sampled source colour; use Color or Tint after Crosshatch to style them. Merge joins lines into one path per sampled source style and keeps the whole drawing as one physics body (Gravity or Physics), on both Solids and the Floor; off, each line is a separate body. Canvas handles adjust Offset, Angle and Spacing. Add Roughen after it for a hand-drawn line.
    - `spacing`: number, default `6`, 1..100, px
    - `angle`: angle, default `45`
    - `layers`: number, default `3`, 1..4
@@ -724,7 +732,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `offset`: point, default `[0,0]`, fraction
    - `fixLines` (**Fix lines**): boolean, default `false`, not animatable
    - `merge` (**Merge lines**): boolean, default `false`, not animatable
-21. **`dithering`** (Dithering): Converts sampled tone into a binary grid of vector cells. Bayer uses an ordered 2×2 to 16×16 threshold matrix; Floyd–Steinberg and Atkinson diffuse quantization error for smoother tonal patterns; Noise uses a repeatable seeded random threshold. Cell size, angle, threshold, gamma and invert control the pattern. Cells retain sampled source colour; use Color or Tint after Dithering to style them. Merge combines contiguous cells into larger rectangles and same-colour paths. Large grids increase cell size automatically to keep sampling bounded.
+21. **`dithering`** (Dithering, menu Draw): Converts sampled tone into a binary grid of vector cells. Bayer uses an ordered 2×2 to 16×16 threshold matrix; Floyd–Steinberg and Atkinson diffuse quantization error for smoother tonal patterns; Noise uses a repeatable seeded random threshold. Cell size, angle, threshold, gamma and invert control the pattern. Cells retain sampled source colour; use Color or Tint after Dithering to style them. Merge combines contiguous cells into larger rectangles and same-colour paths. Large grids increase cell size automatically to keep sampling bounded.
    - `spacing` (**Cell size**): number, default `6`, 1..100, px
    - `angle`: angle, default `0`
    - `algorithm`: "bayer" | "floyd-steinberg" | "atkinson" | "noise", default `"bayer"`, not animatable
@@ -735,7 +743,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `seed`: seed, default `1`
    - `offset`: point, default `[0,0]`, fraction
    - `merge` (**Merge cells**): boolean, default `true`, not animatable
-22. **`contour`** (Contour): Draws vector isolines through equal tones in the input, like elevation lines on a map. Sample spacing controls detail; Levels sets how many tone bands are outlined. Gamma and Invert reshape the tonal map; line width and Merge control the paths. Lines retain sampled source colour; use Color or Tint after Contour to style them. Large grids adapt their spacing to bound work.
+22. **`contour`** (Contour, menu Draw): Draws vector isolines through equal tones in the input, like elevation lines on a map. Sample spacing controls detail; Levels sets how many tone bands are outlined. Gamma and Invert reshape the tonal map; line width and Merge control the paths. Lines retain sampled source colour; use Color or Tint after Contour to style them. Large grids adapt their spacing to bound work.
    - `spacing` (**Sample spacing**): number, default `6`, 1..100, px
    - `levels`: number, default `6`, 1..16
    - `width` (**Line width**): number, default `1`, 0.1..20, px
@@ -771,13 +779,13 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `layer`: "behind" | "front", default `"behind"`, not animatable, only when `mode` is `duo`
    - `blend`: "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity", default `"normal"`, not animatable, only when `mode` is `duo`
    - `original`: boolean, default `true`, only when `mode` is `duo`
-28. **`boolean`** (Boolean): Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. Curves are approximated with straight segments.
+28. **`boolean`** (Boolean, menu Deform): Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. Curves are approximated with straight segments.
    - `mode`: "union" | "subtract" | "intersect" | "exclude", default `"union"`, not animatable
-29. **`metaball`** (Metaball): The elements melt together through a smooth union of their two nearest distance fields, keeping multiway junctions stable. Reach controls the blend width; negative Grow contracts the result and can separate narrow joins. Quality adds contour detail and is automatically capped to keep field sampling responsive.
+29. **`metaball`** (Metaball, menu Deform): The elements melt together through a smooth union of their two nearest distance fields, keeping multiway junctions stable. Reach controls the blend width; negative Grow contracts the result and can separate narrow joins. Quality adds contour detail and is automatically capped to keep field sampling responsive.
    - `reach`: number, default `30`, 0..400, px
    - `grow`: number, default `0`, -100..100, px
    - `quality`: number, default `100`, 30..400, not animatable
-30. **`pixelate`** (Pixelate): Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). Runs of the same colour are merged; `gap` and `dot` give an LED-screen look. Vector, sharp at any size.
+30. **`pixelate`** (Pixelate, menu Draw): Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). Runs of the same colour are merged; `gap` and `dot` give an LED-screen look. Vector, sharp at any size.
    - `size`: number, default `8`, 0..200, px
    - `gap`: number, default `0`, 0..50, px
    - `shape`: "square" | "dot", default `"square"`, not animatable
@@ -785,10 +793,12 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
 
 ### 7.3 Effectors (`kind: "effector"`): act per element, usually through nested effects
 
-1. **`step`** (Step): Incremental effector: applies the modifiers nested in it to each element separately, with their numbers multiplied by the element's position. A 10° Twist under Step turns the first copy 10°, the second 20°… Takes nested effects (`children`): applies them to each element with their numbers multiplied by the element position. Nested effectors (Step, Stagger, Range, Field) are not allowed.
+1. **`step`** (Step, menu Effect): Incremental effector: applies the modifiers nested in it to each element separately, with their numbers multiplied by the element's position. A 10° Twist under Step turns the first copy 10°, the second 20°… Takes nested effects (`children`): applies them to each element with their numbers multiplied by the element position. Nested effectors (Step, Stagger, Range, Field) are not allowed.
    - `strength`: number, default `1`, 0..2
    - `reverse`: boolean, default `false`, not animatable
-2. **`oscillate`** (Oscillate): Periodic modulation of nested effects: sine, triangle, square or saw. Frequency is cycles per second; amplitude and offset control signal strength. Phase and Element phase are degrees. Disable Per element to move the whole object together. Time follows scene.time unless it is set; numeric child parameters move around their neutral values (scale around 1).
+2. **`each`** (Each, menu Effect): Applies the effects nested in it to every element separately (Clone copies, letters, tiles…), with formulas that read the element: element.index, element.count, element.row and element.column (grid), element.u and element.v (0–1 across the grid), element.distance (0 at the centre of the elements, 1 for the furthest) and element.random (a fixed 0–1 number per element; Random seed varies it). For example, Each › Transform with scale = 1 - element.distance. A Shape inside it rebuilds each copy with other values for the shape's own parameters. Takes nested effects (`children`): applies them to each element separately, evaluating their formulas with `element.*` for that element. A `shapevalues` (Shape) child rebuilds each copy of a shape object with other values for its own parameters. Nested effectors are not allowed.
+   - `seed` (**Random seed**): seed, default `1`
+3. **`oscillate`** (Oscillate, menu Effect): Periodic modulation of nested effects: sine, triangle, square or saw. Frequency is cycles per second; amplitude and offset control signal strength. Phase and Element phase are degrees. Disable Per element to move the whole object together. Time follows scene.time unless it is set; numeric child parameters move around their neutral values (scale around 1).
    - `wave`: "sine" | "triangle" | "square" | "saw", default `"sine"`, not animatable
    - `time`: number, default `scene.time` (ƒx; `0` as fallback), s
    - `frequency`: number, default `1`, 0..20, Hz
@@ -797,7 +807,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `phase`: angle, default `0`
    - `perElement` (**Per element**): boolean, default `true`, not animatable
    - `elementPhase` (**Element phase**): angle, default `20`, only when `perElement` is `true`
-3. **`wiggle`** (Wiggle): Smooth seeded random modulation of nested effects. Frequency controls the rate of change, amplitude its strength, offset its centre. Per element gives each clone or glyph an independent reproducible signal. Time follows scene.time unless it is set; seeking backwards gives the same result.
+4. **`wiggle`** (Wiggle, menu Effect): Smooth seeded random modulation of nested effects. Frequency controls the rate of change, amplitude its strength, offset its centre. Per element gives each clone or glyph an independent reproducible signal. Time follows scene.time unless it is set; seeking backwards gives the same result.
    - `time`: number, default `scene.time` (ƒx; `0` as fallback), s
    - `frequency`: number, default `1`, 0..20, Hz
    - `amplitude`: number, default `1`, 0..2
@@ -806,7 +816,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `perElement` (**Per element**): boolean, default `true`, not animatable
    - `elementPhase` (**Element phase**): angle, default `20`, only when `perElement` is `true`
    - `seed`: seed, default `1`
-4. **`pulse`** (Pulse): Repeated pulses of nested effects, from neutral to full strength and back. Attack and Decay are fractions of one cycle; any remaining time is rest. If their sum exceeds 1 they are fitted to one cycle. Frequency, amplitude, offset and per-element phase work as in Oscillate. Time follows scene.time unless it is set.
+5. **`pulse`** (Pulse, menu Effect): Repeated pulses of nested effects, from neutral to full strength and back. Attack and Decay are fractions of one cycle; any remaining time is rest. If their sum exceeds 1 they are fitted to one cycle. Frequency, amplitude, offset and per-element phase work as in Oscillate. Time follows scene.time unless it is set.
    - `time`: number, default `scene.time` (ƒx; `0` as fallback), s
    - `frequency`: number, default `1`, 0..20, Hz
    - `amplitude`: number, default `1`, 0..2
@@ -816,7 +826,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `elementPhase` (**Element phase**): angle, default `20`, only when `perElement` is `true`
    - `attack` (**Attack / cycle**): number, default `0.1`, 0..1, fraction
    - `decay` (**Decay / cycle**): number, default `0.4`, 0..1, fraction
-5. **`shake`** (Shake): A seeded one-shot impact that loses strength and returns exactly to neutral at Duration. Start schedules the hit; Frequency sets its vibration rate and Decay how quickly it settles. Per element adds independent signals and an Element delay. The default Transform child shakes position and rotation; seeking is deterministic.
+6. **`shake`** (Shake, menu Effect): A seeded one-shot impact that loses strength and returns exactly to neutral at Duration. Start schedules the hit; Frequency sets its vibration rate and Decay how quickly it settles. Per element adds independent signals and an Element delay. The default Transform child shakes position and rotation; seeking is deterministic.
    - `time`: number, default `scene.time` (ƒx; `0` as fallback), s
    - `start`: number, default `0`, s
    - `duration`: number, default `1`, 0.01..10, s
@@ -826,7 +836,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `perElement` (**Per element**): boolean, default `false`, not animatable
    - `elementDelay` (**Element delay**): number, default `0.04`, 0..1, s, only when `perElement` is `true`
    - `seed`: seed, default `1`
-6. **`stagger`** (Stagger): Each element makes its own transition, with its curve, a little after the previous one. Progress (0–1) is the whole animation: animate it with two keys. `in` brings elements in, `out` takes them away. Takes nested effects (`children`): each element goes from them to its rest (in) or the other way (out), one after another. Nested effectors are not allowed.
+7. **`stagger`** (Stagger, menu Effect): Each element makes its own transition, with its curve, a little after the previous one. Progress (0–1) is the whole animation: animate it with two keys. `in` brings elements in, `out` takes them away. Takes nested effects (`children`): each element goes from them to its rest (in) or the other way (out), one after another. Nested effectors are not allowed.
    - `progress`: number, default `1`, 0..1
    - `direction`: "in" | "out", default `"in"`, not animatable
    - `stagger`: number, default `0.5`, 0..1
@@ -835,7 +845,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `order`: "forward" | "reverse" | "center" | "edges" | "random", default `"forward"`, not animatable
    - `unit`: "elements" | "words" | "lines", default `"elements"`, not animatable
    - `seed`: seed, default `1`
-7. **`range`** (Range): Selects elements, text words/lines or Clone grid rows/columns for nested effects. Select: All, Even, Odd or CSS-style An+B (one-based). Start/End/Offset limit the selection; Falloff (stored as shape) controls strength, with Square applying a uniform amount. Odd grid rows are 1, 3, 5… and keep their original indices through partial grids. In Wire, only the Range selected in the stack highlights its affected elements, using a stable five-colour palette. Takes nested effects (`children`), weighted per element by its order. Nested effectors are not allowed.
+8. **`range`** (Range, menu Effect): Selects elements, text words/lines or Clone grid rows/columns for nested effects. Select: All, Even, Odd or CSS-style An+B (one-based). Start/End/Offset limit the selection; Falloff (stored as shape) controls strength, with Square applying a uniform amount. Odd grid rows are 1, 3, 5… and keep their original indices through partial grids. In Wire, only the Range selected in the stack highlights its affected elements, using a stable five-colour palette. Takes nested effects (`children`), weighted per element by its order. Nested effectors are not allowed.
    - `selector` (**Select**): "all" | "even" | "odd" | "nth", default `"all"`, not animatable
    - `nth` (**An+B**): text, default `"2n"`, not animatable, only when `selector` is `nth`
    - `start`: number, default `0`, 0..1
@@ -846,7 +856,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `amount`: number, default `1`, 0..1
    - `random` (**Random order**): boolean, default `false`, not animatable
    - `seed`: seed, default `1`
-8. **`field`** (Field): Field selector: the nested effects act more or less on each element depending on where it is relative to a shape (ellipse, plane or box). Circle and Box take Width and Height; Linear fades over Distance. Contain decides when an element counts as inside: its centre, all of it (full) or any part of it (partial). Move the field to sweep the drawing; Softness is how much of the edge is a transition. In an Effector node the field is one place in the scene (fractions of the document) for all its targets. Takes nested effects (`children`), weighted per element by its position. Nested effectors are not allowed.
+9. **`field`** (Field, menu Effect): Field selector: the nested effects act more or less on each element depending on where it is relative to a shape (ellipse, plane or box). Circle and Box take Width and Height; Linear fades over Distance. Contain decides when an element counts as inside: its centre, all of it (full) or any part of it (partial). Move the field to sweep the drawing; Softness is how much of the edge is a transition. In an Effector node the field is one place in the scene (fractions of the document) for all its targets. Takes nested effects (`children`), weighted per element by its position. Nested effectors are not allowed.
    - `shape`: "circle" | "linear" | "box", default `"circle"`, not animatable
    - `center`: point, default `[0.5,0.5]`, fraction
    - `width`: number, default `0.7`, 0.01..4, fraction, only when `shape` is `circle` or `box`
@@ -858,7 +868,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `invert`: boolean, default `false`, not animatable
    - `amount`: number, default `1`, 0..1
    - `unit`: "elements" | "words" | "lines", default `"elements"`, not animatable
-9. **`explosion`** (Explosion): Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. `amount` from 0 to 1 plays the explosion. Motion: impulse launches the pieces through a following Gravity or an enclosing Physics group, preserving velocity and spin; offset keeps the direct displacement mode.
+10. **`explosion`** (Explosion, menu Motion): Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. `amount` from 0 to 1 plays the explosion. Motion: impulse launches the pieces through a following Gravity or an enclosing Physics group, preserving velocity and spin; offset keeps the direct displacement mode.
    - `motion`: "offset" | "impulse", default `"offset"`, not animatable
    - `amount`: number, default `0.5`, 0..1
    - `force`: number, default `0.5`, 0..3, fraction
@@ -867,7 +877,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `chaos`: number, default `0.5`, 0..1
    - `center`: point, default `[0.5,0.5]`, fraction
    - `seed`: seed, default `1`
-10. **`gravity`** (Gravity): Drops each element onto a virtual floor, rigid by default or elastic when it carries Soft Body material, inheriting velocity and spin from Explosion or Rigid Body. Enable Collisions for piece-to-piece contacts; select Solids to collide with other objects as fixed obstacles. If the input exceeds 512 paths, Gravity combines it into one simplified body and disables body and Solid collisions, reporting a diagnostic so playback stays responsive. Friction and Bounce apply to all contacts. Only the exterior of each shape collides (letter counters and holes are solid), while gaps between disconnected filled shapes stay open. For hollow obstacles that contain bodies, use Physics. Targets use their current-frame geometry throughout the replay, not their past movement. Floor rotation is measured from the scene horizon, independently of the object or parent rotation. Crosshatch lines collide with Solids and the Floor consistently: Merge on keeps one body across colours; off, each stroke is independent. Initially crossed line pairs start colliding only after separating, so playback does not eject the screen at startup. Other ordinary open paths retain floor-only dynamics. Cached deterministic simulation, up to 3600 seconds. Inside a group with Physics it does not simulate on its own: it adds its pull and floor to that Physics, for the bodies it is on.
+11. **`gravity`** (Gravity, menu Motion): Drops each element onto a virtual floor, rigid by default or elastic when it carries Soft Body material, inheriting velocity and spin from Explosion or Rigid Body. Enable Collisions for piece-to-piece contacts; select Solids to collide with other objects as fixed obstacles. If the input exceeds 512 paths, Gravity combines it into one simplified body and disables body and Solid collisions, reporting a diagnostic so playback stays responsive. Friction and Bounce apply to all contacts. Only the exterior of each shape collides (letter counters and holes are solid), while gaps between disconnected filled shapes stay open. For hollow obstacles that contain bodies, use Physics. Targets use their current-frame geometry throughout the replay, not their past movement. Floor rotation is measured from the scene horizon, independently of the object or parent rotation. Crosshatch lines collide with Solids and the Floor consistently: Merge on keeps one body across colours; off, each stroke is independent. Initially crossed line pairs start colliding only after separating, so playback does not eject the screen at startup. Other ordinary open paths retain floor-only dynamics. Cached deterministic simulation, up to 3600 seconds. Inside a group with Physics it does not simulate on its own: it adds its pull and floor to that Physics, for the bodies it is on.
    - `time` (**Time (s)**): number, default `scene.time` (ƒx; `1` as fallback), 0..3600
    - `gravity`: number, default `1`, 0..10, fraction
    - `floor` (**Floor position**): point, default `[0.5,1.5]`, fraction
@@ -877,7 +887,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `physics` (**Rigid bodies**): boolean, default `true`, not animatable
    - `friction`: number, default `0.7`, 0..1
    - `bounce`: number, default `0.15`, 0..1
-11. **`physics`** (Physics): A 2D dynamics simulation for the children of a group: each element is a rigid body, or elastic when it carries Soft Body. Collisions between bodies are optional; Solids are fixed obstacles from other objects (holes are kept, so a hollow shape can contain bodies). Acceleration is a constant force for all; Air drag slows moving bodies down; Friction and Bounce apply to every contact. Each child's start (velocity, spin, immovable, attraction) comes from Rigid Body, and a Gravity on a child adds its own pull and floor. A live world: it steps forward from the previous frame, so a body that appears (a Mouse Instance click in the group, a child that starts to exist, an Explosion's pieces) joins the running simulation at that moment, and seeking back restores a snapshot; editing the scene restarts it. In Play, the pointer can act on the body under it: Click push pushes it away from the click, Double-click burst breaks it into pieces that fly out from its centre, and Drag & throw grabs it with a spring and throws it on release. Network links follow the bodies they join. Up to 3600 seconds.
+12. **`physics`** (Physics, menu Motion): A 2D dynamics simulation for the children of a group: each element is a rigid body, or elastic when it carries Soft Body. Collisions between bodies are optional; Solids are fixed obstacles from other objects (holes are kept, so a hollow shape can contain bodies). Acceleration is a constant force for all; Air drag slows moving bodies down; Friction and Bounce apply to every contact. Each child's start (velocity, spin, immovable, attraction) comes from Rigid Body, and a Gravity on a child adds its own pull and floor. A live world: it steps forward from the previous frame, so a body that appears (a Mouse Instance click in the group, a child that starts to exist, an Explosion's pieces) joins the running simulation at that moment, and seeking back restores a snapshot; editing the scene restarts it. In Play, the pointer can act on the body under it: Click push pushes it away from the click, Double-click burst breaks it into pieces that fly out from its centre, and Drag & throw grabs it with a spring and throws it on release. Network links follow the bodies they join. Up to 3600 seconds.
    - `time` (**Time (s)**): number, default `scene.time` (ƒx; `0` as fallback), 0..3600
    - `acceleration`: point, default `[0,0]`, px
    - `damping` (**Air drag**): number, default `0`, 0..20, 1/s
@@ -889,13 +899,13 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `burst` (**Double-click burst**): number, default `0`, 0..16, not animatable
    - `drag` (**Drag & throw**): boolean, default `false`, not animatable
    - `burstSpeed` (**Burst speed**): number, default `250`, 0..3000, px/s
-12. **`rigidpieces`** (Rigid Pieces): Marks each current element as a rigid piece. Amount blends normal pointwise deformation with whole-piece motion: 0 bends normally, 1 preserves the piece shape. Nested Transform and Transform 3D wait until a downstream deformer actually moves the piece. Transform 3D also moves each piece along camera Z, projecting that depth into scale. Nest Color, Tint, Opacity, Paint, Gradient or Feather to style pieces individually; Pivot sets the shared rotation anchor. Takes nested deformers and per-piece style effects (`color`, `tint`, `opacity`, `paint`, `gradient`, `feather`). Transform and Rotate 3D are deferred until a downstream deformer moves the piece. Nested effectors are not allowed.
+13. **`rigidpieces`** (Rigid Pieces, menu Effect): Marks each current element as a rigid piece. Amount blends normal pointwise deformation with whole-piece motion: 0 bends normally, 1 preserves the piece shape. Nested Transform and Transform 3D wait until a downstream deformer actually moves the piece. Transform 3D also moves each piece along camera Z, projecting that depth into scale. Nest Color, Tint, Opacity, Paint, Gradient or Feather to style pieces individually; Pivot sets the shared rotation anchor. Takes nested deformers and per-piece style effects (`color`, `tint`, `opacity`, `paint`, `gradient`, `feather`). Transform and Rotate 3D are deferred until a downstream deformer moves the piece. Nested effectors are not allowed.
    - `amount`: number, default `1`, 0..1
    - `pivot`: "center" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw", default `"center"`, not animatable
 
 ### 7.4 Style (`kind: "style"`): colour and paint, not geometry
 
-1. **`color`** (Color): Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact colour from an editable list for each element, including each Clone copy. Copies emitted by one Mouse Instance input event share a palette choice.
+1. **`color`** (Color, menu Style): Assign or vary colour per element: `solid` assigns the selected colour to fill, stroke or both; `shift` rotates the hue and adjusts saturation and lightness; `gradient` spreads a gradient across the elements; `random` varies them at random; `palette` picks one exact colour from an editable list for each element, including each Clone copy. Copies emitted by one Mouse Instance input event share a palette choice.
    - `mode`: "solid" | "shift" | "gradient" | "random" | "palette", default `"shift"`, not animatable
    - `palette` (**Colors**): palette, default `["#ff6b5e","#ffc857","#09fdd1","#4d8dff","#b894f6"]`, not animatable, only when `mode` is `palette`
    - `paletteMode` (**Choose**): "random" | "index", default `"random"`, not animatable, only when `mode` is `palette`
@@ -909,11 +919,11 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `variation`: number, default `0.3`, 0..1
    - `seed`: seed, default `1`
    - `target`: "fill" | "stroke" | "both", default `"fill"`, not animatable
-2. **`tint`** (Tint): Pushes the colour towards a target colour. Inside Step the amount grows copy by copy (white lightens, black darkens).
+2. **`tint`** (Tint, menu Style): Pushes the colour towards a target colour. Inside Step the amount grows copy by copy (white lightens, black darkens).
    - `color`: color, default `"#ffffff"`
    - `amount`: number, default `0.3`, 0..1
    - `target`: "fill" | "stroke" | "both", default `"fill"`, not animatable
-3. **`paint`** (Paint): Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order.
+3. **`paint`** (Paint, menu Style): Fill and stroke: lays a colour over the fill (amount 1 replaces it) and adds or changes the stroke: width, opacity, joins, caps, dashes and paint order.
    - `fill`: boolean, default `true`, not animatable
    - `fillColor` (**Color**): color, default `"#09fdd1"`
    - `fillAmount` (**Amount**): number, default `1`, 0..1
@@ -929,7 +939,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `gap`: number, default `0`, 0..400, px, only when `stroke` is `true`
    - `dashOffset` (**Dash offset**): number, default `0`, -10000..10000, px, only when `stroke` is `true`
    - `behind` (**Behind fill**): boolean, default `false`, not animatable, only when `stroke` is `true`
-4. **`gradient`** (Gradient): A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). Relative to each shape's box, so it follows the shape.
+4. **`gradient`** (Gradient, menu Style): A gradient on the fill or the stroke of each shape: linear (with an angle) or radial (centre, radius and focus), with an optional middle colour (`via`). Relative to each shape's box, so it follows the shape.
    - `kind`: "linear" | "radial", default `"linear"`, not animatable
    - `from`: color, default `"#09fdd1"`
    - `to`: color, default `"#5c3cff"`
@@ -946,30 +956,30 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `spread`: "pad" | "reflect" | "repeat", default `"pad"`, not animatable
    - `transform`: text, default `""`
    - `apply` (**Apply to**): "fill" | "stroke", default `"fill"`, not animatable
-5. **`imagefill`** (Image Fill): Fills each shape from a raster image object in the scene. Hide source is on by default: the image stays available as a fill but is not drawn or treated as a separate physics body. Turn it off to show the source object. Cover preserves proportions and crops, Contain preserves proportions and leaves the fill colour behind, and Stretch fills the whole shape. Uses the original stack bounds as one shared image frame; Crack shards, Clone copies and Voronoi cells preserve that image material through generation, and it moves with Gravity.
+5. **`imagefill`** (Image Fill, menu Style): Fills each shape from a raster image object in the scene. Hide source is on by default: the image stays available as a fill but is not drawn or treated as a separate physics body. Turn it off to show the source object. Cover preserves proportions and crops, Contain preserves proportions and leaves the fill colour behind, and Stretch fills the whole shape. Uses the original stack bounds as one shared image frame; Crack shards, Clone copies and Voronoi cells preserve that image material through generation, and it moves with Gravity.
    - `source`: node, default `""`, not animatable
    - `hideSource` (**Hide source**): boolean, default `true`, not animatable
    - `fit`: "cover" | "contain" | "stretch", default `"cover"`, not animatable
    - `scale`: number, default `1`, 0.1..5
    - `position`: point, default `[0.5,0.5]`, fraction
-6. **`feather`** (Feather): Softens a solid fill with a radial fade and slightly expands the shape to preserve its opaque centre. Uses a native SVG gradient instead of a raster blur filter, so it is lighter for many small copies.
+6. **`feather`** (Feather, menu Style): Softens a solid fill with a radial fade and slightly expands the shape to preserve its opaque centre. Uses a native SVG gradient instead of a raster blur filter, so it is lighter for many small copies.
    - `softness`: number, default `0.2`, 0..0.6, fraction
-7. **`mask`** (Mask): Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). Whole elements discards copies crossing the boundary instead of clipping them (shape mode). The mask can be hidden and still works.
+7. **`mask`** (Mask, menu Style): Native SVG mask: the object only shows where another object lets it (`source`). `shape`: inside the mask's shape (`invert`: outside). `luminance`: the mask's colours decide (white shows, black hides; a gradient gives soft fades). Whole elements discards copies crossing the boundary instead of clipping them (shape mode). The mask can be hidden and still works.
    - `source` (**Mask**): node, default `""`
    - `mode`: "shape" | "luminance", default `"shape"`, not animatable
    - `whole` (**Whole elements**): boolean, default `false`, not animatable, only when `mode` is `shape`
    - `invert`: boolean, default `false`, not animatable, only when `mode` is `shape`
-8. **`opacity`** (Opacity): Makes the drawing transparent. With Range or Field, letters or pieces that appear or fade away.
+8. **`opacity`** (Opacity, menu Style): Makes the drawing transparent. With Range or Field, letters or pieces that appear or fade away.
    - `opacity`: number, default `0.5`, 0..1
 
 ### 7.5 SVG filters (`kind: "filter"`): applied by the browser after the whole stack
 
-1. **`shadow`** (Shadow): Drop shadow: a blurred, shifted copy behind the drawing, in one colour.
+1. **`shadow`** (Shadow, menu Filters): Drop shadow: a blurred, shifted copy behind the drawing, in one colour.
    - `offset`: point, default `[6,8]`, px
    - `blur`: number, default `6`, 0..100, px
    - `color`: color, default `"#000000"`
    - `opacity`: number, default `0.5`, 0..1
-2. **`blur`** (Blur): Blur in both directions or only one (motion blur), on the whole drawing or only in an area.
+2. **`blur`** (Blur, menu Filters): Blur in both directions or only one (motion blur), on the whole drawing or only in an area.
    - `amount`: number, default `4`, 0..100, px
    - `direction`: "both" | "horizontal" | "vertical", default `"both"`, not animatable
    - `area`: "all" | "radial" | "band", default `"all"`, not animatable
@@ -978,11 +988,11 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `falloff`: number, default `0.5`, 0..1, only when `area` is `radial` or `band`
    - `angle`: angle, default `0`, only when `area` is `band`
    - `invert`: boolean, default `false`, only when `area` is `radial` or `band`
-3. **`glow`** (Glow): A coloured halo around the drawing, behind it.
+3. **`glow`** (Glow, menu Filters): A coloured halo around the drawing, behind it.
    - `size`: number, default `10`, 0..100, px
    - `color`: color, default `"#09fdd1"`
    - `strength`: number, default `0.8`, 0..3
-4. **`grain`** (Grain): Fine noise over the drawing (only inside it), like film or print grain.
+4. **`grain`** (Grain, menu Filters): Fine noise over the drawing (only inside it), like film or print grain.
    - `amount`: number, default `0.35`, 0..1
    - `size`: number, default `1`, 0.25..10, px
    - `seed`: seed, default `1`
@@ -992,7 +1002,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `falloff`: number, default `0.5`, 0..1, only when `area` is `radial` or `band`
    - `angle`: angle, default `0`, only when `area` is `band`
    - `invert`: boolean, default `false`, only when `area` is `radial` or `band`
-5. **`displace`** (Displace): The edges tremble or ripple with organic noise. Animate Amount or the seed.
+5. **`displace`** (Displace, menu Filters): The edges tremble or ripple with organic noise. Animate Amount or the seed.
    - `amount`: number, default `12`, 0..200, px
    - `scale`: number, default `40`, 2..500, px
    - `detail`: number, default `2`, 1..6
@@ -1003,7 +1013,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `falloff`: number, default `0.5`, 0..1, only when `area` is `radial` or `band`
    - `angle`: angle, default `0`, only when `area` is `band`
    - `invert`: boolean, default `false`, only when `area` is `radial` or `band`
-6. **`bevel`** (Bevel): Relief: light and shade on the edges, as if the drawing had volume. The light comes from `angle` at `elevation`; `depth` is the bevel width, `height` how much it stands out, `shine` the highlight.
+6. **`bevel`** (Bevel, menu Filters): Relief: light and shade on the edges, as if the drawing had volume. The light comes from `angle` at `elevation`; `depth` is the bevel width, `height` how much it stands out, `shine` the highlight.
    - `depth`: number, default `4`, 0.5..60, px
    - `height`: number, default `3`, 0..20
    - `angle` (**Light**): angle, default `-135`
@@ -1011,11 +1021,11 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `strength`: number, default `0.8`, 0..1
    - `shine`: number, default `0.5`, 0..2
    - `shininess`: number, default `20`, 1..128
-7. **`thicken`** (Thicken): Makes the drawing thicker (or thinner with a negative amount), or adds a coloured outline around it like a sticker (`outline`). Works on whatever is painted: text, strokes, anything.
+7. **`thicken`** (Thicken, menu Filters): Makes the drawing thicker (or thinner with a negative amount), or adds a coloured outline around it like a sticker (`outline`). Works on whatever is painted: text, strokes, anything.
    - `mode`: "grow" | "outline", default `"grow"`, not animatable
    - `amount`: number, default `3`, -40..40, px
    - `color`: color, default `"#ffffff"`, only when `mode` is `outline`
-8. **`tone`** (Tone): Tone: posterize (few levels per channel, like a poster), duotone (shadows in one colour and lights in another) or invert the colours. On the whole drawing or only in an area.
+8. **`tone`** (Tone, menu Filters): Tone: posterize (few levels per channel, like a poster), duotone (shadows in one colour and lights in another) or invert the colours. On the whole drawing or only in an area.
    - `mode`: "posterize" | "duotone" | "invert", default `"posterize"`, not animatable
    - `levels`: number, default `4`, 2..16, only when `mode` is `posterize`
    - `dark` (**Shadows**): color, default `"#1b1464"`, only when `mode` is `duotone`

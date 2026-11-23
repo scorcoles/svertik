@@ -1,6 +1,6 @@
 # Physics
 
-`type: "physics"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Effect**.
+`type: "physics"` · Effector: acts per element (letters, copies, pieces…), usually through nested effects. · Editor menu: **Motion**.
 
 A 2D dynamics simulation for the children of a group: each element is a rigid body, or elastic when it carries Soft Body. Collisions between bodies are optional; Solids are fixed obstacles from other objects (holes are kept, so a hollow shape can contain bodies). Acceleration is a constant force for all; Air drag slows moving bodies down; Friction and Bounce apply to every contact. Each child's start (velocity, spin, immovable, attraction) comes from Rigid Body, and a Gravity on a child adds its own pull and floor. A live world: it steps forward from the previous frame, so a body that appears (a Mouse Instance click in the group, a child that starts to exist, an Explosion's pieces) joins the running simulation at that moment, and seeking back restores a snapshot; editing the scene restarts it. In Play, the pointer can act on the body under it: Click push pushes it away from the click, Double-click burst breaks it into pieces that fly out from its centre, and Drag & throw grabs it with a spring and throws it on release. Network links follow the bodies they join. Up to 3600 seconds.
 

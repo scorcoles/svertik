@@ -1,6 +1,6 @@
 # Contour
 
-`type: "contour"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "contour"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Draws vector isolines through equal tones in the input, like elevation lines on a map. Sample spacing controls detail; Levels sets how many tone bands are outlined. Gamma and Invert reshape the tonal map; line width and Merge control the paths. Lines retain sampled source colour; use Color or Tint after Contour to style them. Large grids adapt their spacing to bound work.
 

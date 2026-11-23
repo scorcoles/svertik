@@ -3,11 +3,12 @@
 // They ship inside the npm package (docs/), so an agent working with the engine reads the version installed.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { builtins, effectDescriptions, shapeDescriptions, shapes, type ModifierDef, type ParamSpec } from '@svertik/engine';
+import { builtins, effectDescriptions, EFFECT_MENUS, menuOf, shapeDescriptions, shapes, type ModifierDef, type ParamSpec } from '@svertik/engine';
 
 /** Effects that take nested effects (`children`) and how. */
 const CONTAINERS: Record<string, string> = {
   step: 'Takes nested effects (`children`): applies them to each element with their numbers multiplied by the element position. Nested effectors (Step, Stagger, Range, Field) are not allowed.',
+  each: 'Takes nested effects (`children`): applies them to each element separately, evaluating their formulas with `element.*` for that element. A `shapevalues` (Shape) child rebuilds each copy of a shape object with other values for its own parameters. Nested effectors are not allowed.',
   stagger: 'Takes nested effects (`children`): each element goes from them to its rest (in) or the other way (out), one after another. Nested effectors are not allowed.',
   range: 'Takes nested effects (`children`), weighted per element by its order. Nested effectors are not allowed.',
   field: 'Takes nested effects (`children`), weighted per element by its position. Nested effectors are not allowed.',
@@ -15,8 +16,6 @@ const CONTAINERS: Record<string, string> = {
   rgbsplit: 'Takes nested effects (`children`): they apply only to the coloured copies. Anything but another RGB Split.',
 };
 
-const MENU: Record<string, string> = { deformer: 'Deform', generator: 'Generate', effector: 'Effect', style: 'Style', filter: 'Filters' };
-const menuOf = (m: ModifierDef) => (m.type === 'rigidbody' || m.type === 'softbody' ? 'Effect' : m.family === 'glitch' ? 'Glitch' : m.family === 'utils' ? 'Utils' : MENU[m.kind] ?? m.kind);
 const KIND_NOTE: Record<string, string> = {
   deformer: 'Deformer: moves the points of the drawing.',
   generator: 'Generator: makes new geometry (copies, pieces, cuts…).',
@@ -62,7 +61,13 @@ function paramTable(params: Record<string, ParamSpec>): string {
 const defaults = (params: Record<string, ParamSpec>) => Object.fromEntries(Object.entries(params).map(([n, s]) => [n, s.type === 'number' && s.defaultExpr ? { $expr: s.defaultExpr, fallback: s.default } : s.default]));
 
 function effectPage(m: ModifierDef, pkg: string): string {
-  const example = { id: `${m.type}-1`, type: m.type, params: defaults(m.params), ...(CONTAINERS[m.type] ? { children: [{ id: 'twist-1', type: 'twist', params: { angle: 30 } }] } : {}) };
+  // Shape lives inside Each: its example is an Each holding it; Each's own example uses a formula per element.
+  const perCopy = { id: 'shapevalues-1', type: 'shapevalues', params: { inner: { $expr: '0.2 + 0.6 * element.distance', fallback: 0.45 } } };
+  const example = m.type === 'shapevalues'
+    ? { id: 'each-1', type: 'each', params: { seed: 1 }, children: [perCopy] }
+    : m.type === 'each'
+      ? { id: `${m.type}-1`, type: m.type, params: defaults(m.params), children: [{ id: 'twist-1', type: 'twist', params: { angle: { $expr: '90 * element.u', fallback: 30 } } }, perCopy] }
+      : { id: `${m.type}-1`, type: m.type, params: defaults(m.params), ...(CONTAINERS[m.type] ? { children: [{ id: 'twist-1', type: 'twist', params: { angle: 30 } }] } : {}) };
   return [
     `# ${m.label}`,
     '',
@@ -118,7 +123,7 @@ function shapePage(s: (typeof shapes)[number], pkg: string): string {
 }
 
 function indexPage(pkg: string): string {
-  const order = ['Deform', 'Generate', 'Glitch', 'Effect', 'Style', 'Filters', 'Utils'];
+  const order: string[] = [...EFFECT_MENUS];
   const by = new Map<string, ModifierDef[]>();
   for (const m of builtins as ModifierDef[]) by.set(menuOf(m), [...(by.get(menuOf(m)) ?? []), m]);
   const first = (s: string) => esc(s.split(/(?<=\.)\s/)[0] ?? s);
@@ -187,7 +192,7 @@ function catalog(): string {
   kinds.forEach(([kind, title], k) => {
     lines.push(`### 7.${k + 1} ${title}`, '');
     (builtins as ModifierDef[]).filter((m) => m.kind === kind).forEach((m, i) => {
-      lines.push(`${i + 1}. **\`${m.type}\`** (${m.label}${menuOf(m) !== MENU[m.kind] ? `, menu ${menuOf(m)}` : ''}): ${effectDescriptions[m.type] ?? ''}${CONTAINERS[m.type] ? ' ' + CONTAINERS[m.type] : ''}`);
+      lines.push(`${i + 1}. **\`${m.type}\`** (${m.label}, menu ${menuOf(m)}): ${effectDescriptions[m.type] ?? ''}${CONTAINERS[m.type] ? ' ' + CONTAINERS[m.type] : ''}`);
       for (const [n, spec] of Object.entries(m.params as Record<string, ParamSpec>)) lines.push(bullet(n, spec));
     });
     lines.push('');

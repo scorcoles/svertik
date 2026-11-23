@@ -85,7 +85,16 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       mods.set(m.id, { inst: m, node });
       const where = `${path} › ${def.label} (${m.id})`;
       if (parentType === 'rigidpieces' && def.kind !== 'deformer' && !['color', 'tint', 'opacity', 'paint', 'gradient', 'imagefill', 'feather'].includes(m.type)) warnings.push(`${where}: Rigid Pieces accepts deformers and per-piece style effects only`);
-      checkParams(def.params, m.params, where);
+      if (def.freeParams) {
+        // Each › Shape: the shape's own numeric parameters, by name.
+        const shape = node && node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
+        if (parentType !== 'each') warnings.push(`${where}: Shape only works inside Each`);
+        if (!shape) warnings.push(`${where}: Shape only works on a shape object`);
+        for (const [key, v] of Object.entries(m.params ?? {})) {
+          if (shape && shape.params[key]?.type !== 'number') warnings.push(`${where}: "${key}" is not a numeric parameter of ${shape.label}`);
+          if (!(typeof v === 'number' && Number.isFinite(v)) && !(isNumericExpression(v) && Number.isFinite(v.fallback))) errors.push(`${where}: "${key}" must be a number or a numeric expression`);
+        }
+      } else checkParams(def.params, m.params, where);
       if (m.type === 'range' && m.params?.selector === 'nth' && !nthSelector((m.params.nth ?? '2n') as string)) warnings.push(`${where}: invalid An+B selector; no elements will be selected`);
       if (m.children !== undefined) checkStack(m.children, node, where, m.type);
     }
@@ -108,15 +117,6 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
       if (n.kind !== 'object' && n.kind !== 'group' && n.kind !== 'shape' && n.kind !== 'instance' && n.kind !== 'effector') {
         errors.push(`${name(n)}: kind must be "object", "shape", "group", "instance" or "effector"`);
         continue;
-      }
-      if (n.kind === 'shape' && n.each && Object.keys(n.each).length) {
-        const def = shapeRegistry.get(n.shape);
-        for (const [key, v] of Object.entries(n.each)) {
-          if (def && def.params[key]?.type !== 'number') warnings.push(`${name(n)}: Each "${key}" is not a numeric parameter of ${def.label}`);
-          if (!(typeof v === 'number' && Number.isFinite(v)) && !(isNumericExpression(v) && Number.isFinite(v.fallback))) errors.push(`${name(n)}: Each "${key}" must be a number or a numeric expression`);
-        }
-        if (n.stack[0]?.type !== 'clone') warnings.push(`${name(n)}: Each only applies when the first effect is a Clone`);
-        if (n.children?.length) warnings.push(`${name(n)}: Each does not apply to a shape with children`);
       }
       if (n.kind === 'object' && typeof n.source !== 'string' && !n.packed) errors.push(`${name(n)}: needs a source SVG`);
       if (n.kind === 'object' && !n.source && !n.packed && n.href) warnings.push(`${name(n)}: its SVG "${n.href}" is not loaded (it draws nothing)`);

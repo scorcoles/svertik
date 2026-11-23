@@ -1,6 +1,6 @@
 # Boolean
 
-`type: "boolean"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "boolean"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. Curves are approximated with straight segments.
 

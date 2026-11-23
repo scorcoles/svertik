@@ -1,6 +1,6 @@
 # String Art
 
-`type: "stringart"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "stringart"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Samples evenly spaced points around each closed contour and connects each point to another a fixed number of steps ahead, drawing a modular chord pattern as editable vector lines. Points controls the sampling resolution, Skip changes the star pattern and Phase shifts where sampling begins.
 

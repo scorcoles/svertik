@@ -1,6 +1,6 @@
 # Dithering
 
-`type: "dithering"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "dithering"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Converts sampled tone into a binary grid of vector cells. Bayer uses an ordered 2×2 to 16×16 threshold matrix; Floyd–Steinberg and Atkinson diffuse quantization error for smoother tonal patterns; Noise uses a repeatable seeded random threshold. Cell size, angle, threshold, gamma and invert control the pattern. Cells retain sampled source colour; use Color or Tint after Dithering to style them. Merge combines contiguous cells into larger rectangles and same-colour paths. Large grids increase cell size automatically to keep sampling bounded.
 

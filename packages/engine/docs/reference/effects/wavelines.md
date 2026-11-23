@@ -1,6 +1,6 @@
 # Wave Lines
 
-`type: "wavelines"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "wavelines"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Turns sampled tone into horizontal vector lines. Darkness shapes each line’s offset and weight; Line spacing, Sample spacing, Wave amount and Wavelength control the texture. Speed moves the wave over Time, which follows scene.time unless it is set. Lines stay within the sampled silhouette; use Color or Tint after Wave Lines to style them.
 

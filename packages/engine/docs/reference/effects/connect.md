@@ -1,6 +1,6 @@
 # Connect
 
-`type: "connect"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Utils**.
+`type: "connect"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Draw**.
 
 Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. Straight, arc, horizontal or vertical; from edge to edge with a `gap`; optional arrowheads. Utils → Connector creates it.
 

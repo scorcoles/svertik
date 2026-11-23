@@ -2,7 +2,6 @@
 import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, isNumericExpression, placementOf, shapeRegistry, walkNodes, type Ease, type ParamSpec, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import VariableList from './VariableList.svelte';
-  import EachList from './EachList.svelte';
   import InfoTip from './InfoTip.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider, groupOptions } from '@svertik/ui';
   import { layerOf } from './layer-of';
@@ -301,10 +300,6 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
       <Checkbox id="node-vis" checked={node.visible !== false} onchange={(v) => editor.setNode(node.id, 'visible', v, true)} />
     </ParamRow>
   </Section>
-  {#if node.kind === 'shape' && shapeDef && node.shape !== 'text' && node.shape !== 'path'}
-    <EachList each={node.each ?? {}} schema={shapeDef.params} values={node.params} active={node.stack[0]?.type === 'clone'} showInfo={editor.showInfo}
-      onchange={(each) => editor.setNodeEach(node.id, each)} />
-  {/if}
   <VariableList title="Props" values={node.props ?? {}} namespace="props" prefix="prop" addLabel="Add custom prop" reserved={reservedProps} showInfo={editor.showInfo}
     info="Custom numeric values are forwarded to descendants. Map a parent value with an expression such as props.rotation; direct-parent native values do not pass through automatically."
     onchange={setCustomProp} onremove={removeCustomProp} onrename={renameCustomProp} />

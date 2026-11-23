@@ -1,6 +1,6 @@
 # Radial Cut
 
-`type: "radialcut"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "radialcut"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 Cuts filled shapes into radial sectors like slices of a cake. Count controls the number of pieces. Offset rotates the whole cut. Spin progressively rotates each sector around its own centre to create a pinwheel or spiral. Drag Center to move the pivot. Separation pulls each sector outward from that point.
 

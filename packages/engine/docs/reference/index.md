@@ -17,7 +17,6 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Taper](effects/taper.md) | `taper` | Narrows (or widens) one end: the width across the axis changes along it. |
 | [Gather](effects/gather.md) | `gather` | Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom. |
 | [Compress](effects/compress.md) | `compress` | Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. |
-| [Rope](effects/rope.md) | `rope` | Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. |
 | [Shear](effects/shear.md) | `shear` | Slants the drawing: X shifts with the height and Y with the width, around the center. |
 | [Wave](effects/wave.md) | `wave` | Makes the drawing wavy: moves each point across the direction of the wave. |
 | [Ripple](effects/ripple.md) | `ripple` | Concentric waves from a point, like a drop in water; they fade with the distance. |
@@ -33,45 +32,49 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Path Wrap](effects/pathwrap.md) | `pathwrap` | Wraps the drawing along another object's path (its longest one). |
 | [Morph](effects/morph.md) | `morph` | Morphs this drawing into another object's shape. |
 | [Trim](effects/trim.md) | `trim` | Trims paths (draws them): only the part of each path between Start and End (fractions of its length) remains, shifted by Offset; closed paths wrap around. |
-
-### Generate
-
-| Effect | Type | What it does |
-| --- | --- | --- |
-| [Wave Lines](effects/wavelines.md) | `wavelines` | Turns sampled tone into horizontal vector lines. |
 | [Crack](effects/crack.md) | `crack` | Fractures filled shapes with either branching cracks from an impact or edge-to-edge slices. |
 | [Radial Cut](effects/radialcut.md) | `radialcut` | Cuts filled shapes into radial sectors like slices of a cake. |
 | [Damage](effects/damage.md) | `damage` | Wear: cracks coming in from the edges, chips on the edge and specks, cut as holes. |
+| [Mosaic](effects/mosaic.md) | `mosaic` | Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). |
+| [Voronoi](effects/voronoi.md) | `voronoi` | Turns filled artwork into jittered Voronoi cells, clipped to its silhouette. |
+| [Boolean](effects/boolean.md) | `boolean` | Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. |
+| [Metaball](effects/metaball.md) | `metaball` | The elements melt together through a smooth union of their two nearest distance fields, keeping multiway junctions stable. |
+
+### Repeat
+
+| Effect | Type | What it does |
+| --- | --- | --- |
 | [Clone](effects/clone.md) | `clone` | Duplicates the drawing in a grid, concentric rings or a line, around the original. |
 | [Particles](effects/particles.md) | `particles` | Seeded particle generator that uses the complete source object as its particle: geometry, colours and relative proportions are preserved. |
 | [Mirror](effects/mirror.md) | `mirror` | Reflects the drawing on an axis at a fraction of its box. |
-| [Mosaic](effects/mosaic.md) | `mosaic` | Cuts the drawing into tiles on a grid of columns × rows, with a gutter and a rotated grid: rectangles, triangles, hexagons, or one shape per cell (circle, polygon, star or another object). |
-| [Voronoi](effects/voronoi.md) | `voronoi` | Turns filled artwork into jittered Voronoi cells, clipped to its silhouette. |
 | [Fractal](effects/fractal.md) | `fractal` | Repeats the drawing inside itself, smaller each time (an iterated function system): Sierpinski triangle, Sierpinski carpet, a branching tree or a spiral. |
+
+### Draw
+
+| Effect | Type | What it does |
+| --- | --- | --- |
+| [Flow Field](effects/flowfield.md) | `flowfield` | Seeds smooth vector streamlines inside the input silhouette and integrates them through a deterministic noise-driven direction field. |
+| [Wave Lines](effects/wavelines.md) | `wavelines` | Turns sampled tone into horizontal vector lines. |
+| [Connect](effects/connect.md) | `connect` | Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. |
+| [Network](effects/network.md) | `network` | Draws elastic links between each shape and its nearest neighbours while leaving the source shapes in place. |
+| [Weave](effects/weave.md) | `weave` | At every crossing between open stroked paths, alternates which path passes over and cuts a small gap into the path underneath. |
+| [String Art](effects/stringart.md) | `stringart` | Samples evenly spaced points around each closed contour and connects each point to another a fixed number of steps ahead, drawing a modular chord pattern as editable vector lines. |
+| [Spirograph](effects/spirograph.md) | `spirograph` | Draws a closed rolling-gear curve inside the input bounds. |
+| [Trace](effects/trace.md) | `trace` | A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. |
 | [Halftone](effects/halftone.md) | `halftone` | A halftone screen: the drawing sampled on a rotated grid where each cell becomes a mark (circle, square, diamond, line or ring) sized by the tone. |
 | [Vector Grain](effects/vectorgrain.md) | `vectorgrain` | Vector stipple that gathers at the edges, as real marks (not the SVG Grain filter). |
 | [Crosshatch](effects/crosshatch.md) | `crosshatch` | Pen-drawing shading with parallel lines: up to four layers of hatching (at Angle, then +90°, +45° and −45°), each drawn only where the tone is darker than its threshold, so dark areas get denser cross-hatching. |
 | [Dithering](effects/dithering.md) | `dithering` | Converts sampled tone into a binary grid of vector cells. |
 | [Contour](effects/contour.md) | `contour` | Draws vector isolines through equal tones in the input, like elevation lines on a map. |
-| [Boolean](effects/boolean.md) | `boolean` | Boolean operations between elements (a group's children, a Clone's copies…): union, subtract (the front ones cut the back one), intersect or exclude. |
-| [Metaball](effects/metaball.md) | `metaball` | The elements melt together through a smooth union of their two nearest distance fields, keeping multiway junctions stable. |
 | [Pixelate](effects/pixelate.md) | `pixelate` | Everything made of little squares, like pixel art: a grid of `size` px where each cell takes the colour of what is on top at its centre (stroke or fill). |
-
-### Glitch
-
-| Effect | Type | What it does |
-| --- | --- | --- |
-| [Slices](effects/slices.md) | `slices` | Glitch: horizontal bands of the drawing shifted sideways, each one an element. |
-| [Blocks](effects/blocks.md) | `blocks` | Glitch: rectangular blocks cut out and shown displaced, leaving their gap. |
-| [Scanlines](effects/scanlines.md) | `scanlines` | Glitch: scan lines across the drawing, clipped to it. |
-| [Streaks](effects/streaks.md) | `streaks` | Glitch: streaks escaping sideways from the real edge of the shape. |
-| [RGB Split](effects/rgbsplit.md) | `rgbsplit` | Chromatic separation with two modes: Channels (default) extracts the source RGB plates, shifting red and blue along Angle while green stays in place. |
 
 ### Effect
 
 | Effect | Type | What it does |
 | --- | --- | --- |
 | [Step](effects/step.md) | `step` | Incremental effector: applies the modifiers nested in it to each element separately, with their numbers multiplied by the element's position. |
+| [Each](effects/each.md) | `each` | Applies the effects nested in it to every element separately (Clone copies, letters, tiles…), with formulas that read the element: element.index, element.count, element.row and element.column (grid), element.u and element.v (0–1 across the grid), element.distance (0 at the centre of the elements, 1 for the furthest) and element.random (a fixed 0–1 number per element; Random seed varies it). |
+| [Shape](effects/shapevalues.md) | `shapevalues` | Only inside Each, on a shape object after a Clone: rebuilds every copy with other values for the shape's own parameters, by name, usually formulas with element.* (Inner = 19 * (1 - element.distance) closes the holes of a donut grid towards the edges). |
 | [Oscillate](effects/oscillate.md) | `oscillate` | Periodic modulation of nested effects: sine, triangle, square or saw. |
 | [Wiggle](effects/wiggle.md) | `wiggle` | Smooth seeded random modulation of nested effects. |
 | [Pulse](effects/pulse.md) | `pulse` | Repeated pulses of nested effects, from neutral to full strength and back. |
@@ -79,12 +82,20 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Stagger](effects/stagger.md) | `stagger` | Each element makes its own transition, with its curve, a little after the previous one. |
 | [Range](effects/range.md) | `range` | Selects elements, text words/lines or Clone grid rows/columns for nested effects. |
 | [Field](effects/field.md) | `field` | Field selector: the nested effects act more or less on each element depending on where it is relative to a shape (ellipse, plane or box). |
+| [Rigid Pieces](effects/rigidpieces.md) | `rigidpieces` | Marks each current element as a rigid piece. |
+
+### Motion
+
+| Effect | Type | What it does |
+| --- | --- | --- |
+| [Rope](effects/rope.md) | `rope` | Open paths hang as ropes pinned at both ends: a Verlet chain with the drawn length, Gravity, Wind and Damping, that settles and swings. |
+| [Follow Path](effects/followpath.md) | `followpath` | Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). |
+| [Look At](effects/lookat.md) | `lookat` | Turns the object so that it faces another one (its center), around `pivot`. |
 | [Explosion](effects/explosion.md) | `explosion` | Each element (a piece of Damage or Crack, a Mosaic tile, a Clone copy, a letter…) flies away from a centre: it moves out, spins and shrinks a little, each in its own way. |
 | [Gravity](effects/gravity.md) | `gravity` | Drops each element onto a virtual floor, rigid by default or elastic when it carries Soft Body material, inheriting velocity and spin from Explosion or Rigid Body. |
 | [Soft Body](effects/softbody.md) | `softbody` | Elastic material for open fibres and closed bodies. |
 | [Physics](effects/physics.md) | `physics` | A 2D dynamics simulation for the children of a group: each element is a rigid body, or elastic when it carries Soft Body. |
 | [Rigid Body](effects/rigidbody.md) | `rigidbody` | How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). |
-| [Rigid Pieces](effects/rigidpieces.md) | `rigidpieces` | Marks each current element as a rigid piece. |
 
 ### Style
 
@@ -99,6 +110,16 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Mask](effects/mask.md) | `mask` | Native SVG mask: the object only shows where another object lets it (`source`). |
 | [Opacity](effects/opacity.md) | `opacity` | Makes the drawing transparent. |
 
+### Glitch
+
+| Effect | Type | What it does |
+| --- | --- | --- |
+| [Slices](effects/slices.md) | `slices` | Glitch: horizontal bands of the drawing shifted sideways, each one an element. |
+| [Blocks](effects/blocks.md) | `blocks` | Glitch: rectangular blocks cut out and shown displaced, leaving their gap. |
+| [Scanlines](effects/scanlines.md) | `scanlines` | Glitch: scan lines across the drawing, clipped to it. |
+| [Streaks](effects/streaks.md) | `streaks` | Glitch: streaks escaping sideways from the real edge of the shape. |
+| [RGB Split](effects/rgbsplit.md) | `rgbsplit` | Chromatic separation with two modes: Channels (default) extracts the source RGB plates, shifting red and blue along Angle while green stays in place. |
+
 ### Filters
 
 | Effect | Type | What it does |
@@ -111,20 +132,6 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Bevel](effects/bevel.md) | `bevel` | Relief: light and shade on the edges, as if the drawing had volume. |
 | [Thicken](effects/thicken.md) | `thicken` | Makes the drawing thicker (or thinner with a negative amount), or adds a coloured outline around it like a sticker (`outline`). |
 | [Tone](effects/tone.md) | `tone` | Tone: posterize (few levels per channel, like a poster), duotone (shadows in one colour and lights in another) or invert the colours. |
-
-### Utils
-
-| Effect | Type | What it does |
-| --- | --- | --- |
-| [Follow Path](effects/followpath.md) | `followpath` | Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). |
-| [Flow Field](effects/flowfield.md) | `flowfield` | Seeds smooth vector streamlines inside the input silhouette and integrates them through a deterministic noise-driven direction field. |
-| [Connect](effects/connect.md) | `connect` | Joins two objects with a line that follows them: the drawing becomes the stretch from `from` to `to` (their anchors, fractions of their box), keeping its style. |
-| [Network](effects/network.md) | `network` | Draws elastic links between each shape and its nearest neighbours while leaving the source shapes in place. |
-| [Weave](effects/weave.md) | `weave` | At every crossing between open stroked paths, alternates which path passes over and cuts a small gap into the path underneath. |
-| [String Art](effects/stringart.md) | `stringart` | Samples evenly spaced points around each closed contour and connects each point to another a fixed number of steps ahead, drawing a modular chord pattern as editable vector lines. |
-| [Spirograph](effects/spirograph.md) | `spirograph` | Draws a closed rolling-gear curve inside the input bounds. |
-| [Trace](effects/trace.md) | `trace` | A trail: the drawing becomes the path another object's center followed during the last `length` seconds of the animation, keeping its style. |
-| [Look At](effects/lookat.md) | `lookat` | Turns the object so that it faces another one (its center), around `pivot`. |
 
 ## Primitives
 

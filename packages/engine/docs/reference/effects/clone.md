@@ -1,6 +1,6 @@
 # Clone
 
-`type: "clone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "clone"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Repeat**.
 
 Duplicates the drawing in a grid, concentric rings or a line, around the original. Grid can pack 2×2 large copies by reserving their cells, so the copies do not overlap; Gap sets the clear space between cells, Big / normal sets their share and Seed shuffles their placement. In Radial, Count copies are placed on each of Rings circles; Ring spacing controls the distance between radii. In `object` mode, on another object: along its outline, on its vertices or inside it (random, with a seed). Each copy is an element. Fill keeps a share of the grid cells (a 2×2 copy counts as four): at random with Fill direction 0, or growing from the side Fill angle points to (90° is the bottom) towards 1, with a ragged edge; Fill seed varies it.
 

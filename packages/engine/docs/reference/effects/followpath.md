@@ -1,6 +1,6 @@
 # Follow Path
 
-`type: "followpath"` · Deformer: moves the points of the drawing. · Editor menu: **Utils**.
+`type: "followpath"` · Deformer: moves the points of the drawing. · Editor menu: **Motion**.
 
 Moves the whole object, without bending it, to a point on another object's path: `position` is the fraction of the way (0 start, 1 end; closed paths loop). `anchor` is the point of the object that sits on the path; `orient` turns it with the path.
 

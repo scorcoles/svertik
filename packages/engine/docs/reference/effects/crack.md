@@ -1,6 +1,6 @@
 # Crack
 
-`type: "crack"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "crack"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Deform**.
 
 Fractures filled shapes with either branching cracks from an impact or edge-to-edge slices. In Impact pattern, Spread controls where side branches form: lower values strongly concentrate them near the impact without reducing their expected count; 1 distributes them evenly along the cracks. `cut` cuts lines as gaps of `width` px; `shatter` cuts them into elements and pushes the loose pieces apart. Separation sets the distance and Variation controls how much that distance differs between pieces, deterministically from the seed.
 

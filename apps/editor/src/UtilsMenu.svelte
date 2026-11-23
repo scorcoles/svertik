@@ -1,14 +1,12 @@
 <script lang="ts">
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
-  import { modifierTypes, registry, type Editor } from './editor.svelte';
+  import type { Editor } from './editor.svelte';
 
   // Utilities that create objects working with others (instances…). Those that need a starting
   // object are disabled without a selection.
   let { editor, compact = false }: { editor: Editor; compact?: boolean } = $props();
   let compositionFile: HTMLInputElement;
-  // Utils effects (Follow Path…): they go to the selected object's stack.
-  const effects = modifierTypes.filter((t) => registry.get(t)?.family === 'utils' && t !== 'connect' && t !== 'trace'); // Connect and Trace: through Connector and Tracer
 </script>
 
 <DropdownMenu.Root>
@@ -75,12 +73,7 @@
         <Icon name="tracer" />
         Tracer
       </DropdownMenu.Item>
-      {#each effects as type (type)}
-        <DropdownMenu.Item class="sv-menu-item" disabled={(!editor.activeNode && !(type === 'physics' && editor.scene)) || !editor.canAdd(type)} title={!editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => editor.add(type)}>
-          <Icon name={type as IconName} />
-          {registry.get(type)?.label}
-        </DropdownMenu.Item>
-      {/each}
+
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>

@@ -3,7 +3,6 @@
 
 import type { Bounds, Geometry } from './geometry';
 import type { Mat } from './matrix';
-import type { ElementValues } from './expression';
 
 interface ParamBase {
   label?: string;
@@ -105,11 +104,13 @@ export interface ModifierContext {
   scene?: SceneSpace;
   /** Inside a group with Physics: that Physics owns the simulation (Gravity hands it its forces). */
   inWorld?: boolean;
+  /** Each: the context its children's formulas run in (scene values, props), from the scene's formula pass. */
+  expressions?: unknown;
   /**
-   * Each: the source drawing rebuilt for one copy (the shape with its per-copy values). Only for the first effect
-   * of a shape's stack, and only when the shape has Each; a generator that makes copies (Clone) uses it.
+   * Each › Shape: the shape this stack starts from, rebuilt with other values for its own parameters (Inner,
+   * Outer…), in the stack's source coordinates. Only on shape objects; null when the values build nothing.
    */
-  each?: (element: ElementValues) => Geometry | null;
+  rebuild?: (params: Record<string, number>) => Geometry | null;
 }
 
 /** A stack's place in the scene: `world` takes its coordinates to the scene's; `frame` is the document box. */
@@ -158,6 +159,8 @@ export interface ModifierDef<P extends ParamSchema = ParamSchema> {
    * since the scene is evaluated at those times too; while doing so the stack stops right before it.
    */
   history?: boolean;
+  /** Its params are free (Each › Shape: the shape's own parameter names), kept as given instead of by schema. */
+  freeParams?: boolean;
   /** Family (to group them in the menus even when their kinds differ): 'glitch', 'utils'. */
   family?: string;
   params: P;
@@ -314,3 +317,30 @@ export const fromFraction = (b: Bounds, [fx, fy]: readonly [number, number]): [n
 ];
 
 export const deg = (a: number) => (a * Math.PI) / 180;
+
+/** The editor menus effects are grouped in, in the order the top bar shows them. */
+export const EFFECT_MENUS = ['Deform', 'Repeat', 'Draw', 'Effect', 'Motion', 'Style', 'Glitch', 'Filters'] as const;
+export type EffectMenu = (typeof EFFECT_MENUS)[number];
+
+/** Effects whose menu is not their kind's: what they are for, not how the engine runs them. */
+const MENU_OF_TYPE: Record<string, EffectMenu> = {
+  // Copies of the drawing.
+  clone: 'Repeat', mirror: 'Repeat', fractal: 'Repeat', particles: 'Repeat',
+  // New marks and lines drawn from the drawing (tone, links, curves).
+  wavelines: 'Draw', halftone: 'Draw', vectorgrain: 'Draw', crosshatch: 'Draw', dithering: 'Draw', contour: 'Draw', pixelate: 'Draw',
+  flowfield: 'Draw', network: 'Draw', weave: 'Draw', stringart: 'Draw', spirograph: 'Draw', connect: 'Draw', trace: 'Draw',
+  // Breaking and combining the drawing's own shape.
+  crack: 'Deform', radialcut: 'Deform', damage: 'Deform', mosaic: 'Deform', voronoi: 'Deform', boolean: 'Deform', metaball: 'Deform',
+  // Movement, simulation and following other objects.
+  // Lives inside Each, with the effectors.
+  shapevalues: 'Effect',
+  gravity: 'Motion', physics: 'Motion', rigidbody: 'Motion', softbody: 'Motion', rope: 'Motion', explosion: 'Motion', followpath: 'Motion', lookat: 'Motion',
+};
+const MENU_OF_KIND: Record<string, EffectMenu> = { deformer: 'Deform', generator: 'Repeat', effector: 'Effect', style: 'Style', filter: 'Filters' };
+
+/** The menu an effect belongs to (Deform, Repeat, Draw…): the same in the editor, the command line and the docs. */
+export function menuOf(d: { type?: string; kind?: string; family?: string }): EffectMenu | 'Other' {
+  if (d.type && MENU_OF_TYPE[d.type]) return MENU_OF_TYPE[d.type]!;
+  if (d.family === 'glitch') return 'Glitch';
+  return MENU_OF_KIND[d.kind ?? ''] ?? 'Other';
+}

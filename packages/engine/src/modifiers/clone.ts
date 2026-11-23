@@ -3,7 +3,6 @@ import { pointAt, polylines } from '../paths';
 import { rng } from '../random';
 import { defineModifier, deg } from '../modifier';
 import { IDENTITY, multiply, type Mat } from '../matrix';
-import type { ElementValues } from '../expression';
 
 /**
  * Duplicates the drawing: in a grid, a circle or a line.
@@ -183,32 +182,12 @@ export const clone = defineModifier({
       k.rot += (r * 2 - 1) * deg(p.rotateJitter);
     }
 
-    // Each: every copy is built from the shape with its own values (Inner, Outer…), placed like the others.
-    const rows = copies.reduce((n, k) => Math.max(n, (k.row ?? -1) + 1), 0);
-    const cols = copies.reduce((n, k) => Math.max(n, (k.column ?? -1) + 1), 0);
-    const far = copies.reduce((n, k) => Math.max(n, Math.hypot(k.dx, k.dy)), 0);
-    const elementOf = (index: number, k: Copy): ElementValues => {
-      const along = copies.length > 1 ? index / (copies.length - 1) : 0.5;
-      const grid = k.row !== undefined && k.column !== undefined;
-      return {
-        index,
-        count: copies.length,
-        row: k.row ?? 0,
-        column: k.column ?? 0,
-        u: grid ? (cols > 1 ? k.column! / (cols - 1) : 0.5) : along,
-        v: grid ? (rows > 1 ? k.row! / (rows - 1) : 0.5) : along,
-        distance: far > 0 ? Math.hypot(k.dx, k.dy) / far : 0,
-        random: rng(p.variationSeed * 7919 + index + 1)(),
-      };
-    };
-
     const shapes: Shape[] = [];
     for (const [index, k] of copies.entries()) {
       const c = Math.cos(k.rot);
       const s = Math.sin(k.rot);
       const sx = k.scale, sy = k.sy ?? k.scale;
-      const source = (ctx.each && ctx.each(elementOf(index, k))) ?? geo;
-      const moved = mapPoints(source, ([x, y]) => {
+      const moved = mapPoints(geo, ([x, y]) => {
         const ux = (x - cx) * sx;
         const uy = (y - cy) * sy;
         return [cx + ux * c - uy * s + k.dx, cy + ux * s + uy * c + k.dy];

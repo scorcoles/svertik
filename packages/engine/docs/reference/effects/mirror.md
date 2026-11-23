@@ -1,6 +1,6 @@
 # Mirror
 
-`type: "mirror"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Generate**.
+`type: "mirror"` · Generator: makes new geometry (copies, pieces, cuts…). · Editor menu: **Repeat**.
 
 Reflects the drawing on an axis at a fraction of its box. `keep` keeps the original and adds the reflection (symmetry); `transform` replaces it with its reflection. Reference optionally measures another node (even hidden), allowing a fixed axis for generated collections.
 
