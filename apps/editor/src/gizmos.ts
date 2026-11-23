@@ -1,7 +1,7 @@
 // Canvas actuators: an effect's "wire" (Spherize's sphere, Rotate 3D's rings…)
 // and the handles that change its parameters. All in the node's local coordinates (its reference
 // box); the canvas takes them to the screen with the node's matrix.
-import { apply, IDENTITY, invert, uprightBounds, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
+import { apply, IDENTITY, invert, squareToQuad, uprightBounds, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
 
 type Params = Record<string, unknown>;
 
@@ -437,8 +437,16 @@ Object.assign(builders, {
   },
 
   perspective(p: Params, b: Bounds): Gizmo {
-    // The four corners already have handles (they are points): here, the quadrilateral they form.
-    return { lines: [boxLine(b), { pts: [at(b, p.topLeft), at(b, p.topRight), at(b, p.bottomRight), at(b, p.bottomLeft)], closed: true }], handles: [] };
+    // The four corners already have handles (they are points): here, the quadrilateral they form and a 4 × 4 grid
+    // through it, mapped with the effect's own homography, so the receding lines show the perspective. Straight
+    // lines stay straight under a homography: two points per line are enough.
+    const corners = [at(b, p.topLeft ?? [0.1, 0]), at(b, p.topRight ?? [0.9, 0]), at(b, p.bottomRight ?? [1, 1]), at(b, p.bottomLeft ?? [0, 1])];
+    const map = squareToQuad(corners);
+    const grid: GizmoLine[] = [0.25, 0.5, 0.75].flatMap((k) => [
+      { pts: [map(k, 0), map(k, 1)], dashed: true },
+      { pts: [map(0, k), map(1, k)], dashed: true },
+    ]);
+    return { lines: [boxLine(b), ...grid, { pts: corners, closed: true }], handles: [] };
   },
 
   envelope(p: Params, b: Bounds): Gizmo {

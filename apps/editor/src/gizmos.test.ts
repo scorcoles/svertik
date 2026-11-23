@@ -113,6 +113,21 @@ it('compress: Start and End slide along their edges, Strength beside the middle 
   expect(gizmoFor('compress', { axis: 'y', start: 0.5, end: 0.5, strength: 0 }, box)!.handles[0]!.at).toEqual([0, 50]);
 });
 
+it('perspective: the quad and a 4 × 4 grid mapped through it', () => {
+  const g = gizmoFor('perspective', { topLeft: [0, 0], topRight: [1, 0], bottomRight: [1, 1], bottomLeft: [0, 1] }, box)!;
+  // Box, 6 grid lines, quad. Without distortion the middle lines cross the box at its centre.
+  expect(g.lines).toHaveLength(8);
+  // Lines: the box, then the grid (u = ¼, v = ¼, u = ½, v = ½, u = ¾, v = ¾), then the quad.
+  const mid = g.lines.slice(1, 7).map((l) => l.pts);
+  expect(mid).toContainEqual([[100, 0], [100, 100]]);
+  expect(mid).toContainEqual([[0, 50], [200, 50]]);
+  // Narrowing the top pulls the vertical guides together at the top, as receding lines.
+  const narrow = gizmoFor('perspective', { topLeft: [0.25, 0], topRight: [0.75, 0], bottomRight: [1, 1], bottomLeft: [0, 1] }, box)!;
+  const centre = narrow.lines[3]!.pts;
+  expect(centre[0]![0]).toBeCloseTo(100);
+  expect(centre[1]![0]).toBeCloseTo(100);
+});
+
 it('gather: a handle per edge on the middle line; dragging it along the edge sets that end', () => {
   const g = gizmoFor('gather', { axis: 'x', start: 0.4, end: -0.4 }, box)!;
   const [start, end] = g.handles;

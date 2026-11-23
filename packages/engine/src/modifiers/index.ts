@@ -36,7 +36,7 @@ import { morph } from './morph';
 import { mosaic } from './mosaic';
 import { paint } from './paint';
 import { pathwrap } from './pathwrap';
-import { perspective } from './perspective';
+import { perspective, squareToQuad } from './perspective';
 import { particles } from './particles';
 import { pixelate } from './pixelate';
 import { range } from './range';
@@ -77,7 +77,7 @@ import { twist } from './twist';
 import { wave } from './wave';
 
 export { bevel, blocks, blur, displace, glow, grain, rgbsplit, scanlines, shadow, slices, streaks, thicken, tone };
-export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, radialcut, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, flowfield, wavelines, fractal, gradient, imagefill, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, blob, shear, spherize, spikes, stagger, step, each, shapevalues, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, compress, rope, weave, stringart, spirograph };
+export { pulse, shake, oscillate, wiggle, bend, bones, boolean, clone, color, connect, network, crack, radialcut, contour, cylinder, damage, dithering, envelope, explosion, feather, gravity, softbody, physics, rigidbody, rigidpieces, field, followpath, flowfield, wavelines, fractal, gradient, imagefill, halftone, vectorGrain, crosshatch, lookat, mask, melt, metaball, mirror, morph, mosaic, noise, opacity, paint, pathwrap, perspective, squareToQuad, particles, pixelate, range, ripple, rotate3d, roughen, roundcorners, blob, shear, spherize, spikes, stagger, step, each, shapevalues, taper, tint, trace, transform, trim, twist, voronoi, wave, gather, compress, rope, weave, stringart, spirograph };
 
 /** Every built-in modifier. For a lighter bundle, import only the ones you need. */
 export const builtins = [

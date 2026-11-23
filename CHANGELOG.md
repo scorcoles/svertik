@@ -6,6 +6,7 @@ svertik is alpha software. Save project files regularly.
 
 ### Added
 
+- Perspective shows a 4 × 4 grid through its quad on the canvas, mapped with the effect's own homography, as a reference for the receding lines.
 - **Each** effect (Effect menu), like Step: the effects nested in it apply to every element separately, with formulas that read `element.index`, `count`, `row`, `column`, `u`, `v`, `distance` (0 at the centre, 1 for the furthest) and `random`. A **Shape** inside it rebuilds each Clone copy with other values for the shape's own parameters (Inner = `19 * (1 - element.distance)` closes the holes of a donut grid towards the edges).
 
 ### Changed

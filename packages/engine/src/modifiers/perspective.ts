@@ -2,7 +2,7 @@ import { mapDeformer, type Vec2 } from '../geometry';
 import { defineModifier, fromFraction } from '../modifier';
 
 /** Homography from the unit square to the quadrilateral (a, b, c, d) = corners TL, TR, BR, BL. */
-function squareToQuad([a, b, c, d]: Vec2[]): (u: number, v: number) => Vec2 {
+export function squareToQuad([a, b, c, d]: Vec2[]): (u: number, v: number) => Vec2 {
   const [x0, y0] = a!, [x1, y1] = b!, [x2, y2] = c!, [x3, y3] = d!;
   const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3;
   const dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
