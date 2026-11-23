@@ -2,7 +2,7 @@
 
 svertik is alpha software. Save project files regularly.
 
-## Unreleased
+## 0.0.9
 
 ### Added
 

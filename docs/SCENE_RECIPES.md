@@ -367,9 +367,9 @@ A group of circles that melt into each other dynamically using polynomial signed
 
 ---
 
-## Recipe 5: Mechanical Orbital System (Utils Demo)
+## Recipe 5: Mechanical Orbital System (Motion Demo)
 
-Combines the **Utils** node and effect family:
+Combines effects that follow other objects (Motion and Draw menus):
 - A central sun ellipse.
 - An orbital path ellipse.
 - A comet traveling along the orbit via `followpath`.
