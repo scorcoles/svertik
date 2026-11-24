@@ -104,9 +104,10 @@
     border-bottom: var(--sv-border-1) solid var(--sv-rule-default);
     min-width: 0;
   }
-  /* The short basis is what counts for wrapping: the title grows to its
-     natural width if there is room and, if not, truncates names before pushing Export down. */
-  .doc { display: flex; flex: 1000 1 12rem; max-width: max-content; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: 0; }
+  /* Truncate the title first, but reserve room for the fixed controls and
+     breadcrumbs' minimum widths so they never spill into the next toolbar item.
+     The outer toolbar wraps when this whole group no longer fits. */
+  .doc { display: flex; flex: 1000 1 12rem; max-width: max-content; align-items: baseline; gap: var(--sv-space-6); padding: 0 var(--sv-space-4); min-width: min-content; }
   .doc > :global(*) { flex: none; }
   .doc > .name { flex: 0 1 auto; min-width: 4ch; }
   .doc > .crumb { flex: 0 3 auto; min-width: 2ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
