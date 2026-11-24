@@ -55,12 +55,9 @@
           <button class="crumb" type="button" onclick={() => editor.leaveComposition(i + 1)} aria-current={i === editor.compositionPath.length - 1 ? 'location' : undefined} title={crumb.name}>{crumb.name}</button>
         {/each}
       {/if}
-      {#if editor.objectCount > 1}<span class="slash">·</span><span class="count">{editor.objectCount} objects</span>{/if}
       {#if editor.demoOrigin}
-        <!-- A demo is a starting point: one click turns it into the person's own piece (new name). -->
         <span class="slash">·</span>
         <span class="demo-tag">demo</span>
-        <button class="make-own" type="button" onclick={() => editor.makeOwn()} title="Keep the demo as a starting point: it becomes your own project, under a new name">Make it yours</button>
       {/if}
     {/if}
   </div>
@@ -140,21 +137,7 @@
   }
   .name:hover { color: var(--sv-text-primary); border-bottom-color: var(--sv-rule-strong); }
   .name:focus { color: var(--sv-text-primary); border-bottom-color: var(--sv-accent-text); }
-  .count { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .demo-tag { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
-  .make-own {
-    height: 20px;
-    padding: 0 var(--sv-space-6);
-    font: inherit;
-    font-size: var(--sv-font-size-10);
-    color: var(--sv-accent-text);
-    white-space: nowrap;
-    background: none;
-    border: var(--sv-border-1) solid var(--sv-accent-fill);
-    cursor: pointer;
-  }
-  :global([data-sv-theme='light']) .make-own { color: var(--sv-text-primary); }
-  .make-own:hover { color: var(--sv-accent-on); background: var(--sv-accent-fill); }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .spacer { flex: 1; }
   .toolbar.command-in-slot .spacer { flex: 0 1 0; }
