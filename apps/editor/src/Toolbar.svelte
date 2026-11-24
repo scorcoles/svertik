@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { Icon, IconButton } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import type { DemoName } from './demo-catalog';
@@ -24,40 +25,49 @@
   }
   let { editor, onimport, onsave, onsaveas, oncopyjson, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
   let fullscreen = $state(false);
+  let renaming = $state(false);
+  let draftName = $state('');
+  let nameInput = $state<HTMLInputElement>();
+  let nameButton = $state<HTMLButtonElement>();
+  async function openRename() {
+    draftName = editor.name;
+    renaming = true;
+    await tick();
+    nameInput?.focus();
+    nameInput?.select();
+  }
+  function closeRename(save: boolean) {
+    if (save) editor.setName(draftName);
+    renaming = false;
+    nameButton?.focus();
+  }
   const toggleFullscreen = () => fullscreen ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.();
 </script>
 
 <svelte:window onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
+<div class="toolbar-area">
 <header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
     <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {ondemo} />
-    <span class="alpha" title="Alpha: things change and may break. Save your work as a project (.json).">alpha</span>
     {#if editor.scene}
       <span class="slash">/</span>
-      <input
+      <button
+        bind:this={nameButton}
         class="name"
-        value={editor.name}
-        aria-label="Document name"
-        title="Rename document"
-        spellcheck="false"
-        size={Math.max(4, editor.name.length)}
-        onchange={(e) => { editor.setName(e.currentTarget.value); e.currentTarget.value = editor.name; }}
-        onkeydown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          else if (e.key === 'Escape') { e.currentTarget.value = editor.name; e.currentTarget.blur(); }
-        }}
-      />
+        type="button"
+        title={editor.name}
+        aria-label={`Rename scene: ${editor.name}`}
+        aria-expanded={renaming}
+        aria-controls="scene-name-strip"
+        onclick={openRename}
+      >{editor.name}</button>
       {#if editor.compositionPath.length}
         <button class="crumb" type="button" onclick={() => editor.leaveComposition(0)} title="Return to the main scene">Main scene</button>
         {#each editor.compositionBreadcrumbs as crumb, i}
           <span class="slash">/</span>
           <button class="crumb" type="button" onclick={() => editor.leaveComposition(i + 1)} aria-current={i === editor.compositionPath.length - 1 ? 'location' : undefined} title={crumb.name}>{crumb.name}</button>
         {/each}
-      {/if}
-      {#if editor.demoOrigin}
-        <span class="slash">·</span>
-        <span class="demo-tag">demo</span>
       {/if}
     {/if}
   </div>
@@ -87,8 +97,21 @@
     {oncopyjson}
   />
 </header>
+{#if renaming && editor.scene}
+  <form id="scene-name-strip" class="rename-strip" onsubmit={(event) => { event.preventDefault(); closeRename(true); }}>
+    <label for="scene-name-input">Scene title</label>
+    <input id="scene-name-input" bind:this={nameInput} bind:value={draftName} spellcheck="false" onkeydown={(event) => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeRename(false); }
+    }} />
+    <button type="submit">Save</button>
+    <button type="button" onclick={() => closeRename(false)}>Cancel</button>
+  </form>
+{/if}
+
+</div>
 
 <style>
+  .toolbar-area { min-width: 0; }
   .toolbar {
     display: flex;
     align-items: center;
@@ -109,17 +132,6 @@
   .doc > .name { flex: 0 1 auto; min-width: 4ch; }
   .doc > .crumb { flex: 0 3 auto; min-width: 2ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .doc > .crumb[aria-current] { flex-shrink: 1; min-width: 4ch; }
-  /* A discreet badge: the accent is kept for what can be clicked. */
-  .alpha {
-    align-self: center;
-    padding: 0 4px;
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--sv-text-muted);
-    background: none;
-    border: var(--sv-border-1) solid var(--sv-rule-default);
-  }
   .crumb { padding: 0; font: inherit; color: var(--sv-accent-text); background: none; border: 0; cursor: pointer; }
   .crumb:hover { text-decoration: underline; }
   .crumb[aria-current] { color: var(--sv-text-primary); cursor: default; }
@@ -132,12 +144,46 @@
     background: none;
     border: 0;
     border-bottom: 1px solid transparent;
-    outline: none;
+    cursor: pointer;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
     text-overflow: ellipsis;
   }
   .name:hover { color: var(--sv-text-primary); border-bottom-color: var(--sv-rule-strong); }
   .name:focus { color: var(--sv-text-primary); border-bottom-color: var(--sv-accent-text); }
-  .demo-tag { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .rename-strip {
+    display: flex;
+    align-items: center;
+    gap: var(--sv-space-8);
+    padding: var(--sv-space-8);
+    background: var(--sv-surface-panel);
+    color: var(--sv-text-secondary);
+    font: inherit;
+  }
+  .rename-strip label { white-space: nowrap; }
+  .rename-strip input {
+    flex: 1;
+    min-width: 0;
+    height: var(--sv-size-row);
+    padding: 0 var(--sv-space-6);
+    font: inherit;
+    color: var(--sv-text-primary);
+    background: var(--sv-surface-panel);
+    border: var(--sv-border-1) solid var(--sv-rule-strong);
+  }
+  .rename-strip button {
+    height: var(--sv-size-row);
+    padding: 0 var(--sv-space-8);
+    font: inherit;
+    color: var(--sv-text-primary);
+    background: none;
+    border: var(--sv-border-1) solid var(--sv-rule-strong);
+    border-radius: 0;
+    cursor: pointer;
+  }
+  .rename-strip button:hover { border-color: var(--sv-accent-text); }
+  .name:focus-visible, .rename-strip :focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .rule { flex: none; width: 1px; height: 20px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
   .spacer { flex: 1; }
   .toolbar.command-in-slot .spacer { flex: 0 1 0; }
