@@ -958,4 +958,5 @@ export const ES: Record<string, string> = {
   '{count} h ago': 'hace {count} h',
   'yesterday': 'ayer',
   '{count} days ago': 'hace {count} días',
+  'Open recent': 'Abrir reciente',
 };

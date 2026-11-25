@@ -14,7 +14,11 @@ beforeEach(() => {
   sessionStorage.clear();
   history.replaceState(null, '', '/');
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  // Autosaves started without waiting (loading a scene records it) must not land in the next test's tab.
+  for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+});
 
 describe('session autosave', () => {
   it('keeps the work for this tab and brings it back on reload, with a clean address bar', async () => {

@@ -3340,6 +3340,8 @@ export class Editor {
     if (recent.saved) this.markSaved();
     return true;
   }
+  /** This scene's own entry (the menu doesn't offer to open what is already open). */
+  get recentId(): string { return this.#recentId; }
   forgetRecent(id: string): Promise<void> {
     return this.recents.remove(id).catch(() => {});
   }

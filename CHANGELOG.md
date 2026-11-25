@@ -6,7 +6,7 @@ svertik is alpha software. Save project files regularly.
 
 ### Added
 
-- **Recent** on the start screen: the scenes you changed in any tab, kept in the browser (IndexedDB) so they survive closing it, with when and whether they were saved to a file. Opening one goes on with the same entry; the twelve newest are kept.
+- **Recent** on the start screen: the scenes you changed in any tab, kept in the browser (IndexedDB) so they survive closing it, with when and whether they were saved to a file. Opening one goes on with the same entry; the twelve newest are kept. Also in svertik menu → **Open recent**, which asks about unsaved changes first.
 
 ### Changed
 

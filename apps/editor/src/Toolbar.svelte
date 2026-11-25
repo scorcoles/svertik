@@ -8,6 +8,7 @@
   import ExportMenu from './ExportMenu.svelte';
   import EffectsToolbar from './EffectsToolbar.svelte';
   import CommandLine from './CommandLine.svelte';
+  import type { Recent } from './recents';
 
   interface Props {
     editor: Editor;
@@ -27,8 +28,9 @@
     onexportanimsvg: () => void;
     ondemo: (which: DemoName) => void;
     onnew: () => void;
+    onrecent: (recent: Recent) => void;
   }
-  let { editor, onimport, onsave, onsaveas, oncopyjson, onshare, ontour, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, onsaveas, oncopyjson, onshare, ontour, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew, onrecent }: Props = $props();
   let fullscreen = $state(false);
   let renaming = $state(false);
   let draftName = $state('');
@@ -54,7 +56,7 @@
 <div class="toolbar-area">
 <header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {onshare} {ontour} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {onshare} {ontour} {ondemo} {onrecent} />
     {#if editor.scene}
       <span class="slash">/</span>
       <button

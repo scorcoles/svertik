@@ -4,6 +4,7 @@
   import DemoItems from './DemoItems.svelte';
   import { Icon, t, type IconName } from '@svertik/ui';
   import { chooseLocale, locale, LOCALES } from './i18n';
+  import { ago, type Recent } from './recents';
   import type { Editor } from './editor.svelte';
   import type { DemoName } from './demo-catalog';
 
@@ -16,8 +17,20 @@
     onshare: () => void;
     ontour: () => void;
     ondemo: (which: DemoName) => void;
+    /** Opens a recent scene (after asking about unsaved changes). */
+    onrecent: (recent: Recent) => void;
   }
-  let { editor, onnew, onopen, onsave, onsaveas, onshare, ontour, ondemo }: Props = $props();
+  let { editor, onnew, onopen, onsave, onsaveas, onshare, ontour, ondemo, onrecent }: Props = $props();
+  // The recent scenes, read when the menu opens (other tabs may have written since); not the one open here.
+  let recents = $state<Recent[]>([]);
+  async function refresh(open: boolean) {
+    if (!open) return;
+    try {
+      recents = (await editor.recents.list()).filter((r) => r.id !== editor.recentId || !editor.scene).slice(0, 8);
+    } catch {
+      recents = [];
+    }
+  }
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: t('New scene'), icon: 'plus', run: onnew, needs: true },
@@ -31,7 +44,7 @@
   ]);
 </script>
 
-<DropdownMenu.Root>
+<DropdownMenu.Root onOpenChange={refresh}>
   <DropdownMenu.Trigger class="sv-app-trigger" aria-label={t('svertik menu')}>
     <span>svertik<span class="wordmark-suffix" aria-hidden="true">_</span></span><span class="caret" aria-hidden="true">▾</span>
   </DropdownMenu.Trigger>
@@ -49,6 +62,21 @@
         {/if}
       {/each}
       <DropdownMenu.Separator class="sv-menu-sep" />
+      <DropdownMenu.Sub>
+        <DropdownMenu.SubTrigger class="sv-menu-item" disabled={!recents.length}>
+          <Icon name="stopwatch" />
+          <span class="label">{t('Open recent')}</span>
+          <span class="key" aria-hidden="true">▸</span>
+        </DropdownMenu.SubTrigger>
+        <DropdownMenu.SubContent class="sv-menu" side="right" align="start" sideOffset={4}>
+          {#each recents as recent (recent.id)}
+            <DropdownMenu.Item class="sv-menu-item" onSelect={() => onrecent(recent)}>
+              <span class="label">{recent.name}</span>
+              <span class="key">{ago(recent.updated)}{recent.saved ? '' : ` · ${t('unsaved')}`}</span>
+            </DropdownMenu.Item>
+          {/each}
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Sub>
       <DropdownMenu.Sub>
         <DropdownMenu.SubTrigger class="sv-menu-item">
           <Icon name="play" />

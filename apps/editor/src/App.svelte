@@ -712,6 +712,10 @@
     onexportanimsvg={exportAnimatedSVG}
     ondemo={openDemo}
     ontour={startTour}
+    onrecent={(recent) => guard(async () => {
+      if (await editor.openRecent(recent)) { projectHandle = null; recordActivity('Opened recent', recent.name); }
+      else say(t('This recent scene can no longer be opened.'));
+    })}
     onnew={() => guard(() => { projectHandle = null; editor.returnToStart(); })}
   />
   <main class:panel-maximized={panelMaximized}>
