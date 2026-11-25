@@ -73,10 +73,15 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
   // Share: the link that opens this scene in Play. On mobile, the system share menu.
   let said = $state<string | null>(null);
   let sayTimer: ReturnType<typeof setTimeout> | undefined;
-  const say = (text: string) => {
+  /** A short notice; ms 0 keeps it until the next one. */
+  const say = (text: string, ms = 2400) => {
     said = text;
     clearTimeout(sayTimer);
-    sayTimer = setTimeout(() => (said = null), 2400);
+    if (ms) sayTimer = setTimeout(() => (said = null), ms);
+  };
+  const unsay = () => {
+    clearTimeout(sayTimer);
+    said = null;
   };
   let capturing = $state(false);
   async function capture() {
@@ -91,23 +96,45 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
       capturing = false;
     }
   }
+  const TOO_BIG = 'Too big for a link: save the project (.json) and send the file';
+  let sharing = $state(false);
   async function share() {
-    const url = await editor.shareURL();
-    if (!url) return say('Too big for a link: save the project (.json) and send the file');
-    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      try {
-        await navigator.share({ title: editor.name, url });
-        return;
-      } catch {
-        // Cancelado: no pasa nada.
-        return;
-      }
-    }
+    if (sharing) return;
+    sharing = true;
+    say('Creating link…', 0);
+    // Making the link may go to the link service: start it now, inside the click.
+    const pending = editor.shareURL();
     try {
-      await navigator.clipboard.writeText(url);
-      say('Link copied: it opens this scene in Play');
-    } catch {
-      say('Could not copy the link');
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+        const url = await pending;
+        if (!url) return say(TOO_BIG);
+        try {
+          await navigator.share({ title: editor.name, url });
+          return unsay();
+        } catch (error) {
+          // Cancelled: nothing to do. Otherwise (the click's permission ran out while the link was made) copy it.
+          if ((error as DOMException)?.name === 'AbortError') return unsay();
+        }
+      }
+      try {
+        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+          // A promised clipboard item keeps the click's permission while the link is made (Safari needs it).
+          const blob = pending.then((url) => {
+            if (!url) throw new Error(TOO_BIG);
+            return new Blob([url], { type: 'text/plain' });
+          });
+          await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+        } else {
+          const url = await pending;
+          if (!url) return say(TOO_BIG);
+          await navigator.clipboard.writeText(url);
+        }
+        say('Link copied: it opens this scene in Play');
+      } catch {
+        say((await pending.catch(() => null)) ? 'Could not copy the link' : TOO_BIG);
+      }
+    } finally {
+      sharing = false;
     }
   }
 </script>

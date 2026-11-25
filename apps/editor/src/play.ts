@@ -6,7 +6,7 @@ import '@fontsource/commit-mono/700.css';
 import { runStages, type BootStage } from './stages';
 import { createFpsMeter } from './fpsmeter';
 import { downloadFrame } from './capture';
-import { decodeState } from './share';
+import { stateFromHash } from './share';
 
 /**
  * Play mode stages: the engine (runtime) and, with the scene, its effects (each its own chunk).
@@ -53,10 +53,12 @@ const say = (text: string, ms = 2400) => {
 
 async function start(m: typeof import('@svertik/engine/player')) {
   const { createEngine, createPlayer, prepareScene, effectTypes, sceneEffectTypes, evaluateSceneVariables, describeSceneVariables } = m;
-  const hash = location.hash.match(/^#[ps]=(.+)$/);
-  if (!hash) return say('No scene in this link.', 0);
-  const state = await decodeState(hash[1]!);
-  if (!state) return say('No scene in this link.', 0);
+  // #p=…: the scene itself; #l=…: a short link's scene, fetched from the link service.
+  if (location.hash.startsWith('#l=')) say('Loading scene…', 0);
+  const found = await stateFromHash(location.hash);
+  if (!found) return say('No scene in this link.', 0);
+  msg.hidden = true;
+  const { state } = found;
   const scene = state.scene;
   stage.classList.toggle('full-viewport', !!m.viewportFit(scene));
   sceneName = state.name;

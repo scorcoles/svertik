@@ -42,3 +42,50 @@ export async function decodeState(text: string): Promise<SharedState | null> {
 
 /** Browsers take long URLs, but not endless ones: above this, nothing is saved in the URL. */
 export const MAX_HASH = 60_000;
+
+/**
+ * The short-link service (apps/link, e.g. https://link.svertik.com), set at build time with VITE_SHARE_URL.
+ * Empty: Share puts the whole scene in the link.
+ */
+export const SHARE_SERVICE = ((import.meta.env.VITE_SHARE_URL as string | undefined) ?? '').trim().replace(/\/+$/, '');
+/** What the service accepts (encoded text). */
+export const MAX_SHORT = 4 * 1024 * 1024;
+/** Short-link ids: base62, as the service makes them. */
+export const SHORT_ID = /^[A-Za-z0-9]{10}$/;
+
+/**
+ * Stores an encoded scene in the service and returns its short link, or null (no service, too big, offline,
+ * refused…), so the caller can fall back to the long link.
+ */
+export async function shortenState(encoded: string, service = SHARE_SERVICE): Promise<string | null> {
+  if (!service || encoded.length > MAX_SHORT) return null;
+  try {
+    // A plain-text body keeps it a simple request: no CORS preflight.
+    const response = await fetch(`${service}/`, { method: 'POST', body: encoded, signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) return null;
+    const { id } = (await response.json()) as { id?: unknown };
+    return typeof id === 'string' && SHORT_ID.test(id) ? `${service}/${id}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The scene behind a short link's id (play.html#l=…), or null. */
+export async function fetchState(id: string, service = SHARE_SERVICE): Promise<SharedState | null> {
+  if (!service || !SHORT_ID.test(id)) return null;
+  try {
+    const response = await fetch(`${service}/${id}.txt`, { signal: AbortSignal.timeout(15_000) });
+    return response.ok ? decodeState((await response.text()).trim()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The state a location hash carries: #s=/#p= the scene itself, #l= a short link's id. */
+export async function stateFromHash(hash: string): Promise<{ state: SharedState; mode: 's' | 'p' | 'l' } | null> {
+  const m = hash.match(/^#([spl])=(.+)$/);
+  if (!m) return null;
+  const mode = m[1] as 's' | 'p' | 'l';
+  const state = mode === 'l' ? await fetchState(m[2]!) : await decodeState(m[2]!);
+  return state ? { state, mode } : null;
+}

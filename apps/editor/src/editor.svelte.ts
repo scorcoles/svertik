@@ -67,7 +67,7 @@ import {
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { compactJSON } from './exporters';
-import { decodeState, encodeState, MAX_HASH } from './share';
+import { encodeState, MAX_HASH, shortenState, stateFromHash } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
 /** Effects that only live inside another one (Each › Shape): left out of the menus and the command line. */
@@ -3245,12 +3245,15 @@ export class Editor {
     this.#inURL = fits ? state : undefined;
   }
   /**
-   * Share link: the scene in the URL, marked to open in Play mode (#p=…).
+   * Share link: a short link from the link service when the build has one (it opens play.html#l=…),
+   * otherwise the scene in the URL, marked to open in Play mode (#p=…).
    * null if it does not fit in a link (then the .json file is better).
    */
   async shareURL(): Promise<string | null> {
     if (!this.scene) return null;
     const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    const short = await shortenState(encoded);
+    if (short) return short;
     if (encoded.length >= MAX_HASH) return null;
     // The Play page, next to the editor: it loads only the engine (much less than the whole editor).
     const dir = location.pathname.replace(/[^/]*$/, '');
@@ -3258,11 +3261,10 @@ export class Editor {
   }
 
   async loadFromURL() {
-    // #s=…: the scene; #p=…: the scene, in Play mode (a shared link).
-    const m = location.hash.match(/^#([sp])=(.+)$/);
-    if (!m) return false;
-    const state = await decodeState(m[2]!);
-    if (!state) return false;
+    // #s=…: the scene; #p=…: the scene, in Play mode (a shared link); #l=…: a short link's scene, in Play mode.
+    const found = await stateFromHash(location.hash);
+    if (!found) return false;
+    const { state, mode } = found;
     const scene = state.scene;
     this.compositionPath = [];
     this.#compositionViews = [];
@@ -3276,7 +3278,7 @@ export class Editor {
     this.#history = [];
     this.#index = -1;
     this.record(true);
-    if (m[1] === 'p') {
+    if (mode !== 's') {
       this.selected = null;
       this.presenting = true;
     }
