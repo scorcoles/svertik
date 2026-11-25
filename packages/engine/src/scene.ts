@@ -66,6 +66,8 @@ export interface ObjectNode extends NodeBase {
  */
 export interface Pack {
   key: string;
+  /** Editor created a temporary group for a multi-selection; dissolve it on unpack when unchanged. */
+  autoGrouped?: boolean;
   /**
    * The frozen result. Saved projects leave it out when `original` is there: evaluation rebuilds it
    * from the original (see `restorePacks`).

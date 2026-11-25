@@ -1766,17 +1766,38 @@ export class Editor {
   /** The active node is a pack. */
   get packed() {
     const n = this.activeNode;
-    return n?.kind === 'object' && !!n.packed;
+    return this.selectedNodes.length <= 1 && n?.kind === 'object' && !!n.packed;
   }
   #packEngine: ReturnType<typeof createEngine> | null = null;
   /** Packs the active node: its result stays, with nothing more to compute; the original goes inside. */
-  pack(id = this.activeNode?.id ?? null) {
+  pack(id?: string | null) {
+    const selection = id === undefined ? this.selectedNodes : [];
+    id ??= this.activeNode?.id ?? null;
     if (!this.scene || !id) return;
     this.flush();
+    let grouped: { list: SceneNode[]; original: SceneNode[] } | undefined;
+    if (selection.length > 1) {
+      const locs = selection.map((n) => locateNode(this.scene!.objects, n.id)!);
+      if (locs.some((l) => l.list !== locs[0]!.list || this.isLocked(l.node.id) || (l.node.kind === 'group' && l.node.layer))) {
+        this.notice = 'Select unlocked objects in the same folder to pack them together.';
+        return;
+      }
+      const list = locs[0]!.list;
+      const ordered = locs.sort((a, b) => a.index - b.index);
+      grouped = { list, original: [...list] };
+      const group: GroupNode = { kind: 'group', id: `group-${uid()}`, name: 'Group', stack: [], children: ordered.map((l) => l.node) };
+      for (const l of [...ordered].reverse()) list.splice(l.index, 1);
+      list.splice(ordered[0]!.index, 0, group);
+      id = group.id;
+    }
     const engine = (this.#packEngine ??= createEngine(builtins));
     const doc = engine.evaluateDocument($state.snapshot(this.scene) as SceneV1);
     const r = packNode(this.scene, id, doc, uid());
-    if (!r) return;
+    if (!r) {
+      if (grouped) grouped.list.splice(0, grouped.list.length, ...grouped.original);
+      return;
+    }
+    if (grouped) r.node.packed!.autoGrouped = true;
     this.selected = r.node.id;
     this.also = [];
     if (r.animated) this.notice = 'Packed at this frame: its animation stays inside and plays again when you unpack it.';
@@ -1791,10 +1812,24 @@ export class Editor {
   /** Unpacks: the original comes back, with however the pack moved and its effects on top. */
   unpack(id = this.activeNode?.id ?? null) {
     if (!this.scene || !id) return;
+    const packedNode = locateNode(this.scene.objects, id)?.node;
+    const dissolve = packedNode?.kind === 'object' && packedNode.packed?.autoGrouped;
     const back = unpackNode(this.scene, id, (old) => `${old.replace(/-[a-z0-9]{6}$/, '')}-${uid()}`);
     if (!back) return;
     this.selected = back;
     this.also = [];
+    const at = locateNode(this.scene.objects, back);
+    const group = at?.node;
+    // Keep a wrapper when it carries edits made to the pack: ungrouping would discard them.
+    if (dissolve && at && group?.kind === 'group' && !group.stack.length &&
+        Object.entries(group.transform ?? {}).every(([key, value]) => value === (key === 'scale' || key === 'stretch' ? 1 : 0)) &&
+        group.opacity === undefined && !group.blend && group.visible !== false &&
+        !this.scene.animation?.tracks.some((t) => t.node === back) &&
+        !this.scene.interactions?.some((i) => i.node === back || i.target.node === back)) {
+      at.list.splice(at.index, 1, ...group.children);
+      this.selected = group.children[0]?.id ?? null;
+      this.also = group.children.slice(1).map((n) => n.id);
+    }
     this.#applyTime();
     this.record(true);
   }

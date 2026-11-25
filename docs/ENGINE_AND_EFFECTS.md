@@ -210,6 +210,9 @@ The editor saves a project as JSON: `{ "svertik": "project", "version": 1, "name
 
 **Packs** (`kind: "object"` with `packed`) keep their `original` node so they can be unpacked. Its frozen result (`packed.geometry`) is derived from it, so saved projects, Copy JSON and share links leave it out; only the description is stored. Evaluation rebuilds it from the original (in its scope, without a playback time, as packing does) once per pack: `engine.evaluateDocument` and `createPlayer` do it automatically, the editor on open. A pack without `original` (exported code) keeps its geometry. API: `stripPackGeometry(scene)` (a copy for saving), `restorePacks(scene, evaluate)` (fills it in place), `hasMissingPacks(scene)`.
 
+In the editor, **Pack** with several selected sibling objects creates a temporary folder and packs it in one undo step, preserving stack order. **Unpack** restores and selects its children in one step. This is stored as `packed.autoGrouped: true`, so it also works after saving and reopening. If effects, placement, display settings or animation were added to the pack, Unpack retains the folder to preserve those edits. Existing folders packed individually remain folders. Multi-selections across folders must first be moved into the same folder.
+
+
 ---
 
 ## 5. The "Elements" System (Pieces of Geometry)

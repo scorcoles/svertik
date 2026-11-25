@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apply, placementOf, bounds, builtins, createEngine, type SceneV1 } from '@svertik/engine';
+import { apply, placementOf, bounds, builtins, createEngine, validateScene, stripPackGeometry, type SceneV1 } from '@svertik/engine';
 import { Editor, locateNode } from './editor.svelte';
 import { samples } from './samples';
 
@@ -794,6 +794,65 @@ describe('File and tracks', () => {
 });
 
 describe('Pack', () => {
+  it.each([2, 3, 40])('packs %i selected objects together and unpacks in one undo step', (count) => {
+    const e = new Editor();
+    e.scene = { version: 1, objects: Array.from({ length: count }, (_, i) => ({
+      kind: 'shape' as const, id: `shape-${i}`, name: `Shape ${i}`, shape: 'rectangle',
+      params: { width: 20, height: 20 }, transform: { x: i * 30 }, stack: [],
+    })) };
+    expect(validateScene(e.scene).errors).toEqual([]);
+    const ids = e.scene.objects.map((n) => n.id);
+    e.selected = ids[count - 1]!;
+    e.also = ids.slice(0, -1);
+    e.record(true);
+    e.pack();
+    expect(e.scene!.objects).toHaveLength(1);
+    expect(e.packed).toBe(true);
+    const pack = e.scene!.objects[0]!;
+    expect(pack.kind === 'object' && pack.packed?.original).toMatchObject({ kind: 'group', children: ids.map((id) => ({ id })) });
+    e.undo();
+    expect(e.scene!.objects.map((n) => n.id)).toEqual(ids);
+    e.redo();
+    // A saved/reopened pack retains the automatic-folder marker.
+    e.scene = JSON.parse(JSON.stringify(stripPackGeometry(e.scene as SceneV1)));
+    e.unpack();
+    expect(validateScene(e.scene!).errors).toEqual([]);
+    expect(e.scene!.objects.map((n) => n.id)).toEqual(ids);
+    expect(e.selectedNodes.map((n) => n.id)).toEqual(ids);
+    e.undo();
+    expect(e.scene!.objects).toHaveLength(1);
+    expect(e.packed).toBe(true);
+  });
+
+  it('keeps edits on the pack when unpacking an automatic group', () => {
+    const e = fresh();
+    e.duplicate();
+    const ids = e.scene!.objects.map((n) => n.id);
+    e.selected = ids[0]!;
+    e.also = ids.slice(1);
+    e.pack();
+    e.add('wave');
+    e.unpack();
+    expect(e.scene!.objects).toHaveLength(1);
+    const group = e.scene!.objects[0]!;
+    expect(group.kind).toBe('group');
+    expect(group.stack.map((m) => m.type)).toEqual(['wave']);
+    expect(group.children!.map((n) => n.id)).toEqual(ids);
+  });
+
+  it('does not partially pack a selection spanning folders', () => {
+    const e = fresh();
+    e.duplicate();
+    const ids = e.scene!.objects.map((n) => n.id);
+    e.group(ids[0]);
+    const before = JSON.stringify(e.scene);
+    e.selected = ids[0]!;
+    e.also = [ids[1]!];
+    e.pack();
+    expect(JSON.stringify(e.scene)).toBe(before);
+    expect(e.notice).toMatch(/same folder/);
+  });
+
   it('packs the active node, undoes and unpacks', () => {
     const e = fresh();
     e.add('wave');
