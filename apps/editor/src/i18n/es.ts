@@ -945,4 +945,8 @@ export const ES: Record<string, string> = {
   'in {name}': 'en {name}',
   // The document's own palette (DOCUMENT_PALETTE in the engine), shown through t() by its name.
   'In this document': 'En este documento',
+  'In Play, the scene fills the whole screen instead of showing at its document size. Fit, below, decides how.': 'En Play, la escena ocupa toda la pantalla en vez de mostrarse al tamaño del documento. Encajar, debajo, decide cómo.',
+  'In Play, hides whatever lies outside the document; by default it overflows onto the rest of the screen.': 'En Play, oculta lo que queda fuera del documento; por defecto se desborda por el resto de la pantalla.',
+  'The document\'s edges become walls for every Physics: bodies bounce off them instead of leaving (with Adapt, the screen\'s edges).': 'Los bordes del documento pasan a ser paredes para todos los Physics: los cuerpos rebotan en ellos en vez de salirse (con Adaptar, en los bordes de la pantalla).',
+  'Custom size': 'Personalizado',
 };

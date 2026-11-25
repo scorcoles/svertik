@@ -72,7 +72,7 @@
       <ParamRow label={t('Preset')}>
         <Select
           value={preset}
-          options={[CUSTOM, ...PRESETS.map(([n]) => n)]}
+          options={[{ value: CUSTOM, label: t('Custom size') }, ...PRESETS.map(([n]) => n)]}
           label={t('Size preset')}
           width="132px"
           onchange={(v) => {
@@ -91,25 +91,25 @@
         <span class="swap"><IconButton icon="swap" label={t('Swap document width and height')} onclick={() => editor.setDocument({ width: doc.height, height: doc.width })} /></span>
       </div>
     {/if}
-    <div class="full-viewport-row">
+    <div class="full-viewport-row" title={t('In Play, the scene fills the whole screen instead of showing at its document size. Fit, below, decides how.')}>
       <label for="doc-full-viewport">{t('Full')}</label>
-      <input id="doc-full-viewport" type="checkbox" aria-label={t('Full viewport')} title={t('Fill the available viewport in Play')} checked={!!editor.viewportFit} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
+      <input id="doc-full-viewport" type="checkbox" aria-label={t('Full viewport')} checked={!!editor.viewportFit} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
     </div>
     {#if doc}
-      <div class="full-viewport-row">
+      <div class="full-viewport-row" title={t('In Play, hides whatever lies outside the document; by default it overflows onto the rest of the screen.')}>
         <label for="doc-clip">{t('Clip')}</label>
-        <input id="doc-clip" type="checkbox" aria-label={t('Clip to the document in Play')} title={t('In Play, hide whatever lies outside the document')} checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
+        <input id="doc-clip" type="checkbox" aria-label={t('Clip to the document in Play')} checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
       </div>
     {/if}
     {#if doc}
-      <div class="full-viewport-row">
+      <div class="full-viewport-row" title={t('The document\'s edges become walls for every Physics: bodies bounce off them instead of leaving (with Adapt, the screen\'s edges).')}>
         <label for="doc-physics-bounds">{t('Walls')}</label>
-        <input id="doc-physics-bounds" type="checkbox" aria-label={t('Document edges are physics walls')} title={t('Physics: bodies bounce off the document\'s edges (with Adapt, the screen\'s)')} checked={editor.scene?.physicsBounds === true} onchange={(event) => editor.setPhysicsBounds(event.currentTarget.checked)} />
+        <input id="doc-physics-bounds" type="checkbox" aria-label={t('Document edges are physics walls')} checked={editor.scene?.physicsBounds === true} onchange={(event) => editor.setPhysicsBounds(event.currentTarget.checked)} />
       </div>
     {/if}
-    <div class="full-viewport-row">
+    <div class="full-viewport-row" title={t('Save imported SVGs inside the project file. Off: the project keeps only their file names, and the SVGs stay next to it')}>
       <label for="doc-embed-svgs">{t('SVGs')}</label>
-      <input id="doc-embed-svgs" type="checkbox" aria-label={t('Embed SVG files in the project')} title={t('Save imported SVGs inside the project file. Off: the project keeps only their file names, and the SVGs stay next to it')} checked={editor.embedSources} onchange={(event) => (editor.embedSources = event.currentTarget.checked)} />
+      <input id="doc-embed-svgs" type="checkbox" aria-label={t('Embed SVG files in the project')} checked={editor.embedSources} onchange={(event) => (editor.embedSources = event.currentTarget.checked)} />
     </div>
     {#if editor.viewportFit}
       <ParamRow label={t('Fit')} info={t('In Play, Contain shows the whole document, Cover fills and crops, and Stretch fills both axes. Adapt gives the document the screen\'s shape, so formulas and physics walls see the screen\'s size. The editor and exports keep the document size.')} showInfo={editor.showInfo}>

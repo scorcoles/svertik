@@ -84,7 +84,8 @@
     line-height: 1;
     letter-spacing: -0.06em;
   }
-  .brand-suffix { color: var(--sv-accent-text); }
+  /* The same turquoise as the buttons (accent-text is darker in the light theme). */
+  .brand-suffix { color: var(--sv-accent-fill); }
   .welcome-header {
     width: 100%;
     line-height: 0;
@@ -139,7 +140,8 @@
     margin-top: var(--sv-space-8);
   }
   .open-document { display: flex; justify-content: center; width: 100%; }
-  :global(.sv-button.all-demos) { width: 144px; }
+  /* Wide enough for its label in any language, on one line. */
+  :global(.sv-button.all-demos) { min-width: 200px; white-space: nowrap; }
   .new-document { display: grid; justify-items: center; gap: var(--sv-space-8); padding: 0; }
   .row-label { margin-right: var(--sv-space-4); color: var(--sv-text-primary); }
   .new-document-controls { display: flex; align-items: center; justify-content: center; gap: var(--sv-space-8); }
