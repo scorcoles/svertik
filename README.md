@@ -1,6 +1,6 @@
 # svertik
 
-**Alpha 0.0.13 — Non-destructive SVG design and motion.** Non-destructive SVG editor: an SVG (or a primitive, or text) and a stack of effects recalculated live by a JS engine. The original geometry is never touched. Animate it with a timeline and bring it to any website as-is: flat SVG, the project in JSON, or runtime code reproducing the effects and animation.
+**Alpha 0.0.14 — Non-destructive SVG design and motion.** Non-destructive SVG editor: an SVG (or a primitive, or text) and a stack of effects recalculated live by a JS engine. The original geometry is never touched. Animate it with a timeline and bring it to any website as-is: flat SVG, the project in JSON, or runtime code reproducing the effects and animation.
 
 An experiment by [VERTIK](https://www.vertik.net).  
 **For AI Agents & Headless Engine Use:** [AGENTS.md](AGENTS.md) · [Engine & Effects Guide](docs/ENGINE_AND_EFFECTS.md) · [Scene Recipes](docs/SCENE_RECIPES.md).

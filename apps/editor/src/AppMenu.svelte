@@ -13,9 +13,10 @@
     onsave: () => void;
     onsaveas?: () => void;
     onshare: () => void;
+    ontour: () => void;
     ondemo: (which: DemoName) => void;
   }
-  let { editor, onnew, onopen, onsave, onsaveas, onshare, ondemo }: Props = $props();
+  let { editor, onnew, onopen, onsave, onsaveas, onshare, ontour, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: 'New scene', icon: 'plus', run: onnew, needs: true },
@@ -24,6 +25,7 @@
     ...(onsaveas ? [{ label: 'Save as…', icon: 'save' as const, key: '⇧⌘S', run: onsaveas, needs: true }] : []),
     { label: 'Share link', icon: 'share', run: onshare, needs: true },
     'sep',
+    { label: 'Take the tour', icon: 'marker', run: ontour },
     { label: 'Keyboard shortcuts', icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },
   ]);
 </script>

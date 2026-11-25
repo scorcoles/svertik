@@ -30,6 +30,8 @@
   import ModifierRail from './ModifierRail.svelte';
   import CommandLine from './CommandLine.svelte';
   import ViewMenu from './ViewMenu.svelte';
+  import Tour from './Tour.svelte';
+  import { markTourSeen, tourSeen } from './tour';
   import './menu.css';
   import type { CanvasStatus } from './canvas-status';
 
@@ -437,6 +439,25 @@
     }
   }
   // The demo: a project that opens and plays by itself.
+  // The tour: by itself the first time a scene is open (once per browser), and from the svertik menu.
+  let touring = $state(false);
+  let tourOffered = false;
+  $effect(() => {
+    if (tourOffered || touring || !editor.scene || editor.presenting || tourSeen()) return;
+    tourOffered = true;
+    // A moment for the panels to settle around the new scene (no cleanup: edits meanwhile must not cancel it).
+    setTimeout(() => { if (editor.scene && !editor.presenting) touring = true; else tourOffered = false; }, 700);
+  });
+  // Play covers the editor: going there ends the tour (counted as seen; the menu brings it back).
+  $effect(() => {
+    if (editor.presenting && touring) { markTourSeen(); touring = false; }
+  });
+  function startTour() {
+    tourOffered = true;
+    editor.presenting = false;
+    if (!editor.scene) startDemo('title');
+    touring = true;
+  }
   function openDemo(which: DemoName = 'shatter') {
     guard(() => startDemo(which));
   }
@@ -689,6 +710,7 @@
     onexportlottie={exportLottie}
     onexportanimsvg={exportAnimatedSVG}
     ondemo={openDemo}
+    ontour={startTour}
     onnew={() => guard(() => { projectHandle = null; editor.returnToStart(); })}
   />
   <main class:panel-maximized={panelMaximized}>
@@ -811,6 +833,7 @@
   />
   {#if editor.presenting && editor.scene}<Presenter {editor} />{/if}
   {#if report}<ExportReport {...report} onclose={() => (report = null)} />{/if}
+  {#if touring && editor.scene}<Tour onclose={() => (touring = false)} />{/if}
   {#if editor.showShortcuts}<ShortcutsDialog onclose={() => (editor.showShortcuts = false)} />{/if}
   {#if editor.missingSvgs.length && !missingDismissed && !pending}<MissingSvgsDialog files={editor.missingSvgs} onfiles={(files) => void attachSvgs(files)} onclose={() => (missingDismissed = true)} />{/if}
   {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}

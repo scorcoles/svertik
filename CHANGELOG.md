@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.14
+
+### Added
+
+- Editor tour: the first time a scene is open, a few cards point at the canvas, tools, effects, stack, properties, document, timeline, Play and Export. Esc skips it, arrows move between steps, and **Take the tour** in the svertik menu brings it back.
+
 ## 0.0.13
 
 ### Added

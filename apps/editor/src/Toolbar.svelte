@@ -17,6 +17,8 @@
     oncopyjson: () => void;
     /** Copies (or, on touch screens, shares) a link that opens the scene in Play. */
     onshare: () => void;
+    /** Starts the editor tour (opening a demo first when nothing is open). */
+    ontour: () => void;
     onexport: () => void;
     onexportpng: () => void;
     onexportmp4: () => void;
@@ -25,7 +27,7 @@
     ondemo: (which: DemoName) => void;
     onnew: () => void;
   }
-  let { editor, onimport, onsave, onsaveas, oncopyjson, onshare, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, onsaveas, oncopyjson, onshare, ontour, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
   let fullscreen = $state(false);
   let renaming = $state(false);
   let draftName = $state('');
@@ -51,7 +53,7 @@
 <div class="toolbar-area">
 <header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {onshare} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {onshare} {ontour} {ondemo} />
     {#if editor.scene}
       <span class="slash">/</span>
       <button
