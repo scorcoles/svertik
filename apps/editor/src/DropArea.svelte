@@ -3,8 +3,9 @@
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
   import DemoReel from './DemoReel.svelte';
-  import { Button, Icon } from '@svertik/ui';
+  import { Button, Icon, IconButton } from '@svertik/ui';
   import { DEFAULT_DOCUMENT, type Editor } from './editor.svelte';
+  import { ago, type Recent } from './recents';
   import type { DemoName } from './demo-catalog';
 
   interface Props {
@@ -16,6 +17,19 @@
   let { editor, onimport, ondemo, showWelcome = false }: Props = $props();
   let width = $state(DEFAULT_DOCUMENT.width);
   let height = $state(DEFAULT_DOCUMENT.height);
+
+  // Recent scenes, kept in the browser: what was being worked on in any tab, even after closing it.
+  const SHOWN = 5;
+  let recents = $state<Recent[]>([]);
+  let all = $state(false);
+  $effect(() => { void editor.recents.list().then((list) => (recents = list)).catch(() => {}); });
+  async function open(recent: Recent) {
+    if (!(await editor.openRecent(recent))) editor.error = t('This recent scene can no longer be opened.');
+  }
+  async function forget(recent: Recent) {
+    await editor.forgetRecent(recent.id);
+    recents = recents.filter((r) => r.id !== recent.id);
+  }
 </script>
 
 <div class="drop" class:without-welcome={!showWelcome}>
@@ -33,6 +47,25 @@
       <strong>{t('Drop an SVG or a project (.json) here')}</strong>
       <span class="muted">{t('or paste it (⌘V), or click to open a file')}</span>
     </button>
+    {#if recents.length}
+      <section class="recents" aria-labelledby="recents-title">
+        <h2 id="recents-title">{t('Recent')}</h2>
+        <ul>
+          {#each all ? recents : recents.slice(0, SHOWN) as recent (recent.id)}
+            <li>
+              <button type="button" class="recent" onclick={() => open(recent)}>
+                <span class="recent-name">{recent.name}</span>
+                <span class="recent-meta">{ago(recent.updated)}{#if !recent.saved}<span class="unsaved"> · {t('unsaved')}</span>{/if}</span>
+              </button>
+              <IconButton icon="close" label={t('Forget {name}', { name: recent.name })} onclick={() => forget(recent)} />
+            </li>
+          {/each}
+        </ul>
+        {#if recents.length > SHOWN}
+          <button type="button" class="recents-more" onclick={() => (all = !all)}>{all ? t('Show less') : t('Show all ({count})', { count: recents.length })}</button>
+        {/if}
+      </section>
+    {/if}
     <DemoReel {ondemo} />
     <div class="start">
       <div class="open-document">
@@ -85,6 +118,17 @@
     letter-spacing: -0.06em;
   }
   /* The same turquoise as the buttons (accent-text is darker in the light theme). */
+  .recents { width: 100%; text-align: left; }
+  .recents h2 { margin: 0 0 var(--sv-space-4); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); font-weight: var(--sv-font-weight-regular); text-transform: uppercase; letter-spacing: 0.06em; }
+  .recents ul { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; border-top: var(--sv-border-1) solid var(--sv-rule-default); }
+  .recents li { display: flex; align-items: center; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
+  .recent { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: var(--sv-space-12); min-width: 0; padding: var(--sv-space-6) var(--sv-space-4); color: var(--sv-text-primary); text-align: left; background: none; border: 0; font: inherit; cursor: pointer; }
+  .recent:hover, .recent:focus-visible { background: var(--sv-surface-hover); outline: none; }
+  .recent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent-meta { flex: none; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
+  .unsaved { color: var(--sv-accent-text); }
+  .recents-more { margin-top: var(--sv-space-4); padding: 0; color: var(--sv-text-muted); background: none; border: 0; font: inherit; font-size: var(--sv-font-size-10); cursor: pointer; }
+  .recents-more:hover, .recents-more:focus-visible { color: var(--sv-text-primary); text-decoration: underline; }
   .brand-suffix { color: var(--sv-accent-fill); }
   .welcome-header {
     width: 100%;

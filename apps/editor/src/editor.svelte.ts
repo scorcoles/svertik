@@ -68,6 +68,7 @@ import {
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { compactJSON } from './exporters';
+import { browserStore, remember, type Recent, type RecentStore } from './recents';
 import { decodeState, encodeState, MAX_HASH, shortenState, shortLink, stateFromHash, uploadPreview, type ShareTarget } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
@@ -239,6 +240,22 @@ function writeSession(encoded: string) {
   }
 }
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** The id of this tab's current scene among the recent ones (sessionStorage: a restored tab keeps it). */
+const RECENT_KEY = 'svertik:recent';
+function readRecentId(): string {
+  try {
+    return sessionStorage.getItem(RECENT_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writeRecentId(id: string) {
+  try {
+    sessionStorage.setItem(RECENT_KEY, id);
+  } catch {
+    /* no storage: the entry lasts this page */
+  }
+}
 
 /** Saved custom palettes (a list of { name, colors }); anything unreadable is dropped. */
 function readSaved(): Palette[] {
@@ -1184,6 +1201,7 @@ export class Editor {
     if (!this.scene) {
       this.scene = newScene([node]);
       this.name = name.replace(/\.svg$/i, '');
+      this.#newRecent();
       this.#history = [];
       this.#index = -1;
     } else {
@@ -3147,6 +3165,8 @@ export class Editor {
   markSaved() {
     this.flush();
     this.#saved = this.#history[this.#index];
+    // Its recent entry now says saved.
+    if (this.#recentKept) void this.saveSession();
   }
   /** There are unsaved changes: a scene different from the last one saved or opened. */
   get dirty() {
@@ -3183,6 +3203,7 @@ export class Editor {
     this.canvas = '';
     writePref('svertik.canvas', '');
     this.error = null;
+    this.#newRecent();
     this.#history = [];
     this.#index = -1;
     this.record(true);
@@ -3257,6 +3278,7 @@ export class Editor {
     this.selected = this.scene.objects[0]?.id ?? null;
     this.time = 0;
     this.playing = false;
+    this.#newRecent();
     this.#history = [];
     this.#index = -1;
     this.#applyTime();
@@ -3284,7 +3306,42 @@ export class Editor {
       // Autosave is a convenience: if compression fails (or is cut short), keep the previous one.
       return;
     }
-    if (write === this.#sessionWrite) writeSession(encoded);
+    if (write !== this.#sessionWrite) return;
+    writeSession(encoded);
+    // Among the recent scenes once it has changes (an untouched demo or file doesn't count), and from then on.
+    const dirty = this.dirty;
+    if (!dirty && !this.#recentKept) return;
+    if (!this.#recentId) this.#newRecent();
+    this.#recentKept = true;
+    void remember(this.recents, { id: this.#recentId, name: this.name, updated: Date.now(), state: encoded, saved: !dirty }).catch(() => {});
+  }
+
+  // ── Recent scenes (see recents.ts)
+
+  /** Where they are kept: the browser's IndexedDB (tests put a memory store here). */
+  recents: RecentStore = browserStore();
+  #recentId = readRecentId();
+  /** This scene already has an entry: every autosave updates it, saved or not. */
+  #recentKept = false;
+  /** Another scene in this tab: its own entry (written once it changes). */
+  #newRecent() {
+    this.#recentId = `${Date.now().toString(36)}-${uid()}`;
+    this.#recentKept = false;
+    writeRecentId(this.#recentId);
+  }
+  /** Opens a recent scene; this tab goes on writing its entry. False if it can't be read. */
+  async openRecent(recent: Recent): Promise<boolean> {
+    const state = await decodeState(recent.state);
+    if (!state) return false;
+    this.#applyState(state);
+    this.#recentId = recent.id;
+    this.#recentKept = true;
+    writeRecentId(recent.id);
+    if (recent.saved) this.markSaved();
+    return true;
+  }
+  forgetRecent(id: string): Promise<void> {
+    return this.recents.remove(id).catch(() => {});
   }
   /**
    * Share link, opening the scene in Play or in the editor (`target`): a short link from the link service when
@@ -3316,6 +3373,7 @@ export class Editor {
    */
   async loadFromURL() {
     let found = await stateFromHash(location.hash);
+    const fromLink = !!found;
     // A link that worked leaves the address bar; one that failed stays, so it can be retried.
     if (found) history.replaceState(history.state, '', `${location.pathname}${location.search}`);
     else {
@@ -3325,6 +3383,19 @@ export class Editor {
     }
     if (!found) return false;
     const { state, mode } = found;
+    // A link is another scene; this tab's autosave goes on with its own entry.
+    if (fromLink) this.#newRecent();
+    this.#applyState(state);
+    // Links shared from Play open in Play; those shared from the editor, in the editor.
+    if (mode === 'p' || mode === 'l') {
+      this.selected = null;
+      this.presenting = true;
+    }
+    return true;
+  }
+
+  /** Puts a decoded scene (a link's, the autosave's, a recent one's) in the editor, with a fresh history. */
+  #applyState(state: NonNullable<Awaited<ReturnType<typeof decodeState>>>) {
     const scene = state.scene;
     this.compositionPath = [];
     this.#compositionViews = [];
@@ -3338,11 +3409,5 @@ export class Editor {
     this.#history = [];
     this.#index = -1;
     this.record(true);
-    // Links shared from Play open in Play; those shared from the editor, in the editor.
-    if (mode === 'p' || mode === 'l') {
-      this.selected = null;
-      this.presenting = true;
-    }
-    return true;
   }
 }

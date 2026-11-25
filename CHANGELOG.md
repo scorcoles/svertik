@@ -2,6 +2,16 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.20
+
+### Added
+
+- **Recent** on the start screen: the scenes you changed in any tab, kept in the browser (IndexedDB) so they survive closing it, with when and whether they were saved to a file. Opening one goes on with the same entry; the twelve newest are kept.
+
+### Changed
+
+- Dropdowns keep their choice on one line, cut with an ellipsis when it is longer than the field. Spanish: "Documento actual" for the document's palette.
+
 ## 0.0.19
 
 ### Added

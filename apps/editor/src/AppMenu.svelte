@@ -98,7 +98,8 @@
   :global(.sv-app-trigger[data-state='open']) { background: var(--sv-accent-selection); color: var(--sv-accent-text); }
   :global([data-sv-theme='light'] .sv-app-trigger[data-state='open']) { color: #000; }
   :global([data-sv-theme='light'] .sv-app-trigger[data-state='open']) .wordmark-suffix { color: #000; }
-  .wordmark-suffix { color: var(--sv-accent-text); }
+  /* The same turquoise as the buttons (accent-text is darker in the light theme). */
+  .wordmark-suffix { color: var(--sv-accent-fill); }
   .caret { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); font-weight: normal; }
   .label { flex: 1; }
   .key { margin-left: var(--sv-space-16); color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }

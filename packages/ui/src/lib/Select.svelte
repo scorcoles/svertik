@@ -24,7 +24,7 @@
 
 <Select.Root type="single" bind:value {items} onValueChange={(v) => onchange?.(v)}>
   <Select.Trigger class="sv-select" aria-label={label} style="width: {width}">
-    <span>{shown}</span>
+    <span class="shown">{shown}</span>
     <span class="chevron" aria-hidden="true">▾</span>
   </Select.Trigger>
   <Select.Portal>
@@ -61,6 +61,8 @@
     cursor: pointer;
   }
   :global(.sv-select:hover) { border-color: var(--sv-rule-strong); }
+  /* One line, cut with an ellipsis when the choice is longer than the field (some languages run long). */
+  :global(.sv-select .shown) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
   :global(.sv-select .chevron) { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   :global(.sv-select-content) {
     z-index: 50;
