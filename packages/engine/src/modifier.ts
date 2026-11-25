@@ -122,6 +122,8 @@ export interface SceneSpace {
    * in the scene), so Physics can raise walls at the document's edges (`frame`). Absent when off.
    */
   edges?: Mat;
+  /** The pointer's recent path in Play (Hover push): scene times and points in this stack's coordinates. */
+  sweeps?: { at: number; point: [number, number] }[];
 }
 
 /**

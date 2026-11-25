@@ -155,6 +155,11 @@ interface Run<S> {
   grab(state: S, node: string, point: Vec2, body?: string): Grip | null;
   /** Pulls the grabbed point towards `target` for `dt`: a critically damped spring (the pointer's). */
   pull(state: S, grip: Grip, target: Vec2, dt: number): S;
+  /**
+   * Hover push: the pointer went from `a` to `b` at `velocity` (px/s): bodies within `radius` of that stretch
+   * take on part of its velocity and part away from it, more the nearer they are. Absent: no sweeping.
+   */
+  sweep?(state: S, a: Vec2, b: Vec2, velocity: Vec2, radius: number): S;
 }
 /** What a drag holds: the body, and the point it was grabbed by (in its own frame) or the particles near it. */
 interface Grip { identity: string; anchor: Vec2; particle?: number; weights?: Float64Array }
@@ -175,6 +180,13 @@ interface Live<S> {
   grips: Map<number, Grip | null>;
   /** The gestures the recorded steps were simulated with (each with its step), to notice one that changed or went away. */
   events: Map<string, number>;
+  /**
+   * Hover push: the step each pointer sample was given when first seen, and this frame's strokes by step. They
+   * only push forward (a seek back forgets them), so they are left out of `events`.
+   */
+  sweepSteps: Map<string, number>;
+  sweeps: Map<number, { a: Vec2; b: Vec2; velocity: Vec2 }[]>;
+  radius: number;
 }
 interface LiveDrag { id: number; node: string; body?: string; steps: number[]; points: Vec2[]; end?: number }
 /** A drag of a body, in this stack's coordinates (see `SceneV1.drags`). */
@@ -210,6 +222,7 @@ function advanceTo<S>(live: Live<S>, target: number, sceneAt: (step: number) => 
     let { step, state } = live.cursor;
     for (; step < stop; step++) {
       for (const kick of live.kicks.get(step) ?? []) state = run.kick(state, kick.identity, kick.dv);
+      if (run.sweep) for (const stroke of live.sweeps.get(step) ?? []) state = run.sweep(state, stroke.a, stroke.b, stroke.velocity, live.radius);
       for (const drag of live.drags) {
         if (step < drag.steps[0]! || (drag.end !== undefined && step >= drag.end)) continue;
         let grip = live.grips.get(drag.id);
@@ -244,7 +257,7 @@ function swap<S>(live: Live<S>, run: Run<S>) {
  * The world of this Physics at its Time now: the run in force (the input now) and its bodies' state.
  * `runOf` makes the run of an input; `key`, the settings that, when changed, start the world again.
  */
-function simulate<S>(geo: Geometry, time: number, history: HistoryLookup | undefined, scope: string, key: string, runOf: (geo: Geometry) => Run<S>, kicks: Kick[] = [], drags: DragIn[] = []): { run: Run<S>; state: S } {
+function simulate<S>(geo: Geometry, time: number, history: HistoryLookup | undefined, scope: string, key: string, runOf: (geo: Geometry) => Run<S>, kicks: Kick[] = [], drags: DragIn[] = [], sweep?: { samples: { at: number; point: Vec2 }[]; radius: number }): { run: Run<S>; state: S } {
   const now = runOf(geo);
   const target = Math.floor(time * HZ + 1e-9);
   const sceneNow = history?.now ?? 0;
@@ -252,7 +265,7 @@ function simulate<S>(geo: Geometry, time: number, history: HistoryLookup | undef
   if (!live || live.key !== key) {
     const then = history && history.now > 0 ? history.at(0) : null;
     const first = then ? runOf(then.geo) : now;
-    live = { key, epochs: [{ step: 0, run: first }], snapshots: [], cursor: { step: 0, epoch: 0, state: first.initial(), scene: 0 }, pokeSteps: new Map(), kicks: new Map(), drags: [], grips: new Map(), events: new Map() };
+    live = { key, epochs: [{ step: 0, run: first }], snapshots: [], cursor: { step: 0, epoch: 0, state: first.initial(), scene: 0 }, pokeSteps: new Map(), kicks: new Map(), drags: [], grips: new Map(), events: new Map(), sweepSteps: new Map(), sweeps: new Map(), radius: 0 };
     live.snapshots.push(copyOf(live, live.cursor));
     lives.set(scope, live as Live<unknown>);
     if (lives.size > 64) lives.delete(lives.keys().next().value!);
@@ -274,6 +287,27 @@ function simulate<S>(geo: Geometry, time: number, history: HistoryLookup | undef
     if (step > target) continue;
     live.kicks.set(step, [...(live.kicks.get(step) ?? []), { identity: kick.identity, dv: kick.dv }]);
   }
+  // Hover push: each sample of the pointer's path goes at the step of its scene time, never before where the
+  // world is; each stretch between two samples is one stroke, at the later one's step.
+  live.sweeps = new Map();
+  live.radius = sweep?.radius ?? 0;
+  const sweepSteps = new Map<string, number>();
+  if (sweep && sweep.radius > 0) {
+    let before: { at: number; point: Vec2 } | null = null;
+    for (const sample of sweep.samples) {
+      const id = `${sample.at}|${sample.point.join(',')}`;
+      let step = live.sweepSteps.get(id);
+      if (step === undefined) step = Math.max(0, Math.min(target, Math.max(Math.floor((time - (sceneNow - sample.at)) * HZ + 1e-9), live.cursor.step)));
+      sweepSteps.set(id, step);
+      if (before && sample.at > before.at && step <= target) {
+        const dt = Math.max(sample.at - before.at, 1 / HZ);
+        const velocity: Vec2 = [(sample.point[0] - before.point[0]) / dt, (sample.point[1] - before.point[1]) / dt];
+        live.sweeps.set(step, [...(live.sweeps.get(step) ?? []), { a: before.point, b: sample.point, velocity }]);
+      }
+      before = sample;
+    }
+  }
+  live.sweepSteps = sweepSteps;
   // Drags: each point of the path goes at its step like a click, in order; so does the release.
   const stepOf = (id: string, at: number, after: number) => {
     let step = live!.pokeSteps.get(id);
@@ -419,6 +453,27 @@ function makeRigidRun(layout: Layout, settings: StepSettings): RigidRun {
       const states = state.states.slice();
       states[index] = { ...s, vx: s.vx + jx, vy: s.vy + jy, omega: s.omega + (rx * jy - ry * jx) / k2 };
       return { ...state, states };
+    },
+    sweep(state, a, b, velocity, radius) {
+      const speed = Math.hypot(velocity[0], velocity[1]);
+      if (!(radius > 0) || speed < 1e-6) return state;
+      const ex = b[0] - a[0], ey = b[1] - a[1], length2 = ex * ex + ey * ey;
+      let states: State[] | null = null;
+      layout.bodies.forEach((body, i) => {
+        if (body.fixed) return;
+        const s = state.states[i]!;
+        // The nearest point of the stroke to the body's centre.
+        const t = length2 > 1e-12 ? Math.max(0, Math.min(1, ((s.x - a[0]) * ex + (s.y - a[1]) * ey) / length2)) : 1;
+        const dx = s.x - (a[0] + ex * t), dy = s.y - (a[1] + ey * t), distance = Math.hypot(dx, dy);
+        if (distance >= radius) return;
+        const near = 1 - distance / radius, f = near * near;
+        // Carried along with the pointer, and pushed aside from its path; a body off the path turns a little.
+        const out = distance > 1e-9 ? 0.35 * speed * f / distance : 0;
+        const vx = s.vx + (velocity[0] - s.vx) * 0.6 * f + dx * out, vy = s.vy + (velocity[1] - s.vy) * 0.6 * f + dy * out;
+        const omega = s.omega + f * (dx * velocity[1] - dy * velocity[0]) / (radius * radius) * 0.6;
+        (states ??= state.states.slice())[i] = { ...s, vx, vy, omega };
+      });
+      return states ? { ...state, states } : state;
     },
   };
 }
@@ -783,6 +838,7 @@ export const physics = defineModifier({
     poke: { type: 'number', default: 0, min: 0, max: 5000, step: 10, unit: 'px/s', label: 'Click push', group: 'Pointer', sliderCurve: 'quadratic' },
     burst: { type: 'number', default: 0, min: 0, max: 16, step: 1, label: 'Double-click burst', group: 'Pointer', ramp: false, animatable: false },
     drag: { type: 'boolean', default: false, label: 'Drag & throw', group: 'Pointer', animatable: false },
+    push: { type: 'number', default: 0, min: 0, max: 600, step: 1, unit: 'px', label: 'Hover push', group: 'Pointer', sliderCurve: 'quadratic' },
     burstSpeed: { type: 'number', default: 250, min: 0, max: 3000, step: 10, unit: 'px/s', label: 'Burst speed', group: 'Pointer', sliderCurve: 'quadratic' },
   },
   apply(input, p, ctx) {
@@ -816,7 +872,9 @@ export const physics = defineModifier({
     }
 
     const settings: StepSettings = { acceleration: p.acceleration, planes: [], friction, bounce, collide: p.collisions, contactDamping: 0, ...(p.damping > 0 ? { damping: p.damping } : {}) };
-    const { run, state } = simulate(geo, time, history, scope, JSON.stringify([settings, solidsKey, detail]), (input) => rigidRun(layoutOf(input, solids, detail), settings), kicks, drags);
+    // Hover push: the pointer's path sweeps the bodies it passes near (Play).
+    const sweep = p.push > 0 && ctx.scene?.sweeps?.length ? { samples: ctx.scene.sweeps, radius: p.push } : undefined;
+    const { run, state } = simulate(geo, time, history, scope, JSON.stringify([settings, solidsKey, detail]), (input) => rigidRun(layoutOf(input, solids, detail), settings), kicks, drags, sweep);
     const now = (run as RigidRun).layout, states = state.states;
 
     const transforms = new Map<Shape, (point: readonly [number, number]) => [number, number]>();

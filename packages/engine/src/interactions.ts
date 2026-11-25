@@ -1,5 +1,5 @@
 import { createMouseInstances, type MouseEventKind } from './mouse';
-import { adaptedDocument, neutralPointer, neutralRuntime, sceneDuration, VIEWPORT_ASPECT, viewportFit, type SceneBurst, type SceneDrag, type ScenePoke, type ScenePointer, type SceneRuntime } from './scene';
+import { adaptedDocument, neutralPointer, neutralRuntime, sceneDuration, VIEWPORT_ASPECT, viewportFit, type SceneBurst, type SceneDrag, type ScenePoke, type SceneSweep, type ScenePointer, type SceneRuntime } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
 // - tween: a value goes to another with its duration and curve, and comes back (on leave, or the next click);
@@ -330,6 +330,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   // Bodies dragged with the pointer (Drag & throw): the path on scene time, in document coordinates.
   let drags: SceneDrag[] = [];
   let poked: Event | null = null;
+  // Hover push (a Physics with `push`): the pointer's recent path over the stage, on scene time.
+  const sweepOn = (() => { const text = JSON.stringify(scene); return text.includes('"type":"physics"') && /"push":(\{|[1-9]|0\.\d*[1-9])/.test(text); })();
+  let sweeps: SceneSweep[] = [];
   // `scene.mouse.*` formulas: the pointer is tracked only when the scene reads it, and repaints when it moves.
   const usesPointer = /scene\.mouse\./.test(JSON.stringify(scene));
   /** Is the pointer being followed right now (a formula reads it, or the host asked for it)? */
@@ -449,7 +452,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       if (pokes.length) pokes = pokes.filter((poke) => poke.at <= t + 1e-6);
       if (bursts.length) bursts = bursts.filter((burst) => burst.at <= t + 1e-6);
       if (drags.length) drags = drags.filter((drag) => drag.points[0]!.at <= t + 1e-6);
-      const withPokes = pokes.length || bursts.length || drags.length ? { ...stepped, ...(pokes.length ? { pokes } : {}), ...(bursts.length ? { bursts } : {}), ...(drags.length ? { drags: drags.map((d) => ({ ...d, points: d.points.slice() })) } : {}) } : stepped;
+      // Sweeps only push forward: the last second is all a frame needs (older ones were already applied).
+      if (sweeps.length) sweeps = sweeps.filter((sample) => sample.at <= t + 1e-6 && sample.at >= t - 1);
+      const withPokes = pokes.length || bursts.length || drags.length || sweeps.length ? { ...stepped, ...(pokes.length ? { pokes } : {}), ...(bursts.length ? { bursts } : {}), ...(drags.length ? { drags: drags.map((d) => ({ ...d, points: d.points.slice() })) } : {}), ...(sweeps.length ? { sweeps: sweeps.slice() } : {}) } : stepped;
       const framed = mouse.apply(usesPointer || usesRuntime ? { ...withPokes, ...(usesPointer ? { pointer: { ...pointerNow } } : {}), ...(usesRuntime ? { runtime: { ...runtimeNow } } : {}) } : withPokes, now / 1000);
       live.update(withDocument(framed));
       if (scene.clipToDocument && svg.getAttribute('viewBox') !== lastViewBox) { lastViewBox = svg.getAttribute('viewBox'); clipToDocument(); }
@@ -692,6 +697,16 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
     return [q.x, q.y];
   };
+  const sweepMove = (e: PointerEvent) => {
+    const q = docPoint(e);
+    if (!q) return;
+    sweeps.push({ at: clockAt(performance.now()), x: q[0], y: q[1] });
+    if (sweeps.length > 240) sweeps = sweeps.slice(-240);
+    mouseDirty = true;
+    wake();
+  };
+  // Leaving the stage ends the stroke: coming back elsewhere is not a sweep across.
+  const sweepLeave = () => { sweeps = []; };
   const pressBody = (e: PointerEvent) => {
     if (e.button !== 0) return;
     const doc = live.doc(), hit = nodeAt(e), q = docPoint(e);
@@ -735,7 +750,11 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   // Before the Mouse Instances: a click that pokes a body doesn't also generate copies.
   // On a touch screen: no double-tap zoom over bodies a gesture acts on, and no page scroll while dragging one.
   const touchAction = svg.style.touchAction;
-  if (pokesOn) svg.style.touchAction = JSON.stringify(scene).includes('"drag":true') ? 'none' : 'manipulation';
+  if (pokesOn || sweepOn) svg.style.touchAction = sweepOn || JSON.stringify(scene).includes('"drag":true') ? 'none' : 'manipulation';
+  if (sweepOn) {
+    svg.addEventListener('pointermove', sweepMove);
+    svg.addEventListener('pointerleave', sweepLeave);
+  }
   if (pokesOn) {
     svg.addEventListener('pointerdown', notePointer);
     svg.addEventListener('click', poke);
@@ -846,7 +865,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       svg.removeEventListener('wheel', countWheel);
       if (typeof window !== 'undefined') window.removeEventListener('scroll', scrolled);
       svg.removeEventListener('pointerdown', notePointer);
-      if (pokesOn) svg.style.touchAction = touchAction;
+      if (pokesOn || sweepOn) svg.style.touchAction = touchAction;
+      svg.removeEventListener('pointermove', sweepMove);
+      svg.removeEventListener('pointerleave', sweepLeave);
       svg.removeEventListener('click', poke);
       svg.removeEventListener('dblclick', burst);
       svg.removeEventListener('pointerdown', pressBody);

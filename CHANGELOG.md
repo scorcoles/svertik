@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.17
+
+### Added
+
+- **Physics → Hover push** (`push`, px): in Play the pointer sweeps the bodies it passes near, without clicking; they go along with it and aside, and Air drag stops them. With Body collisions off it handles a couple of thousand pieces.
+
 ## 0.0.16
 
 ### Added

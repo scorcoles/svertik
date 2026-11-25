@@ -264,7 +264,7 @@ export function createDocumentEvaluator(
       const { at: _at, ...rest } = scene;
       pastBase = rest as SceneV1;
       // The live pointer and runtime values change every frame of Play, not the scene.
-      const key = JSON.stringify(sampleScene({ ...pastBase, pointer: undefined, runtime: undefined, pokes: undefined, bursts: undefined, drags: undefined }, 0), (k, v) => (k === 'at' ? undefined : v));
+      const key = JSON.stringify(sampleScene({ ...pastBase, pointer: undefined, runtime: undefined, pokes: undefined, bursts: undefined, drags: undefined, sweeps: undefined }, 0), (k, v) => (k === 'at' ? undefined : v));
       if (key !== sceneKey) {
         sceneKey = key;
         history.clear();
@@ -469,7 +469,10 @@ export function createDocumentEvaluator(
           const gravitySpace: SceneSpace = { world: multiply(ancestorLinear.get(node.id) ?? IDENTITY, world), frame: sceneFrame };
           // Document edges as walls: from the document into this stack, with its whole place in the scene
           // (the previous pass knows it for nested groups; at the top level `world` is already all of it).
-          if (doc && scene.physicsBounds) gravitySpace.edges = invert(known.get(node.id)?.world ?? world);
+          const toStack = doc && scene.physicsBounds || scene.sweeps?.length ? invert(known.get(node.id)?.world ?? world) : null;
+          if (doc && scene.physicsBounds) gravitySpace.edges = toStack!;
+          // The pointer's path (Hover push), in this stack's coordinates.
+          if (scene.sweeps?.length) gravitySpace.sweeps = scene.sweeps.map((s) => ({ at: s.at, point: apply(toStack!, [s.x, s.y]) as [number, number] }));
           // Physics too: it turns a click's direction (in the document) into its own axes.
           const usesGravity = (m: ModifierInstance): boolean => m.type === 'gravity' || m.type === 'physics' || !!m.children?.some(usesGravity);
           stack = stack.map((m) => (needsScene(m) ? { ...m, scene: usesGravity(m) ? gravitySpace : space } : m));

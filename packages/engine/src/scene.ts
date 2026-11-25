@@ -254,7 +254,15 @@ export interface SceneV1 {
   bursts?: SceneBurst[];
   /** Runtime only: bodies dragged with the pointer in a Physics group with Drag & throw (Play). */
   drags?: SceneDrag[];
+  /**
+   * Runtime only: the pointer's recent path over the stage in Play (scene time; document coordinates), for a
+   * Physics with Hover push. Only the last moments are kept: a sweep pushes the world from where it is.
+   */
+  sweeps?: SceneSweep[];
 }
+
+/** A sample of the pointer's path in Play (see `SceneV1.sweeps`). */
+export interface SceneSweep { at: number; x: number; y: number }
 
 /**
  * A drag in Play (see `SceneV1.drags`): which body, the pointer's path (scene time; document coordinates; the

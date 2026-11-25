@@ -245,7 +245,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
     const { at: _now, ...base } = raw;
     // What identifies the scene apart from its time: the live pointer, clock, scroll and dt change on every
     // frame of Play without the scene changing (hashing them would start the past, and Physics, over each frame).
-    const { pointer: _pointer, runtime: _runtime, pokes: _pokes, bursts: _bursts, drags: _drags, ...authored } = base;
+    const { pointer: _pointer, runtime: _runtime, pokes: _pokes, bursts: _bursts, drags: _drags, sweeps: _sweeps, ...authored } = base;
     let sampled: SceneV1 | undefined;
     const atZero = () => (sampled ??= sampleScene(authored as SceneV1, 0));
     return {
