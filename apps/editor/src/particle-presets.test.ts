@@ -12,7 +12,7 @@ it('presets produce distinct deterministic motion without replacing source artwo
   expect(results.every(r=>r.shapes.length>0 && r.shapes.every(s=>s.style.fill==='#123456'))).toBe(true);
 });
 it('applying presets resets previous motion and preserves time, seed and emitter position in one undo step', async () => {
-  const editor=new Editor();vi.spyOn(editor, 'saveToURL').mockResolvedValue();editor.addShape('rectangle',{width:20,height:10,fillColor:'#123456'});
+  const editor=new Editor();vi.spyOn(editor, 'saveSession').mockResolvedValue();editor.addShape('rectangle',{width:20,height:10,fillColor:'#123456'});
   editor.add('particles',{time:{$expr:'scene.time * 2',fallback:0},seed:73,center:[.3,.7]});
   const before=JSON.stringify(editor.current!.params);
   const target=document.createElement('div');document.body.append(target);

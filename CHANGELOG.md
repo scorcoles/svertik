@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.11
+
+### Changed
+
+- The editor no longer writes the scene into the address bar (`#s=…`). Your work is kept for the tab in session storage instead: it survives a reload and a duplicated tab gets a copy. Links (`#s=`, `#p=`, short links) still open, and leave the address bar once read. To pass a scene on, use Share.
+
 ## 0.0.10
 
 ### Added

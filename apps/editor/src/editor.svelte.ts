@@ -67,7 +67,7 @@ import {
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { compactJSON } from './exporters';
-import { encodeState, MAX_HASH, shortenState, stateFromHash } from './share';
+import { decodeState, encodeState, MAX_HASH, shortenState, stateFromHash } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
 /** Effects that only live inside another one (Each › Shape): left out of the menus and the command line. */
@@ -217,6 +217,24 @@ function writePref(key: string, value: string) {
     else localStorage.removeItem(key);
   } catch {
     /* no storage: nothing to do */
+  }
+}
+/** This tab's autosave (sessionStorage: per tab, kept across reloads). Empty clears it; too big or no storage, nothing is kept. */
+const SESSION_KEY = 'svertik:session';
+function readSession(): string {
+  try {
+    return sessionStorage.getItem(SESSION_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writeSession(encoded: string) {
+  try {
+    if (encoded) sessionStorage.setItem(SESSION_KEY, encoded);
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Over the quota: drop the older autosave rather than bring back stale work after a reload.
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* no storage */ }
   }
 }
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -3054,7 +3072,7 @@ export class Editor {
       if (this.#history.length > HISTORY_LIMIT) this.#history.shift();
       this.#index = this.#history.length - 1;
       this.#historyLength = this.#history.length;
-      void this.saveToURL();
+      void this.saveSession();
     };
     if (now) push();
     else {
@@ -3082,7 +3100,7 @@ export class Editor {
     if (this.selected && this.scene && !locateNode(this.scene.objects, this.selected) && !locateModifier(this.scene, this.selected)) {
       this.selected = this.scene?.objects[0]?.id ?? null;
     }
-    void this.saveToURL();
+    void this.saveSession();
   }
 
   undo() {
@@ -3222,27 +3240,26 @@ export class Editor {
     return true;
   }
 
-  // ── URL
+  // ── Session
 
-  /** The last state saved in the URL (the history state), or nothing if it did not fit. */
-  #inURL: string | undefined;
-  async saveToURL() {
-    if (!this.scene) {
-      history.replaceState(null, '', `${location.pathname}${location.search}`);
-      return;
-    }
+  /** Orders the autosaves: compression is async, and only the latest may be written. */
+  #sessionWrite = 0;
+  /**
+   * Autosave: the current work, kept for this tab (it survives a reload; a duplicated tab gets a copy).
+   * It used to live in the URL (#s=…); the address bar now stays clean and Share makes the links.
+   */
+  async saveSession() {
+    const write = ++this.#sessionWrite;
+    if (!this.scene) return writeSession('');
     this.flush();
-    const state = this.#history[this.#index];
     let encoded: string;
     try {
       encoded = await encodeState({ scene: stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1), name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
     } catch {
-      // Keeping the scene in the URL is a convenience: if compression fails (or is cut short), leave the URL as it is.
+      // Autosave is a convenience: if compression fails (or is cut short), keep the previous one.
       return;
     }
-    const fits = encoded.length < MAX_HASH;
-    history.replaceState(null, '', `${location.pathname}${location.search}${fits ? `#s=${encoded}` : ''}`);
-    this.#inURL = fits ? state : undefined;
+    if (write === this.#sessionWrite) writeSession(encoded);
   }
   /**
    * Share link: a short link from the link service when the build has one (it opens play.html#l=…),
@@ -3260,9 +3277,19 @@ export class Editor {
     return `${location.origin}${dir}play.html#p=${encoded}`;
   }
 
+  /**
+   * Opens what the page came with: a link in the address bar (#s=, #p=, or a short link's #l=), read once
+   * and then cleared from it, or else this tab's autosave. False if there is neither.
+   */
   async loadFromURL() {
-    // #s=…: the scene; #p=…: the scene, in Play mode (a shared link); #l=…: a short link's scene, in Play mode.
-    const found = await stateFromHash(location.hash);
+    let found = await stateFromHash(location.hash);
+    // A link that worked leaves the address bar; one that failed stays, so it can be retried.
+    if (found) history.replaceState(history.state, '', `${location.pathname}${location.search}`);
+    else {
+      const saved = readSession();
+      const state = saved ? await decodeState(saved) : null;
+      found = state ? { state, mode: 's' } : null;
+    }
     if (!found) return false;
     const { state, mode } = found;
     const scene = state.scene;
