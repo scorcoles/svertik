@@ -13,13 +13,16 @@ export interface Notices {
 export const TOO_BIG = 'Too big for a link: save the project (.json) and send the file';
 let sharing = false;
 
-/** `target`: where the link opens. Play shares a link to Play; the editor's menus, a link to the editor. */
-export async function shareScene(editor: Editor, { say, clear }: Notices, target: ShareTarget): Promise<void> {
+/**
+ * `target`: where the link opens. Play shares a link to Play; the editor's menus, a link to the editor.
+ * `preview`: the link's preview card (see preview.ts), drawn from the current frame.
+ */
+export async function shareScene(editor: Editor, { say, clear }: Notices, target: ShareTarget, preview?: () => Promise<Blob>): Promise<void> {
   if (sharing || !editor.scene) return;
   sharing = true;
   say('Creating link…', 0);
   // Making the link may go to the link service: start it now, inside the click.
-  const pending = editor.shareURL(target);
+  const pending = editor.shareURL(target, preview);
   try {
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       const url = await pending;

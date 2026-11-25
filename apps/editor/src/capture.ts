@@ -1,5 +1,22 @@
 /** Download the rendered frame, without advancing or re-evaluating the player. */
 export async function downloadFrame(svg: SVGSVGElement, background: string, name = 'svertik'): Promise<void> {
+  const png = await captureFrame(svg, background);
+  const url = URL.createObjectURL(png);
+  const link = Object.assign(document.createElement('a'), {
+    href: url, download: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'svertik'}-capture.png`,
+  });
+  document.body.append(link);
+  try {
+    link.click();
+  } finally {
+    link.remove();
+    // Allow the browser to start downloading before releasing the blob.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+/** The rendered frame as a PNG, at its on-screen size, without advancing or re-evaluating the player. */
+export async function captureFrame(svg: SVGSVGElement, background: string): Promise<Blob> {
   // Freeze the DOM before any asynchronous work; playback can continue normally.
   const snapshot = svg.cloneNode(true) as SVGSVGElement;
   const rect = svg.getBoundingClientRect();
@@ -28,18 +45,7 @@ export async function downloadFrame(svg: SVGSVGElement, background: string, name
       png = await rasterize(source, width, height, background);
     }
   } else png = await rasterize(source, width, height, background);
-  const url = URL.createObjectURL(png);
-  const link = Object.assign(document.createElement('a'), {
-    href: url, download: `${name.replace(/[\\/:*?"<>|]/g, '_') || 'svertik'}-capture.png`,
-  });
-  document.body.append(link);
-  try {
-    link.click();
-  } finally {
-    link.remove();
-    // Allow the browser to start downloading before releasing the blob.
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+  return png;
 }
 
 /** Capture the currently visible canvas renderer at the same viewport size as an SVG capture. */

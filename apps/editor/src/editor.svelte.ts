@@ -67,7 +67,7 @@ import {
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { compactJSON } from './exporters';
-import { decodeState, encodeState, MAX_HASH, shortenState, shortLink, stateFromHash, type ShareTarget } from './share';
+import { decodeState, encodeState, MAX_HASH, shortenState, shortLink, stateFromHash, uploadPreview, type ShareTarget } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
 /** Effects that only live inside another one (Each › Shape): left out of the menus and the command line. */
@@ -3264,13 +3264,21 @@ export class Editor {
   /**
    * Share link, opening the scene in Play or in the editor (`target`): a short link from the link service when
    * the build has one, otherwise the scene in the URL (play.html#p=… or the editor's #s=…).
+   * `preview` makes the link's preview card (a JPEG) for chat apps and social sites; short links only.
    * null if it does not fit in a link (then the .json file is better).
    */
-  async shareURL(target: ShareTarget = 'play'): Promise<string | null> {
+  async shareURL(target: ShareTarget = 'play', preview?: () => Promise<Blob>): Promise<string | null> {
     if (!this.scene) return null;
     const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    // The card is drawn while the scene uploads; a link without a picture still works.
+    const card = preview?.().catch(() => null);
     const id = await shortenState(encoded);
-    if (id) return shortLink(id, target);
+    if (id) {
+      // Before handing the link over: a chat app may read the page as soon as it is pasted.
+      const jpeg = await card;
+      if (jpeg) await uploadPreview(id, jpeg);
+      return shortLink(id, target);
+    }
     if (encoded.length >= MAX_HASH) return null;
     // The Play page, next to the editor: it loads only the engine (much less than the whole editor).
     const dir = location.pathname.replace(/[^/]*$/, '');

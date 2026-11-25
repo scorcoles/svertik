@@ -76,6 +76,21 @@ export async function shortenState(encoded: string, service = SHARE_SERVICE): Pr
   }
 }
 
+/**
+ * Gives a stored scene its preview card (a JPEG), shown by chat apps and social sites. The first one stays.
+ * False if it could not be sent; the link works anyway, only without a picture.
+ */
+export async function uploadPreview(id: string, jpeg: Blob, service = SHARE_SERVICE): Promise<boolean> {
+  if (!service || !SHORT_ID.test(id)) return false;
+  try {
+    // An untyped body sends no Content-Type: a simple request, no CORS preflight. The service checks it is a JPEG.
+    const response = await fetch(`${service}/${id}.jpg`, { method: 'POST', body: new Blob([jpeg]), signal: AbortSignal.timeout(10_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** The scene behind a short link's id (play.html#l=…), or null. */
 export async function fetchState(id: string, service = SHARE_SERVICE): Promise<SharedState | null> {
   if (!service || !SHORT_ID.test(id)) return null;

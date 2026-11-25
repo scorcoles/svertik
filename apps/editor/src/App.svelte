@@ -1,5 +1,6 @@
 <script lang="ts">
   import { shareScene } from './share-action';
+  import { previewCard, svgForCard } from './preview';
   import { onMount, tick } from 'svelte';
   import type { Component } from 'svelte';
   import { builtins, createEngine, hasFont, sceneDuration, sceneFonts, toAnimatedSVG, toLottie, type SceneV1 } from '@svertik/engine';
@@ -681,7 +682,7 @@
     onsave={() => saveProject()}
     onsaveas={canPickFiles() ? () => saveProject(true) : undefined}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
-    onshare={() => shareScene(editor, { say: (text, ms = 2400) => say(text, ms), clear: unsay }, 'edit')}
+    onshare={() => shareScene(editor, { say: (text, ms = 2400) => say(text, ms), clear: unsay }, 'edit', () => previewCard(svgForCard(engine.toSVG(frame())), editor.canvas || DEFAULT_CANVAS))}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
     onexportmp4={exportMP4}

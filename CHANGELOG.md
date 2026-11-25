@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.13
+
+### Added
+
+- Link previews: a short link pasted in a chat app or a social site shows a card with the scene's name and a picture of the frame it was shared from (1200 × 630). Share draws the card and uploads it with the scene; the link's first picture stays.
+
 ## 0.0.12
 
 ### Added

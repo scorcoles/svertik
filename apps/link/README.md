@@ -1,7 +1,9 @@
 # svertik link
 
-The link shortener behind the editor's **Share** button: it stores a scene and gives it a short link, such
-as `https://link.svertik.com/3fK9aQ2xLm`, that opens it in the Play page.
+The link shortener behind the editor's **Share**: it stores a scene and gives it a short link, such as
+`https://link.svertik.com/3fK9aQ2xLm`, that opens it in the Play page (or `/e/3fK9aQ2xLm`, in the editor).
+Pasted in a chat app or a social site, the link shows a preview card: the scene's name and a picture of the
+frame it was shared from.
 
 One PHP file (`index.php`), no dependencies and no database: each scene is a text file named after a hash
 of its content, so the same scene always gets the same link and stored scenes never change.
@@ -11,16 +13,25 @@ of its content, so the same scene always gets the same link and stored scenes ne
 | Request | Answer |
 | --- | --- |
 | `POST /`, body: the encoded scene, `text/plain` | `201 { "id", "url" }` |
-| `GET /<id>` | `302` to the Play page, `play.html#l=<id>` (a link shared from Play) |
-| `GET /e/<id>` | `302` to the editor, `#e=<id>` (a link shared from the editor) |
+| `POST /<id>.jpg`, body: a JPEG up to 2 MB and 2400 px | `201`; `200` if it already has one (the first stays) |
+| `GET /<id>` | A page that opens the Play page, `play.html#l=<id>` (a link shared from Play) |
+| `GET /e/<id>` | A page that opens the editor, `#e=<id>` (a link shared from the editor) |
 | `GET /<id>.txt` | The encoded scene (public, cached for good) |
+| `GET /<id>.jpg` | Its preview card (public, cached for good) |
+
+The pages for `/<id>` and `/e/<id>` carry Open Graph and Twitter tags (`og:title` from the scene's name,
+`og:image` when it has a preview) and send people on at once with a meta refresh and `location.replace`:
+chat apps and social sites read those tags and never run the script. The editor draws the card (1200 × 630,
+the current frame on the scene's background) and uploads it right after the scene, before handing out the
+link.
 
 The encoded scene is the editor's link format: the state `{ scene, name, script?, canvas? }` as JSON,
 compressed with deflate-raw and written in base64url (see `apps/editor/src/share.ts`). The server only
 accepts it if it inflates into a scene (`version: 1` with `objects`), up to 4 MB encoded. Uploads are
 accepted only from the origins listed in `SVERTIK_LINK_ORIGINS`.
 
-Anyone with a link can open its scene. Links are permanent.
+Anyone with a link can open its scene and see its preview. Links are permanent, and so is a link's first
+preview: nobody can replace the picture behind someone else's link.
 
 ## Configuration
 

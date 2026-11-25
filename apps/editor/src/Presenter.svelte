@@ -4,7 +4,8 @@
   // what shows here is what the web will show. Esc (or the ×) goes back to the editor.
   import { shareScene } from './share-action';
   import { builtins, createEngine, createPlayer, describeSceneVariables, evaluateSceneVariables, installWire, walkNodes, type SceneV1 } from '@svertik/engine';
-  import { downloadFrame } from './capture';
+  import { captureFrame, downloadFrame } from './capture';
+  import { previewCard } from './preview';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
   import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
@@ -97,7 +98,12 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
       capturing = false;
     }
   }
-  const share = () => shareScene(editor, { say, clear: unsay }, 'play');
+  // The preview card: the frame on screen as it is shared.
+  const share = () => shareScene(editor, { say, clear: unsay }, 'play', async () => {
+    if (!svg) throw new Error('No frame');
+    const background = editor.canvas || DEFAULT_CANVAS;
+    return previewCard(await captureFrame(svg, background), background);
+  });
 </script>
 
 <svelte:window
