@@ -183,9 +183,9 @@
   </div>
   <footer class:error={!!error}>
     {#if error}
-      <span>{error.line ? `Line ${error.line}: ` : ''}{error.message}</span>
+      <span>{error.line ? t('Line {line}: ', { line: error.line }) : ''}{error.message}</span>
     {:else if warnings.length}
-      <span class="warning" title={warnings.join('\n')}>⚠ {warnings[0]}{warnings.length > 1 ? ` (+${warnings.length - 1} more)` : ''}</span>
+      <span class="warning" title={warnings.join('\n')}>⚠ {warnings[0]}{warnings.length > 1 ? t(' (+{count} more)', { count: warnings.length - 1 }) : ''}</span>
     {:else}
       <span class="muted">{tab === 'SVG' ? t('Read-only.') : t('Scene changes apply live. onFrame animations run in exported JS.')}</span>
     {/if}

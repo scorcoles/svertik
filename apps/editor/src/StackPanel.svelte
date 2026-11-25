@@ -339,13 +339,13 @@
     <div id="stack-rows" class="rows" role="tree" aria-label={t('Objects and modifiers')} tabindex="-1" bind:this={rows} onkeydown={treeKey}>
       {@render nodes(top, 0)}
       {#if more}
-        <p class="more" bind:this={sentinel}>{more} more {more === 1 ? 'object' : 'objects'}…</p>
+        <p class="more" bind:this={sentinel}>{more === 1 ? t('1 more object…') : t('{count} more objects…', { count: more })}</p>
       {/if}
     </div>
   {:else}
     {#if editor.showInfo}<div class="hint">
       <p>{t('No source yet.')}</p>
-      <p class="dim">Draw, import or open a demo to start stacking&nbsp;modifiers.</p>
+      <p class="dim">{t('Draw, import or open a demo to start stacking modifiers.')}</p>
     </div>{/if}
   {/if}
 </section>

@@ -143,7 +143,7 @@
   {#if m && def}
     <header>
       <h2>{m.name || def.label}</h2>
-      <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : categoryOf(def)}</span>
+      <span class="meta">{editor.currentParent ? t('in {name}', { name: registry.get(editor.currentParent.type)?.label ?? '' }) : categoryOf(def)}</span>
       {#if help && editor.showInfo}<InfoTip text={help} />{/if}
       <IconButton icon="zero" label={t('Set values to zero')} onclick={() => editor.zero()} />
       <IconButton icon="dice" label={t('Randomize (R)')} onclick={() => editor.randomize()} />

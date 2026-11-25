@@ -100,7 +100,7 @@
           {#if matches.length > LIMIT}<p class="more">{t('{count} more: type to narrow it down', { count: matches.length - LIMIT })}</p>{/if}
           {#if catalog && !matches.length}<p class="more">{t('No font matches “{query}”', { query })}</p>{/if}
         </div>
-        <p class="foot">{category === 'picks' && !query ? t('A short, varied selection. ') : t('Most popular first. ')}Free fonts from Fontsource, downloaded when used.</p>
+        <p class="foot">{category === 'picks' && !query ? t('A short, varied selection. ') : t('Most popular first. ')}{t('Free fonts from Fontsource, downloaded when used.')}</p>
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>

@@ -807,7 +807,7 @@
     {:else}
       <div class="status-actions">{@render diagnosticsToggle()}</div>
     {/if}
-    <span class="status-meta">svertik {version} alpha · {modifierTypes.length} modifiers</span>
+    <span class="status-meta">{t('svertik {version} alpha · {count} modifiers', { version, count: modifierTypes.length })}</span>
   </footer>
   <input
     bind:this={fileInput}

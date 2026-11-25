@@ -377,7 +377,7 @@
                 </tbody>
               </table>
             {:else}
-              <p class="empty">Select an object or an effect first (click it, or: select &lt;name&gt;).</p>
+              <p class="empty">{t('Select an object or an effect first (click it, or: select <name>).')}</p>
             {/if}
           {:else if choices.length}
             <div id={listId} class="list choices" bind:this={list} role="listbox" aria-label={call.verb}>
@@ -463,7 +463,7 @@
     }}
     onkeydown={keydown}
   />
-  {#if !disabled}<span class="hint" aria-hidden="true"><kbd>/</kbd> or <kbd>⌘K</kbd></span>{/if}
+  {#if !disabled}<span class="hint" aria-hidden="true"><kbd>/</kbd> {t('or')} <kbd>⌘K</kbd></span>{/if}
   <DropdownMenu.Root>
     <DropdownMenu.Trigger class="command-options" aria-label={t('Command bar options')} title={t('Command bar options')}>
       <Icon name="settings" />
@@ -475,7 +475,7 @@
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
               {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
             </span>
-            Replace Effects Menu
+            {t('Replace Effects Menu')}
           {/snippet}
         </DropdownMenu.CheckboxItem>
       </DropdownMenu.Content>

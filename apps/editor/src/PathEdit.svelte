@@ -188,7 +188,7 @@
   {#if marquee}<rect class="marquee" x={marquee.x} y={marquee.y} width={marquee.width} height={marquee.height} />{/if}
 </svg>
 <div class="path-toolbar" role="toolbar" tabindex="-1" aria-label={t('Path editing')} onpointerdown={(e) => e.stopPropagation()}>
-  <span>{selectedPoints.length ? `${selectedPoints.length} ${selectedPoints.length === 1 ? 'point' : 'points'}` : t('Path')}</span>
+  <span>{selectedPoints.length ? (selectedPoints.length === 1 ? t('1 point') : t('{count} points', { count: selectedPoints.length })) : t('Path')}</span>
   <div class="controls" role="group" aria-label={t('Point type')}>
     {#each modes as item}
       <IconButton icon={item.icon} label={item.label} title={item.tip} active={selectedPoints.length > 0 && selectedPoints.every(ref => contours[ref.contour]?.points[ref.point]?.mode === item.value)} aria-pressed={selectedPoints.length > 0 && selectedPoints.every(ref => contours[ref.contour]?.points[ref.point]?.mode === item.value)} disabled={!active || editor.isLocked(node.id)} onclick={() => mode(item.value)} />

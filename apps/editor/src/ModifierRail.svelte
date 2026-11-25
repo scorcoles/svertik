@@ -68,5 +68,6 @@
   .color-row { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 32px; }
   .colors :global(.sv-color[data-compact]) { width: 28px; height: 28px; padding: 3px; }
   .colors :global(.sv-color-swatch) { width: 20px; height: 20px; }
-  .color-label { font-size: var(--sv-font-size-10); line-height: 1; color: var(--sv-text-muted); }
+  /* Tight, and clipped rather than overflowing: the rail is as wide as its icons, and some languages run longer. */
+  .color-label { max-width: 100%; overflow: hidden; font-size: var(--sv-font-size-10); line-height: 1; letter-spacing: -0.06em; white-space: nowrap; color: var(--sv-text-muted); }
 </style>

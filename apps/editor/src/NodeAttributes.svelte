@@ -342,7 +342,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
             {@const r = it.range ?? [0, 1]}
             <ParamRow label={t('From')}>
               <NumberField value={r[0]} step={ft.kind === 'angle' ? 1 : 0.01} unit={ft.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { range: [v, r[1]] })} />
-              <span class="dim">to</span>
+              <span class="dim">{t('to')}</span>
               <NumberField value={r[1]} step={ft.kind === 'angle' ? 1 : 0.01} unit={ft.kind === 'angle' ? '°' : ''} onchange={(v) => editor.updateInteraction(it.id, { range: [r[0], v] })} />
             </ParamRow>
           {/if}
@@ -393,7 +393,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
           {@const seg = it.segment ?? [0, editor.animation?.duration ?? 3]}
           <ParamRow label={t('From')}>
             <NumberField value={seg[0]} min={0} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { segment: [v, seg[1]] })} />
-            <span class="dim">to</span>
+            <span class="dim">{t('to')}</span>
             <NumberField value={seg[1]} min={0} step={0.05} unit="s" onchange={(v) => editor.updateInteraction(it.id, { segment: [seg[0], v] })} />
           </ParamRow>
         {:else}

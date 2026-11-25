@@ -60,7 +60,7 @@
 
 <div class="doc">
   <header>
-    <h2>{t('Document')}</h2><span class="meta">{editor.viewportFit ? `viewport · ${editor.viewportFit}` : doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
+    <h2>{t('Document')}</h2><span class="meta">{editor.viewportFit ? t('viewport · {fit}', { fit: t(editor.viewportFit) }) : doc ? t('fixed') : t('auto')}</span><span class="spacer" aria-hidden="true"></span>
     <IconButton icon="expand-all" label={t('Expand all document sections')} onclick={() => setAllSections(true)} />
     <IconButton icon="collapse-all" label={t('Collapse all document sections')} onclick={() => setAllSections(false)} />
   </header>
@@ -162,7 +162,7 @@
     <ParamRow label={t('Palette')} info={t('The chosen palette appears in every color picker. Save keeps this document\'s colors as a palette in this browser.')} showInfo={editor.showInfo}>
       <Select
         value={editor.paletteName}
-        options={[DOCUMENT_PALETTE, ...editor.palettes.map((p) => p.name)]}
+        options={[{ value: DOCUMENT_PALETTE, label: t(DOCUMENT_PALETTE) }, ...editor.palettes.map((p) => p.name)]}
         label={t('Palette')}
         width="132px"
         onchange={(v) => editor.selectPalette(v)}

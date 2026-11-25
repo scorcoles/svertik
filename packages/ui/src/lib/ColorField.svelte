@@ -65,11 +65,11 @@
         </div>
         {#if palettes}
           <select class="pal" aria-label={t('Palette')} value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
-            <option value={DOCUMENT_PALETTE}>{DOCUMENT_PALETTE}</option>
+            <option value={DOCUMENT_PALETTE}>{t(DOCUMENT_PALETTE)}</option>
             {#each palettes.list as p (p.name)}<option value={p.name}>{p.name}</option>{/each}
           </select>
         {:else if docSwatches.length}
-          <p class="head">{DOCUMENT_PALETTE}</p>
+          <p class="head">{t(DOCUMENT_PALETTE)}</p>
         {/if}
         {#if shown.colors.length}
           <div class="grid" role="listbox" aria-label={shown.name}>
