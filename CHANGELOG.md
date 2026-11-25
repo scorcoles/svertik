@@ -2,6 +2,18 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.10
+
+### Added
+
+- Short share links: in the hosted editor, Share stores the scene at `link.svertik.com` and copies a short link (`link.svertik.com/<id>`) that opens it in Play. The same scene always gets the same link, and scenes too big for a URL can now be shared too. The service is `apps/link`, a single PHP file that anyone can host; the editor uses it when built with `VITE_SHARE_URL`, and otherwise (or if the service cannot be reached) puts the scene in the link as before.
+- Pack works on several selected objects in one step, and undoes in one step.
+- Scenes are renamed in their own toolbar strip.
+
+### Fixed
+
+- Document controls no longer overlap the toolbar menus, and the document toolbar shows simpler metadata.
+
 ## 0.0.9
 
 ### Added
