@@ -338,7 +338,10 @@ export function createStepper(bodies: CollisionBody[], settings: StepSettings): 
       const [ax, ay] = bodyAccelerations[i]!;
       return { ...state, x: state.x + state.vx * dt + ax * dt * dt / 2, y: state.y + state.vy * dt + ay * dt * dt / 2, vx: state.vx + ax * dt, vy: state.vy + ay * dt, angle: state.angle + state.omega * dt };
     });
-    const placed = bodies.flatMap((collider, i) => collider.fixed ? [] : [place(collider, states[i]!, i)]);
+    // Only bodies that can touch something are placed: with no collisions between bodies, no solids and no
+    // floor, a body moves freely and placing its outline every step would cost the most for nothing.
+    const solid = index.parts.length > 0;
+    const placed = bodies.flatMap((collider, i) => collider.fixed || !(collide || solid || planesOf[i]!.length) ? [] : [place(collider, states[i]!, i)]);
     const contacts: Contact[] = [];
     const absorptionOf = (i: number) => bodies[i]?.impulse?.attractor ? Math.max(0, Math.min(1, bodies[i]?.impulse?.attractionAbsorption ?? 0)) : 0;
     const add = (a: Placed, b: Placed | undefined, nx: number, ny: number, depth: number, points: Vec2[]) => {

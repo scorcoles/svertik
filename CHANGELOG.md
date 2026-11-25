@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.18
+
+### Changed
+
+- Physics is about four times faster on scenes with many bodies and no collisions between them (a 2,500-piece confetti poster: ~42 → ~11 ms per frame). Bodies that cannot touch anything are no longer placed every step, and the input's outlines are hashed once instead of on every frame.
+
 ## 0.0.17
 
 ### Added

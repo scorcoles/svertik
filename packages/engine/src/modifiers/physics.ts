@@ -29,15 +29,34 @@ interface Layout {
   indices: Map<number, number>;
 }
 
-function geometryKey(geometries: Geometry[]): string {
-  let hash = 2166136261;
-  const add = (value: string) => { for (let i = 0; i < value.length; i++) { hash ^= value.charCodeAt(i); hash = Math.imul(hash, 16777619); } };
-  for (const geo of geometries) for (const shape of geo.shapes) {
-    add(JSON.stringify([shape.clone, shape.bodyGroup, shape.node, shape.style.fill !== 'none', shape.impulse, shape.force, shape.burstSpeed]));
-    for (const path of shape.subpaths) {
+// The outlines' part of the key, per subpath list: a frame's input rebuilds its shapes around the same outlines
+// (an unchanged child keeps its cached geometry), so each is hashed once instead of on every frame.
+const outlineKeys = new WeakMap<Shape['subpaths'], string>();
+function outlineKey(subpaths: Shape['subpaths']): string {
+  let key = outlineKeys.get(subpaths);
+  if (key === undefined) {
+    let hash = 2166136261;
+    const add = (value: string) => { for (let i = 0; i < value.length; i++) { hash ^= value.charCodeAt(i); hash = Math.imul(hash, 16777619); } };
+    for (const path of subpaths) {
       add(JSON.stringify([path.closed, path.start]));
       for (const segment of path.segs) add(JSON.stringify([segment.c1, segment.c2, segment.p]));
     }
+    outlineKeys.set(subpaths, key = (hash >>> 0).toString(36));
+  }
+  return key;
+}
+const geometryKeys = new WeakMap<Geometry, string>();
+function geometryKey(geometries: Geometry[]): string {
+  let hash = 2166136261;
+  const add = (value: string) => { for (let i = 0; i < value.length; i++) { hash ^= value.charCodeAt(i); hash = Math.imul(hash, 16777619); } };
+  for (const geo of geometries) {
+    let own = geometryKeys.get(geo);
+    if (own === undefined) {
+      const parts: string[] = [];
+      for (const shape of geo.shapes) parts.push(JSON.stringify([shape.clone, shape.bodyGroup, shape.node, shape.style.fill !== 'none', shape.impulse, shape.force, shape.burstSpeed]), outlineKey(shape.subpaths));
+      geometryKeys.set(geo, own = parts.join('|'));
+    }
+    add(own);
   }
   return (hash >>> 0).toString(36);
 }
