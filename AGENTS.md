@@ -156,6 +156,10 @@ Example: `custom: { variation: { "$expr": "scene.cycle", "fallback": 0 } }` expo
 
 `seedEvery: 1` on SceneV1 (seconds; 0 or absent = off; editor: **Document → Seed generator → Every**) gives `scene.seedGenerator` a new value each interval of scene time: the base seed plus 7919 per elapsed interval, so seeds offset by small numbers (`scene.seedGenerator + 10`) never collide across intervals. Everything linked to the generator (effect seeds, `random()`, layouts) changes on that beat, and the same time always gives the same seed, in Play and exports alike. Compositions without their own seed follow the parent's live seed. Combine it with `animation.infinite: true` for an endless sequence (a looping timeline repeats the sequence each loop). It makes the scene time-driven.
 
+## A new seed per load (`seedOnLoad`)
+
+`seedOnLoad: true` on SceneV1 (editor: **Document → Seed generator → On load**) makes Play draw a fresh `scene.seedGenerator` each time the scene loads, so seeds written as `{ "$expr": "scene.seedGenerator + n", "fallback": … }` and `random()` differ on every visit. The editor and headless exports keep the stored seed (reproducible).
+
 ## Deterministic random in ƒx
 
 Use `random(min, max, seed?)` in numeric expressions, custom-variable formulas or text interpolation. It is reproducible, stateless and based on `scene.seedGenerator` plus the optional numeric seed/salt (default 0). Same base seed and salt give the same result regardless of playback time, evaluation order or export; it does not advance an RNG on each call. Bounds are normalized if reversed; equal bounds return that value. Prefer integer salts for per-event or per-cycle variation; negative and fractional salts are supported.

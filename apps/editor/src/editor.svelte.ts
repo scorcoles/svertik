@@ -1617,6 +1617,13 @@ export class Editor {
     else delete this.scene.seedEvery;
     this.record(true);
   }
+  /** Play draws a new seed on every load. */
+  setSeedOnLoad(enabled: boolean) {
+    if (!this.scene) return;
+    if (enabled) this.scene.seedOnLoad = true;
+    else delete this.scene.seedOnLoad;
+    this.record(true);
+  }
   setSeedGenerator(value: number) {
     if (!this.scene) return;
     const seed = normalizeSeedGenerator(value);

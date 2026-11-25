@@ -141,6 +141,9 @@
       <!-- Re-seed on a beat (scene time, so it plays the same in Play and exports); 0 = keep this seed. -->
       <NumberField id="scene-seed-every" value={editor.seedEvery} min={0} step={0.1} unit="s" onchange={(v) => editor.setSeedEvery(v)} />
     </ParamRow>
+    <ParamRow label="On load" for="scene-seed-on-load" info="Play draws a new seed every time the scene loads, so it comes out different on each visit. The editor and exports keep this seed." showInfo={editor.showInfo}>
+      <Checkbox id="scene-seed-on-load" label="New seed on every load" checked={editor.scene?.seedOnLoad === true} onchange={(value) => editor.setSeedOnLoad(value)} />
+    </ParamRow>
     <div class="actions">
       <Button label="Link all seeds" title="Link numeric effect seeds to this generator, preserving their current differences" onclick={() => editor.linkSeedsToGenerator()} />
     </div>

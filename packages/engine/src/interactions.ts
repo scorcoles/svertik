@@ -313,6 +313,8 @@ export interface PlayerOptions {
 }
 
 export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1, options: PlayerOptions = {}) {
+  // Seed on load: this visit's own seed, before anything reads the scene.
+  if (scene.seedOnLoad) scene = { ...scene, seedGenerator: Math.floor(Math.random() * 1_000_000) };
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Packs saved without their geometry get it back once, here, instead of on every frame.
   restorePacks(scene, (s) => engine.evaluateDocument(s));

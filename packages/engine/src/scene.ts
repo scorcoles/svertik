@@ -210,6 +210,11 @@ export interface SceneV1 {
    */
   seedEvery?: number;
   /**
+   * Play draws a new `seedGenerator` each time the scene loads, so everything linked to it (effect seeds,
+   * `random()`) comes out different on every visit. The editor and exports keep the stored seed.
+   */
+  seedOnLoad?: boolean;
+  /**
    * Optional numeric variables available as `scene.custom.name`: a number, an expression, or a number with a
    * range (`{ value, min?, max?, step? }`, shown as a slider in the editor; the value is clamped to it).
    */

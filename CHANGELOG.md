@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.16
+
+### Added
+
+- **Document → Seed generator → On load** (`seedOnLoad`): Play draws a new seed every time the scene loads, so a generative piece comes out different on each visit. The editor and exports keep the stored seed.
+
 ## 0.0.15
 
 ### Added

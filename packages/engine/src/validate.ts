@@ -44,6 +44,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   if (scene.physicsBounds !== undefined && typeof scene.physicsBounds !== 'boolean') errors.push('physicsBounds must be true or false');
   if (scene.fullViewport === 'adapt' && !scene.document) warnings.push('fullViewport "adapt" needs a document size: without one it behaves as "contain"');
   if (scene.physicsBounds && !scene.document) warnings.push('physicsBounds needs a document size: without one there are no walls');
+  if (scene.seedOnLoad !== undefined && typeof scene.seedOnLoad !== 'boolean') errors.push('seedOnLoad must be true or false');
   if (scene.seedEvery !== undefined && !(typeof scene.seedEvery === 'number' && Number.isFinite(scene.seedEvery) && scene.seedEvery >= 0)) errors.push('seedEvery must be a number of seconds, 0 or more');
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 

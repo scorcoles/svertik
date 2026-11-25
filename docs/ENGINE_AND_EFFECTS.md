@@ -1412,6 +1412,10 @@ The timeline ruler, key editing range and scrubber retain the configured duratio
 
 For headless use, `sampleScene(scene, 180)` sets elapsed `at: 180`, holds timeline tracks at duration, and allows the engine to resolve expressions at 180 seconds. Exporting SVG animations, PNG sequences or video still renders the finite interval specified by duration; Infinite neither starts an endless export nor captures live input. Reduced-motion playback retains the player's existing non-animating behavior.
 
+## A new seed on every load (`seedOnLoad`)
+
+`seedOnLoad: true` on SceneV1 (editor: **Document → Seed generator → On load**) makes Play draw a new `scene.seedGenerator` each time the scene loads (`createPlayer` picks it before the first frame). Everything linked to the generator (effect seeds written as `scene.seedGenerator + n`, `random()`) comes out different on every visit: a generative poster that is new each time it opens. The stored seed stays as it is, and the editor and headless exports use it, so what you see while editing is reproducible. Link the seeds you want to vary (**Link all seeds** links each effect's `seed`; other seed parameters such as Clone's `fillSeed` or `variationSeed` take the same formula by hand).
+
 ## Re-seeding on a beat (`seedEvery`)
 
 `seedEvery: 1` on SceneV1 (seconds; 0 or absent = off; editor: **Document → Seed generator → Every**) gives `scene.seedGenerator` a new value each interval of scene time: the base seed plus 7919 per elapsed interval, so seeds offset by small numbers (`scene.seedGenerator + 10`) never collide across intervals. Everything linked to the generator (effect seeds, `random()`, layouts) changes on that beat, and the same time always gives the same seed, in Play and exports alike. Compositions without their own seed follow the parent's live seed. Combine it with `animation.infinite: true` for an endless sequence (a looping timeline repeats the sequence each loop). It makes the scene time-driven.
