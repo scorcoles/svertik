@@ -53,8 +53,14 @@ export const MAX_SHORT = 4 * 1024 * 1024;
 /** Short-link ids: base62, as the service makes them. */
 export const SHORT_ID = /^[A-Za-z0-9]{10}$/;
 
+/** Where a shared link opens: Play (shared from Play) or the editor (shared from the editor). */
+export type ShareTarget = 'play' | 'edit';
+
+/** A short link: link.example/<id> opens Play, link.example/e/<id> the editor. */
+export const shortLink = (id: string, target: ShareTarget, service = SHARE_SERVICE) => `${service}/${target === 'edit' ? 'e/' : ''}${id}`;
+
 /**
- * Stores an encoded scene in the service and returns its short link, or null (no service, too big, offline,
+ * Stores an encoded scene in the service and returns its id, or null (no service, too big, offline,
  * refused…), so the caller can fall back to the long link.
  */
 export async function shortenState(encoded: string, service = SHARE_SERVICE): Promise<string | null> {
@@ -64,7 +70,7 @@ export async function shortenState(encoded: string, service = SHARE_SERVICE): Pr
     const response = await fetch(`${service}/`, { method: 'POST', body: encoded, signal: AbortSignal.timeout(10_000) });
     if (!response.ok) return null;
     const { id } = (await response.json()) as { id?: unknown };
-    return typeof id === 'string' && SHORT_ID.test(id) ? `${service}/${id}` : null;
+    return typeof id === 'string' && SHORT_ID.test(id) ? id : null;
   } catch {
     return null;
   }
@@ -81,11 +87,15 @@ export async function fetchState(id: string, service = SHARE_SERVICE): Promise<S
   }
 }
 
-/** The state a location hash carries: #s=/#p= the scene itself, #l= a short link's id. */
-export async function stateFromHash(hash: string): Promise<{ state: SharedState; mode: 's' | 'p' | 'l' } | null> {
-  const m = hash.match(/^#([spl])=(.+)$/);
+/**
+ * The state a location hash carries: #s= (edit) / #p= (Play) the scene itself; #e= (edit) / #l= (Play) a short
+ * link's id, fetched from the link service.
+ */
+export type HashMode = 's' | 'p' | 'e' | 'l';
+export async function stateFromHash(hash: string): Promise<{ state: SharedState; mode: HashMode } | null> {
+  const m = hash.match(/^#([spel])=(.+)$/);
   if (!m) return null;
-  const mode = m[1] as 's' | 'p' | 'l';
-  const state = mode === 'l' ? await fetchState(m[2]!) : await decodeState(m[2]!);
+  const mode = m[1] as HashMode;
+  const state = mode === 'l' || mode === 'e' ? await fetchState(m[2]!) : await decodeState(m[2]!);
   return state ? { state, mode } : null;
 }

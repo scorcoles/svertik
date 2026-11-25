@@ -15,6 +15,8 @@
     /** Only where the browser can pick files (Chrome, Edge). */
     onsaveas?: () => void;
     oncopyjson: () => void;
+    /** Copies (or, on touch screens, shares) a link that opens the scene in Play. */
+    onshare: () => void;
     onexport: () => void;
     onexportpng: () => void;
     onexportmp4: () => void;
@@ -23,7 +25,7 @@
     ondemo: (which: DemoName) => void;
     onnew: () => void;
   }
-  let { editor, onimport, onsave, onsaveas, oncopyjson, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
+  let { editor, onimport, onsave, onsaveas, oncopyjson, onshare, onexport, onexportpng, onexportmp4, onexportlottie, onexportanimsvg, ondemo, onnew }: Props = $props();
   let fullscreen = $state(false);
   let renaming = $state(false);
   let draftName = $state('');
@@ -49,7 +51,7 @@
 <div class="toolbar-area">
 <header class="toolbar" class:command-in-slot={editor.commandInEffectsSlot}>
   <div class="doc">
-    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {ondemo} />
+    <AppMenu {editor} {onnew} onopen={onimport} {onsave} {onsaveas} {onshare} {ondemo} />
     {#if editor.scene}
       <span class="slash">/</span>
       <button
@@ -95,6 +97,7 @@
     {onexportanimsvg}
     {onexportlottie}
     {oncopyjson}
+    {onshare}
   />
 </header>
 {#if renaming && editor.scene}

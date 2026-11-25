@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.12
+
+### Added
+
+- **Share link** in the svertik menu and in Export, besides Play's share button. A link shared from the editor opens the scene in the editor (`link.svertik.com/e/<id>`); one shared from Play opens it in Play (`link.svertik.com/<id>`). Both point to the same stored scene.
+
 ## 0.0.11
 
 ### Changed

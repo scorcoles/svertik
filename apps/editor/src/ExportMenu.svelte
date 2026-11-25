@@ -13,8 +13,9 @@
     onexportanimsvg: () => void;
     onexportlottie: () => void;
     oncopyjson: () => void;
+    onshare: () => void;
   }
-  let { editor, disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson }: Props = $props();
+  let { editor, disabled, onexportsvg, onexportpng, onexportmp4, onexportanimsvg, onexportlottie, oncopyjson, onshare }: Props = $props();
   const hidden = $derived(editor.layers.filter((l) => l.visible === false).map((l) => l.name));
 
   type Item = { label: string; icon: IconName; hint: string; run: () => void } | 'sep';
@@ -25,6 +26,7 @@
     { label: 'Animated SVG', icon: 'wave', hint: 'One .svg that plays by itself, no JavaScript', run: onexportanimsvg },
     { label: 'Lottie (.json)', icon: 'timeline', hint: 'For Lottie players; lists what does not fit', run: onexportlottie },
     'sep',
+    { label: 'Share link', icon: 'share', hint: 'A short link that opens the scene in the editor', run: onshare },
     { label: 'Copy JSON', icon: 'object', hint: 'The scene, to paste into code or a file', run: oncopyjson },
   ]);
 </script>

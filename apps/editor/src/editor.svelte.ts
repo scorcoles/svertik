@@ -67,7 +67,7 @@ import {
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { compactJSON } from './exporters';
-import { decodeState, encodeState, MAX_HASH, shortenState, stateFromHash } from './share';
+import { decodeState, encodeState, MAX_HASH, shortenState, shortLink, stateFromHash, type ShareTarget } from './share';
 
 export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type, m as ModifierDef]));
 /** Effects that only live inside another one (Each › Shape): left out of the menus and the command line. */
@@ -3262,23 +3262,23 @@ export class Editor {
     if (write === this.#sessionWrite) writeSession(encoded);
   }
   /**
-   * Share link: a short link from the link service when the build has one (it opens play.html#l=…),
-   * otherwise the scene in the URL, marked to open in Play mode (#p=…).
+   * Share link, opening the scene in Play or in the editor (`target`): a short link from the link service when
+   * the build has one, otherwise the scene in the URL (play.html#p=… or the editor's #s=…).
    * null if it does not fit in a link (then the .json file is better).
    */
-  async shareURL(): Promise<string | null> {
+  async shareURL(target: ShareTarget = 'play'): Promise<string | null> {
     if (!this.scene) return null;
     const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
-    const short = await shortenState(encoded);
-    if (short) return short;
+    const id = await shortenState(encoded);
+    if (id) return shortLink(id, target);
     if (encoded.length >= MAX_HASH) return null;
     // The Play page, next to the editor: it loads only the engine (much less than the whole editor).
     const dir = location.pathname.replace(/[^/]*$/, '');
-    return `${location.origin}${dir}play.html#p=${encoded}`;
+    return target === 'edit' ? `${location.origin}${dir}#s=${encoded}` : `${location.origin}${dir}play.html#p=${encoded}`;
   }
 
   /**
-   * Opens what the page came with: a link in the address bar (#s=, #p=, or a short link's #l=), read once
+   * Opens what the page came with: a link in the address bar (#s=, #p=, or a short link's #e=/#l=), read once
    * and then cleared from it, or else this tab's autosave. False if there is neither.
    */
   async loadFromURL() {
@@ -3305,7 +3305,8 @@ export class Editor {
     this.#history = [];
     this.#index = -1;
     this.record(true);
-    if (mode !== 's') {
+    // Links shared from Play open in Play; those shared from the editor, in the editor.
+    if (mode === 'p' || mode === 'l') {
       this.selected = null;
       this.presenting = true;
     }

@@ -3,7 +3,8 @@
 //
 //   POST /            body: the encoded scene (the editor's #p=… text: deflate-raw, base64url), text/plain
 //                     → 201 { "id": "…", "url": "https://link.example/…" }
-//   GET  /<id>        → 302 to the Play page with #l=<id>
+//   GET  /<id>        → 302 to the Play page with #l=<id> (shared from Play)
+//   GET  /e/<id>      → 302 to the editor with #e=<id> (shared from the editor)
 //   GET  /<id>.txt    → the encoded scene (read by the Play page and the editor)
 //
 // A scene's id comes from a hash of its content, so sharing the same scene twice gives the same link and
@@ -15,6 +16,7 @@ declare(strict_types=1);
 
 $DATA = getenv('SVERTIK_LINK_DATA') ?: __DIR__ . '/data';
 $PLAY = getenv('SVERTIK_LINK_PLAY') ?: 'https://editor.svertik.com/play.html';
+$EDIT = getenv('SVERTIK_LINK_EDIT') ?: 'https://editor.svertik.com/';
 $ORIGINS = array_filter(array_map('trim', explode(',', getenv('SVERTIK_LINK_ORIGINS') ?: 'https://editor.svertik.com')));
 const MAX_ENCODED = 4 * 1024 * 1024;   // bytes of encoded text accepted in a POST
 const MAX_JSON = 32 * 1024 * 1024;     // bytes the scene may inflate to
@@ -97,6 +99,13 @@ if ($method === 'POST' && $path === '/') {
 if ($method === 'GET' || $method === 'HEAD') {
   if ($path === '/') {
     header("Location: " . preg_replace('~/play\.html$~', '/', $PLAY), true, 302);
+    exit;
+  }
+  // The same stored scene opens in the editor (/e/<id>) or in Play (/<id>).
+  if (preg_match('~^/e/([A-Za-z0-9]{' . ID_LENGTH . '})$~', $path, $m)) {
+    if (!is_file(pathOf($DATA, $m[1]))) fail(404, 'No scene with this link');
+    header("Location: $EDIT#e=" . $m[1], true, 302);
+    header('Cache-Control: public, max-age=86400');
     exit;
   }
   if (preg_match('~^/([A-Za-z0-9]{' . ID_LENGTH . '})(\.txt)?$~', $path, $m)) {

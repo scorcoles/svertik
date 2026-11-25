@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { shareScene } from './share-action';
   import { onMount, tick } from 'svelte';
   import type { Component } from 'svelte';
   import { builtins, createEngine, hasFont, sceneDuration, sceneFonts, toAnimatedSVG, toLottie, type SceneV1 } from '@svertik/engine';
@@ -220,10 +221,15 @@
     resizePanel(el, panel, height + (e.key === 'ArrowUp' ? 20 : -20));
   }
 
-  const say = (text: string) => {
+  /** A toast; ms 0 keeps it until the next one. */
+  const say = (text: string, ms = 1600) => {
     toast = text;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (toast = null), 1600);
+    if (ms) toastTimer = setTimeout(() => (toast = null), ms);
+  };
+  const unsay = () => {
+    clearTimeout(toastTimer);
+    toast = null;
   };
   const snapshot = () => $state.snapshot(editor.scene) as SceneV1;
   function reportSvgImport(source: string, action: string) {
@@ -675,6 +681,7 @@
     onsave={() => saveProject()}
     onsaveas={canPickFiles() ? () => saveProject(true) : undefined}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
+    onshare={() => shareScene(editor, { say: (text, ms = 2400) => say(text, ms), clear: unsay }, 'edit')}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
     onexportmp4={exportMP4}

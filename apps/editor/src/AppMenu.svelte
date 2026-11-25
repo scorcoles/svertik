@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The «svertik» menu: new, open, save, and the demos. Exporting lives only in the Export button.
+  // The «svertik» menu: new, open, save, share, and the demos. Exporting lives only in the Export button.
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
   import { Icon, type IconName } from '@svertik/ui';
@@ -12,15 +12,17 @@
     onopen: () => void;
     onsave: () => void;
     onsaveas?: () => void;
+    onshare: () => void;
     ondemo: (which: DemoName) => void;
   }
-  let { editor, onnew, onopen, onsave, onsaveas, ondemo }: Props = $props();
+  let { editor, onnew, onopen, onsave, onsaveas, onshare, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: 'New scene', icon: 'plus', run: onnew, needs: true },
     { label: 'Open project or import SVG…', icon: 'import', key: '⌘O', run: onopen },
     { label: 'Save project', icon: 'save', key: '⌘S', run: onsave, needs: true },
     ...(onsaveas ? [{ label: 'Save as…', icon: 'save' as const, key: '⇧⌘S', run: onsaveas, needs: true }] : []),
+    { label: 'Share link', icon: 'share', run: onshare, needs: true },
     'sep',
     { label: 'Keyboard shortcuts', icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },
   ]);

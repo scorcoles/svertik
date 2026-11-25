@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SceneV1 } from '@svertik/engine/scene';
-import { encodeState, fetchState, shortenState, stateFromHash } from './share';
+import { encodeState, fetchState, shortenState, shortLink, stateFromHash } from './share';
 
 const SERVICE = 'https://link.example';
 const scene: SceneV1 = { version: 1, objects: [] };
@@ -12,7 +12,9 @@ describe('short links', () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify({ id: 'B1FORN1FA4', url: `${SERVICE}/B1FORN1FA4` }), { status: 201 }));
     vi.stubGlobal('fetch', fetch);
     const encoded = await encodeState({ scene, name: 'Logo' });
-    expect(await shortenState(encoded, SERVICE)).toBe(`${SERVICE}/B1FORN1FA4`);
+    expect(await shortenState(encoded, SERVICE)).toBe('B1FORN1FA4');
+    expect(shortLink('B1FORN1FA4', 'play', SERVICE)).toBe(`${SERVICE}/B1FORN1FA4`);
+    expect(shortLink('B1FORN1FA4', 'edit', SERVICE)).toBe(`${SERVICE}/e/B1FORN1FA4`);
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(`${SERVICE}/`);
     expect(init.method).toBe('POST');
@@ -42,7 +44,7 @@ describe('short links', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('reads #s=, #p= and nothing else from the hash', async () => {
+  it('reads #s=, #p= and nothing else from the hash (#e=/#l= fetch from the service)', async () => {
     const encoded = await encodeState({ scene, name: 'Logo' });
     expect(await stateFromHash(`#s=${encoded}`)).toEqual({ state: { scene, name: 'Logo' }, mode: 's' });
     expect(await stateFromHash(`#p=${encoded}`)).toEqual({ state: { scene, name: 'Logo' }, mode: 'p' });

@@ -11,7 +11,8 @@ of its content, so the same scene always gets the same link and stored scenes ne
 | Request | Answer |
 | --- | --- |
 | `POST /`, body: the encoded scene, `text/plain` | `201 { "id", "url" }` |
-| `GET /<id>` | `302` to the Play page, `play.html#l=<id>` |
+| `GET /<id>` | `302` to the Play page, `play.html#l=<id>` (a link shared from Play) |
+| `GET /e/<id>` | `302` to the editor, `#e=<id>` (a link shared from the editor) |
 | `GET /<id>.txt` | The encoded scene (public, cached for good) |
 
 The encoded scene is the editor's link format: the state `{ scene, name, script?, canvas? }` as JSON,
@@ -28,7 +29,8 @@ Environment variables, passed by nginx (`fastcgi_param`):
 | Variable | Default | |
 | --- | --- | --- |
 | `SVERTIK_LINK_DATA` | `./data` | Folder where scenes are stored; writable by PHP-FPM, outside any public root |
-| `SVERTIK_LINK_PLAY` | `https://editor.svertik.com/play.html` | Play page that short links open |
+| `SVERTIK_LINK_PLAY` | `https://editor.svertik.com/play.html` | Play page that `/<id>` opens |
+| `SVERTIK_LINK_EDIT` | `https://editor.svertik.com/` | Editor that `/e/<id>` opens |
 | `SVERTIK_LINK_ORIGINS` | `https://editor.svertik.com` | Comma-separated origins allowed to upload |
 
 The editor uses the service when it is built with `VITE_SHARE_URL` set to its address (for example
