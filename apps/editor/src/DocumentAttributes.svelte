@@ -113,7 +113,8 @@
     {#if editor.viewportFit}
       <ParamRow label="Fit" info="In Play, Contain shows the whole document, Cover fills and crops, and Stretch fills both axes. Adapt gives the document the screen's shape, so formulas and physics walls see the screen's size. The editor and exports keep the document size." showInfo={editor.showInfo}>
         <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. Adapt resizes the document. -->
-        <Segmented value={editor.viewportFit} label="Fit to the screen" options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' }, { value: 'stretch', label: 'Stretch' }, ...(doc ? [{ value: 'adapt', label: 'Adapt' }] : [])]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
+        <!-- A list, not a segmented control: four options don't fit the inspector's width. -->
+        <Select value={editor.viewportFit} label="Fit to the screen" width="132px" options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' }, { value: 'stretch', label: 'Stretch' }, ...(doc ? [{ value: 'adapt', label: 'Adapt' }] : [])]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
       </ParamRow>
       {#if editor.viewportFit === 'adapt' && doc}
         <ParamRow label="Content" for="doc-adapt-content" info="On: the content scales to fit the screen. Off: it keeps the document's size, centred." showInfo={editor.showInfo}>
