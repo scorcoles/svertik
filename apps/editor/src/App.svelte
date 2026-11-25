@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { shareScene } from './share-action';
   import { previewCard, svgForCard } from './preview';
   import { onMount, tick } from 'svelte';
@@ -311,8 +312,8 @@
           projectHandle = null;
           missingDismissed = false;
           recordActivity('Opened project');
-          say(`Opened ${file.name}`);
-        } else editor.error = 'That file is not a svertik project.';
+          say(t('Opened {name}', { name: file.name }));
+        } else editor.error = t('That file is not a svertik project.');
       });
       return;
     }
@@ -326,7 +327,7 @@
     for (const file of files) texts.set(file.name, await file.text());
     const found = editor.attachSvgFiles(texts);
     const left = editor.missingSvgs.length;
-    say(found ? `Attached ${found} SVG${found === 1 ? '' : 's'}${left ? `, ${left} still missing` : ''}` : 'Those SVGs are not the ones this project needs');
+    say(found ? `${found === 1 ? t('Attached 1 SVG') : t('Attached {count} SVGs', { count: found })}${left ? t(', {count} still missing', { count: left }) : ''}` : t('Those SVGs are not the ones this project needs'));
   }
   // The file this project was saved to (Chrome, Edge): ⌘S writes into it again; Save as picks another.
   let projectHandle: FileSystemFileHandle | null = null;
@@ -350,11 +351,11 @@
       }
       editor.markSaved();
       const file = saved === 'downloaded' ? `${editor.name}.json` : saved.name;
-      say(editor.embedSources ? `Saved ${file}` : `Saved ${file} without its SVGs: keep them next to it`);
+      say(editor.embedSources ? t('Saved {name}', { name: file }) : t('Saved {name} without its SVGs: keep them next to it', { name: file }));
       return true;
     } catch (error) {
       console.error('svertik: could not save the project', error);
-      say('Could not save the project');
+      say(t('Could not save the project'));
       return false;
     }
   }
@@ -383,10 +384,10 @@
   async function copy(text: string, what: string): Promise<boolean> {
     try {
       await navigator.clipboard.writeText(text);
-      say(`${what} copied`);
+      say(t('{what} copied', { what }));
       return true;
     } catch {
-      say(`Could not copy ${what}`);
+      say(t('Could not copy {what}', { what }));
       return false;
     }
   }
@@ -405,9 +406,9 @@
         onProgress: progress => { if (videoExport) videoExport.progress = progress; },
       });
       recordActivity('Exported MP4');
-      say('MP4 downloaded');
+      say(t('MP4 downloaded'));
     } catch (error) {
-      say(controller.signal.aborted ? 'MP4 export cancelled' : error instanceof Error ? error.message : 'Could not export MP4.');
+      say(controller.signal.aborted ? 'MP4 export cancelled' : error instanceof Error ? error.message : t('Could not export MP4.'));
     } finally {
       videoExport = null;
     }
@@ -433,7 +434,7 @@
       URL.revokeObjectURL(a.href);
       say(`Saved ${name} (${w} × ${h})`);
     } catch {
-      say('Could not export the PNG');
+      say(t('Could not export the PNG'));
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -486,7 +487,7 @@
     const name = `${editor.name}.lottie.json`;
     download(name, text, 'application/json');
     const kb = Math.max(1, Math.round(new Blob([text]).size / 1024));
-    report = { title: `Saved ${name}`, summary: `${frames} frame${frames === 1 ? '' : 's'}, ${kb} KB.${warnings.length ? ' Some things could not go into Lottie:' : ' Everything went in.'}`, warnings };
+    report = { title: t('Saved {name}', { name }), summary: `${t(frames === 1 ? '1 frame, {kb} KB.' : '{count} frames, {kb} KB.', { count: frames, kb })} ${warnings.length ? t('Some things could not go into Lottie:') : t('Everything went in.')}`, warnings };
   }
   // Animated SVG: a single .svg that animates itself (CSS inside), with no JavaScript.
   function exportAnimatedSVG() {
@@ -495,13 +496,13 @@
     const name = `${editor.name}.animated.svg`;
     download(name, svg, 'image/svg+xml');
     const kb = Math.max(1, Math.round(new Blob([svg]).size / 1024));
-    report = { title: `Saved ${name}`, summary: `${frames} frame${frames === 1 ? '' : 's'}, ${kb} KB. Plays on its own in any browser (also as an <img>).${warnings.length ? ' Notes:' : ''}`, warnings };
+    report = { title: t('Saved {name}', { name }), summary: `${t(frames === 1 ? '1 frame, {kb} KB.' : '{count} frames, {kb} KB.', { count: frames, kb })} ${t('Plays on its own in any browser (also as an <img>).')}${warnings.length ? ` ${t('Notes:')}` : ''}`, warnings };
   }
   function exportSVG() {
     recordActivity('Exported SVG');
     const name = `${editor.name}.svertik.svg`;
     download(name, engine.toSVG(frame()), 'image/svg+xml');
-    say(`Saved ${name}`);
+    say(t('Saved {name}', { name }));
   }
   // The command line's "export <format>" goes through the same functions as the Export menu.
   editor.exporter = (format) => ({
@@ -584,7 +585,7 @@
     e.preventDefault();
     e.clipboardData?.setData('text/plain', text);
     if (cut) editor.removeSelection();
-    say(cut ? 'Cut' : 'Copied');
+    say(cut ? t('Cut') : t('Copied'));
   }
   /** ⌘⇧V: what is pasted stays where the original was, without an offset. */
   let pasteInPlace = false;
@@ -693,7 +694,7 @@
 <svelte:window onkeydown={keydown} onpaste={paste} oncopy={(e) => copySelection(e)} oncut={(e) => copySelection(e, true)} />
 
 {#snippet panelResizeHandle(panel: string, label: string)}
-  <button class="resize" type="button" aria-label={`Resize ${label} panel`} title={`Resize ${label}: drag or use Up/Down arrows`} onpointerdown={(e) => startPanelResize(e, panel)} onkeydown={(e) => resizePanelKey(e, panel)}></button>
+  <button class="resize" type="button" aria-label={t('Resize {panel} panel', { panel: label })} title={t('Resize {panel}: drag or use Up/Down arrows', { panel: label })} onpointerdown={(e) => startPanelResize(e, panel)} onkeydown={(e) => resizePanelKey(e, panel)}></button>
 {/snippet}
 
 <div class="app">
@@ -732,15 +733,15 @@
       {#if editor.textFxNode && editor.scene && (!panelMaximized || maximizedPanel === 'textFx')}
         {@const textFx = locateNode(editor.scene.objects, editor.textFxNode)?.node}
         {#if textFx?.kind === 'shape' && textFx.shape === 'text'}
-          {#if !panelMaximized}{@render panelResizeHandle('textFx', 'Text expressions')}{/if}
+          {#if !panelMaximized}{@render panelResizeHandle('textFx', t('Text expressions'))}{/if}
           {#key textFx.id}<TextFxPanel {editor} node={textFx} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('textFx')} onclose={() => (panelMaximized = false)} oncopy={copy} />{/key}
         {/if}
       {/if}
       {#if !panelMaximized && editor.fxOpen && editor.scene}{@render panelResizeHandle('fx', 'ƒx reference')}{/if}
       {#if editor.fxOpen && editor.scene && (!panelMaximized || maximizedPanel === 'fx')}<FxPanel {editor} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('fx')} onclose={() => { editor.fxOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
-      {#if !panelMaximized && editor.notesOpen && editor.scene}{@render panelResizeHandle('notes', 'Notes')}{/if}
+      {#if !panelMaximized && editor.notesOpen && editor.scene}{@render panelResizeHandle('notes', t('Notes'))}{/if}
       {#if editor.notesOpen && editor.scene && (!panelMaximized || maximizedPanel === 'notes')}<NotesPanel {editor} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('notes')} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
-      {#if !panelMaximized && diagnosticsOpen}{@render panelResizeHandle('debug', 'Debug')}{/if}
+      {#if !panelMaximized && diagnosticsOpen}{@render panelResizeHandle('debug', t('Debug'))}{/if}
       {#if diagnosticsOpen && (!panelMaximized || maximizedPanel === 'debug')}<DiagnosticsPanel
         entries={diagnostics}
         {sceneSummary}
@@ -758,11 +759,11 @@
       />{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp && (!panelMaximized || maximizedPanel === 'code')}
         {#if !panelMaximized}
-          {@render panelResizeHandle('code', 'Code')}
+          {@render panelResizeHandle('code', t('Code'))}
         {/if}
         <CodePanelComp editor={editor} oncopy={copy} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('code')} ondiagnostic={logCodeDiagnostic} onactivity={recordActivity} />
       {/if}
-      {#if !panelMaximized && editor.timelineOpen && editor.scene}{@render panelResizeHandle('timeline', 'Timeline')}<Timeline {editor} />{/if}
+      {#if !panelMaximized && editor.timelineOpen && editor.scene}{@render panelResizeHandle('timeline', t('Timeline'))}<Timeline {editor} />{/if}
     </div>
     {#if !panelMaximized}<aside class="inspector">
       <InspectorPanel {editor} bind:active={inspectorTab} onreplace={() => replaceInput.click()} />
@@ -770,36 +771,36 @@
   </main>
   {#snippet diagnosticsToggle()}
     <span class="diagnostics-toggle" data-warning={warningCount > 0 || undefined}>
-      <IconButton icon="bug" label={`${diagnosticsOpen ? 'Close' : 'Open'} debug output${diagnostics.length ? ` (${diagnostics.length})` : ''}${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
+      <IconButton icon="bug" label={`${diagnosticsOpen ? t('Close debug output') : t('Open debug output')}${diagnostics.length ? ` (${diagnostics.length})` : ''}${warningCount ? ` · ${warningCount === 1 ? t('1 warning') : t('{count} warnings', { count: warningCount })}` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
     </span>
   {/snippet}
   <footer class="status" class:no-inspector={panelMaximized}>
     {#if !editor.commandInEffectsSlot}<CommandLine {editor} />{/if}
     {#if canvasStatus}
       <!-- Three groups, left to right: the canvas view, time, and the panels. Version info goes last, dimmed. -->
-      <div class="canvas-status status-group" role="group" aria-label="Canvas view">
-        <span class="pct" title="Zoom (wheel or pinch)">{canvasStatus.percent}%</span>
-        <button type="button" onclick={canvasStatus.fit} title="Fit (⇧1)">Fit</button>
+      <div class="canvas-status status-group" role="group" aria-label={t('Canvas view')}>
+        <span class="pct" title={t('Zoom (wheel or pinch)')}>{canvasStatus.percent}%</span>
+        <button type="button" onclick={canvasStatus.fit} title={t('Fit (⇧1)')}>{t('Fit')}</button>
         <button type="button" onclick={canvasStatus.actualSize} title="100% (⇧0)">100%</button>
-        <button type="button" class="redraw" onclick={canvasStatus.redraw} title="Redraw everything" aria-label="Redraw">↻</button>
-        <button type="button" class="size" title="Document: size and canvas" onclick={showDocumentTab}>{canvasStatus.width} × {canvasStatus.height}</button>
+        <button type="button" class="redraw" onclick={canvasStatus.redraw} title={t('Redraw everything')} aria-label={t('Redraw')}>↻</button>
+        <button type="button" class="size" title={t('Document: size and canvas')} onclick={showDocumentTab}>{canvasStatus.width} × {canvasStatus.height}</button>
         {#if canvasStatus.cost !== null}
           <!-- While the canvas is still, the figure is the last redraw's (nothing is running): dimmed, no warning sign. -->
-          <span class="cost" data-slow={canvasStatus.slow || undefined} data-idle={canvasStatus.idle || undefined} title={canvasStatus.idle ? `Last redraw took ${Math.round(canvasStatus.cost)} ms. Nothing is being computed now.` : canvasStatus.slow ? 'Slow: try fewer copies, a coarser resolution, or turning off heavy effects' : 'Time to evaluate and draw'}>
+          <span class="cost" data-slow={canvasStatus.slow || undefined} data-idle={canvasStatus.idle || undefined} title={canvasStatus.idle ? t('Last redraw took {ms} ms. Nothing is being computed now.', { ms: Math.round(canvasStatus.cost) }) : canvasStatus.slow ? t('Slow: try fewer copies, a coarser resolution, or turning off heavy effects') : t('Time to evaluate and draw')}>
             {canvasStatus.slow && !canvasStatus.idle ? '⚠ ' : ''}{Math.round(canvasStatus.cost)} ms
           </span>
         {/if}
       </div>
       {#if !editor.animationDisabled}
-        <div class="status-group" role="group" aria-label="Time"><TimeControls {editor} /></div>
+        <div class="status-group" role="group" aria-label={t('Time')}><TimeControls {editor} /></div>
       {/if}
-      <div class="status-actions status-group" role="group" aria-label="Panels">
-        <button type="button" class="fx" aria-pressed={editor.fxOpen} onclick={() => (editor.fxOpen = !editor.fxOpen)} title="Formula reference: variables and functions" disabled={!editor.scene}>ƒx {editor.fxOpen ? '▾' : '▴'}</button>
+      <div class="status-actions status-group" role="group" aria-label={t('Panels')}>
+        <button type="button" class="fx" aria-pressed={editor.fxOpen} onclick={() => (editor.fxOpen = !editor.fxOpen)} title={t('Formula reference: variables and functions')} disabled={!editor.scene}>ƒx {editor.fxOpen ? '▾' : '▴'}</button>
         <ViewMenu {editor} />
-        <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title="Scene notes" disabled={!editor.scene}>Notes {editor.notesOpen ? '▾' : '▴'}</button>
-        <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title="Code">Code {editor.codeOpen ? '▾' : '▴'}</button>
+        <button type="button" aria-pressed={editor.notesOpen} onclick={() => (editor.notesOpen = !editor.notesOpen)} title={t('Scene notes')} disabled={!editor.scene}>{t('Notes')} {editor.notesOpen ? '▾' : '▴'}</button>
+        <button type="button" aria-pressed={editor.codeOpen} onclick={() => (editor.codeOpen = !editor.codeOpen)} title={t('Code')}>{t('Code')} {editor.codeOpen ? '▾' : '▴'}</button>
         {#if !editor.animationDisabled}
-          <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} title="Timeline">Timeline {editor.timelineOpen ? '▾' : '▴'}</button>
+          <button type="button" aria-pressed={editor.timelineOpen} onclick={() => (editor.timelineOpen = !editor.timelineOpen)} data-tour="timeline" title={t('Timeline')}>{t('Timeline')} {editor.timelineOpen ? '▾' : '▴'}</button>
         {/if}
         {@render diagnosticsToggle()}
       </div>
@@ -839,8 +840,8 @@
   {#if pending}<UnsavedDialog name={editor.name} onsave={() => resolvePending(true)} ondiscard={() => resolvePending(false)} oncancel={() => (pending = null)} />{/if}
   {#if videoExport}
     <div class="video-export">
-      <span role="status">Exporting MP4… {Math.round(videoExport.progress * 100)}%</span>
-      <button type="button" onclick={() => videoExport?.controller.abort()}>Cancel</button>
+      <span role="status">{t('Exporting MP4… {percent}%', { percent: Math.round(videoExport.progress * 100) })}</span>
+      <button type="button" onclick={() => videoExport?.controller.abort()}>{t('Cancel')}</button>
     </div>
   {/if}
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}

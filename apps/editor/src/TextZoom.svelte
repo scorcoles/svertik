@@ -1,12 +1,13 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   interface Props { value: number; onchange: (value: number) => void }
   let { value, onchange }: Props = $props();
 </script>
 
-<div class="zoom" role="group" aria-label="Text size">
-  <button type="button" aria-label="Decrease text size" title="Decrease text size" disabled={value <= 80} onclick={() => onchange(value - 10)}>A−</button>
-  <button class="value" type="button" aria-label="Reset text size to 100 percent" title="Reset text size" onclick={() => onchange(100)}>{value}%</button>
-  <button type="button" aria-label="Increase text size" title="Increase text size" disabled={value >= 180} onclick={() => onchange(value + 10)}>A+</button>
+<div class="zoom" role="group" aria-label={t('Text size')}>
+  <button type="button" aria-label={t('Decrease text size')} title={t('Decrease text size')} disabled={value <= 80} onclick={() => onchange(value - 10)}>A−</button>
+  <button class="value" type="button" aria-label={t('Reset text size to 100 percent')} title={t('Reset text size')} onclick={() => onchange(100)}>{value}%</button>
+  <button type="button" aria-label={t('Increase text size')} title={t('Increase text size')} disabled={value >= 180} onclick={() => onchange(value + 10)}>A+</button>
 </div>
 
 <style>

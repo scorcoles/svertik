@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Keyboard shortcut sheet: opened with "?" or from the svertik menu. Lists only shortcuts the editor
   // actually handles (App, Canvas, the stack tree and the timeline).
   import { Dialog } from 'bits-ui';
@@ -8,7 +9,7 @@
 
   const groups: { title: string; keys: [string, string][] }[] = [
     {
-      title: 'General',
+      title: t('General'),
       keys: [
         ['/  or  ⌘K', 'Command line: add an effect, or set, key, select, goto, export'],
         ['⌘O', 'Open project or import SVG'],
@@ -19,7 +20,7 @@
       ],
     },
     {
-      title: 'Selection',
+      title: t('Selection'),
       keys: [
         ['⌘A', 'Select all'],
         ['⌘C  ⌘X  ⌘V', 'Copy, cut, paste'],
@@ -32,7 +33,7 @@
       ],
     },
     {
-      title: 'Order',
+      title: t('Order'),
       keys: [
         ['⌥↑  ⌥↓', 'Move up / down in the stack'],
         ['⌘]  ⌘[', 'Bring forward / send backward'],
@@ -40,7 +41,7 @@
       ],
     },
     {
-      title: 'Canvas',
+      title: t('Canvas'),
       keys: [
         ['W', 'Toggle Wire view (canvas focused)'],
         ['V  or  Esc', 'Select tool'],
@@ -52,7 +53,7 @@
       ],
     },
     {
-      title: 'Path editing',
+      title: t('Path editing'),
       keys: [
         ['Enter  /  Esc', 'Finish editing points (also change tool or double-click empty canvas)'],
         ['Double-click segment', 'Insert a point without changing the curve'],
@@ -65,7 +66,7 @@
       ],
     },
     {
-      title: 'Stack',
+      title: t('Stack'),
       keys: [
         ['↑ ↓  Home  End', 'Move between rows'],
         ['← →', 'Collapse / expand'],
@@ -74,7 +75,7 @@
       ],
     },
     {
-      title: 'Timeline',
+      title: t('Timeline'),
       keys: [
         ['K', 'Key here: keyframe what is animated in the selection'],
         ['← →', 'Move the focused keyframe one frame'],
@@ -88,7 +89,7 @@
   <Dialog.Portal>
     <Dialog.Overlay class="sv-dialog-overlay" />
     <Dialog.Content class="sv-dialog sv-shortcuts">
-      <Dialog.Title class="sv-dialog-title">Keyboard shortcuts</Dialog.Title>
+      <Dialog.Title class="sv-dialog-title">{t('Keyboard shortcuts')}</Dialog.Title>
       <div class="grid">
         {#each groups as g (g.title)}
           <section>
@@ -96,7 +97,7 @@
             <dl>
               {#each g.keys as [keys, what] (keys)}
                 <dt><kbd>{keys}</kbd></dt>
-                <dd>{what}</dd>
+                <dd>{t(what)}</dd>
               {/each}
             </dl>
           </section>
@@ -104,7 +105,7 @@
       </div>
       <div class="actions">
         <Dialog.Close>
-          {#snippet child({ props })}<Button {...props} kind="primary" label="Close" />{/snippet}
+          {#snippet child({ props })}<Button {...props} kind="primary" label={t('Close')} />{/snippet}
         </Dialog.Close>
       </div>
     </Dialog.Content>

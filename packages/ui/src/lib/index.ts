@@ -24,3 +24,4 @@ export { default as Tabs } from './Tabs.svelte';
 export * from './scrub';
 export * from './palettes';
 export { formulaField, formulaTarget, insertFormula, type FormulaFieldOptions } from './formula-target.svelte';
+export { setTranslations, t } from './i18n';

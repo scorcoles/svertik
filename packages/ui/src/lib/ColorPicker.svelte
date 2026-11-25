@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import { untrack } from 'svelte';
   // A custom colour picker: a saturation (horizontal) and brightness (vertical) square plus a hue bar.
   // Works in HSV and returns hex (#rrggbb).
@@ -86,7 +87,7 @@
     class="sv"
     role="slider"
     tabindex="0"
-    aria-label="Saturation and brightness"
+    aria-label={t('Saturation and brightness')}
     aria-valuetext={`saturation ${Math.round(hsv.s * 100)}%, brightness ${Math.round(hsv.v * 100)}%`}
     aria-valuenow={Math.round(hsv.v * 100)}
     style:background-color="hsl({hsv.h} 100% 50%)"
@@ -99,7 +100,7 @@
     class="hue"
     role="slider"
     tabindex="0"
-    aria-label="Hue"
+    aria-label={t('Hue')}
     aria-valuemin={0}
     aria-valuemax={360}
     aria-valuenow={Math.round(hsv.h)}
@@ -109,9 +110,9 @@
     <span class="thumb bar" style:left="{(hsv.h / 360) * 100}%" style:background="hsl({hsv.h} 100% 50%)"></span>
   </div>
   {#if EyeDropperAPI}
-    <button class="eyedropper" type="button" onclick={() => void pickFromScreen()} aria-label="Pick a color from the screen" title="Pick a color from the screen">
+    <button class="eyedropper" type="button" onclick={() => void pickFromScreen()} aria-label={t('Pick a color from the screen')} title={t('Pick a color from the screen')}>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.9 1.8 3.3 3.3-2 2-1-1-5.9 5.9-2.5.5.5-2.5 5.9-5.9-1-1 2.7-1.3ZM3.5 12.5l-1 1" /></svg>
-      <span>Pick from screen</span>
+      <span>{t('Pick from screen')}</span>
     </button>
   {/if}
 </div>

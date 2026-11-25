@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { onDestroy } from 'svelte';
 
   interface Props { label: string; onclick: () => void | boolean | Promise<void | boolean>; disabled?: boolean }
@@ -17,7 +18,7 @@
   onDestroy(() => clearTimeout(timer));
 </script>
 
-<button class="copy sv-writing-theme" data-sv-theme="dark" type="button" aria-label={copied ? 'Copied' : label} title={copied ? 'Copied' : label} {disabled} onclick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+<button class="copy sv-writing-theme" data-sv-theme="dark" type="button" aria-label={copied ? t('Copied') : label} title={copied ? t('Copied') : label} {disabled} onclick={copy}>{copied ? t('Copied') : t('Copy')}</button>
 
 <style>
   .copy {

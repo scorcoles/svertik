@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Play mode: the scene full screen, with no tools, over the canvas colour. It uses the same
   // player as the exported code (timeline, hover, click, enter, "reduce motion"):
   // what shows here is what the web will show. Esc (or the ×) goes back to the editor.
@@ -91,9 +92,9 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
     capturing = true;
     try {
       await downloadFrame(svg, editor.canvas || DEFAULT_CANVAS, editor.name);
-      say('Frame downloaded');
+      say(t('Frame downloaded'));
     } catch {
-      say('Could not download the frame.');
+      say(t('Could not download the frame.'));
     } finally {
       capturing = false;
     }
@@ -116,18 +117,18 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
   }}
 />
 
-<div class="presenter" role="dialog" aria-label="Play" style:background={wireOn ? '#101216' : editor.canvas || DEFAULT_CANVAS}>
-  <svg bind:this={svg} class="stage" class:full-viewport={!!editor.viewportFit} aria-label="svertik scene"></svg>
+<div class="presenter" role="dialog" aria-label={t('Play')} style:background={wireOn ? '#101216' : editor.canvas || DEFAULT_CANVAS}>
+  <svg bind:this={svg} class="stage" class:full-viewport={!!editor.viewportFit} aria-label={t('svertik scene')}></svg>
   <div class="tools" data-active={controlsVisible || undefined}>
-    <button type="button" onclick={capture} disabled={capturing} aria-label="Download current frame as PNG" title="Download current frame as PNG">
+    <button type="button" onclick={capture} disabled={capturing} aria-label={t('Download current frame as PNG')} title={t('Download current frame as PNG')}>
       <Icon name="image" />
     </button>
-    <button type="button" onclick={share} aria-label="Share a link to this scene" title="Share a link to this scene">
+    <button type="button" onclick={share} aria-label={t('Share a link to this scene')} title={t('Share a link to this scene')}>
       <Icon name="share" />
     </button>
-    <button type="button" onclick={close} aria-label="Back to the editor (Esc)" title="Back to the editor (Esc)"><Icon name="close" /></button>
+    <button type="button" onclick={close} aria-label={t('Back to the editor (Esc)')} title={t('Back to the editor (Esc)')}><Icon name="close" /></button>
   </div>
-  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? 'Esc to go back to the editor · D for debug · W for wire'}</p>
+  <p class="hint" data-hidden={(!hint && !said) || undefined} aria-live="polite">{said ?? t('Esc to go back to the editor · D for debug · W for wire')}</p>
 </div>
 
 <style>

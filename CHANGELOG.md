@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.19
+
+### Added
+
+- The editor in Spanish: menus, panels, notices, the tour, Play and the help of every effect. It follows the browser's language, and svertik menu → Language switches it (remembered in the browser). Effect and parameter names stay in English, as in the docs and the scene JSON.
+
 ## 0.0.18
 
 ### Changed

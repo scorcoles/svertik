@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // A project that keeps its SVGs outside: which files it needs, to choose them (or drop them on the canvas).
   import { AlertDialog } from 'bits-ui';
   import { Button } from '@svertik/ui';
@@ -17,10 +18,10 @@
     <AlertDialog.Overlay class="sv-dialog-overlay" />
     <AlertDialog.Content class="sv-dialog">
       <AlertDialog.Title class="sv-dialog-title">
-        {files.length === 1 ? 'This project needs 1 SVG' : `This project needs ${files.length} SVGs`}
+        {files.length === 1 ? t('This project needs 1 SVG') : t('This project needs {count} SVGs', { count: files.length })}
       </AlertDialog.Title>
       <AlertDialog.Description class="sv-dialog-text">
-        It was saved without embedding them. Choose these files, or drop them on the canvas; until then their objects draw nothing.
+        {t('It was saved without embedding them. Choose these files, or drop them on the canvas; until then their objects draw nothing.')}
       </AlertDialog.Description>
       <ul class="files">
         {#each files as file (file)}<li>{file}</li>{/each}
@@ -28,9 +29,9 @@
       <div class="actions">
         <span class="spacer"></span>
         <AlertDialog.Cancel>
-          {#snippet child({ props })}<Button {...props} label="Later" />{/snippet}
+          {#snippet child({ props })}<Button {...props} label={t('Later')} />{/snippet}
         </AlertDialog.Cancel>
-        <Button kind="primary" label="Choose SVGs…" onclick={() => input.click()} />
+        <Button kind="primary" label={t('Choose SVGs…')} onclick={() => input.click()} />
       </div>
       <input
         bind:this={input}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
   import { effectDescriptions, resolveParams, isNumericExpression, shapeRegistry, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode } from '@svertik/engine';
   import { layerOf } from './layer-of';
@@ -79,7 +80,7 @@
       await navigator.clipboard.writeText(reference);
       editor.notice = `Copied ${reference}`;
     } catch {
-      editor.notice = `Use ${reference} in a formula`;
+      editor.notice = t('Use {reference} in a formula', { reference });
     }
   }
   function setModifierProp(name: string, value: unknown) { if (m) editor.setModifierProps(m.id, { ...(m.props ?? {}), [name]: value }); }
@@ -118,41 +119,41 @@
   const schema = $derived(Object.entries(def?.params ?? {}) as [string, ParamSpec][]);
   const help = $derived.by(() => {
     if (!m || !def) return '';
-    if (editor.currentParent?.type === 'wiggle' && m.type === 'transform') return 'Wiggle rotates and scales around this Transform pivot. Drag the Pivot handle to change its center of action.';
-    if (editor.currentParent?.type === 'rgbsplit') return 'Applies only to the colored copies. Blur or Glow soften them; Step spreads them by element.';
-    if (editor.currentParent?.type === 'step') return 'Per element: numbers grow ×1, ×2, ×3… Centers are each element’s own.';
-    if (editor.currentParent?.type === 'stagger') return 'Per element: where it starts (In) or ends (Out). Centers are each element’s own.';
-    if (editor.currentParent) return 'Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).';
-    if (m.type === 'physics') return 'Simulates the children of this group as rigid bodies. Add Rigid Body to set initial velocity, spin, immovability or attraction. Add a hollow filled path as an immovable body to make an arena.';
-    if (m.type === 'rigidbody') return 'Sets this child’s initial motion for a Physics group or Gravity. Immovable bodies stay fixed and can be used as colliders. In Physics, Attractor pulls other rigid bodies and receives their reaction unless Immovable is on. Absorption damps motion in its field so bodies can settle.';
-    if (def.kind === 'filter') return 'Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.';
+    if (editor.currentParent?.type === 'wiggle' && m.type === 'transform') return t('Wiggle rotates and scales around this Transform pivot. Drag the Pivot handle to change its center of action.');
+    if (editor.currentParent?.type === 'rgbsplit') return t('Applies only to the colored copies. Blur or Glow soften them; Step spreads them by element.');
+    if (editor.currentParent?.type === 'step') return t('Per element: numbers grow ×1, ×2, ×3… Centers are each element’s own.');
+    if (editor.currentParent?.type === 'stagger') return t('Per element: where it starts (In) or ends (Out). Centers are each element’s own.');
+    if (editor.currentParent) return t('Per element: numbers go from their neutral value to this one, by how much the element is selected (0–1).');
+    if (m.type === 'physics') return t('Simulates the children of this group as rigid bodies. Add Rigid Body to set initial velocity, spin, immovability or attraction. Add a hollow filled path as an immovable body to make an arena.');
+    if (m.type === 'rigidbody') return t('Sets this child’s initial motion for a Physics group or Gravity. Immovable bodies stay fixed and can be used as colliders. In Physics, Attractor pulls other rigid bodies and receives their reaction unless Immovable is on. Absorption damps motion in its field so bodies can settle.');
+    if (def.kind === 'filter') return t('Applies to the whole object, after its other effects, wherever it is in the stack. Drawn by the browser: a large or animated blur can be heavy on phones.');
     if (m.children) {
-      if (m.type === 'rgbsplit') return 'Two colored copies, shifted. Modifiers nested under it apply only to the copies; Blur softens them and Step spreads them by element.';
-      if (m.type === 'each') return 'Applies nested effects to each element separately (Clone copies, letters, tiles…). Their formulas can read element.distance, element.u, element.index… A Shape inside rebuilds each copy with other values for the shape\'s own parameters.';
-      if (m.type === 'step') return 'Applies nested modifiers to each element, stepping their numbers. Drop modifiers here or select Step and add.';
-      if (m.type === 'stagger') return 'Each element makes its own transition, a little after the previous one. Animate Progress from 0 to 1. In starts with the nested effects; Out ends with them.';
-      if (m.type === 'range') return 'Selects elements by order. Nested modifiers act on selected letters, words, lines, copies, tiles or pieces. Animate Offset to sweep.';
-      return 'Selects elements by where they are. Nested modifiers act more near the field; move or animate it to sweep.';
+      if (m.type === 'rgbsplit') return t('Two colored copies, shifted. Modifiers nested under it apply only to the copies; Blur softens them and Step spreads them by element.');
+      if (m.type === 'each') return t('Applies nested effects to each element separately (Clone copies, letters, tiles…). Their formulas can read element.distance, element.u, element.index… A Shape inside rebuilds each copy with other values for the shape\'s own parameters.');
+      if (m.type === 'step') return t('Applies nested modifiers to each element, stepping their numbers. Drop modifiers here or select Step and add.');
+      if (m.type === 'stagger') return t('Each element makes its own transition, a little after the previous one. Animate Progress from 0 to 1. In starts with the nested effects; Out ends with them.');
+      if (m.type === 'range') return t('Selects elements by order. Nested modifiers act on selected letters, words, lines, copies, tiles or pieces. Animate Offset to sweep.');
+      return t('Selects elements by where they are. Nested modifiers act more near the field; move or animate it to sweep.');
     }
     return '';
   });
 </script>
 
-<section class="attrs" aria-label="Attributes" bind:this={panel}>
+<section class="attrs" aria-label={t('Attributes')} bind:this={panel}>
   {#if m && def}
     <header>
       <h2>{m.name || def.label}</h2>
       <span class="meta">{editor.currentParent ? `in ${registry.get(editor.currentParent.type)?.label}` : categoryOf(def)}</span>
       {#if help && editor.showInfo}<InfoTip text={help} />{/if}
-      <IconButton icon="zero" label="Set values to zero" onclick={() => editor.zero()} />
-      <IconButton icon="dice" label="Randomize (R)" onclick={() => editor.randomize()} />
+      <IconButton icon="zero" label={t('Set values to zero')} onclick={() => editor.zero()} />
+      <IconButton icon="dice" label={t('Randomize (R)')} onclick={() => editor.randomize()} />
     </header>
     <Tabs bind:value={tab} tabs={['Params', 'Info']}>
-      {#snippet children(t)}
-        {#if t === 'Params'}
+      {#snippet children(tab)}
+        {#if tab === 'Params'}
           <div class="params">
             {#if m.type === 'particles'}
-              <div class="particle-presets" role="group" aria-label="Particle motion presets">
+              <div class="particle-presets" role="group" aria-label={t('Particle motion presets')}>
                 {#each PARTICLE_PRESETS as preset}<Button label={preset.name} title={preset.tip} onclick={() => particlePreset(preset)} />{/each}
               </div>
             {/if}
@@ -160,7 +161,7 @@
               {@const owner = editor.activeNode}
               {@const shapeDef = owner?.kind === 'shape' ? shapeRegistry.get(owner.shape) : undefined}
               <ShapeValues each={m.params ?? {}} schema={shapeDef?.params ?? {}} values={owner?.kind === 'shape' ? owner.params : {}} showInfo={editor.showInfo}
-                problem={editor.currentParent?.type !== 'each' ? 'Shape only works inside Each.' : !shapeDef || owner?.kind !== 'shape' || owner.shape === 'text' || owner.shape === 'path' ? 'Shape works on shape objects (not Text or Path).' : undefined}
+                problem={editor.currentParent?.type !== 'each' ? t('Shape only works inside Each.') : !shapeDef || owner?.kind !== 'shape' || owner.shape === 'text' || owner.shape === 'path' ? t('Shape works on shape objects (not Text or Path).') : undefined}
                 onchange={(values) => editor.setFreeParams(m.id, values)} />
             {/if}
             <ParamList swatches={editor.docColors} params={main} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
@@ -169,37 +170,37 @@
                 <ParamList swatches={editor.docColors} params={entries} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
               </Section>
             {/each}
-            {#if m.type !== 'shapevalues'}<VariableList title="Props" values={m.props ?? {}} namespace="props" prefix="prop" showInfo={editor.showInfo} reserved={Object.keys(m.params ?? {})}
-              info="Custom numeric values are forwarded to nested modifiers. Formulas can map an incoming value with props.name; native modifier parameters do not pass through automatically."
+            {#if m.type !== 'shapevalues'}<VariableList title={t('Props')} values={m.props ?? {}} namespace="props" prefix="prop" showInfo={editor.showInfo} reserved={Object.keys(m.params ?? {})}
+              info={t('Custom numeric values are forwarded to nested modifiers. Formulas can map an incoming value with props.name; native modifier parameters do not pass through automatically.')}
               onchange={setModifierProp} onremove={removeModifierProp} onrename={renameModifierProp} />{/if}
             {#if m.type === 'boolean' && editor.activeNode?.kind === 'group'}
               <div class="actions boolean-path-actions">
-                <Button label="To Path" title="Destructively bake the Boolean result at this frame. Its source objects, effects and animation will be removed; Undo restores them." onclick={() => editor.booleanToPath()} />
+                <Button label={t('To Path')} title={t('Destructively bake the Boolean result at this frame. Its source objects, effects and animation will be removed; Undo restores them.')} onclick={() => editor.booleanToPath()} />
               </div>
             {/if}
           </div>
         {:else}
-          {@const about = effectDescriptions[m.type]}
+          {@const about = effectDescriptions[m.type] ? t(effectDescriptions[m.type]!) : undefined}
           <dl class="info">
             {#if about}
-              <dt>About</dt><dd class="about" class:expanded={aboutExpanded}>{about}</dd>
-              {#if about.length > 180}<dt></dt><dd class="about-actions"><button type="button" onclick={() => (aboutExpanded = !aboutExpanded)}>{aboutExpanded ? 'Show less' : 'View all'}</button></dd>{/if}
+              <dt>{t('About')}</dt><dd class="about" class:expanded={aboutExpanded}>{about}</dd>
+              {#if about.length > 180}<dt></dt><dd class="about-actions"><button type="button" onclick={() => (aboutExpanded = !aboutExpanded)}>{aboutExpanded ? t('Show less') : t('View all')}</button></dd>{/if}
             {/if}
-            <dt>Type</dt><dd>{m.type}</dd>
-            <dt>Category</dt><dd>{categoryOf(def)}</dd>
-            <dt>Id</dt><dd>{m.id}</dd>
+            <dt>{t('Type')}</dt><dd>{m.type}</dd>
+            <dt>{t('Category')}</dt><dd>{categoryOf(def)}</dd>
+            <dt>{t('Id')}</dt><dd>{m.id}</dd>
           </dl>
           {#if Object.keys(incomingProps).length}
-            <section class="incoming-info" aria-label="Incoming props">
-              <h3>Incoming props</h3>
+            <section class="incoming-info" aria-label={t('Incoming props')}>
+              <h3>{t('Incoming props')}</h3>
               {#each Object.entries(incomingProps) as [name, value] (name)}
-                <div class="incoming-row"><button class="prop-reference" type="button" title={`Copy props.${name}`} onclick={() => void copyPropReference(name)}>props.{name}</button><span>{value}</span></div>
+                <div class="incoming-row"><button class="prop-reference" type="button" title={t('Copy {reference}', { reference: `props.${name}` })} onclick={() => void copyPropReference(name)}>props.{name}</button><span>{value}</span></div>
               {/each}
             </section>
           {/if}
           <div class="actions">
-            <Button label="Reset" onclick={() => editor.reset()} />
-            <Button label="Remove" onclick={() => editor.remove()} />
+            <Button label={t('Reset')} onclick={() => editor.reset()} />
+            <Button label={t('Remove')} onclick={() => editor.remove()} />
           </div>
         {/if}
       {/snippet}
@@ -207,7 +208,7 @@
   {:else if editor.currentNode}
     {#key editor.currentNode.id}<NodeAttributes {editor} node={editor.currentNode} {onreplace} />{/key}
   {:else if editor.scene}
-    <p class="empty">Select an object or modifier to edit its parameters. Document settings are in the Document tab.</p>
+    <p class="empty">{t('Select an object or modifier to edit its parameters. Document settings are in the Document tab.')}</p>
   {/if}
 </section>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { t } from '@svertik/ui';
 
   // Header of an inspector panel (Stack, Properties, Layers): its title folds and unfolds it; the
   // actions sit on the right.
@@ -16,7 +17,7 @@
 </script>
 
 <header class="panel-header">
-  <button type="button" class="toggle" aria-expanded={open} aria-controls={controls} title={open ? `Fold ${title}` : `Unfold ${title}`} onclick={() => ontoggle(!open)}>
+  <button type="button" class="toggle" aria-expanded={open} aria-controls={controls} title={open ? t('Fold {name}', { name: title }) : t('Unfold {name}', { name: title })} onclick={() => ontoggle(!open)}>
     <span class="chevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
     <span class="title">{title}</span>
     {#if detail}<span class="detail">{detail}</span>{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   // Several parameters in a row. Joins a checkbox `x` and its colour `xColor` in one row
   // (Fill + Fill color, Stroke + Stroke color): so the checkbox and the swatch line up.
   import { convertUnit, formatPercent, isNumericExpression, parsePercent, resolveUnits, type ParamSpec, type UnitContext } from '@svertik/engine';
@@ -134,7 +135,7 @@
       <span class="link" data-on={linked[it.name] || undefined}>
         <IconButton
           icon={linked[it.name] ? 'link' : 'unlink'}
-          label={linked[it.name] ? `Unlink ${labelOf(it.name, it.spec)} and ${labelOf(pair.name, pair.spec)}` : `Link ${labelOf(it.name, it.spec)} and ${labelOf(pair.name, pair.spec)} (keep proportion)`}
+          label={linked[it.name] ? t('Unlink {name} and {name2}', { name: labelOf(it.name, it.spec), name2: labelOf(pair.name, pair.spec) }) : t('Link {name} and {name2} (keep proportion)', { name: labelOf(it.name, it.spec), name2: labelOf(pair.name, pair.spec) })}
           active={linked[it.name]}
           onclick={() => (linked = { ...linked, [it.name]: !linked[it.name] })}
         />
@@ -143,7 +144,7 @@
   {:else if it.links}
     {@const links = it.links}
     {@const linked = isLinked(it.name, it.spec)}
-    {@const button = { icon: linked ? 'link' : 'unlink', label: linked ? `Set each ${labelOf(links.one, specOf(links.one)!).toLowerCase()} separately` : `Link all to one ${labelOf(links.one, specOf(links.one)!).toLowerCase()}` } as const}
+    {@const button = { icon: linked ? 'link' : 'unlink', label: linked ? t('Set each {name} separately', { name: labelOf(links.one, specOf(links.one)!).toLowerCase() }) : t('Link all to one {name}', { name: labelOf(links.one, specOf(links.one)!).toLowerCase() }) } as const}
     <!-- One value with a link button beside it; unlinked, its parts two per row, bracketed to the button. -->
     <div class="pair" data-single={linked || undefined}>
       {#if linked}
@@ -157,7 +158,7 @@
                 {@const sp = specOf(n) as Extract<ParamSpec, { type: 'number' }>}
                 {@const pct = sp?.percentOf ? parsePercent(values?.[n]) : null}
                 <NumberField value={pct ?? num(n)} step={sp?.step ?? 1} min={sp?.min} max={sp?.max} unit={pct !== null ? '%' : sp?.unit} prefix={links.prefixes?.[row + i] ?? ''} label={labelOf(n, sp)} width="66px"
-                  unitAction={unitContext && sp?.percentOf ? { label: `${labelOf(n, sp)}: use ${pct !== null ? 'px' : '%'}`, onclick: () => switchUnit(n, sp, pct !== null ? 'px' : '%') } : undefined}
+                  unitAction={unitContext && sp?.percentOf ? { label: t('{name}: use {unit}', { name: labelOf(n, sp), unit: pct !== null ? 'px' : '%' }), onclick: () => switchUnit(n, sp, pct !== null ? 'px' : '%') } : undefined}
                   onchange={(v) => onchange(n, pct !== null ? formatPercent(v) : v)} />
               {/each}
             </span>

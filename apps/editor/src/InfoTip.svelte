@@ -1,5 +1,6 @@
 <script lang="ts">
-  let { text, label = 'More information', visible = true }: { text: string; label?: string; visible?: boolean } = $props();
+  import { t } from '@svertik/ui';
+  let { text, label = t('More information'), visible = true }: { text: string; label?: string; visible?: boolean } = $props();
   let open = $state(false);
 </script>
 

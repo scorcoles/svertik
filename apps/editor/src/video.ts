@@ -1,6 +1,7 @@
 import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, QUALITY_HIGH, canEncodeVideo } from 'mediabunny';
 import { sampleScene, type Engine, type SceneV1 } from '@svertik/engine/player';
 import { sceneDuration } from '@svertik/engine/scene';
+import { t } from '@svertik/ui/i18n';
 
 interface VideoOptions {
   background: string;
@@ -20,7 +21,7 @@ export async function downloadMP4(engine: Engine, original: SceneV1, options: Vi
   const duration = sceneDuration(scene);
   const fps = scene.animation?.fps ?? 30;
   if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(fps) || fps <= 0) {
-    throw new Error('The scene needs a positive duration and frame rate.');
+    throw new Error(t('The scene needs a positive duration and frame rate.'));
   }
   options.signal?.throwIfAborted();
   const frameAt = (t: number) => {
@@ -38,7 +39,7 @@ export async function downloadMP4(engine: Engine, original: SceneV1, options: Vi
   const width = Math.max(2, Math.ceil((viewport ? viewport.width * viewport.pixelRatio : dimensions[2]!) / 2) * 2);
   const height = Math.max(2, Math.ceil((viewport ? viewport.height * viewport.pixelRatio : dimensions[3]!) / 2) * 2);
   if (!await canEncodeVideo('avc', { width, height, frameRate: fps, quality: QUALITY_HIGH })) {
-    throw new Error('MP4 export is not supported in this browser. Try Chrome, Edge or Safari.');
+    throw new Error(t('MP4 export is not supported in this browser. Try Chrome, Edge or Safari.'));
   }
   const canvas = Object.assign(document.createElement('canvas'), { width, height });
   const ctx = canvas.getContext('2d');
@@ -81,7 +82,7 @@ export async function downloadMP4(engine: Engine, original: SceneV1, options: Vi
     options.signal?.throwIfAborted();
     await output.finalize();
     options.signal?.throwIfAborted();
-    if (!output.target.buffer) throw new Error('Could not encode the MP4.');
+    if (!output.target.buffer) throw new Error(t('Could not encode the MP4.'));
     const url = URL.createObjectURL(new Blob([output.target.buffer], { type: 'video/mp4' }));
     const link = Object.assign(document.createElement('a'), {
       href: url, download: `${options.name.replace(/[\\/:*?"<>|]/g, '_') || 'svertik'}.mp4`,

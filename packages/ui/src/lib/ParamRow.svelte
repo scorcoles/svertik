@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import type { Snippet } from 'svelte';
   import { scrub as scrubValue } from './scrub';
 
@@ -47,7 +48,7 @@
       type="button"
       class="key"
       data-state={keyState ?? 'none'}
-      title={keyState === 'key' ? 'Remove keyframe here' : keyState === 'animated' ? 'Add keyframe here' : 'Animate: add a keyframe here'}
+      title={keyState === 'key' ? t('Remove keyframe here') : keyState === 'animated' ? t('Add keyframe here') : t('Animate: add a keyframe here')}
       aria-label={`${label}: ${keyState === 'key' ? 'remove keyframe' : 'add keyframe'}`}
       onclick={onkey}
     ></button>
@@ -55,10 +56,10 @@
   <div class="label-cell">
     <label for={htmlFor} title={label} data-scrubbable={!!scrub || undefined} onpointerdown={scrubDown} onpointermove={scrubMove} onpointerup={scrubUp} onpointercancel={scrubUp}>{label}</label>
     {#if info && showInfo}
-      <span class="row-info" role="group" aria-label={`More information about ${label}`} onpointerenter={() => (infoOpen = true)} onpointerleave={() => (infoOpen = false)} onfocusin={() => (infoOpen = true)} onfocusout={(event) => {
+      <span class="row-info" role="group" aria-label={t('More information about {name}', { name: label })} onpointerenter={() => (infoOpen = true)} onpointerleave={() => (infoOpen = false)} onfocusin={() => (infoOpen = true)} onfocusout={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) infoOpen = false;
       }}>
-        <button class="info-trigger" type="button" aria-label={`More information about ${label}`} aria-expanded={infoOpen} title={`More information about ${label}`} onclick={() => (infoOpen = !infoOpen)}>i</button>
+        <button class="info-trigger" type="button" aria-label={t('More information about {name}', { name: label })} aria-expanded={infoOpen} title={t('More information about {name}', { name: label })} onclick={() => (infoOpen = !infoOpen)}>i</button>
         {#if infoOpen}<span class="info-popup" role="tooltip">{info}</span>{/if}
       </span>
     {/if}

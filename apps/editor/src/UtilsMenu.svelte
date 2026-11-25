@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
@@ -27,51 +28,51 @@
       sideOffset={compact ? 6 : 4}
     >
       <DropdownMenu.Item class="sv-menu-item" onSelect={() => editor.createComposition()}>
-        <Icon name="composition" /> Empty composition
+        <Icon name="composition" /> {t('Empty composition')}
       </DropdownMenu.Item>
       <DropdownMenu.Item class="sv-menu-item" disabled={!editor.selectedNodes.length} onSelect={() => editor.createComposition(true)}>
-        <Icon name="composition" /> Composition from selection
+        <Icon name="composition" /> {t('Composition from selection')}
       </DropdownMenu.Item>
       <DropdownMenu.Item class="sv-menu-item" onSelect={() => compositionFile.click()}>
-        <Icon name="import" /> Import composition…
+        <Icon name="import" /> {t('Import composition…')}
       </DropdownMenu.Item>
       <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Item
         class="sv-menu-item"
         disabled={!editor.activeNode}
-        title="A live copy of the selected object: change the original and the copy follows"
+        title={t('A live copy of the selected object: change the original and the copy follows')}
         onSelect={() => editor.addInstance()}
       >
         <Icon name="instance" />
-        Instance
+        {t('Instance')}
       </DropdownMenu.Item>
-      <DropdownMenu.Item class="sv-menu-item" title="Generate copies at the cursor during Play" onSelect={() => editor.addMouseInstance()}>
-        <Icon name="mouse-instance" /> Mouse Instance
+      <DropdownMenu.Item class="sv-menu-item" title={t('Generate copies at the cursor during Play')} onSelect={() => editor.addMouseInstance()}>
+        <Icon name="mouse-instance" /> {t('Mouse Instance')}
       </DropdownMenu.Item>
       <DropdownMenu.Item
         class="sv-menu-item"
-        title="Effects that apply to other objects (its targets), each on its own. Selected objects become its targets."
+        title={t('Effects that apply to other objects (its targets), each on its own. Selected objects become its targets.')}
         onSelect={() => editor.addEffector()}
       >
         <Icon name="effector" />
-        Effector
+        {t('Effector')}
       </DropdownMenu.Item>
       <DropdownMenu.Item
         class="sv-menu-item"
-        title="A line that joins two objects and follows them. Select the two objects first."
+        title={t('A line that joins two objects and follows them. Select the two objects first.')}
         onSelect={() => editor.addConnector()}
       >
         <Icon name="connector" />
-        Connector
+        {t('Connector')}
       </DropdownMenu.Item>
       <DropdownMenu.Item
         class="sv-menu-item"
         disabled={!editor.activeNode}
-        title="A line that draws the path the selected object leaves behind while it moves (play the animation)"
+        title={t('A line that draws the path the selected object leaves behind while it moves (play the animation)')}
         onSelect={() => editor.addTracer()}
       >
         <Icon name="tracer" />
-        Tracer
+        {t('Tracer')}
       </DropdownMenu.Item>
 
     </DropdownMenu.Content>

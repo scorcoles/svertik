@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Before changing file with unsaved changes: save, discard or stay.
   import { AlertDialog } from 'bits-ui';
   import { Button } from '@svertik/ui';
@@ -16,15 +17,15 @@
   <AlertDialog.Portal>
     <AlertDialog.Overlay class="sv-dialog-overlay" />
     <AlertDialog.Content class="sv-dialog">
-      <AlertDialog.Title class="sv-dialog-title">Save changes to “{name}”?</AlertDialog.Title>
-      <AlertDialog.Description class="sv-dialog-text">If you don’t save, your changes will be lost.</AlertDialog.Description>
+      <AlertDialog.Title class="sv-dialog-title">{t('Save changes to “{name}”?', { name })}</AlertDialog.Title>
+      <AlertDialog.Description class="sv-dialog-text">{t('If you don’t save, your changes will be lost.')}</AlertDialog.Description>
       <div class="actions">
-        <Button label="Don’t save" onclick={ondiscard} />
+        <Button label={t('Don’t save')} onclick={ondiscard} />
         <span class="spacer"></span>
         <AlertDialog.Cancel>
-          {#snippet child({ props })}<Button {...props} label="Cancel" />{/snippet}
+          {#snippet child({ props })}<Button {...props} label={t('Cancel')} />{/snippet}
         </AlertDialog.Cancel>
-        <Button kind="primary" label="Save" onclick={onsave} />
+        <Button kind="primary" label={t('Save')} onclick={onsave} />
       </div>
     </AlertDialog.Content>
   </AlertDialog.Portal>

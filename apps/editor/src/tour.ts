@@ -1,5 +1,6 @@
 // The first-run tour: a few cards that point at the real editor, one area at a time.
 // Steps whose area is not on screen (a hidden panel, an empty scene) are skipped.
+import { t } from '@svertik/ui/i18n';
 
 export interface TourStep {
   /** CSS selector of the area the card points at. */
@@ -11,58 +12,58 @@ export interface TourStep {
 export const TOUR: TourStep[] = [
   {
     target: 'section.canvas',
-    title: 'The canvas',
-    body: 'Your scene. Click to select, drag to move. Wheel or pinch to zoom, ⇧1 fits the document.',
+    title: t('The canvas'),
+    body: t('Your scene. Click to select, drag to move. Wheel or pinch to zoom, ⇧1 fits the document.'),
   },
   {
     target: 'nav.rail',
-    title: 'Tools and colors',
-    body: 'Draw shapes and text, and pick the fill and stroke of the selection or of what you draw next.',
+    title: t('Tools and colors'),
+    body: t('Draw shapes and text, and pick the fill and stroke of the selection or of what you draw next.'),
   },
   {
     target: 'nav.effects',
-    title: 'Effects',
-    body: 'Deform, repeat, animate, glitch… Each menu adds an effect to the selected object. The command line (/) finds any of them by name.',
+    title: t('Effects'),
+    body: t('Deform, repeat, animate, glitch… Each menu adds an effect to the selected object. The command line (/) finds any of them by name.'),
   },
   {
     target: '#inspector-panel-stack .stack',
-    title: 'The stack',
-    body: 'Every object is its source plus a stack of effects, applied top to bottom. Reorder, switch off or remove them: nothing is destructive.',
+    title: t('The stack'),
+    body: t('Every object is its source plus a stack of effects, applied top to bottom. Reorder, switch off or remove them: nothing is destructive.'),
   },
   {
     target: '#inspector-panel-stack .properties',
-    title: 'Properties',
-    body: 'The parameters of the selected object or effect. Drag a number to scrub it; ƒx turns a field into a formula that can read time, the mouse or other objects.',
+    title: t('Properties'),
+    body: t('The parameters of the selected object or effect. Drag a number to scrub it; ƒx turns a field into a formula that can read time, the mouse or other objects.'),
   },
   {
     target: 'section.layers',
-    title: 'Layers',
-    body: 'The objects of the scene. The first one is drawn in front.',
+    title: t('Layers'),
+    body: t('The objects of the scene. The first one is drawn in front.'),
   },
   {
     target: '#inspector-tab-document',
-    title: 'Document',
-    body: 'Size, background, duration, seed and the scene’s own variables.',
+    title: t('Document'),
+    body: t('Size, background, duration, seed and the scene’s own variables.'),
   },
   {
-    target: 'footer.status button[title="Timeline"]',
-    title: 'Timeline',
-    body: 'Keyframes for any parameter. Infinite time keeps procedural and interactive scenes running.',
+    target: 'footer.status [data-tour="timeline"]',
+    title: t('Timeline'),
+    body: t('Keyframes for any parameter. Infinite time keeps procedural and interactive scenes running.'),
   },
   {
     target: '.toolbar .play-button',
-    title: 'Play',
-    body: 'Full screen and interactive: the mouse, clicks and physics come alive here.',
+    title: t('Play'),
+    body: t('Full screen and interactive: the mouse, clicks and physics come alive here.'),
   },
   {
     target: '.sv-export-trigger',
-    title: 'Export and share',
-    body: 'SVG, PNG, MP4, animated SVG or Lottie. Share link gives a short link that opens the scene.',
+    title: t('Export and share'),
+    body: t('SVG, PNG, MP4, animated SVG or Lottie. Share link gives a short link that opens the scene.'),
   },
   {
     target: '.sv-app-trigger',
-    title: 'The svertik menu',
-    body: 'New, open, save, the demos, keyboard shortcuts, and this tour whenever you want it again.',
+    title: t('The svertik menu'),
+    body: t('New, open, save, the demos, keyboard shortcuts, and this tour whenever you want it again.'),
   },
 ];
 

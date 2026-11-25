@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { expressionReference } from '@svertik/engine';
   import { IconButton, formulaTarget, insertFormula } from '@svertik/ui';
   import TextZoom from './TextZoom.svelte';
@@ -16,33 +17,33 @@
   const variable = (v: { name: string; about: string }) => ({ name: v.name, insert: v.name, caretBack: 0, about: v.about });
 
   const sections = $derived([
-    { title: 'Scene', rows: reference.variables.filter((v) => !v.key.includes('.')).map(variable) },
-    { title: 'Mouse', note: 'Live only in Play', rows: reference.variables.filter((v) => v.key.startsWith('mouse.')).map(variable) },
-    { title: 'Clock', note: '0 in renders', rows: reference.variables.filter((v) => v.key.startsWith('clock.')).map(variable) },
+    { title: t('Scene'), rows: reference.variables.filter((v) => !v.key.includes('.')).map(variable) },
+    { title: t('Mouse'), note: t('Live only in Play'), rows: reference.variables.filter((v) => v.key.startsWith('mouse.')).map(variable) },
+    { title: t('Clock'), note: t('0 in renders'), rows: reference.variables.filter((v) => v.key.startsWith('clock.')).map(variable) },
     {
-      title: 'Custom',
+      title: t('Custom'),
       note: 'Document → Variables',
       rows: Object.keys(editor.scene?.custom ?? {}).map((key) => variable({ name: `scene.custom.${key}`, about: '' })),
     },
-    { title: 'Props', note: 'Incoming parent values', rows: reference.variables.filter((v) => v.key === 'props.*').map(variable) },
-    { title: 'Children', note: 'Direct child values', rows: reference.variables.filter((v) => v.key === 'children["id"].property').map(variable) },
+    { title: t('Props'), note: t('Incoming parent values'), rows: reference.variables.filter((v) => v.key === 'props.*').map(variable) },
+    { title: t('Children'), note: t('Direct child values'), rows: reference.variables.filter((v) => v.key === 'children["id"].property').map(variable) },
     {
-      title: 'Constants',
+      title: t('Constants'),
       rows: [
         { name: 'pi', insert: 'pi', caretBack: 0, about: 'Pi (3.14159…)' },
-        { name: 'e', insert: 'e', caretBack: 0, about: 'Euler’s number (2.71828…)' },
+        { name: 'e', insert: 'e', caretBack: 0, about: t('Euler’s number (2.71828…)') },
       ],
     },
     {
-      title: 'Examples',
+      title: t('Examples'),
       rows: [
-        { name: 'scene.progress * 100', insert: 'scene.progress * 100', caretBack: 0, about: 'Map progress to a 0–100 value.' },
-        { name: 'sin(scene.time * 2) * 50', insert: 'sin(scene.time * 2) * 50', caretBack: 0, about: 'A smooth repeating motion.' },
-        { name: 'random(-10, 10, scene.cycle)', insert: 'random(-10, 10, scene.cycle)', caretBack: 0, about: 'A stable value that changes each cycle.' },
+        { name: 'scene.progress * 100', insert: 'scene.progress * 100', caretBack: 0, about: t('Map progress to a 0–100 value.') },
+        { name: 'sin(scene.time * 2) * 50', insert: 'sin(scene.time * 2) * 50', caretBack: 0, about: t('A smooth repeating motion.') },
+        { name: 'random(-10, 10, scene.cycle)', insert: 'random(-10, 10, scene.cycle)', caretBack: 0, about: t('A stable value that changes each cycle.') },
       ],
     },
     {
-      title: 'Functions',
+      title: t('Functions'),
       // A call goes in with its parentheses and the caret between them.
       rows: reference.functions.map((f) => ({ name: f.name, insert: `${f.name.replace(/\(.*$/, '')}()`, caretBack: 1, about: f.about })),
     },
@@ -56,25 +57,25 @@
 
 <section class="fx-panel" aria-labelledby="fx-title">
   <header>
-    <h2 id="fx-title">ƒx reference</h2>
-    <span class="target">{formulaTarget.label ? `Click to insert into ${formulaTarget.label}` : 'Click to copy · focus a ƒx field to insert'}</span>
-    <input class="filter" type="search" placeholder="Filter" aria-label="Filter variables and functions" bind:value={filter} onkeydown={(e) => e.stopPropagation()} />
+    <h2 id="fx-title">{t('ƒx reference')}</h2>
+    <span class="target">{formulaTarget.label ? t('Click to insert into {field}', { field: formulaTarget.label }) : t('Click to copy · focus a ƒx field to insert')}</span>
+    <input class="filter" type="search" placeholder={t('Filter')} aria-label={t('Filter variables and functions')} bind:value={filter} onkeydown={(e) => e.stopPropagation()} />
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
-    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? 'Restore editor layout' : 'Use all available space for ƒx reference'} aria-pressed={maximized} onclick={onmaximize} />
-    <IconButton icon="down" label="Close formula reference" onclick={onclose} />
+    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? t('Restore editor layout') : t('Use all available space for ƒx reference')} aria-pressed={maximized} onclick={onmaximize} />
+    <IconButton icon="down" label={t('Close formula reference')} onclick={onclose} />
   </header>
   <div class="columns" style:font-size={`${11 * editor.textZoom / 100}px`}>
-    {#if !hasMatches}<p class="empty">No matches.</p>{/if}
+    {#if !hasMatches}<p class="empty">{t('No matches.')}</p>{/if}
     {#each sections as section (section.title)}
       {#if section.rows.length || (section.title === 'Custom' && !filter)}
         <div class="section">
           <h3>{section.title}{#if section.note}<span>{section.note}</span>{/if}</h3>
-          {#if !section.rows.length}<p class="empty">No variables yet.</p>{/if}
+          {#if !section.rows.length}<p class="empty">{t('No variables yet.')}</p>{/if}
           <ul>
             {#each section.rows as row (row.name)}
               <li>
                 <!-- mousedown is cancelled so the formula field keeps its caret and selection. -->
-                <button type="button" class="name" title={formulaTarget.label ? `Insert into ${formulaTarget.label}` : `Copy ${row.insert}`} onmousedown={(e) => e.preventDefault()} onclick={() => use(row)}>{row.name}</button>
+                <button type="button" class="name" title={formulaTarget.label ? t('Insert into {field}', { field: formulaTarget.label }) : t('Copy {what}', { what: row.insert })} onmousedown={(e) => e.preventDefault()} onclick={() => use(row)}>{row.name}</button>
                 {#if row.about}<span class="about">{row.about}</span>{/if}
               </li>
             {/each}
@@ -83,7 +84,7 @@
       {/if}
     {/each}
   </div>
-  <p class="hint">Trig uses radians. Operators: + − * / % ^. No JavaScript or comparisons.</p>
+  <p class="hint">{t('Trig uses radians. Operators: + − * / % ^. No JavaScript or comparisons.')}</p>
 </section>
 
 <style>

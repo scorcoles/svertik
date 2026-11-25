@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
   import DemoReel from './DemoReel.svelte';
@@ -27,17 +28,17 @@
     </div>
   {/if}
   <div class="drop-content">
-    <button class="drop-target" type="button" onclick={onimport} aria-label="Choose an SVG or project file">
+    <button class="drop-target" type="button" onclick={onimport} aria-label={t('Choose an SVG or project file')}>
       <span class="icon"><Icon name="import" /></span>
-      <strong>Drop an SVG or a project (.json) here</strong>
-      <span class="muted">or paste it (⌘V), or click to open a file</span>
+      <strong>{t('Drop an SVG or a project (.json) here')}</strong>
+      <span class="muted">{t('or paste it (⌘V), or click to open a file')}</span>
     </button>
     <DemoReel {ondemo} />
     <div class="start">
       <div class="open-document">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
-            {#snippet child({ props })}<Button {...props} class="all-demos" kind="primary" label="All demos" iconAfter="down" />{/snippet}
+            {#snippet child({ props })}<Button {...props} class="all-demos" kind="primary" label={t('All demos')} iconAfter="down" />{/snippet}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content class="sv-menu sv-demos" side="right" align="start" sideOffset={4} collisionPadding={8}>
@@ -48,13 +49,13 @@
       </div>
       <span class="separator" aria-hidden="true"></span>
       <div class="new-document">
-        <span class="row-label">New scene</span>
+        <span class="row-label">{t('New scene')}</span>
         <div class="new-document-controls">
-          <label class="dimension">W <input type="number" min="1" max="10000" bind:value={width} aria-label="Document width" /></label>
+          <label class="dimension">W <input type="number" min="1" max="10000" bind:value={width} aria-label={t('Document width')} /></label>
           <span class="times" aria-hidden="true">×</span>
-          <label class="dimension">H <input type="number" min="1" max="10000" bind:value={height} aria-label="Document height" /></label>
+          <label class="dimension">H <input type="number" min="1" max="10000" bind:value={height} aria-label={t('Document height')} /></label>
           <span class="unit">px</span>
-          <Button kind="primary" label="Create" onclick={() => editor.newFile(width, height)} />
+          <Button kind="primary" label={t('Create')} onclick={() => editor.newFile(width, height)} />
         </div>
       </div>
     </div>

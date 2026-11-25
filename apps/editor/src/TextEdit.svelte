@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Editing a text on the canvas: a field on top, in place, with its font, size, colour, rotation and
   // alignment. Below, the result (with its effects) shows dimmed, instantly. Esc or click outside: done
   // (everything typed counts as a single undo step).
@@ -63,7 +64,7 @@
     bind:this={field}
     bind:value
     class="text-edit"
-    aria-label="Edit text"
+    aria-label={t('Edit text')}
     spellcheck="false"
     rows={Math.max(1, value.split('\n').length)}
     style:left="{place.x}px"

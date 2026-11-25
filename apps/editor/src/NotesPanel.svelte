@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { IconButton } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import TextZoom from './TextZoom.svelte';
@@ -9,22 +10,22 @@
 
 <section class="notes" aria-labelledby="notes-title">
   <header>
-    <h2 id="notes-title">Scene notes</h2>
+    <h2 id="notes-title">{t('Scene notes')}</h2>
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
-    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? 'Restore editor layout' : 'Use all available space for notes'} aria-pressed={maximized} onclick={onmaximize} />
-    <IconButton icon="down" label="Close notes panel" onclick={onclose} />
+    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? t('Restore editor layout') : t('Use all available space for notes')} aria-pressed={maximized} onclick={onmaximize} />
+    <IconButton icon="down" label={t('Close notes panel')} onclick={onclose} />
   </header>
   <div class="note-editor">
     <textarea class="sv-writing-theme" data-sv-theme="dark"
-      aria-label="Scene notes"
-      placeholder="What should happen to this scene? What should an agent know?"
+      aria-label={t('Scene notes')}
+      placeholder={t('What should happen to this scene? What should an agent know?')}
       value={editor.scene?.notes ?? ''}
       style:font-size={`${11 * editor.textZoom / 100}px`}
       oninput={(e) => editor.setNotes(e.currentTarget.value)}
     ></textarea>
-    <CopyButton label="Copy notes" disabled={!editor.scene?.notes} onclick={() => oncopy(editor.scene?.notes ?? '', 'Notes')} />
+    <CopyButton label={t('Copy notes')} disabled={!editor.scene?.notes} onclick={() => oncopy(editor.scene?.notes ?? '', t('Notes'))} />
   </div>
-  <p>Notes for an agent working on this scene. They are saved with the project and do not appear in the artwork.</p>
+  <p>{t('Notes for an agent working on this scene. They are saved with the project and do not appear in the artwork.')}</p>
 </section>
 
 <style>

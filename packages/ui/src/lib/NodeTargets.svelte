@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import IconButton from './IconButton.svelte';
   import ParamRow from './ParamRow.svelte';
   import Select from './Select.svelte';
@@ -13,7 +14,7 @@
     onselect?: (id: string) => void;
   }
   let { value, nodes, label = '', onadd, onremove, onselect }: Props = $props();
-  const ADD = '+ Add target';
+  const ADD = t('+ Add target');
   const free = $derived(nodes.filter((node) => !value.includes(node.id)));
 </script>
 
@@ -21,11 +22,11 @@
   {@const target = nodes.find((node) => node.id === id)}
   <ParamRow label={i === 0 ? label : ''}>
     <button class="target" type="button" disabled={!target || !onselect} onclick={() => target && onselect?.(id)}>{target?.label ?? 'missing object'}</button>
-    <span class="mini"><IconButton icon="trash" label="Remove target" onclick={() => onremove(id)} /></span>
+    <span class="mini"><IconButton icon="trash" label={t('Remove target')} onclick={() => onremove(id)} /></span>
   </ParamRow>
 {/each}
-<ParamRow label={value.length ? '' : label || 'Add'}>
-  <Select value="" options={[{ value: '', label: ADD }, ...groupOptions(free)]} label="Add target" onchange={(id) => { if (id) onadd(id); }} />
+<ParamRow label={value.length ? '' : label || t('Add')}>
+  <Select value="" options={[{ value: '', label: ADD }, ...groupOptions(free)]} label={t('Add target')} onchange={(id) => { if (id) onadd(id); }} />
 </ParamRow>
 
 <style>

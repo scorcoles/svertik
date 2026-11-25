@@ -1,8 +1,9 @@
 <script lang="ts">
-  // The «svertik» menu: new, open, save, share, and the demos. Exporting lives only in the Export button.
+  // The «svertik» menu: new, open, save, share, the demos and the language. Exporting lives only in the Export button.
   import { DropdownMenu } from 'bits-ui';
   import DemoItems from './DemoItems.svelte';
-  import { Icon, type IconName } from '@svertik/ui';
+  import { Icon, t, type IconName } from '@svertik/ui';
+  import { chooseLocale, locale, LOCALES } from './i18n';
   import type { Editor } from './editor.svelte';
   import type { DemoName } from './demo-catalog';
 
@@ -19,19 +20,19 @@
   let { editor, onnew, onopen, onsave, onsaveas, onshare, ontour, ondemo }: Props = $props();
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
-    { label: 'New scene', icon: 'plus', run: onnew, needs: true },
-    { label: 'Open project or import SVG…', icon: 'import', key: '⌘O', run: onopen },
-    { label: 'Save project', icon: 'save', key: '⌘S', run: onsave, needs: true },
-    ...(onsaveas ? [{ label: 'Save as…', icon: 'save' as const, key: '⇧⌘S', run: onsaveas, needs: true }] : []),
-    { label: 'Share link', icon: 'share', run: onshare, needs: true },
+    { label: t('New scene'), icon: 'plus', run: onnew, needs: true },
+    { label: t('Open project or import SVG…'), icon: 'import', key: '⌘O', run: onopen },
+    { label: t('Save project'), icon: 'save', key: '⌘S', run: onsave, needs: true },
+    ...(onsaveas ? [{ label: t('Save as…'), icon: 'save' as const, key: '⇧⌘S', run: onsaveas, needs: true }] : []),
+    { label: t('Share link'), icon: 'share', run: onshare, needs: true },
     'sep',
-    { label: 'Take the tour', icon: 'marker', run: ontour },
-    { label: 'Keyboard shortcuts', icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },
+    { label: t('Take the tour'), icon: 'marker', run: ontour },
+    { label: t('Keyboard shortcuts'), icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },
   ]);
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger class="sv-app-trigger" aria-label="svertik menu">
+  <DropdownMenu.Trigger class="sv-app-trigger" aria-label={t('svertik menu')}>
     <span>svertik<span class="wordmark-suffix" aria-hidden="true">_</span></span><span class="caret" aria-hidden="true">▾</span>
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
@@ -51,11 +52,27 @@
       <DropdownMenu.Sub>
         <DropdownMenu.SubTrigger class="sv-menu-item">
           <Icon name="play" />
-          <span class="label">Demos</span>
+          <span class="label">{t('Demos')}</span>
           <span class="key" aria-hidden="true">▸</span>
         </DropdownMenu.SubTrigger>
         <DropdownMenu.SubContent class="sv-menu sv-demos" side="right" align="start" sideOffset={4}>
           <DemoItems {ondemo} />
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Sub>
+      <!-- Each language by its own name, so anyone can find theirs. Choosing one reloads in it. -->
+      <DropdownMenu.Sub>
+        <DropdownMenu.SubTrigger class="sv-menu-item">
+          <Icon name="text" />
+          <span class="label">{t('Language')}</span>
+          <span class="key">{LOCALES.find((l) => l.value === locale)?.label} ▸</span>
+        </DropdownMenu.SubTrigger>
+        <DropdownMenu.SubContent class="sv-menu" side="right" align="start" sideOffset={4}>
+          {#each LOCALES as option (option.value)}
+            <DropdownMenu.Item class="sv-menu-item" lang={option.value} onSelect={() => chooseLocale(option.value)}>
+              <span class="label">{option.label}</span>
+              {#if option.value === locale}<span class="key" aria-label={t('Current')}>✓</span>{/if}
+            </DropdownMenu.Item>
+          {/each}
         </DropdownMenu.SubContent>
       </DropdownMenu.Sub>
     </DropdownMenu.Content>

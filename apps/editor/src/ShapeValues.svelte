@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Each › Shape: per-copy values for the shape's own parameters. Every row is one parameter and its formula,
   // which reads element.* (the copy Each is building).
   import { IconButton, Section, Select, formulaField } from '@svertik/ui';
@@ -45,25 +46,25 @@
   }
 </script>
 
-<Section title="Per copy">
-  {#snippet action()}<div class="section-actions">{#if showInfo}<InfoTip text="Values for this shape's own parameters, copy by copy. Formulas read element.index, element.count, element.row, element.column, element.u and element.v (0–1 across the grid), element.distance (0 at the centre, 1 at the furthest copy) and element.random." />{/if}<IconButton icon="plus" label="Add a per-copy value" disabled={!free.length} onclick={add} /></div>{/snippet}
+<Section title={t('Per copy')}>
+  {#snippet action()}<div class="section-actions">{#if showInfo}<InfoTip text="Values for this shape's own parameters, copy by copy. Formulas read element.index, element.count, element.row, element.column, element.u and element.v (0–1 across the grid), element.distance (0 at the centre, 1 at the furthest copy) and element.random." />{/if}<IconButton icon="plus" label={t('Add a per-copy value')} disabled={!free.length} onclick={add} /></div>{/snippet}
   {#if problem}
     <p class="note">{problem}</p>
   {:else if !Object.keys(each).length}
-    <p class="note">Add a parameter with + and give it a formula, such as 19 * (1 - element.distance).</p>
+    <p class="note">{t('Add a parameter with + and give it a formula, such as 19 * (1 - element.distance).')}</p>
   {/if}
   {#each Object.entries(each) as [key, value] (key)}
     {@const source = formulaOf(key, value)}
     {@const error = validateExpression(source)}
     <div class="row">
-      <Select value={key} options={[...numeric.filter((o) => o.value === key), ...free]} label="Parameter" width="100%" onchange={(to) => rekey(key, to)} />
+      <Select value={key} options={[...numeric.filter((o) => o.value === key), ...free]} label={t('Parameter')} width="100%" onchange={(to) => rekey(key, to)} />
       <div class="formula">
-        <div class="variable-expression" data-invalid={error || undefined}><input class="expression-input" value={source} aria-label={`${key} per copy`} aria-invalid={error ? 'true' : undefined} spellcheck="false"
-          title={error ?? 'A formula per copy: element.distance, element.u, element.index… plus props, scene variables and math functions.'}
+        <div class="variable-expression" data-invalid={error || undefined}><input class="expression-input" value={source} aria-label={t('{name} per copy', { name: key })} aria-invalid={error ? 'true' : undefined} spellcheck="false"
+          title={error ?? t('A formula per copy: element.distance, element.u, element.index… plus props, scene variables and math functions.')}
           oninput={(e) => set(key, e.currentTarget.value)}
-          use:formulaField={{ label: `${key} per copy`, commit: (next) => set(key, next) }}
-          onkeydown={(e) => e.stopPropagation()} /><span class="fx" aria-hidden="true" title="A formula, evaluated for each copy">ƒx</span></div>
-        <IconButton icon="trash" label={`Remove ${key} per copy`} onclick={() => remove(key)} />
+          use:formulaField={{ label: t('{name} per copy', { name: key }), commit: (next) => set(key, next) }}
+          onkeydown={(e) => e.stopPropagation()} /><span class="fx" aria-hidden="true" title={t('A formula, evaluated for each copy')}>ƒx</span></div>
+        <IconButton icon="trash" label={t('Remove {name} per copy', { name: key })} onclick={() => remove(key)} />
       </div>
       {#if error}<span class="expression-error" role="status">{error}</span>{/if}
     </div>

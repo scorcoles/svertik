@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import IconButton from './IconButton.svelte';
   import { proportional } from './link';
   import NumberField from './NumberField.svelte';
@@ -33,7 +34,7 @@
   <NumberField {id} prefix="X" label={`${label} X`} value={value[0]} {step} {min} {width} onchange={(v) => set(0, v)} />
   <NumberField prefix="Y" label={`${label} Y`} value={value[1]} {step} {min} {width} onchange={(v) => set(1, v)} />
   {#if linkable}
-    <IconButton icon={linked ? 'link' : 'unlink'} label={linked ? `Unlink ${label} X and Y` : `Link ${label} X and Y (keep proportion)`} active={linked} onclick={() => (linked = !linked)} />
+    <IconButton icon={linked ? 'link' : 'unlink'} label={linked ? t('Unlink {name} X and Y', { name: label }) : t('Link {name} X and Y (keep proportion)', { name: label })} active={linked} onclick={() => (linked = !linked)} />
   {/if}
 </div>
 

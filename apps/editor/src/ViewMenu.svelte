@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { DropdownMenu } from 'bits-ui';
   import type { Editor } from './editor.svelte';
 
@@ -9,26 +10,26 @@
 
   type Key = 'lightTheme' | 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled' | 'showInfo' | 'showLayers';
   const groups: { heading: string; options: { key: Key; label: string; hint?: string }[] }[] = [
-    { heading: 'Display', options: [
-      { key: 'showOriginal', label: 'Original', hint: 'The drawing before the stack' },
-      { key: 'showWire', label: 'Wire', hint: 'Outlines only' },
+    { heading: t('Display'), options: [
+      { key: 'showOriginal', label: t('Original'), hint: t('The drawing before the stack') },
+      { key: 'showWire', label: t('Wire'), hint: t('Outlines only') },
     ] },
-    { heading: 'Document', options: [
-      { key: 'showBounds', label: 'Bounds', hint: 'Document edge: what exports and plays' },
-      { key: 'hideOutside', label: 'Hide outside', hint: 'Clip artwork to the document bounds' },
+    { heading: t('Document'), options: [
+      { key: 'showBounds', label: t('Bounds'), hint: t('Document edge: what exports and plays') },
+      { key: 'hideOutside', label: t('Hide outside'), hint: t('Clip artwork to the document bounds') },
     ] },
-    { heading: 'Animation', options: [
-      { key: 'onionSkin', label: 'Onion skin', hint: 'Frames before (blue) and after (green)' },
-      { key: 'animationDisabled', label: 'Disable animation', hint: 'Freeze scene time and hide the timeline' },
+    { heading: t('Animation'), options: [
+      { key: 'onionSkin', label: t('Onion skin'), hint: t('Frames before (blue) and after (green)') },
+      { key: 'animationDisabled', label: t('Disable animation'), hint: t('Freeze scene time and hide the timeline') },
     ] },
-    { heading: 'Workspace', options: [
-      { key: 'lightTheme', label: 'Light theme', hint: 'Use a light interface; remembered in this browser' },
-      { key: 'showGrid', label: 'Grid', hint: 'Square grid; its step follows the zoom' },
-      { key: 'showRulers', label: 'Rulers', hint: 'Drag out of them to add a guide' },
-      { key: 'showGuides', label: 'Guides', hint: 'Lines from the rulers, saved in the scene' },
-      { key: 'smartGuides', label: 'Smart guides', hint: 'Snap to edges, centers and the document' },
-      { key: 'showInfo', label: 'Show info', hint: 'Show help and descriptions in the panels' },
-      { key: 'showLayers', label: 'Layers panel', hint: 'Below the properties; its × closes it' },
+    { heading: t('Workspace'), options: [
+      { key: 'lightTheme', label: t('Light theme'), hint: t('Use a light interface; remembered in this browser') },
+      { key: 'showGrid', label: t('Grid'), hint: t('Square grid; its step follows the zoom') },
+      { key: 'showRulers', label: t('Rulers'), hint: t('Drag out of them to add a guide') },
+      { key: 'showGuides', label: t('Guides'), hint: t('Lines from the rulers, saved in the scene') },
+      { key: 'smartGuides', label: t('Smart guides'), hint: t('Snap to edges, centers and the document') },
+      { key: 'showInfo', label: t('Show info'), hint: t('Show help and descriptions in the panels') },
+      { key: 'showLayers', label: t('Layers panel'), hint: t('Below the properties; its × closes it') },
     ] },
   ];
   const options = groups.flatMap((group) => group.options);
@@ -37,8 +38,8 @@
 </script>
 
 <DropdownMenu.Root bind:open>
-  <DropdownMenu.Trigger class="sv-view-trigger" title="Workspace and canvas view options (not exported)">
-    View <span class="count">{on}/{total}</span> {open ? '▾' : '▴'}
+  <DropdownMenu.Trigger class="sv-view-trigger" title={t('Workspace and canvas view options (not exported)')}>
+    {t('View')} <span class="count">{on}/{total}</span> {open ? '▾' : '▴'}
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
     <DropdownMenu.Content class="sv-menu sv-view-menu" style="--sv-menu-width: 280px" side="top" align="end" sideOffset={4}>
@@ -60,13 +61,13 @@
       {/each}
       <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Group>
-        <DropdownMenu.GroupHeading class="sv-menu-heading">Top bar</DropdownMenu.GroupHeading>
+        <DropdownMenu.GroupHeading class="sv-menu-heading">{t('Top bar')}</DropdownMenu.GroupHeading>
         <DropdownMenu.CheckboxItem class="sv-menu-item" closeOnSelect={false} disabled={editor.commandInEffectsSlot} checked={editor.showEffectMenus && !editor.commandInEffectsSlot} onCheckedChange={(v) => (editor.showEffectMenus = v)}>
           {#snippet children({ checked })}
             <span class="box" data-checked={checked || undefined} aria-hidden="true">
               {#if checked}<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.4 8 2.8" /></svg>{/if}
             </span>
-            <span class="text">Effect menus{#if editor.showInfo}<span class="hint">Top bar menus; all are also in /</span>{/if}</span>
+            <span class="text">{t('Effect menus')}{#if editor.showInfo}<span class="hint">{t('Top bar menus; all are also in /')}</span>{/if}</span>
           {/snippet}
         </DropdownMenu.CheckboxItem>
       </DropdownMenu.Group>

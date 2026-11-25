@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   // An engine schema parameter → its control. That way the schema draws the attributes panel.
   import { formatPercent, isNumericExpression, normalizeHex, parsePercent, validateExpression, type ParamSpec } from '@svertik/engine';
   import Checkbox from './Checkbox.svelte';
@@ -43,9 +44,9 @@
   // {{…}} syntax to get a timer or a countdown.
   let textArea = $state<HTMLTextAreaElement>();
   const liveValues = [
-    { label: 'Time', token: '{{fixed(scene.time, 2)}}', title: 'Seconds since the start, two decimals' },
-    { label: 'Countdown', token: '{{scene.countDown(10)}}', title: 'Counts down from 10 seconds' },
-    { label: 'Frame', token: '{{scene.frame}}', title: 'The current frame number' },
+    { label: t('Time'), token: '{{fixed(scene.time, 2)}}', title: t('Seconds since the start, two decimals') },
+    { label: t('Countdown'), token: '{{scene.countDown(10)}}', title: t('Counts down from 10 seconds') },
+    { label: t('Frame'), token: '{{scene.frame}}', title: t('The current frame number') },
   ];
   function insertLive(token: string) {
     const el = textArea;
@@ -111,7 +112,7 @@
             value={expression.$expr}
             aria-label={`${label} expression`}
             aria-invalid={expressionError ? 'true' : undefined}
-            title={expressionError ?? 'Use scene.time, scene.cycle, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.width, scene.height, scene.aspect, scene.dt, scene.scroll, scene.pixelRatio, scene.clock.hour/minute/second, scene.mouse.posX/posY/fracX/fracY/down/inside/velX/velY/downMs/rightDown/middleDown/clicks/clickMs/wheel, scene.custom.name; functions: min, max, clamp, lerp, sin, cos, random(min, max, seed?)…'}
+            title={expressionError ?? t('Use scene.time, scene.cycle, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.width, scene.height, scene.aspect, scene.dt, scene.scroll, scene.pixelRatio, scene.clock.hour/minute/second, scene.mouse.posX/posY/fracX/fracY/down/inside/velX/velY/downMs/rightDown/middleDown/clicks/clickMs/wheel, scene.custom.name; functions: min, max, clamp, lerp, sin, cos, random(min, max, seed?)…')}
             spellcheck="false"
             oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
             use:formulaField={{ label, commit: (next) => onchange({ ...expression, $expr: next }) }}
@@ -121,9 +122,9 @@
           <button
             class="expression-toggle"
             type="button"
-            aria-label={`Use a number for ${label}`}
+            aria-label={t('Use a number for {name}', { name: label })}
             aria-pressed="true"
-            title="Switch to a number"
+            title={t('Switch to a number')}
             onclick={() => onchange(expression.fallback)}
           >ƒx</button>
         </div>
@@ -140,8 +141,8 @@
         unit={percent !== null ? '%' : spec.type === 'number' ? (spec.unit === 'fraction' ? '' : spec.unit) : ''}
         {unitAction}
         trailingAction={advanced && percent === null ? {
-          label: `Use an expression for ${label}`,
-          title: expression ? 'Expression enabled; switch to a number' : 'Use an expression with scene variables',
+          label: t('Use an expression for {name}', { name: label }),
+          title: expression ? t('Expression enabled; switch to a number') : t('Use an expression with scene variables'),
           active: !!expression,
           onclick: () => onchange({ $expr: spec.type === 'seed' ? 'scene.seedGenerator' : String(value), fallback: Number(value) }),
         } : undefined}
@@ -161,7 +162,7 @@
       <span class="reset">
         <IconButton
           icon="center"
-          label={`Reset ${label}`}
+          label={t('Reset {name}', { name: label })}
           disabled={at[0] === spec.default[0] && at[1] === spec.default[1]}
           onclick={() => onchange([...spec.default])}
         />
@@ -178,11 +179,11 @@
     <div class="palette-editor">
       {#each colors as color, i (i)}
         <div class="palette-entry">
-          <ColorField value={color} label={`Palette color ${i + 1}`} {swatches} onchange={(v) => onchange(colors.map((c, j) => j === i ? normalizeHex(v) ?? c : c))} />
-          <IconButton icon="close" label={`Remove palette color ${i + 1}`} disabled={colors.length <= 1} onclick={() => onchange(colors.filter((_, j) => j !== i))} />
+          <ColorField value={color} label={t('Palette color {number}', { number: i + 1 })} {swatches} onchange={(v) => onchange(colors.map((c, j) => j === i ? normalizeHex(v) ?? c : c))} />
+          <IconButton icon="close" label={t('Remove palette color {number}', { number: i + 1 })} disabled={colors.length <= 1} onclick={() => onchange(colors.filter((_, j) => j !== i))} />
         </div>
       {/each}
-      <IconButton icon="plus" label="Add palette color" onclick={() => onchange([...colors, '#ffffff'])} />
+      <IconButton icon="plus" label={t('Add palette color')} onclick={() => onchange([...colors, '#ffffff'])} />
     </div>
   {:else if spec.type === 'color'}
     {#if spec.solid}
@@ -213,8 +214,8 @@
         use:formulaField={{ label, template: true, disabled: !spec.expression, commit: (next) => onchange(next) }}
       ></textarea>
       {#if spec.expression}
-        <div class="text-live" role="group" aria-label="Insert a live value">
-          <small class="text-expression-hint">Insert live:</small>
+        <div class="text-live" role="group" aria-label={t('Insert a live value')}>
+          <small class="text-expression-hint">{t('Insert live:')}</small>
           {#each liveValues as v (v.label)}
             <button type="button" class="text-live-button" title={v.title} onclick={() => insertLive(v.token)}>{v.label}</button>
           {/each}

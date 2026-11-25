@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import Checkbox from './Checkbox.svelte';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
@@ -138,8 +139,8 @@
       class="drag-handle"
       draggable="true"
       tabindex="-1"
-      aria-label={`Drag ${label}`}
-      title="Drag to move"
+      aria-label={t('Drag {name}', { name: label })}
+      title={t('Drag to move')}
       onpointerdown={(e) => e.stopPropagation()}
       onclick={(e) => e.stopPropagation()}
       ondragstart={(e) => { e.stopPropagation(); ondragstart(e); }}
@@ -150,14 +151,14 @@
       type="button"
       class="chevron"
       tabindex="-1"
-      aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
+      aria-label={expanded ? t('Collapse {name}', { name: label }) : t('Expand {name}', { name: label })}
       onclick={(e) => { e.stopPropagation(); onexpand?.(!expanded); }}
     >{expanded ? '▾' : '▸'}</button>
   {:else}
     <span class="chevron" aria-hidden="true"></span>
   {/if}
   {#if oniconactivate}
-    <button class="icon icon-action" type="button" tabindex="-1" aria-label={`Open ${label}`} title={`Double-click to open ${label}`} onclick={(e) => { e.stopPropagation(); onselect?.(e); }} ondblclick={(e) => { e.stopPropagation(); oniconactivate?.(); }}><Icon name={icon} /></button>
+    <button class="icon icon-action" type="button" tabindex="-1" aria-label={t('Open {name}', { name: label })} title={t('Double-click to open {name}', { name: label })} onclick={(e) => { e.stopPropagation(); onselect?.(e); }} ondblclick={(e) => { e.stopPropagation(); oniconactivate?.(); }}><Icon name={icon} /></button>
   {:else}
     <span class="icon"><Icon name={icon} /></span>
   {/if}
@@ -167,7 +168,7 @@
       bind:this={input}
       class="rename"
       value={label}
-      aria-label="Name"
+      aria-label={t('Name')}
       spellcheck="false"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => {
@@ -207,7 +208,7 @@
     <span class="eye" data-off={visible === false || undefined} onclick={(e) => e.stopPropagation()}>
       <IconButton
         icon={visible === false ? 'eye-off' : 'eye'}
-        label={visible === false ? `Show ${label}` : `Hide ${label}`}
+        label={visible === false ? t('Show {name}', { name: label }) : t('Hide {name}', { name: label })}
         tabindex={-1}
         onclick={() => onvisible?.(visible === false)}
       />
@@ -219,13 +220,13 @@
   {#if onlock && (active || editing || locked)}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="remove lock" data-locked={locked || undefined} onclick={(e) => e.stopPropagation()}>
-      <IconButton icon={locked ? 'lock' : 'unlock'} label={locked ? `Unlock ${label}` : `Lock ${label}`} tabindex={-1} onclick={onlock} />
+      <IconButton icon={locked ? 'lock' : 'unlock'} label={locked ? t('Unlock {name}', { name: label }) : t('Lock {name}', { name: label })} tabindex={-1} onclick={onlock} />
     </span>
   {/if}
   {#if kind !== 'object'}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <span class="toggle" onclick={(e) => e.stopPropagation()}>
-      <Checkbox bind:checked={enabled} label={`Enable ${label}`} tabindex={-1} onchange={ontoggle} />
+      <Checkbox bind:checked={enabled} label={t('Enable {name}', { name: label })} tabindex={-1} onchange={ontoggle} />
     </span>
   {/if}
 </div>

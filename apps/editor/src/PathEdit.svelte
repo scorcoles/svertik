@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { IconButton, type IconName } from '@svertik/ui';
   import { onMount } from 'svelte';
   import { apply, invert, insertPathPoint, pathPointParam, isPathContours, manualPathParts, movePathHandle, pathPoint, setPathPointMode, type Mat, type NodeInfo, type PathContour, type PathPointMode, type ShapeNode, type Vec2 } from '@svertik/engine';
@@ -13,10 +14,10 @@
   let adding = $state(false);
   const contours = $derived(isPathContours(node.params.contours) ? node.params.contours : []);
   const modes: { value: PathPointMode; icon: IconName; label: string; tip: string }[] = [
-    { value: 'corner', icon: 'point-corner', label: 'Corner point', tip: 'Corner: remove both handles' },
-    { value: 'free', icon: 'point-free', label: 'Free point', tip: 'Free: move handles independently' },
-    { value: 'smooth', icon: 'point-smooth', label: 'Smooth point', tip: 'Smooth: link handle angles, keep separate lengths' },
-    { value: 'symmetric', icon: 'point-symmetric', label: 'Symmetric point', tip: 'Symmetric: link handle angles and lengths' },
+    { value: 'corner', icon: 'point-corner', label: t('Corner point'), tip: t('Corner: remove both handles') },
+    { value: 'free', icon: 'point-free', label: t('Free point'), tip: t('Free: move handles independently') },
+    { value: 'smooth', icon: 'point-smooth', label: t('Smooth point'), tip: t('Smooth: link handle angles, keep separate lengths') },
+    { value: 'symmetric', icon: 'point-symmetric', label: t('Symmetric point'), tip: t('Symmetric: link handle angles and lengths') },
   ];
   function finish() { editor.editingPath = null; editor.tool = null; editor.flush(); }
   const closed = $derived(contours[selected?.contour ?? 0]?.closed ?? false);
@@ -154,7 +155,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<svg class="path-editor" aria-label="Edit source path" onpointerdown={add} ondblclick={(e) => e.stopPropagation()}>
+<svg class="path-editor" aria-label={t('Edit source path')} onpointerdown={add} ondblclick={(e) => e.stopPropagation()}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <rect class="background" width="100%" height="100%" ondblclick={(e) => { e.preventDefault(); e.stopPropagation(); finish(); }} />
   {#each contours as contour, ci}
@@ -164,7 +165,7 @@
         {@const from = screen(si ? part.segs[si - 1]!.p : part.start)}
         {@const c1 = screen(seg.c1)}{@const c2 = screen(seg.c2)}{@const end = screen(seg.p)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <path class="segment-hit" d={`M${from} C${c1} ${c2} ${end}`} onpointerdown={add} ondblclick={(e) => insert(e, ci, si)}><title>Double-click to insert a point</title></path>
+        <path class="segment-hit" d={`M${from} C${c1} ${c2} ${end}`} onpointerdown={add} ondblclick={(e) => insert(e, ci, si)}><title>{t('Double-click to insert a point')}</title></path>
         <path class="segment" d={`M${from} C${c1} ${c2} ${end}`} />
       {/each}
     {/if}
@@ -176,30 +177,30 @@
           <line class="handle-line" x1={p[0]} y1={p[1]} x2={h[0]} y2={h[1]} />
           <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <circle class="handle" cx={h[0]} cy={h[1]} r="5" tabindex="0" aria-label={`${side} handle`} onpointerdown={(e) => drag(e, ci, pi, key)}><title>Drag handle · Alt breaks linkage · Shift constrains axis</title></circle>
+          <circle class="handle" cx={h[0]} cy={h[1]} r="5" tabindex="0" aria-label={side === 'in' ? t('In handle') : t('Out handle')} onpointerdown={(e) => drag(e, ci, pi, key)}><title>{t('Drag handle · Alt breaks linkage · Shift constrains axis')}</title></circle>
         {/each}
       {/if}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <rect class="point" data-selected={contains(ci, pi) || undefined} data-keyed={point.id && editor.keyState({ node: node.id, on: 'shape', param: pathPointParam(point.id) }) === 'key' || undefined} x={p[0]-5} y={p[1]-5} width="10" height="10" rx={point.mode === 'corner' || point.mode === 'free' ? 0 : 5} tabindex="0" aria-label={`Point ${pi+1}, ${point.mode}`} onfocus={() => selectPoint(ci, pi)} onpointerdown={(e) => drag(e, ci, pi)}><title>{point.mode} point · drag to move · Alt/Option-click to key position</title></rect>
+      <rect class="point" data-selected={contains(ci, pi) || undefined} data-keyed={point.id && editor.keyState({ node: node.id, on: 'shape', param: pathPointParam(point.id) }) === 'key' || undefined} x={p[0]-5} y={p[1]-5} width="10" height="10" rx={point.mode === 'corner' || point.mode === 'free' ? 0 : 5} tabindex="0" aria-label={t('Point {number}, {mode}', { number: pi + 1, mode: t(point.mode) })} onfocus={() => selectPoint(ci, pi)} onpointerdown={(e) => drag(e, ci, pi)}><title>{t('{mode} point · drag to move · Alt/Option-click to key position', { mode: t(point.mode) })}</title></rect>
     {/each}
   {/each}
   {#if marquee}<rect class="marquee" x={marquee.x} y={marquee.y} width={marquee.width} height={marquee.height} />{/if}
 </svg>
-<div class="path-toolbar" role="toolbar" tabindex="-1" aria-label="Path editing" onpointerdown={(e) => e.stopPropagation()}>
-  <span>{selectedPoints.length ? `${selectedPoints.length} ${selectedPoints.length === 1 ? 'point' : 'points'}` : 'Path'}</span>
-  <div class="controls" role="group" aria-label="Point type">
+<div class="path-toolbar" role="toolbar" tabindex="-1" aria-label={t('Path editing')} onpointerdown={(e) => e.stopPropagation()}>
+  <span>{selectedPoints.length ? `${selectedPoints.length} ${selectedPoints.length === 1 ? 'point' : 'points'}` : t('Path')}</span>
+  <div class="controls" role="group" aria-label={t('Point type')}>
     {#each modes as item}
       <IconButton icon={item.icon} label={item.label} title={item.tip} active={selectedPoints.length > 0 && selectedPoints.every(ref => contours[ref.contour]?.points[ref.point]?.mode === item.value)} aria-pressed={selectedPoints.length > 0 && selectedPoints.every(ref => contours[ref.contour]?.points[ref.point]?.mode === item.value)} disabled={!active || editor.isLocked(node.id)} onclick={() => mode(item.value)} />
     {/each}
   </div>
-  <div class="controls" role="group" aria-label="Path operations">
-    <IconButton icon="point-add" label="Add points" title="Add points: click the canvas to extend the contour" active={adding} aria-pressed={adding} onclick={() => (adding = !adding)} />
-    <IconButton icon="contour-add" label="New contour" onclick={() => { const next = structuredClone($state.snapshot(contours)); next.push({ closed: false, points: [] }); save(next); selected = { contour: next.length-1, point: -1 }; selectedPoints = []; adding = true; }} />
-    <IconButton icon={closed ? 'path-open' : 'path-close'} label={closed ? 'Open contour' : 'Close contour'} disabled={(contours[selected?.contour ?? 0]?.points.length ?? 0) < 2} onclick={toggleClosed} />
-    <IconButton icon="trash" label="Delete point" disabled={!active} onclick={remove} />
+  <div class="controls" role="group" aria-label={t('Path operations')}>
+    <IconButton icon="point-add" label={t('Add points')} title={t('Add points: click the canvas to extend the contour')} active={adding} aria-pressed={adding} onclick={() => (adding = !adding)} />
+    <IconButton icon="contour-add" label={t('New contour')} onclick={() => { const next = structuredClone($state.snapshot(contours)); next.push({ closed: false, points: [] }); save(next); selected = { contour: next.length-1, point: -1 }; selectedPoints = []; adding = true; }} />
+    <IconButton icon={closed ? 'path-open' : 'path-close'} label={closed ? t('Open contour') : t('Close contour')} disabled={(contours[selected?.contour ?? 0]?.points.length ?? 0) < 2} onclick={toggleClosed} />
+    <IconButton icon="trash" label={t('Delete point')} disabled={!active} onclick={remove} />
   </div>
-  <IconButton icon="close" label="Finish editing path" title="Finish editing: Enter, Esc, another tool or double-click empty canvas" onclick={finish} />
+  <IconButton icon="close" label={t('Finish editing path')} title={t('Finish editing: Enter, Esc, another tool or double-click empty canvas')} onclick={finish} />
 </div>
 <style>
   .path-editor { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 7; overflow: clip; cursor: var(--sv-point-cursor, crosshair); }

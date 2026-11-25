@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
   import { apply, bounds, builtins, buildShape, hasTextExpressions, type PathContour, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type DocumentResult, type Geometry, type Mat, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
@@ -763,10 +764,10 @@
     return info ? [{ id: n.id, box: info.box }] : [];
   });
   const booleans = [
-    { mode: 'union', icon: 'bool-union', label: 'union' },
-    { mode: 'subtract', icon: 'bool-subtract', label: 'subtract (back minus front)' },
-    { mode: 'intersect', icon: 'bool-intersect', label: 'intersect' },
-    { mode: 'exclude', icon: 'bool-exclude', label: 'exclude' },
+    { mode: 'union', icon: 'bool-union', label: t('union') },
+    { mode: 'subtract', icon: 'bool-subtract', label: t('subtract (back minus front)') },
+    { mode: 'intersect', icon: 'bool-intersect', label: t('intersect') },
+    { mode: 'exclude', icon: 'bool-exclude', label: t('exclude') },
   ];
   // Arrange toolbar readout: the label of the button under the pointer or with focus.
   let arrangeHint = $state<string | null>(null);
@@ -782,12 +783,12 @@
     arrangeHintHideTimer = setTimeout(() => (arrangeHint = null), 140);
   }
   const alignments: { how: Align; icon: string; label: string }[] = [
-    { how: 'left', icon: 'align-left', label: 'Align left' },
-    { how: 'hcenter', icon: 'align-hcenter', label: 'Align centers horizontally' },
-    { how: 'right', icon: 'align-right', label: 'Align right' },
-    { how: 'top', icon: 'align-top', label: 'Align top' },
-    { how: 'vcenter', icon: 'align-vcenter', label: 'Align centers vertically' },
-    { how: 'bottom', icon: 'align-bottom', label: 'Align bottom' },
+    { how: 'left', icon: 'align-left', label: t('Align left') },
+    { how: 'hcenter', icon: 'align-hcenter', label: t('Align centers horizontally') },
+    { how: 'right', icon: 'align-right', label: t('Align right') },
+    { how: 'top', icon: 'align-top', label: t('Align top') },
+    { how: 'vcenter', icon: 'align-vcenter', label: t('Align centers vertically') },
+    { how: 'bottom', icon: 'align-bottom', label: t('Align bottom') },
   ];
 
   // ── Scale and rotate from the frame: corners to scale (uniformly), just outside them to rotate.
@@ -1403,7 +1404,7 @@
       const local = apply(invert(info.matrix), d);
       const inner = Math.min(outer, Math.max(0, Math.round(Math.hypot(local[0], local[1]))));
       editor.setShapeParam(n.id, 'innerRadius', inner);
-      gesture = { text: `Inner radius ${inner}`, x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
+      gesture = { text: t('Inner radius {value}', { value: inner }), x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
     };
     const up = () => {
       gizmoActive = false;
@@ -1519,7 +1520,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <section
   class="canvas"
-  aria-label="Canvas"
+  aria-label={t('Canvas')}
   style:--canvas={editor.canvas || DEFAULT_CANVAS}
   data-wire={editor.showWire && editor.scene ? true : undefined}
   data-empty={!editor.scene || undefined}
@@ -1529,12 +1530,12 @@
   ondrop={drop}
 >
   {#if editor.compositionPath.length > 0}
-    <button class="composition-back" style:top="{editor.showRulers ? 28 : 12}px" type="button" onclick={() => editor.leaveComposition()} aria-label="Back to parent composition" title="Back to parent composition">← Back</button>
+    <button class="composition-back" style:top="{editor.showRulers ? 28 : 12}px" type="button" onclick={() => editor.leaveComposition()} aria-label={t('Back to parent composition')} title={t('Back to parent composition')}>{t('← Back')}</button>
   {/if}
   {#if editor.scene}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_no_noninteractive_tabindex: the canvas takes focus for its keyboard shortcuts. -->
-    <div class="stage" bind:this={stage} tabindex="0" aria-label="Canvas workspace. Press W to toggle Wire view." data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} onkeydown={canvasKeydown} ondblclick={dblclick}>
+    <div class="stage" bind:this={stage} tabindex="0" aria-label={t('Canvas workspace. Press W to toggle Wire view.')} data-space={space || undefined} data-panning={panning || undefined} data-tool={editor.tool || undefined} onpointerdown={pointerdown} onkeydown={canvasKeydown} ondblclick={dblclick}>
       <div class="view" data-hide-outside={editor.hideOutside || undefined} style:--document-clip={documentClip} style:inset="{editor.showRulers ? '21px 48px 56px 21px' : '48px 48px 56px'}" style:transform="translate({view.pan.x}px, {view.pan.y}px) scale({view.zoom})">
         {#if editor.showOriginal}<svg class="ghost" bind:this={ghost} aria-hidden="true"></svg>{/if}
         {#if editor.onionSkin && editor.animation && !editor.playing}
@@ -1542,7 +1543,7 @@
             <svg class="onion" data-side={offset < 0 ? 'before' : 'after'} style:opacity={Math.abs(offset) === 1 ? 0.32 : 0.14} bind:this={onion[i]} aria-hidden="true"></svg>
           {/each}
         {/if}
-        <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label="Result"></svg>
+        <svg class="result" class:wire={editor.showWire} bind:this={result} role="img" aria-label={t('Result')}></svg>
         {#if editor.showWire}<svg class="wire-hits" bind:this={wireHits} aria-hidden="true"></svg>{/if}
         {#if editor.showBounds}
           {@const [bx, by, bw, bh] = docViewBox}
@@ -1602,16 +1603,16 @@
         {/each}
       </svg>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="ruler-zone horizontal" style:left="{editor.showRulers ? 20 : 48}px" title="Drag to create a horizontal guide" onpointerdown={(e) => dragGuide('y', e)}></div>
+      <div class="ruler-zone horizontal" style:left="{editor.showRulers ? 20 : 48}px" title={t('Drag to create a horizontal guide')} onpointerdown={(e) => dragGuide('y', e)}></div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="ruler-zone vertical" style:left={editor.showRulers ? '0px' : '28px'} style:width={editor.showRulers ? '20px' : '20px'} title="Drag to create a vertical guide" onpointerdown={(e) => dragGuide('x', e)}></div>
+      <div class="ruler-zone vertical" style:left={editor.showRulers ? '0px' : '28px'} style:width={editor.showRulers ? '20px' : '20px'} title={t('Drag to create a vertical guide')} onpointerdown={(e) => dragGuide('x', e)}></div>
       {/if}
       {#if editor.showGuides}<svg class="document-guides" viewBox="0 0 {stageSize[0]} {stageSize[1]}" aria-hidden="true">
         {#each editor.scene?.guides?.x ?? [] as value, i (`x-${i}`)}
           {@const p = docToStage(value, 0)}
           {#if p}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <line class="guide-hit" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} onpointerdown={(e) => dragGuide('x', e, i)} ondblclick={(e) => removeGuide('x', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-hit" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} onpointerdown={(e) => dragGuide('x', e, i)} ondblclick={(e) => removeGuide('x', i, e)}><title>{t('Drag to move · Double-click to remove')}</title></line>
             <line class="guide-line" x1={p[0]} y1={editor.showRulers ? 21 : 0} x2={p[0]} y2={stageSize[1]} />
           {/if}
         {/each}
@@ -1619,7 +1620,7 @@
           {@const p = docToStage(0, value)}
           {#if p}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <line class="guide-hit" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} onpointerdown={(e) => dragGuide('y', e, i)} ondblclick={(e) => removeGuide('y', i, e)}><title>Drag to move · Double-click to remove</title></line>
+            <line class="guide-hit" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} onpointerdown={(e) => dragGuide('y', e, i)} ondblclick={(e) => removeGuide('y', i, e)}><title>{t('Drag to move · Double-click to remove')}</title></line>
             <line class="guide-line" x1={editor.showRulers ? 21 : 0} y1={p[1]} x2={stageSize[0]} y2={p[1]} />
           {/if}
         {/each}
@@ -1630,7 +1631,7 @@
       </svg>
       {/if}
       {#if editor.tool === 'pen' && penPoints.length >= 2}
-        <button class="finish-pen" type="button" onclick={() => finishPen()}>Finish path <kbd>Enter</kbd></button>
+        <button class="finish-pen" type="button" onclick={() => finishPen()}>{t('Finish path')} <kbd>{t('Enter')}</kbd></button>
       {/if}
       {#if editor.editingPath && editor.scene && editor.selected === editor.editingPath}
         {@const pn = locateNode(editor.scene.objects, editor.editingPath)?.node}
@@ -1656,15 +1657,15 @@
       {/if}
       {#if selection && !editor.tool && !editor.playing && !editor.editingPath}
         {#if editor.currentNode?.kind === 'shape' && editor.currentNode.shape === 'text' && hasTextExpressions(editor.currentNode.params.text)}
-          <button class="text-fx-badge" type="button" style:left="{selection.x + selection.w + 10}px" style:top="{selection.y - 22}px" title="Edit text expressions" onpointerdown={(e) => e.stopPropagation()} onclick={() => { if (editor.currentNode) editor.openTextFx(editor.currentNode.id); }}>ƒx</button>
+          <button class="text-fx-badge" type="button" style:left="{selection.x + selection.w + 10}px" style:top="{selection.y - 22}px" title={t('Edit text expressions')} onpointerdown={(e) => e.stopPropagation()} onclick={() => { if (editor.currentNode) editor.openTextFx(editor.currentNode.id); }}>ƒx</button>
         {/if}
         <span class="selection" style:left="{selection.x}px" style:top="{selection.y}px" style:width="{selection.w}px" style:height="{selection.h}px" aria-hidden="true"></span>
         {#each corners as c (c)}
           {@const p = cornerAt(c, selection)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          {#if editor.selectedNodes.length < 2}<span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Rotate (⇧ snaps to 15°)" onpointerdown={(e) => transformFrom(e, 'rotate')}></span>{/if}
+          {#if editor.selectedNodes.length < 2}<span class="rotate" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title={t('Rotate (⇧ snaps to 15°)')} onpointerdown={(e) => transformFrom(e, 'rotate')}></span>{/if}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title="Scale (hold ⇧ to stretch freely)" onpointerdown={(e) => transformFrom(e, 'scale')}></span>
+          <span class="corner" data-corner={c} style:left="{p.x}px" style:top="{p.y}px" title={t('Scale (hold ⇧ to stretch freely)')} onpointerdown={(e) => transformFrom(e, 'scale')}></span>
         {/each}
         {#if editor.selectedNodes.length < 2}
           {#each edges as edge (edge)}
@@ -1677,7 +1678,7 @@
               style:top="{p.y}px"
               style:width="{edge === 'n' || edge === 's' ? Math.max(12, selection.w - 24) : 16}px"
               style:height="{edge === 'e' || edge === 'w' ? Math.max(12, selection.h - 24) : 16}px"
-              title={edge === 'n' || edge === 's' ? 'Stretch height' : 'Stretch width'}
+              title={edge === 'n' || edge === 's' ? t('Stretch height') : t('Stretch width')}
               onpointerdown={(e) => transformFrom(e,
                 edge === 'n' ? 'stretch-y-top' : edge === 's' ? 'stretch-y-bottom' : edge === 'w' ? 'stretch-x-left' : 'stretch-x-right')}
             ></span>
@@ -1690,8 +1691,8 @@
           class="pivot"
           style:left="{pivotAt[0]}px"
           style:top="{pivotAt[1]}px"
-          title="Transform center: drag to move it (⇧ snaps to corners, edges and center)"
-          aria-label="Transform center"
+          title={t('Transform center: drag to move it (⇧ snaps to corners, edges and center)')}
+          aria-label={t('Transform center')}
           onpointerdown={dragPivot}
         ></button>
       {/if}
@@ -1730,7 +1731,7 @@
             style:left="{h.x}px"
             style:top="{h.y}px"
             title={h.label}
-            aria-label={`${h.label} (arrow keys nudge)`}
+            aria-label={t('{handle} (arrow keys nudge)', { handle: h.label })}
             onpointerdown={(e) => dragGizmo(e, h.drag, h.label)}
             onkeydown={(e) => {
               if (!ARROWS[e.key] || e.metaKey || e.ctrlKey || e.altKey || !editor.current) return;
@@ -1750,8 +1751,8 @@
           data-handle="Inner radius"
           style:left="{donutScreen.x}px"
           style:top="{donutScreen.y}px"
-          title="Inner radius"
-          aria-label="Inner radius"
+          title={t('Inner radius')}
+          aria-label={t('Inner radius')}
           onpointerdown={dragDonutInner}
           onpointerenter={() => (gizmoHover = true)}
           onpointerleave={() => (gizmoHover = false)}
@@ -1764,7 +1765,7 @@
           style:left="{h.x}px"
           style:top="{h.y}px"
           data-active={editor.marker || hover === h.name || grabbing === h.name ? '' : undefined}
-          aria-label={`Move ${h.label} (arrow keys nudge)`}
+          aria-label={t('Move {handle} (arrow keys nudge)', { handle: h.label })}
           title={h.label}
           onpointerdown={(e) => grab(e, h)}
           onpointerenter={() => (hover = h.name)}
@@ -1819,7 +1820,7 @@
       <div
         class="arrange"
         role="toolbar"
-        aria-label="Arrange"
+        aria-label={t('Arrange')}
         tabindex="-1"
         onpointerover={showArrangeHint}
         onfocusin={showArrangeHint}
@@ -1836,11 +1837,11 @@
           <IconButton icon="distribute-h" label={`Distribute horizontally${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'x'))} />
           <IconButton icon="distribute-v" label={`Distribute vertically${n < 3 ? ' · select 3+ objects' : ''}`} title={undefined} aria-disabled={n < 3} onclick={() => n >= 3 && arrange(distribute(items(), 'y'))} />
         {:else}
-          {#if editor.showInfo}<span class="arrange-note">⇧-click another object to align</span>{/if}
+          {#if editor.showInfo}<span class="arrange-note">{t('⇧-click another object to align')}</span>{/if}
         {/if}
         <span class="rule" aria-hidden="true"></span>
-        <IconButton icon="flip-h" label="Flip horizontally" title={undefined} onclick={() => editor.flip('x')} />
-        <IconButton icon="flip-v" label="Flip vertically" title={undefined} onclick={() => editor.flip('y')} />
+        <IconButton icon="flip-h" label={t('Flip horizontally')} title={undefined} onclick={() => editor.flip('x')} />
+        <IconButton icon="flip-v" label={t('Flip vertically')} title={undefined} onclick={() => editor.flip('y')} />
         <span class="rule" aria-hidden="true"></span>
         {#if canBool}
           {#each booleans as b (b.mode)}
@@ -1848,10 +1849,10 @@
           {/each}
           <span class="rule" aria-hidden="true"></span>
         {/if}
-        <IconButton icon="order-front" label="Bring to front (⇧⌘])" title={undefined} onclick={() => editor.reorder('front')} />
-        <IconButton icon="order-forward" label="Bring forward (⌘])" title={undefined} onclick={() => editor.reorder('forward')} />
-        <IconButton icon="order-backward" label="Send backward (⌘[)" title={undefined} onclick={() => editor.reorder('backward')} />
-        <IconButton icon="order-back" label="Send to back (⇧⌘[)" title={undefined} onclick={() => editor.reorder('back')} />
+        <IconButton icon="order-front" label={t('Bring to front (⇧⌘])')} title={undefined} onclick={() => editor.reorder('front')} />
+        <IconButton icon="order-forward" label={t('Bring forward (⌘])')} title={undefined} onclick={() => editor.reorder('forward')} />
+        <IconButton icon="order-backward" label={t('Send backward (⌘[)')} title={undefined} onclick={() => editor.reorder('backward')} />
+        <IconButton icon="order-back" label={t('Send to back (⇧⌘[)')} title={undefined} onclick={() => editor.reorder('back')} />
         {#if arrangeHint && editor.showInfo}<p class="arrange-hint" aria-hidden="true">{arrangeHint}</p>{/if}
       </div>
     {/if}

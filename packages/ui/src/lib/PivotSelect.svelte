@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   interface Props {
     value: string;
     label: string;
@@ -7,15 +8,15 @@
   let { value, label, onchange }: Props = $props();
 
   const positions = [
-    { value: 'nw', glyph: '↖', label: 'Northwest' },
-    { value: 'n', glyph: '↑', label: 'North' },
-    { value: 'ne', glyph: '↗', label: 'Northeast' },
-    { value: 'w', glyph: '←', label: 'West' },
-    { value: 'center', glyph: '⊙', label: 'Center' },
-    { value: 'e', glyph: '→', label: 'East' },
-    { value: 'sw', glyph: '↙', label: 'Southwest' },
-    { value: 's', glyph: '↓', label: 'South' },
-    { value: 'se', glyph: '↘', label: 'Southeast' },
+    { value: 'nw', glyph: '↖', label: t('Northwest') },
+    { value: 'n', glyph: '↑', label: t('North') },
+    { value: 'ne', glyph: '↗', label: t('Northeast') },
+    { value: 'w', glyph: '←', label: t('West') },
+    { value: 'center', glyph: '⊙', label: t('Center') },
+    { value: 'e', glyph: '→', label: t('East') },
+    { value: 'sw', glyph: '↙', label: t('Southwest') },
+    { value: 's', glyph: '↓', label: t('South') },
+    { value: 'se', glyph: '↘', label: t('Southeast') },
   ];
 </script>
 

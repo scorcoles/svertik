@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { builtins, createEngine, validateScene, type SceneNode, type SceneV1 } from '@svertik/engine';
   import { IconButton, Tabs } from '@svertik/ui';
   import CopyButton from './CopyButton.svelte';
@@ -145,26 +146,26 @@
     return (await oncopy(engine.toSVG(frame()), 'SVG')) !== false;
   }
 
-  const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: 'flat output · read-only' };
+  const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: t('flat output · read-only') };
 
   $effect(() => {
-    if (error) ondiagnostic('Code', 'error', `${error.line ? `Line ${error.line}: ` : ''}${error.message}`, error.stack);
-    for (const warning of warnings) ondiagnostic('Code', 'warning', warning);
+    if (error) ondiagnostic(t('Code'), 'error', `${error.line ? `Line ${error.line}: ` : ''}${error.message}`, error.stack);
+    for (const warning of warnings) ondiagnostic(t('Code'), 'warning', warning);
   });
 </script>
 
-<section class="code-panel" aria-label="Code" style:--code-font-size={`${11 * editor.textZoom / 100}px`}>
+<section class="code-panel" aria-label={t('Code')} style:--code-font-size={`${11 * editor.textZoom / 100}px`}>
   <Tabs bind:value={tab} tabs={['JSON', 'JS', 'SVG']}>
-    {#snippet children(t)}
+    {#snippet children(tab)}
       <div class="body">
-        {#if t === 'JSON'}
-          <CodeEditor value={jsonDoc} lang="json" label="Scene JSON" fold={jsonFold} errorLine={error?.line ?? null} onchange={onJSON} oncursor={(l, c) => (cursor = [l, c])} />
-        {:else if t === 'JS'}
-          <CodeEditor value={jsDoc} lang="js" label="Scene and script" fold={jsFold} errorLine={error?.line ?? null} onchange={onJS} oncursor={(l, c) => (cursor = [l, c])} />
+        {#if tab === 'JSON'}
+          <CodeEditor value={jsonDoc} lang="json" label={t('Scene JSON')} fold={jsonFold} errorLine={error?.line ?? null} onchange={onJSON} oncursor={(l, c) => (cursor = [l, c])} />
+        {:else if tab === 'JS'}
+          <CodeEditor value={jsDoc} lang="js" label={t('Scene and script')} fold={jsFold} errorLine={error?.line ?? null} onchange={onJS} oncursor={(l, c) => (cursor = [l, c])} />
         {:else}
-          <CodeEditor value={svgDoc} lang="svg" label="Flat SVG" readonly oncursor={(l, c) => (cursor = [l, c])} />
+          <CodeEditor value={svgDoc} lang="svg" label={t('Flat SVG')} readonly oncursor={(l, c) => (cursor = [l, c])} />
         {/if}
-        <CopyButton label={`Copy ${tab}`} onclick={copy} />
+        <CopyButton label={t('Copy {what}', { what: tab })} onclick={copy} />
       </div>
     {/snippet}
   </Tabs>
@@ -174,11 +175,11 @@
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
     <IconButton
       icon={maximized ? 'restore' : 'maximize'}
-      label={maximized ? 'Restore editor layout' : 'Use all available space for code'}
+      label={maximized ? t('Restore editor layout') : t('Use all available space for code')}
       aria-pressed={maximized}
       onclick={onmaximize}
     />
-    <IconButton icon="down" label="Close code panel" onclick={() => (editor.codeOpen = false)} />
+    <IconButton icon="down" label={t('Close code panel')} onclick={() => (editor.codeOpen = false)} />
   </div>
   <footer class:error={!!error}>
     {#if error}
@@ -186,10 +187,10 @@
     {:else if warnings.length}
       <span class="warning" title={warnings.join('\n')}>⚠ {warnings[0]}{warnings.length > 1 ? ` (+${warnings.length - 1} more)` : ''}</span>
     {:else}
-      <span class="muted">{tab === 'SVG' ? 'Read-only.' : 'Scene changes apply live. onFrame animations run in exported JS.'}</span>
+      <span class="muted">{tab === 'SVG' ? t('Read-only.') : t('Scene changes apply live. onFrame animations run in exported JS.')}</span>
     {/if}
     <span class="spacer"></span>
-    <span class="muted">Ln {cursor[0]}, Col {cursor[1]}</span>
+    <span class="muted">{t('Ln {line}, Col {column}', { line: cursor[0], column: cursor[1] })}</span>
   </footer>
 </section>
 

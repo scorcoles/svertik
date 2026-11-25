@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { tick } from 'svelte';
   import { DropdownMenu } from 'bits-ui';
   import { autonomousGenerators, builtins, effectDescriptions, shapeDescriptions, EFFECT_MENUS } from '@svertik/engine';
@@ -12,7 +13,8 @@
   // Focused by "/", ⌘K and the stack's +. Results open upwards, with descriptions.
   let { editor, compact = false }: { editor: Editor; compact?: boolean } = $props();
 
-  const catalog = buildCatalog(builtins as never, autonomousGenerators as never, { ...effectDescriptions, ...shapeDescriptions });
+  // Descriptions in the interface's language (searching matches their words too).
+  const catalog = buildCatalog(builtins as never, autonomousGenerators as never, Object.fromEntries(Object.entries({ ...effectDescriptions, ...shapeDescriptions }).map(([type, text]) => [type, t(text)])));
   const listId = 'command-results';
 
   let input: HTMLInputElement;
@@ -113,7 +115,7 @@
     if (call.verb === 'select') return matchNames(editor.namedItems(), call.rest).map((x) => ({ value: x.id, label: x.label, detail: x.detail }));
     if (call.verb === 'goto') {
       const all = [
-        { value: 'start', label: 'start', detail: '0 s' },
+        { value: 'start', label: t('start'), detail: '0 s' },
         { value: 'end', label: 'end', detail: `${duration} s` },
         ...markers.map((m) => ({ value: m.name, label: m.name, detail: `marker · ${m.t.toFixed(2)} s` })),
       ];
@@ -124,7 +126,7 @@
   });
   const choice = $derived(choices[Math.min(active, choices.length - 1)] ?? null);
 
-  const promptText = $derived(disabled ? '' : paramTarget ? paramTarget.label : pending?.autonomous ? 'New object' : target ? target.name : 'No selection');
+  const promptText = $derived(disabled ? '' : paramTarget ? paramTarget.label : pending?.autonomous ? t('New object') : target ? target.name : t('No selection'));
   // Tell the stack which effect is about to be added, so it marks where it will go.
   $effect(() => {
     editor.commandPreview = pending && !pending.autonomous && !blocker(pending) ? pending.type : null;
@@ -135,9 +137,9 @@
   function blocker(e: CommandEntry): string | null {
     if (e.autonomous || e.verb) return null;
     const node = editor.activeNode;
-    if (!node && !(e.type === 'physics' && editor.scene)) return 'Select an object first, then run the command again.';
-    if (node && editor.isLocked(node.id)) return 'The selected object is locked.';
-    if (!editor.canAdd(e.type)) return `${e.label} does not work on raster images.`;
+    if (!node && !(e.type === 'physics' && editor.scene)) return t('Select an object first, then run the command again.');
+    if (node && editor.isLocked(node.id)) return t('The selected object is locked.');
+    if (!editor.canAdd(e.type)) return t('{effect} does not work on raster images.', { effect: e.label });
     return null;
   }
 
@@ -186,24 +188,24 @@
   /** Runs set, key, select, goto or export. Errors stay on the line, with the fix. */
   function runVerb(command: string, v: NonNullable<ReturnType<typeof splitVerb>>) {
     if (v.verb === 'set' || v.verb === 'key') {
-      const t = editor.paramTarget();
-      if (!t) return void (error = 'Select an object or an effect first (click it, or: select <name>).');
-      if (editor.activeNode && editor.isLocked(editor.activeNode.id)) return void (error = 'The selected object is locked.');
-      const a = parseAssignments(v.verb, v.rest, t.params, t.label);
+      const target = editor.paramTarget();
+      if (!target) return void (error = t('Select an object or an effect first (click it, or: select <name>).'));
+      if (editor.activeNode && editor.isLocked(editor.activeNode.id)) return void (error = t('The selected object is locked.'));
+      const a = parseAssignments(v.verb, v.rest, target.params, target.label);
       if (!a.ok) return void (error = a.error);
-      for (const [k, val] of Object.entries(a.values)) t.set(k, val);
+      for (const [k, val] of Object.entries(a.values)) target.set(k, val);
       const names = [...Object.keys(a.values), ...a.bare];
       if (v.verb === 'key') {
-        for (const k of names) editor.keyHere(t.track(k));
+        for (const k of names) editor.keyHere(target.track(k));
         editor.timelineOpen = true;
-        return done(command, `Keyed ${names.join(', ')} at ${editor.time.toFixed(2)} s`);
+        return done(command, t('Keyed {names} at {time} s', { names: names.join(', '), time: editor.time.toFixed(2) }));
       }
-      return done(command, `Set ${names.join(', ')} on ${t.label}`);
+      return done(command, t('Set {names} on {target}', { names: names.join(', '), target: target.label }));
     }
     if (v.verb === 'select') {
-      if (!choice) return void (error = v.rest.trim() ? `Nothing called "${v.rest.trim()}".` : 'Type a name, e.g. select Comet.');
+      if (!choice) return void (error = v.rest.trim() ? t('Nothing called "{name}".', { name: v.rest.trim() }) : t('Type a name, e.g. select Comet.'));
       editor.selected = choice.value;
-      return done(command, `Selected ${choice.label}`);
+      return done(command, t('Selected {name}', { name: choice.label }));
     }
     if (v.verb === 'goto') {
       let at = parseTime(v.rest, { fps, duration, markers });
@@ -211,13 +213,13 @@
       if (!at.ok) return void (error = at.error);
       editor.playing = false;
       editor.setTime(at.t);
-      return done(command, `At ${at.t.toFixed(2)} s`);
+      return done(command, t('At {time} s', { time: at.t.toFixed(2) }));
     }
     const q = v.rest.trim().toLowerCase();
     const format = (EXPORT_FORMATS.find((f) => f.format === q)?.format ?? choice?.value) as ExportFormat | undefined;
-    if (!format) return void (error = `Export as svg, png, mp4, animsvg, lottie or json.`);
+    if (!format) return void (error = t('Export as svg, png, mp4, animsvg, lottie or json.'));
     if (!editor.exporter) return void (error = 'Export is not available here.');
-    done(command, `Exporting ${format}`);
+    done(command, t('Exporting {format}', { format }));
     editor.exporter(format);
   }
 
@@ -229,7 +231,7 @@
       // A verb in the list: Enter (like Tab) types it, ready for its argument.
       if (highlighted?.verb && text === value) return edit(`${highlighted.type} `);
       if (!highlighted) {
-        error = parsed.name ? `No effect matches "${parsed.name}".` : 'Type an effect name, e.g. twist angle=45.';
+        error = parsed.name ? t('No effect matches "{name}".', { name: parsed.name }) : t('Type an effect name, e.g. twist angle=45.');
         return;
       }
       command = `${highlighted.type}`;
@@ -252,7 +254,7 @@
     value = '';
     error = null;
     open = false;
-    announce = `Added ${compiled.entry.label}`;
+    announce = t('Added {effect}', { effect: compiled.entry.label });
   }
 
   function keydown(e: KeyboardEvent) {
@@ -313,10 +315,10 @@
              (descriptions run from one line to several). -->
         <div class="browse">
         {#if matches.length}
-          <div id={listId} class="list" bind:this={list} role="listbox" aria-label="Effects">
+          <div id={listId} class="list" bind:this={list} role="listbox" aria-label={t('Effects')}>
             {#each groups as g (g.category)}
             <div role="group" aria-labelledby="command-group-{g.category}">
-            <div id="command-group-{g.category}" class="group-head">{g.category}</div>
+            <div id="command-group-{g.category}" class="group-head">{t(g.category)}</div>
             {#each g.items as m (m.type)}
               {@const i = ordered.indexOf(m)}
               {@const why = blocker(m)}
@@ -345,12 +347,12 @@
           </div>
           {#if highlighted}
             <div class="detail side">
-              <p class="head"><strong>{highlighted.label}</strong><span class="category">{highlighted.category}</span></p>
+              <p class="head"><strong>{highlighted.label}</strong><span class="category">{t(highlighted.category)}</span></p>
               <p>{highlighted.description}</p>
             </div>
           {/if}
         {:else}
-          <p class="empty">No effect matches "{parsed.name}". Try part of a name: wave, round, clone…</p>
+          <p class="empty">{t('No effect matches "{name}". Try part of a name: wave, round, clone…', { name: parsed.name })}</p>
         {/if}
         </div>
       {:else if call && verbInfo}
@@ -397,13 +399,13 @@
               {/each}
             </div>
           {:else if call.verb !== 'goto'}
-            <p class="empty">Nothing matches "{call.rest.trim()}".</p>
+            <p class="empty">{t('Nothing matches "{name}".', { name: call.rest.trim() })}</p>
           {/if}
         </div>
       {:else if entry}
         <div class="entry">
           <div class="detail">
-            <p class="head"><strong>{entry.label}</strong><span class="category">{entry.category}</span></p>
+            <p class="head"><strong>{entry.label}</strong><span class="category">{t(entry.category)}</span></p>
             <p>{entry.description}</p>
           </div>
           <table>
@@ -420,26 +422,26 @@
           </table>
         </div>
       {:else}
-        <p class="empty">No effect called "{parsed.name}". Tab completes names.</p>
+        <p class="empty">{t('No effect called "{name}". Tab completes names.', { name: parsed.name })}</p>
       {/if}
       {#if error}<p class="error" role="alert">{error}</p>{/if}
       <div class="keys">
-        <span>{call ? '⏎ run' : '⏎ add'} · Tab complete · ↑↓ choose · Esc close</span>
+        <span>{call ? t('⏎ run') : t('⏎ add')} · {t('Tab complete · ↑↓ choose · Esc close')}</span>
         {#if !compact}
           <!-- pointerdown kept from the input: clicking here must not blur it (that would close the results). -->
           <span class="widen">
-            <IconButton icon={wide ? 'narrow-width' : 'fit-width'} label={wide ? 'Narrow the results' : 'Widen the results'} aria-pressed={wide} onpointerdown={(e: PointerEvent) => e.preventDefault()} onclick={toggleWide} />
+            <IconButton icon={wide ? 'narrow-width' : 'fit-width'} label={wide ? t('Narrow the results') : t('Widen the results')} aria-pressed={wide} onpointerdown={(e: PointerEvent) => e.preventDefault()} onclick={toggleWide} />
           </span>
         {/if}
       </div>
     </div>
   {/if}
-  <span class="prompt" title={target && !pending?.autonomous ? `Adds to ${target.name}` : undefined}>{promptText} ›</span>
+  <span class="prompt" title={target && !pending?.autonomous ? t('Adds to {name}', { name: target.name }) : undefined}>{promptText} ›</span>
   <input
     bind:this={input}
     type="text"
     role="combobox"
-    aria-label={target ? `Command line: add an effect to ${target.name}, e.g. twist angle=45, or set, key, select, goto, export` : 'Command line: select an object to add effects, or use select, goto, export'}
+    aria-label={target ? t('Command line: add an effect to {name}, e.g. twist angle=45, or set, key, select, goto, export', { name: target.name }) : t('Command line: select an object to add effects, or use select, goto, export')}
     aria-expanded={open && ((browsing && matches.length > 0) || choices.length > 0)}
     aria-controls={open && ((browsing && matches.length > 0) || (call && call.verb !== 'set' && call.verb !== 'key' && choices.length > 0)) ? listId : undefined}
     aria-autocomplete="list"
@@ -448,7 +450,7 @@
     autocomplete="off"
     spellcheck="false"
     {disabled}
-    placeholder={disabled ? 'Open or create a scene to add effects' : target ? 'Add an effect (twist angle=45), or: set · key · select · goto · export' : 'Select an object to add effects, or: select · goto · export · randomwave'}
+    placeholder={disabled ? t('Open or create a scene to add effects') : target ? t('Add an effect (twist angle=45), or: set · key · select · goto · export') : t('Select an object to add effects, or: select · goto · export · randomwave')}
     {value}
     oninput={(e) => edit(e.currentTarget.value)}
     onfocus={() => (open = true)}
@@ -463,7 +465,7 @@
   />
   {#if !disabled}<span class="hint" aria-hidden="true"><kbd>/</kbd> or <kbd>⌘K</kbd></span>{/if}
   <DropdownMenu.Root>
-    <DropdownMenu.Trigger class="command-options" aria-label="Command bar options" title="Command bar options">
+    <DropdownMenu.Trigger class="command-options" aria-label={t('Command bar options')} title={t('Command bar options')}>
       <Icon name="settings" />
     </DropdownMenu.Trigger>
     <DropdownMenu.Portal>

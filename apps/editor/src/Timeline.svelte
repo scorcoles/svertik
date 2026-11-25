@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Timeline: playback, a ruler with the playhead and one track per animated parameter with its keys.
   // Keys are dragged (they snap to frames); the selected one is deleted with Delete.
   // Between two keys, the segment's curve is drawn (the first key's easing); clicking it picks another.
@@ -286,7 +287,7 @@
       const target = parsePathPointParam(tr.param);
       if (target && n?.kind === 'shape' && isPathContours(n.params.contours)) {
         const index = n.params.contours.flatMap(c => c.points).findIndex(p => p.id === target.id);
-        return { node, what: `Point ${index + 1}`, param: target.field === 'point' ? 'Position' : target.field === 'in' ? 'In handle' : 'Out handle' };
+        return { node, what: t('Point {number}', { number: index + 1 }), param: target.field === 'point' ? t('Position') : target.field === 'in' ? t('In handle') : t('Out handle') };
       }
       const spec = n && n.kind === 'shape' ? shapeRegistry.get(n.shape)?.params[tr.param] : undefined;
       return { node, what: '', param: spec?.label ?? tr.param };
@@ -321,56 +322,56 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<section class="timeline" aria-label="Timeline" onkeydown={keydown}>
+<section class="timeline" aria-label={t('Timeline')} onkeydown={keydown}>
   <header>
-    <IconButton icon="to-start" label="Go to start" onclick={() => editor.setTime(0)} />
-    <IconButton icon="step-back" label="Previous frame" disabled={editor.time <= 0} onclick={() => editor.stepFrame(-1)} />
+    <IconButton icon="to-start" label={t('Go to start')} onclick={() => editor.setTime(0)} />
+    <IconButton icon="step-back" label={t('Previous frame')} disabled={editor.time <= 0} onclick={() => editor.stepFrame(-1)} />
     <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause (Space)' : 'Play (Space)'} active={editor.playing} onclick={() => editor.togglePlayback()} />
-    <IconButton icon="step-forward" label="Next frame" disabled={!anim?.infinite && editor.time >= lastFrame / fps - 1e-6} onclick={() => editor.stepFrame(1)} />
+    <IconButton icon="step-forward" label={t('Next frame')} disabled={!anim?.infinite && editor.time >= lastFrame / fps - 1e-6} onclick={() => editor.stepFrame(1)} />
     <span class="time">{editor.time.toFixed(2)}<span class="dim"> / {duration.toFixed(2)} s</span></span>
     <span class="rule" aria-hidden="true"></span>
-    <label class="field">Duration <NumberField value={duration} min={0.1} step={0.1} unit="s" width="64px" onchange={(v) => editor.setDuration(v)} /></label>
-    <label class="field" title="Keep procedural time running after the timeline ends"><Checkbox checked={anim?.infinite === true} label="Infinite time" onchange={(v) => editor.setInfiniteTime(v)} /> Infinite</label>
-    <label class="field"><Checkbox disabled={anim?.infinite === true} checked={!anim?.infinite && anim?.loop !== false} label="Loop" onchange={(v) => editor.setLoop(v)} /> Loop</label>
-    <label class="field" title="Off: the timeline only moves with “Play the timeline” interactions"><Checkbox checked={anim?.autoplay !== false} label="Autoplay" onchange={(v) => editor.setAutoplay(v)} /> Autoplay</label>
+    <label class="field">{t('Duration')} <NumberField value={duration} min={0.1} step={0.1} unit="s" width="64px" onchange={(v) => editor.setDuration(v)} /></label>
+    <label class="field" title={t('Keep procedural time running after the timeline ends')}><Checkbox checked={anim?.infinite === true} label={t('Infinite time')} onchange={(v) => editor.setInfiniteTime(v)} /> {t('Infinite')}</label>
+    <label class="field"><Checkbox disabled={anim?.infinite === true} checked={!anim?.infinite && anim?.loop !== false} label={t('Loop')} onchange={(v) => editor.setLoop(v)} /> {t('Loop')}</label>
+    <label class="field" title={t('Off: the timeline only moves with “Play the timeline” interactions')}><Checkbox checked={anim?.autoplay !== false} label={t('Autoplay')} onchange={(v) => editor.setAutoplay(v)} /> {t('Autoplay')}</label>
     {#if selectedKey}
       <span class="rule" aria-hidden="true"></span>
-      <span class="field">Ease
-        <Select value={selectedKey.key.ease ?? 'ease-in-out'} options={EASES} label="Ease" width="104px" onchange={(v) => editor.setEase(selectedKey.tr.id, selectedKey.key.t, v as Ease)} />
+      <span class="field">{t('Ease')}
+        <Select value={selectedKey.key.ease ?? 'ease-in-out'} options={EASES} label={t('Ease')} width="104px" onchange={(v) => editor.setEase(selectedKey.tr.id, selectedKey.key.t, v as Ease)} />
       </span>
-      <IconButton icon="trash" label={`Delete ${selectedKeys.length > 1 ? `${selectedKeys.length} keyframes` : 'keyframe'} (Del)`} onclick={() => { editor.removeKeys(selectedKeys); setSelectedKeys([]); }} />
+      <IconButton icon="trash" label={selectedKeys.length > 1 ? t('Delete {count} keyframes (Del)', { count: selectedKeys.length }) : t('Delete keyframe (Del)')} onclick={() => { editor.removeKeys(selectedKeys); setSelectedKeys([]); }} />
       <span class="rule" aria-hidden="true"></span>
       <!-- Repeat the whole track: how many times (0, forever) and how often (empty: back to back). -->
-      <label class="field" title="How many times this track plays its keys. 0: until the end">Repeat
+      <label class="field" title={t('How many times this track plays its keys. 0: until the end')}>{t('Repeat')}
         <NumberField value={selectedKey.tr.repeat ?? 1} min={0} step={1} unit="×" width="52px" onchange={(v) => editor.setRepeat(selectedKey.tr.id, v, selectedKey.tr.every)} />
       </label>
       {#if (selectedKey.tr.repeat ?? 1) !== 1}
-        <label class="field" title="Seconds from the start of one repeat to the next. Shorter than the keys: back to back">every
+        <label class="field" title={t('Seconds from the start of one repeat to the next. Shorter than the keys: back to back')}>{t('every')}
           <NumberField value={selectedKey.tr.every ?? span(selectedKey.tr)} min={0} step={0.1} unit="s" width="60px" onchange={(v) => editor.setRepeat(selectedKey.tr.id, selectedKey.tr.repeat ?? 1, v)} />
         </label>
       {/if}
     {/if}
-    <IconButton icon="key-here" label="Key here (K): a keyframe at the playhead on what is animated in the selection" disabled={!editor.selected} onclick={() => editor.keySelectionHere()} />
-    <IconButton icon="marker" label="Add marker at current time" onclick={() => editor.addMarker()} />
+    <IconButton icon="key-here" label={t('Key here (K): a keyframe at the playhead on what is animated in the selection')} disabled={!editor.selected} onclick={() => editor.keySelectionHere()} />
+    <IconButton icon="marker" label={t('Add marker at current time')} onclick={() => editor.addMarker()} />
     <span class="spacer"></span>
     <!-- Timeline zoom (also ⌘ + wheel, or pinch, over the tracks). -->
     <span class="zoom">
-      <IconButton icon="minus" label="Zoom out (⌘ + wheel)" disabled={zoom <= 1} onclick={() => zoomTo(zoom / 1.5)} />
+      <IconButton icon="minus" label={t('Zoom out (⌘ + wheel)')} disabled={zoom <= 1} onclick={() => zoomTo(zoom / 1.5)} />
       <span class="pct">{Math.round(zoom * 100)}%</span>
-      <IconButton icon="plus" label="Zoom in (⌘ + wheel)" disabled={zoom >= maxZoom} onclick={() => zoomTo(zoom * 1.5)} />
-      <IconButton icon="fit-width" label="Fit the whole duration" disabled={zoom === 1} onclick={() => zoomTo(1)} />
+      <IconButton icon="plus" label={t('Zoom in (⌘ + wheel)')} disabled={zoom >= maxZoom} onclick={() => zoomTo(zoom * 1.5)} />
+      <IconButton icon="fit-width" label={t('Fit the whole duration')} disabled={zoom === 1} onclick={() => zoomTo(1)} />
     </span>
-    <IconButton icon="down" label="Close timeline" onclick={() => (editor.timelineOpen = false)} />
+    <IconButton icon="down" label={t('Close timeline')} onclick={() => (editor.timelineOpen = false)} />
   </header>
   {#if anim?.markers?.length}
     <details class="markers">
-      <summary>Markers ({anim.markers.length})</summary>
+      <summary>{t('Markers ({count})', { count: anim.markers.length })}</summary>
       {#each anim.markers as marker (marker.id)}
         <div class="marker-editor">
-          <input value={marker.name} aria-label="Marker name" onchange={(e) => editor.setMarker(marker.id, 'name', e.currentTarget.value)} onkeydown={(e) => e.stopPropagation()} />
-          <NumberField value={marker.t} min={0} max={duration} step={1 / fps} unit="s" label={`${marker.name} time`} onchange={(t) => editor.setMarker(marker.id, 't', t)} />
-          <IconButton icon="play" label={`Go to ${marker.name}`} onclick={() => { editor.playing = false; editor.setTime(marker.t); }} />
-          <IconButton icon="trash" label={`Remove marker ${marker.name}`} onclick={() => editor.removeMarker(marker.id)} />
+          <input value={marker.name} aria-label={t('Marker name')} onchange={(e) => editor.setMarker(marker.id, 'name', e.currentTarget.value)} onkeydown={(e) => e.stopPropagation()} />
+          <NumberField value={marker.t} min={0} max={duration} step={1 / fps} unit="s" label={t('{name} time', { name: marker.name })} onchange={(t) => editor.setMarker(marker.id, 't', t)} />
+          <IconButton icon="play" label={t('Go to {name}', { name: marker.name })} onclick={() => { editor.playing = false; editor.setTime(marker.t); }} />
+          <IconButton icon="trash" label={t('Remove marker {name}', { name: marker.name })} onclick={() => editor.removeMarker(marker.id)} />
         </div>
       {/each}
     </details>
@@ -380,26 +381,26 @@
       <!-- Above the layers: expand and collapse all. -->
       <div class="ruler-gap">
         {#if groups.length}
-          <IconButton icon="expand-all" label="Expand all tracks" onclick={() => (folded = [])} />
-          <IconButton icon="collapse-all" label="Collapse all tracks" onclick={() => (folded = groups.map((g) => g.id))} />
+          <IconButton icon="expand-all" label={t('Expand all tracks')} onclick={() => (folded = [])} />
+          <IconButton icon="collapse-all" label={t('Collapse all tracks')} onclick={() => (folded = groups.map((g) => g.id))} />
         {/if}
       </div>
       {#each groups as g (g.id)}
         <div class="label group" data-selected={editor.activeNode?.id === g.id || undefined}>
-          <button type="button" class="fold" aria-expanded={g.open} aria-label={g.open ? `Fold ${g.name}` : `Unfold ${g.name}`} onclick={() => toggleFold(g.id)}>{g.open ? '▾' : '▸'}</button>
-          <button type="button" class="name" title={`Select ${g.name}`} onclick={() => (editor.selected = g.id)}>{g.name}</button>
+          <button type="button" class="fold" aria-expanded={g.open} aria-label={g.open ? t('Fold {name}', { name: g.name }) : t('Unfold {name}', { name: g.name })} onclick={() => toggleFold(g.id)}>{g.open ? '▾' : '▸'}</button>
+          <button type="button" class="name" title={t('Select {name}', { name: g.name })} onclick={() => (editor.selected = g.id)}>{g.name}</button>
           <span class="dim count">{g.tracks.length}</span>
         </div>
         {#if g.open}
           {#each g.tracks as tr (tr.id)}
             {@const l = labelOf(tr)}
             <div class="label track" title={`${l.node}${l.what ? ` · ${l.what}` : ''} · ${l.param}`}>
-              {#if l.what}<span class="dim">{l.what} · </span>{/if}<span class="param">{l.param}</span>{#if (tr.repeat ?? 1) !== 1}<span class="dim" title="Repeats">&nbsp;↻{tr.repeat === 0 ? '' : tr.repeat}</span>{/if}
-              <span class="key-nav" aria-label="Navigate keyframes">
-                <button type="button" title="Previous keyframe" aria-label={`Previous keyframe on ${l.node} · ${l.param}`} disabled={!tr.keys.some((k) => k.t < editor.time - 1e-6)} onclick={() => adjacentKey(tr, -1)}>‹</button>
-                <button type="button" title="Next keyframe" aria-label={`Next keyframe on ${l.node} · ${l.param}`} disabled={!tr.keys.some((k) => k.t > editor.time + 1e-6)} onclick={() => adjacentKey(tr, 1)}>›</button>
+              {#if l.what}<span class="dim">{l.what} · </span>{/if}<span class="param">{l.param}</span>{#if (tr.repeat ?? 1) !== 1}<span class="dim" title={t('Repeats')}>&nbsp;↻{tr.repeat === 0 ? '' : tr.repeat}</span>{/if}
+              <span class="key-nav" aria-label={t('Navigate keyframes')}>
+                <button type="button" title={t('Previous keyframe')} aria-label={t('Previous keyframe on {track}', { track: `${l.node} · ${l.param}` })} disabled={!tr.keys.some((k) => k.t < editor.time - 1e-6)} onclick={() => adjacentKey(tr, -1)}>‹</button>
+                <button type="button" title={t('Next keyframe')} aria-label={t('Next keyframe on {track}', { track: `${l.node} · ${l.param}` })} disabled={!tr.keys.some((k) => k.t > editor.time + 1e-6)} onclick={() => adjacentKey(tr, 1)}>›</button>
               </span>
-              <button type="button" class="x" title="Stop animating this" aria-label="Remove track" onclick={() => editor.removeTrack(tr.id)}>×</button>
+              <button type="button" class="x" title={t('Stop animating this')} aria-label={t('Remove track')} onclick={() => editor.removeTrack(tr.id)}>×</button>
             </div>
           {/each}
         {/if}
@@ -414,22 +415,22 @@
           <span class="tick" style:left="{x(t)}px">{tickLabel(t)}</span>
         {/each}
         {#each anim?.markers ?? [] as marker (marker.id)}
-          <button type="button" class="marker" style:left="{x(marker.t)}px" title={`${marker.name} · ${marker.t.toFixed(2)} s`} aria-label={`Go to marker ${marker.name}`} onpointerdown={(e) => e.stopPropagation()} onclick={() => { editor.playing = false; editor.setTime(marker.t); }}></button>
+          <button type="button" class="marker" style:left="{x(marker.t)}px" title={`${marker.name} · ${marker.t.toFixed(2)} s`} aria-label={t('Go to marker {name}', { name: marker.name })} onpointerdown={(e) => e.stopPropagation()} onclick={() => { editor.playing = false; editor.setTime(marker.t); }}></button>
         {/each}
       </div>
       {#each groups as g (g.id)}
         <!-- Object row: a small diamond wherever it has a key (takes the playhead to that time). -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="lane group">
-          {#each g.times as t (t)}
+          {#each g.times as time (time)}
             <button
               type="button"
               class="key summary"
-              style:left="{x(t)}px"
-              title={`${t.toFixed(2)} s`}
-              aria-label={`${g.name}: keyframes at ${t.toFixed(2)} seconds`}
-              onpointerdown={(e) => { e.stopPropagation(); editor.setTime(t); }}
-              onclick={(e) => { if (e.detail === 0) { editor.playing = false; editor.setTime(t); } }}
+              style:left="{x(time)}px"
+              title={`${time.toFixed(2)} s`}
+              aria-label={t('{name}: keyframes at {time} seconds', { name: g.name, time: time.toFixed(2) })}
+              onpointerdown={(e) => { e.stopPropagation(); editor.setTime(time); }}
+              onclick={(e) => { if (e.detail === 0) { editor.playing = false; editor.setTime(time); } }}
             ></button>
           {/each}
         </div>
@@ -445,8 +446,8 @@
               <Popover.Trigger
                 class="segment"
                 style="left: {x(a.t)}px; width: {w}px"
-                title={`${a.ease ?? 'ease-in-out'} — click to change the ease`}
-                aria-label={`Ease from ${a.t.toFixed(2)} to ${b.t.toFixed(2)} s: ${a.ease ?? 'ease-in-out'}`}
+                title={t('{ease} — click to change the ease', { ease: a.ease ?? 'ease-in-out' })}
+                aria-label={t('Ease from {from} to {to} s: {ease}', { from: a.t.toFixed(2), to: b.t.toFixed(2), ease: a.ease ?? 'ease-in-out' })}
                 data-on={easeOpen === id || (selected?.track === tr.id && selected.t === a.t) || undefined}
                 onpointerdown={(e: PointerEvent) => { if (!e.shiftKey) e.stopPropagation(); }}
               >
@@ -481,8 +482,8 @@
               data-selected={selectedHere || undefined}
               data-hold={k.ease === 'hold' || undefined}
               style:left="{x(k.t)}px"
-              title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'} · ${scaleHandle ? 'drag to scale selected keys' : 'drag to move'} · Del remove`}
-              aria-label={(({ node, what, param }) => `${[node, what, param].filter(Boolean).join(' · ')}: keyframe at ${k.t.toFixed(2)} seconds`)(labelOf(tr))}
+              title={`${k.t.toFixed(2)} s · ${k.ease ?? 'ease-in-out'} · ${scaleHandle ? t('drag to scale selected keys') : t('drag to move')} · ${t('Del remove')}`}
+              aria-label={(({ node, what, param }) => t('{track}: keyframe at {time} seconds', { track: [node, what, param].filter(Boolean).join(' · '), time: k.t.toFixed(2) }))(labelOf(tr))}
               aria-keyshortcuts="ArrowLeft ArrowRight Delete"
               data-key={`${tr.id}@${k.t}`}
               data-track={tr.id}
@@ -500,7 +501,7 @@
       {#if marquee}
         <span class="marquee" aria-hidden="true" style:left="{marquee.left}px" style:top="{marquee.top}px" style:width="{marquee.width}px" style:height="{marquee.height}px"></span>
       {/if}
-      {#if !anim?.tracks.length && editor.showInfo}<p class="empty">Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.</p>{/if}
+      {#if !anim?.tracks.length && editor.showInfo}<p class="empty">{t('Click the ◇ next to any value to animate it: it becomes a keyframe here. Move the playhead, change the value, and another keyframe is added.')}</p>{/if}
       <span class="head" style:left="{x(Math.min(editor.time, duration))}px" aria-hidden="true"></span>
       </div>
     </div>

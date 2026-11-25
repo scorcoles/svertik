@@ -1,4 +1,5 @@
 // Editor state: the scene (objects and groups), the selection, the history and the URL.
+import { t } from '@svertik/ui/i18n';
 import {
   bounds,
   apply,
@@ -387,7 +388,7 @@ export class Editor {
       const locations = this.selectedNodes.map(n => locateNode(parent.objects, n.id)!).filter(Boolean);
       if (!locations.length) return;
       target = locations[0]!.list;
-      if (locations.some(l => l.list !== target)) { this.notice = 'Select objects in the same group to create a composition.'; return; }
+      if (locations.some(l => l.list !== target)) { this.notice = t('Select objects in the same group to create a composition.'); return; }
       locations.sort((a, b) => a.index - b.index); index = locations[0]!.index;
       objects = locations.map(l => l.node);
       const ids = new Set([...walkNodes(objects)].map(({ node }) => node.id));
@@ -403,11 +404,11 @@ export class Editor {
           scan(m.children ?? []);
         } }; scan(n.stack);
         if (refs.some(id => !!locateNode(parent.objects, id) && ids.has(n.id) !== ids.has(id))) {
-          this.notice = 'Include all linked objects and targets in the selection before creating a composition.'; return;
+          this.notice = t('Include all linked objects and targets in the selection before creating a composition.'); return;
         }
       }
       if (parent.interactions?.some(it => ids.has(it.node) !== ids.has(it.target.node))) {
-        this.notice = 'Include the linked interaction targets in the composition.'; return;
+        this.notice = t('Include the linked interaction targets in the composition.'); return;
       }
       interactions = parent.interactions?.filter(it => ids.has(it.node));
       if (parent.interactions) parent.interactions = parent.interactions.filter(it => !ids.has(it.node));
@@ -560,17 +561,17 @@ export class Editor {
     if (interactions.length) this.scene.interactions = [...(this.scene.interactions ?? []), ...interactions];
     this.selected = released.id;
     this.also = [];
-    if (timelineTracks.length) this.notice = `Composition clock baked into the parent timeline at ${Math.round(bakeRate)} fps.`;
+    if (timelineTracks.length) this.notice = t('Composition clock baked into the parent timeline at {fps} fps.', { fps: Math.round(bakeRate) });
     this.record(true);
   }
   importComposition(text: string, filename = 'Composition'): boolean {
     try {
       const data = JSON.parse(text); const scene = data?.svertik === 'project' ? data.scene : data;
-      if (!isScene(scene)) { this.notice = 'Choose a project or scene JSON.'; return false; }
+      if (!isScene(scene)) { this.notice = t('Choose a project or scene JSON.'); return false; }
       const report = validateScene(scene, builtins);
       if (report.errors.length) { this.notice = report.errors.join('\n'); return false; }
       return !!this.createComposition(false, scene, data.name ?? filename.replace(/\.[^.]+$/, ''));
-    } catch { this.notice = 'Could not read the composition file.'; return false; }
+    } catch { this.notice = t('Could not read the composition file.'); return false; }
   }
   /** Document name (the first SVG's, until there is another). */
   name = $state('untitled');
@@ -632,7 +633,7 @@ export class Editor {
     if (!this.scene || !p) return;
     const n = applyPalette(this.scene, p.colors);
     if (!n) {
-      this.notice = 'Nothing to change: the drawing already uses those colors.';
+      this.notice = t('Nothing to change: the drawing already uses those colors.');
       return;
     }
     this.notice = `${n} ${n === 1 ? 'color' : 'colors'} changed to ${p.name}. Undo brings them back.`;
@@ -690,7 +691,7 @@ export class Editor {
     if (!this.scene) return false;
     const layer = this.activeLayer;
     if (layer?.locked) {
-      this.notice = `Layer “${layer.name}” is locked: unlock it or pick another layer.`;
+      this.notice = t('Layer “{name}” is locked: unlock it or pick another layer.', { name: layer.name });
       return false;
     }
     if (layer && layer.visible === false) layer.visible = undefined;
@@ -971,7 +972,7 @@ export class Editor {
     this.name = `my-${this.name}`;
     this.demoOrigin = null;
     this.playing = false;
-    this.notice = `Now it is yours: “${this.name}”. Save it with ⌘S.`;
+    this.notice = t('Now it is yours: “{name}”. Save it with ⌘S.', { name: this.name });
   }
   /** The keyboard shortcut sheet ("?" or the svertik menu). */
   showShortcuts = $state(false);
@@ -1034,7 +1035,7 @@ export class Editor {
     }
     const missing = targets.filter((t) => this.keyState(t) !== 'key');
     if (!targets.length) {
-      this.notice = this.current ? 'Nothing animated in this effect yet: use the ◇ next to a value, or: key <parameter>.' : 'Select an object to key.';
+      this.notice = this.current ? t('Nothing animated in this effect yet: use the ◇ next to a value, or: key <parameter>.') : t('Select an object to key.');
       return 0;
     }
     for (const t of missing) this.keyHere({ node: t.node, on: t.on, modifier: t.modifier, param: t.param });
@@ -1048,7 +1049,7 @@ export class Editor {
     const out: { id: string; label: string; detail: string }[] = [];
     const mods = (list: ModifierInstance[], owner: string) => {
       for (const m of list) {
-        out.push({ id: m.id, label: m.name || (registry.get(m.type)?.label ?? m.type), detail: `effect on ${owner}` });
+        out.push({ id: m.id, label: m.name || (registry.get(m.type)?.label ?? m.type), detail: t('effect on {name}', { name: owner }) });
         if (m.children) mods(m.children, owner);
       }
     };
@@ -1174,11 +1175,11 @@ export class Editor {
   load(source: string, name: string) {
     this.error = null;
     if (!/<svg[\s>]/i.test(source)) {
-      this.error = 'That is not an SVG.';
+      this.error = t('That is not an SVG.');
       return;
     }
     // Text in an SVG cannot be deformed (it has no outline until drawn with its font).
-    if (/<text[\s>]/i.test(source)) this.notice = 'This SVG has text: convert it to outlines (paths) before importing, or it won’t be deformed.';
+    if (/<text[\s>]/i.test(source)) this.notice = t('This SVG has text: convert it to outlines (paths) before importing, or it won’t be deformed.');
     const node: ObjectNode = { kind: 'object', id: `object-${uid()}`, name, source, stack: [] };
     if (!this.scene) {
       this.scene = newScene([node]);
@@ -1416,7 +1417,7 @@ export class Editor {
     const evaluated = locateNode(resolved.objects, id)?.node;
     if (evaluated?.kind !== 'shape') return false;
     const text = String(evaluated.params.text ?? '');
-    if (hasTextExpressions(text)) { this.notice = 'Cannot convert: fix the unresolved text expressions first.'; return false; }
+    if (hasTextExpressions(text)) { this.notice = t('Cannot convert: fix the unresolved text expressions first.'); return false; }
     this.flush();
     node.params.text = text;
     // Keep the evaluated text anchor so conversion does not recenter the rendered text.
@@ -1709,7 +1710,7 @@ export class Editor {
     const r = outlineNode(this.scene, id);
     if (!r) return;
     this.selected = id;
-    if (r.removed) this.notice = `Converted to outlines. ${r.removed === 1 ? 'One animation of its shape was' : `${r.removed} animations of its shape were`} removed (Undo brings it back).`;
+    if (r.removed) this.notice = r.removed === 1 ? t('Converted to outlines. One animation of its shape was removed (Undo brings it back).') : t('Converted to outlines. {count} animations of its shape were removed (Undo brings it back).', { count: r.removed });
     this.#applyTime();
     this.record(true);
   }
@@ -1748,7 +1749,7 @@ export class Editor {
       return;
     }
     if (geo.shapes.length < 2) {
-      this.notice = 'This SVG has one shape: there is nothing to expand.';
+      this.notice = t('This SVG has one shape: there is nothing to expand.');
       return;
     }
     const ref = bounds(geo);
@@ -1798,7 +1799,7 @@ export class Editor {
     at.list.splice(at.index, 1, group);
     this.selected = group.id;
     this.also = [];
-    this.notice = `Expanded into ${geo.shapes.length} objects.`;
+    this.notice = t('Expanded into {count} objects.', { count: geo.shapes.length });
     this.#applyTime();
     this.record(true);
   }
@@ -1821,7 +1822,7 @@ export class Editor {
     if (selection.length > 1) {
       const locs = selection.map((n) => locateNode(this.scene!.objects, n.id)!);
       if (locs.some((l) => l.list !== locs[0]!.list || this.isLocked(l.node.id) || (l.node.kind === 'group' && l.node.layer))) {
-        this.notice = 'Select unlocked objects in the same folder to pack them together.';
+        this.notice = t('Select unlocked objects in the same folder to pack them together.');
         return;
       }
       const list = locs[0]!.list;
@@ -1842,7 +1843,7 @@ export class Editor {
     if (grouped) r.node.packed!.autoGrouped = true;
     this.selected = r.node.id;
     this.also = [];
-    if (r.animated) this.notice = 'Packed at this frame: its animation stays inside and plays again when you unpack it.';
+    if (r.animated) this.notice = t('Packed at this frame: its animation stays inside and plays again when you unpack it.');
     this.#applyTime();
     this.record(true);
   }
@@ -2265,7 +2266,7 @@ export class Editor {
     this.selected = group.id;
     this.also = [];
     this.#applyTime();
-    this.notice = 'Boolean converted to a path. Its source objects, effects and animation were removed; Undo restores them.';
+    this.notice = t('Boolean converted to a path. Its source objects, effects and animation were removed; Undo restores them.');
     this.record(true);
   }
 
@@ -2540,11 +2541,11 @@ export class Editor {
     const n = this.scene ? locateNode(this.scene.objects, nodeId)?.node : undefined;
     if (!n) return [];
     const out: { label: string; target: TrackTarget; kind: 'number' | 'angle' | 'color' }[] = [
-      { label: 'Position X', target: { node: nodeId, on: 'node', param: 'x' }, kind: 'number' },
-      { label: 'Position Y', target: { node: nodeId, on: 'node', param: 'y' }, kind: 'number' },
-      { label: 'Scale', target: { node: nodeId, on: 'node', param: 'scale' }, kind: 'number' },
-      { label: 'Rotation', target: { node: nodeId, on: 'node', param: 'rotation' }, kind: 'angle' },
-      { label: 'Opacity', target: { node: nodeId, on: 'node', param: 'opacity' }, kind: 'number' },
+      { label: t('Position X'), target: { node: nodeId, on: 'node', param: 'x' }, kind: 'number' },
+      { label: t('Position Y'), target: { node: nodeId, on: 'node', param: 'y' }, kind: 'number' },
+      { label: t('Scale'), target: { node: nodeId, on: 'node', param: 'scale' }, kind: 'number' },
+      { label: t('Rotation'), target: { node: nodeId, on: 'node', param: 'rotation' }, kind: 'angle' },
+      { label: t('Opacity'), target: { node: nodeId, on: 'node', param: 'opacity' }, kind: 'number' },
     ];
     const walk = (list: ModifierInstance[]) => {
       for (const m of list) {
@@ -2588,7 +2589,7 @@ export class Editor {
   followTargets(nodeId: string): { label: string; target: TrackTarget; kind: 'point' | 'number' | 'angle' }[] {
     const n = this.scene ? locateNode(this.scene.objects, nodeId)?.node : undefined;
     if (!n) return [];
-    const out: { label: string; target: TrackTarget; kind: 'point' | 'number' | 'angle' }[] = [{ label: 'Position', target: { node: nodeId, on: 'node', param: 'position' }, kind: 'point' }];
+    const out: { label: string; target: TrackTarget; kind: 'point' | 'number' | 'angle' }[] = [{ label: t('Position'), target: { node: nodeId, on: 'node', param: 'position' }, kind: 'point' }];
     const walk = (list: ModifierInstance[]) => {
       for (const m of list) {
         const def = registry.get(m.type);
@@ -2821,7 +2822,7 @@ export class Editor {
   /** `params`: values that override the defaults (from the command line: "twist angle=45"). */
   add(type: string, params: Record<string, unknown> = {}) {
     if (this.activeNode && this.isLocked(this.activeNode.id)) return;
-    if (!this.canAdd(type)) { this.notice = 'This effect does not support raster images.'; return; }
+    if (!this.canAdd(type)) { this.notice = t('This effect does not support raster images.'); return; }
     // Boolean with several objects selected: they are grouped first (Boolean works on a group's children).
     if (type === 'boolean' && this.selectedNodes.length > 1 && !this.current) this.group();
     // Physics simulates the children of a group: a loose object (or several selected) goes into one first,
@@ -2880,8 +2881,8 @@ export class Editor {
     // Show what was added: the node and the Step that receives it, expanded.
     const host = at && containers.has(at.inst.type) ? at.inst.id : at?.parent?.id;
     this.collapsed = this.collapsed.filter((x) => x !== owner.id && x !== host);
-    if (grouped) this.notice = 'Grouped first: Physics simulates the objects inside a group.';
-    if (started) this.notice = 'A Physics group: put objects inside it to simulate them.';
+    if (grouped) this.notice = t('Grouped first: Physics simulates the objects inside a group.');
+    if (started) this.notice = t('A Physics group: put objects inside it to simulate them.');
     this.record(true);
   }
 

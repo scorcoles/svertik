@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // What an export reports: what was saved, how much it weighs and what could not be included.
   import { AlertDialog } from 'bits-ui';
   import { Button } from '@svertik/ui';
@@ -25,7 +26,7 @@
       {/if}
       <div class="actions">
         <AlertDialog.Action>
-          {#snippet child({ props })}<Button {...props} kind="primary" label="OK" onclick={onclose} />{/snippet}
+          {#snippet child({ props })}<Button {...props} kind="primary" label={t('OK')} onclick={onclose} />{/snippet}
         </AlertDialog.Action>
       </div>
     </AlertDialog.Content>

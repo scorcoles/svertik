@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { tick } from 'svelte';
   import { IconButton, NumberField, Section, Slider, formulaField } from '@svertik/ui';
   import { customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
@@ -67,34 +68,34 @@
     {@const n = customNumber(value) ?? (expression?.fallback ?? 0)}
     <div class="var">
       {#if renaming === name}
-        <input id={`variable-rename-${name}`} class="var-rename" value={name} aria-label="Variable name" spellcheck="false"
+        <input id={`variable-rename-${name}`} class="var-rename" value={name} aria-label={t('Variable name')} spellcheck="false"
           onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') rename(name, e.currentTarget.value); else if (e.key === 'Escape') renaming = null; }}
           onblur={(e) => rename(name, e.currentTarget.value)} />
       {:else}
-        <button class="var-name" type="button" title={`${namespace}.${name} · click to copy, double-click to rename`} onclick={() => void copy(name)} ondblclick={() => (renaming = name)}>{name}</button>
+        <button class="var-name" type="button" title={t('{reference} · click to copy, double-click to rename', { reference: `${namespace}.${name}` })} onclick={() => void copy(name)} ondblclick={() => (renaming = name)}>{name}</button>
       {/if}
       <div class="var-control">
         {#if expression}
           <div class="variable-expression" data-invalid={expressionError || undefined}>
             <input class="expression-input" value={expression.$expr} aria-label={`${name} expression`} aria-invalid={expressionError ? 'true' : undefined}
-              title={expressionError ?? `Use ${namespace} values, props.name, children["id"].property, scene variables, and math functions.`} spellcheck="false"
+              title={expressionError ?? t('Use {namespace} values, props.name, children["id"].property, scene variables, and math functions.', { namespace })} spellcheck="false"
               oninput={(e) => onchange(name, { ...expression, $expr: e.currentTarget.value })}
               use:formulaField={{ label: name, commit: (next) => onchange(name, { ...expression, $expr: next }) }}
               onkeydown={(e) => e.stopPropagation()} />
-            <button class="expression-toggle" type="button" aria-label={`Use a number for ${name}`} title="Switch to a number" onclick={() => onchange(name, expression.fallback)}>ƒx</button>
+            <button class="expression-toggle" type="button" aria-label={t('Use a number for {name}', { name })} title={t('Switch to a number')} onclick={() => onchange(name, expression.fallback)}>ƒx</button>
             {#if expressionError}<span class="expression-error" role="status">{expressionError}</span>{/if}
           </div>
         {:else}
           <NumberField value={n} step={ranged?.step ?? 0.1} min={ranged?.min} max={ranged?.max} width="72px" label={`${name} value`}
-            trailingAction={{ label: `Use an expression for ${name}`, title: 'Use an expression with incoming props, child values, scene variables, and math functions', onclick: () => onchange(name, { $expr: String(n), fallback: n }) }}
+            trailingAction={{ label: t('Use an expression for {name}', { name }), title: t('Use an expression with incoming props, child values, scene variables, and math functions'), onclick: () => onchange(name, { $expr: String(n), fallback: n }) }}
             onchange={(v) => setNumber(name, value, v)} />
           {#if ranged && ranged.min !== undefined && ranged.max !== undefined}
             <Slider value={n} min={ranged.min} max={ranged.max} step={ranged.step ?? 0.01} label={name} width="56px" onchange={(v) => setNumber(name, value, v)} />
           {/if}
         {/if}
         <span class="var-actions" data-pinned={rangeOpen[name] || undefined}>
-          {#if allowRanges && !expression}<IconButton icon="range" label={rangeOpen[name] ? `Hide ${name} range` : `Set a range for ${name} (slider)`} active={!!rangeOpen[name]} onclick={() => (rangeOpen = { ...rangeOpen, [name]: !rangeOpen[name] })} />{/if}
-          <IconButton icon="trash" label={`Remove ${name}`} onclick={() => onremove(name)} />
+          {#if allowRanges && !expression}<IconButton icon="range" label={rangeOpen[name] ? t('Hide {name} range', { name }) : t('Set a range for {name} (slider)', { name })} active={!!rangeOpen[name]} onclick={() => (rangeOpen = { ...rangeOpen, [name]: !rangeOpen[name] })} />{/if}
+          <IconButton icon="trash" label={t('Remove {name}', { name })} onclick={() => onremove(name)} />
         </span>
       </div>
     </div>
@@ -102,10 +103,10 @@
       <div class="var var-range">
         <span class="var-name-spacer" aria-hidden="true"></span>
         <div class="var-control">
-          {#each [['min', 'Min'], ['max', 'Max'], ['step', 'Step']] as const as [key, prefixLabel] (key)}
+          {#each [['min', t('Min')], ['max', t('Max')], ['step', t('Step')]] as const as [key, prefixLabel] (key)}
             {@const set = ranged[key] !== undefined}
             <NumberField value={ranged[key] ?? (key === 'step' ? 0.1 : key === 'min' ? Math.min(0, n) : Math.max(1, n))} step={0.1} prefix={prefixLabel} width="58px" label={`${name} ${key}`} error={false}
-              trailingAction={set ? { label: `Clear ${name} ${key}`, title: `Clear ${key}`, onclick: () => setRange(name, value, key, undefined) } : undefined}
+              trailingAction={set ? { label: t('Clear {name} {key}', { name, key: t(key) }), title: t('Clear {key}', { key: t(key) }), onclick: () => setRange(name, value, key, undefined) } : undefined}
               onchange={(v) => setRange(name, value, key, v)} />
           {/each}
         </div>

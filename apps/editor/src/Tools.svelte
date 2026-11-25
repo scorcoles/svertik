@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { shapes } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
@@ -17,16 +18,16 @@
   }
 </script>
 
-<div class="tools" role="toolbar" aria-label="Primitives" aria-orientation="vertical">
+<div class="tools" role="toolbar" aria-label={t('Primitives')} aria-orientation="vertical">
   <!-- Selecting or moving uses the pointer tool. Drawing tools stay active for repeated primitives. -->
-  <IconButton icon="select" label="Select (V or Esc)" active={!editor.tool && !editor.editingPath} onclick={() => { editor.tool = null; editor.editingPath = null; }} />
-  <IconButton icon="edit-points" label="Edit points (N) — select a Path to edit its anchors and handles" active={editor.tool === 'nodes' || !!editor.editingPath} onclick={() => editor.startPointEditing()} />
+  <IconButton icon="select" label={t('Select (V or Esc)')} active={!editor.tool && !editor.editingPath} onclick={() => { editor.tool = null; editor.editingPath = null; }} />
+  <IconButton icon="edit-points" label={t('Edit points (N) — select a Path to edit its anchors and handles')} active={editor.tool === 'nodes' || !!editor.editingPath} onclick={() => editor.startPointEditing()} />
   <span class="sep" aria-hidden="true"></span>
-  <IconButton icon="pencil" label="Path — click for corners, drag for curves; Enter finishes, click the first point to close" active={editor.tool === 'pen'} onclick={() => { editor.editingPath = null; if (!editor.scene) { editor.addShape('path', { fill: false, stroke: true, strokeWidth: 2 }); editor.editingPath = editor.selected; } else editor.tool = editor.tool === 'pen' ? null : 'pen'; }} />
+  <IconButton icon="pencil" label={t('Path — click for corners, drag for curves; Enter finishes, click the first point to close')} active={editor.tool === 'pen'} onclick={() => { editor.editingPath = null; if (!editor.scene) { editor.addShape('path', { fill: false, stroke: true, strokeWidth: 2 }); editor.editingPath = editor.selected; } else editor.tool = editor.tool === 'pen' ? null : 'pen'; }} />
   {#each shapes.filter(s => s.type !== 'path') as s (s.type)}
     <!-- Double-click: the primitive appears at the centre of the canvas, ready to edit. -->
     <span class="tool" role="none" ondblclick={() => { editor.tool = null; if (editor.scene && Date.now() - created > 600) oncenter?.(s.type); }}>
-      <IconButton icon={s.type as IconName} label={`${s.label} — drag on the canvas, or double-click to add it in the center (stays active; Esc cancels)`} active={editor.tool === s.type} onclick={() => choose(s.type)} />
+      <IconButton icon={s.type as IconName} label={t('{tool} — drag on the canvas, or double-click to add it in the center (stays active; Esc cancels)', { tool: t(s.label) })} active={editor.tool === s.type} onclick={() => choose(s.type)} />
     </span>
   {/each}
 </div>

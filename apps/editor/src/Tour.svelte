@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // The tour: a spotlight on one area of the editor and a card beside it. It does not block the editor:
   // everything stays usable while it is open. Esc skips it; ← and → move between steps.
   import { onMount, tick } from 'svelte';
@@ -101,10 +102,10 @@
     <h2 id="tour-title">{step.title}</h2>
     <p id="tour-body">{step.body}</p>
     <div class="actions">
-      <button type="button" class="skip" onclick={finish}>{last ? 'Close' : 'Skip tour'}</button>
+      <button type="button" class="skip" onclick={finish}>{last ? t('Close') : t('Skip tour')}</button>
       <span class="spacer"></span>
-      {#if position > 1}<Button label="Back" onclick={() => go(-1)} />{/if}
-      <Button kind="primary" label={last ? 'Done' : 'Next'} data-tour-next onclick={() => go(1)} />
+      {#if position > 1}<Button label={t('Back')} onclick={() => go(-1)} />{/if}
+      <Button kind="primary" label={last ? t('Done') : t('Next')} data-tour-next onclick={() => go(1)} />
     </div>
   </div>
 {/if}

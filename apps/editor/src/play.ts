@@ -3,6 +3,8 @@ import '@fontsource/commit-mono/700.css';
 // The Play page (play.html#p=…): a shared link's scene, full screen, with the
 // same player as the exported code. It loads only the engine: no editor or its interface.
 // And only what the scene uses: its effects load on demand (see "prepareScene").
+import { t } from '@svertik/ui/i18n';
+import { loadLocale } from './i18n';
 import { runStages, type BootStage } from './stages';
 import { createFpsMeter } from './fpsmeter';
 import { downloadFrame } from './capture';
@@ -45,7 +47,8 @@ addEventListener('pointermove', () => {
   toolsTimer = setTimeout(() => delete tools.dataset.active, 1500);
 }, { passive: true });
 const say = (text: string, ms = 2400) => {
-  msg.textContent = text;
+  // Texts come in English and show in the page's language.
+  msg.textContent = t(text);
   msg.hidden = false;
   clearTimeout(timer);
   if (ms) timer = setTimeout(() => (msg.hidden = true), ms);
@@ -100,9 +103,9 @@ meter.renderer(painted, player?.renderer() ?? initial);
       width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio || 1,
       scene: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
     } : undefined;
-    video.textContent = 'Cancel';
-    video.setAttribute('aria-label', 'Cancel MP4 export');
-    video.title = 'Cancel MP4 export';
+    video.textContent = t('Cancel');
+    video.setAttribute('aria-label', t('Cancel MP4 export'));
+    video.title = t('Cancel MP4 export');
     say('Preparing MP4…', 0);
     try {
       // Keep the encoder out of the normal playback download.
@@ -112,7 +115,7 @@ meter.renderer(painted, player?.renderer() ?? initial);
         name: sceneName,
         viewport,
         signal: controller.signal,
-        onProgress: progress => say(`Exporting MP4… ${Math.round(progress * 100)}%`, 0),
+        onProgress: progress => say(t('Exporting MP4… {percent}%', { percent: Math.round(progress * 100) }), 0),
       });
       say('MP4 downloaded');
     } catch (error) {
@@ -120,13 +123,22 @@ meter.renderer(painted, player?.renderer() ?? initial);
     } finally {
       exportController = null;
       video.replaceChildren(...videoIcon);
-      video.setAttribute('aria-label', 'Export one cycle as MP4');
-      video.title = 'Export one cycle as MP4';
+      video.setAttribute('aria-label', t('Export one cycle as MP4'));
+      video.title = t('Export one cycle as MP4');
     }
   });
 }
 
-void runStages(PLAY_STAGES, async () => {
-  const m = await import('@svertik/engine/player');
-  start(m);
-});
+void (async () => {
+  // The language first: the loading screen and the buttons already speak it.
+  await loadLocale();
+  for (const button of [capture, video]) {
+    const label = t(button.getAttribute('aria-label') ?? '');
+    button.setAttribute('aria-label', label);
+    button.title = label;
+  }
+  await runStages(PLAY_STAGES.map((s) => ({ ...s, label: t(s.label) })), async () => {
+    const m = await import('@svertik/engine/player');
+    start(m);
+  });
+})();

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // Empty state: a few demos playing in small, so what svertik does is visible before choosing.
   // Each tile renders its own scene; slow ones lower their frame rate, and with "reduce motion" they hold
   // a single frame. Clicking a tile opens the demo.
@@ -12,7 +13,7 @@
   const tiles = FEATURED.map((which) => {
     const demo = DEMOS.find((d) => d.which === which)!;
     const project = demo.create() as { canvas?: string; scene: SceneV1 };
-    return { which, title: demo.title, description: demo.description, label: `${demo.title}: ${demo.description}`, scene: project.scene, canvas: project.canvas };
+    return { which, title: demo.title, description: t(demo.description), label: `${demo.title}: ${t(demo.description)}`, scene: project.scene, canvas: project.canvas };
   });
   let svgs = $state<SVGSVGElement[]>([]);
 
@@ -56,10 +57,10 @@
   });
 </script>
 
-<ul class="reel" aria-label="Demos">
+<ul class="reel" aria-label={t('Demos')}>
   {#each tiles as tile, i (tile.which)}
     <li>
-      <button type="button" class="tile" title={tile.label} aria-label={`Open demo: ${tile.label}`} onclick={() => ondemo(tile.which)}>
+      <button type="button" class="tile" title={tile.label} aria-label={t('Open demo: {name}', { name: tile.label })} onclick={() => ondemo(tile.which)}>
         <svg bind:this={svgs[i]} style:background={tile.canvas || undefined} aria-hidden="true"></svg>
         <span class="title">{tile.title}</span>
         <span class="description">{tile.description}</span>

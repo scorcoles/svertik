@@ -7,7 +7,7 @@
 
 ## Editor UI conventions
 
-- All user-facing interface text must be in English.
+- Write user-facing interface text in English, inside `t()` (from `@svertik/ui`, or `@svertik/ui/i18n` in plain modules), with `{name}` placeholders for values instead of template literals; then add its Spanish to `apps/editor/src/i18n/es.ts` (the i18n test lists any missing). Effect, shape and object-kind names stay in English. New or changed effect descriptions need their Spanish in `apps/editor/src/i18n/es-effects.ts`. The editor shows Spanish when the browser asks for it, or when chosen in the svertik menu → Language.
 - Use Commit Mono for interface typography, including startup screens and notices.
 - Buttons must have square corners (no border radius).
 - Avoid decorative separators in notices.

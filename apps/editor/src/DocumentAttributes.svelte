@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // With nothing selected: the document. Its size is what is exported and what Play mode shows.
   import { Button, Checkbox, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select } from '@svertik/ui';
   import { DOCUMENT_PALETTE, PALETTES, type CustomVariable, type ViewportFit } from '@svertik/engine';
@@ -59,20 +60,20 @@
 
 <div class="doc">
   <header>
-    <h2>Document</h2><span class="meta">{editor.viewportFit ? `viewport · ${editor.viewportFit}` : doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
-    <IconButton icon="expand-all" label="Expand all document sections" onclick={() => setAllSections(true)} />
-    <IconButton icon="collapse-all" label="Collapse all document sections" onclick={() => setAllSections(false)} />
+    <h2>{t('Document')}</h2><span class="meta">{editor.viewportFit ? `viewport · ${editor.viewportFit}` : doc ? 'fixed' : 'auto'}</span><span class="spacer" aria-hidden="true"></span>
+    <IconButton icon="expand-all" label={t('Expand all document sections')} onclick={() => setAllSections(true)} />
+    <IconButton icon="collapse-all" label={t('Collapse all document sections')} onclick={() => setAllSections(false)} />
   </header>
-  <Section title="Size" bind:open={sectionOpen.size}>
-    <ParamRow label="Size" info={doc ? 'This is the exported frame and the document boundary. Play can show overflow unless Clip is on; turn on Bounds in View to see the edge.' : 'Auto fits whatever is drawn, with a small margin. Fixed sets an export frame for video or posts.'} showInfo={editor.showInfo}>
-      <Segmented value={doc ? 'fixed' : 'auto'} label="Document size" options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]} onchange={setMode} />
+  <Section title={t('Size')} bind:open={sectionOpen.size}>
+    <ParamRow label={t('Size')} info={doc ? t('This is the exported frame and the document boundary. Play can show overflow unless Clip is on; turn on Bounds in View to see the edge.') : t('Auto fits whatever is drawn, with a small margin. Fixed sets an export frame for video or posts.')} showInfo={editor.showInfo}>
+      <Segmented value={doc ? 'fixed' : 'auto'} label={t('Document size')} options={[{ value: 'auto', label: t('Auto') }, { value: 'fixed', label: t('Fixed') }]} onchange={setMode} />
     </ParamRow>
     {#if doc}
-      <ParamRow label="Preset">
+      <ParamRow label={t('Preset')}>
         <Select
           value={preset}
           options={[CUSTOM, ...PRESETS.map(([n]) => n)]}
-          label="Size preset"
+          label={t('Size preset')}
           width="132px"
           onchange={(v) => {
             const p = PRESETS.find(([n]) => n === v);
@@ -81,114 +82,114 @@
         />
       </ParamRow>
       <div class="dimensions">
-        <ParamRow label="Width" for="doc-w">
+        <ParamRow label={t('Width')} for="doc-w">
           <NumberField id="doc-w" value={doc.width} min={1} step={1} unit="px" onchange={(v) => editor.setDocument({ width: v, height: doc.height }, false)} />
         </ParamRow>
-        <ParamRow label="Height" for="doc-h">
+        <ParamRow label={t('Height')} for="doc-h">
           <NumberField id="doc-h" value={doc.height} min={1} step={1} unit="px" onchange={(v) => editor.setDocument({ width: doc.width, height: v }, false)} />
         </ParamRow>
-        <span class="swap"><IconButton icon="swap" label="Swap document width and height" onclick={() => editor.setDocument({ width: doc.height, height: doc.width })} /></span>
+        <span class="swap"><IconButton icon="swap" label={t('Swap document width and height')} onclick={() => editor.setDocument({ width: doc.height, height: doc.width })} /></span>
       </div>
     {/if}
     <div class="full-viewport-row">
-      <label for="doc-full-viewport">Full</label>
-      <input id="doc-full-viewport" type="checkbox" aria-label="Full viewport" title="Fill the available viewport in Play" checked={!!editor.viewportFit} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
+      <label for="doc-full-viewport">{t('Full')}</label>
+      <input id="doc-full-viewport" type="checkbox" aria-label={t('Full viewport')} title={t('Fill the available viewport in Play')} checked={!!editor.viewportFit} onchange={(event) => editor.setFullViewport(event.currentTarget.checked)} />
     </div>
     {#if doc}
       <div class="full-viewport-row">
-        <label for="doc-clip">Clip</label>
-        <input id="doc-clip" type="checkbox" aria-label="Clip to the document in Play" title="In Play, hide whatever lies outside the document" checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
+        <label for="doc-clip">{t('Clip')}</label>
+        <input id="doc-clip" type="checkbox" aria-label={t('Clip to the document in Play')} title={t('In Play, hide whatever lies outside the document')} checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
       </div>
     {/if}
     {#if doc}
       <div class="full-viewport-row">
-        <label for="doc-physics-bounds">Walls</label>
-        <input id="doc-physics-bounds" type="checkbox" aria-label="Document edges are physics walls" title="Physics: bodies bounce off the document's edges (with Adapt, the screen's)" checked={editor.scene?.physicsBounds === true} onchange={(event) => editor.setPhysicsBounds(event.currentTarget.checked)} />
+        <label for="doc-physics-bounds">{t('Walls')}</label>
+        <input id="doc-physics-bounds" type="checkbox" aria-label={t('Document edges are physics walls')} title={t('Physics: bodies bounce off the document\'s edges (with Adapt, the screen\'s)')} checked={editor.scene?.physicsBounds === true} onchange={(event) => editor.setPhysicsBounds(event.currentTarget.checked)} />
       </div>
     {/if}
     <div class="full-viewport-row">
-      <label for="doc-embed-svgs">SVGs</label>
-      <input id="doc-embed-svgs" type="checkbox" aria-label="Embed SVG files in the project" title="Save imported SVGs inside the project file. Off: the project keeps only their file names, and the SVGs stay next to it" checked={editor.embedSources} onchange={(event) => (editor.embedSources = event.currentTarget.checked)} />
+      <label for="doc-embed-svgs">{t('SVGs')}</label>
+      <input id="doc-embed-svgs" type="checkbox" aria-label={t('Embed SVG files in the project')} title={t('Save imported SVGs inside the project file. Off: the project keeps only their file names, and the SVGs stay next to it')} checked={editor.embedSources} onchange={(event) => (editor.embedSources = event.currentTarget.checked)} />
     </div>
     {#if editor.viewportFit}
-      <ParamRow label="Fit" info="In Play, Contain shows the whole document, Cover fills and crops, and Stretch fills both axes. Adapt gives the document the screen's shape, so formulas and physics walls see the screen's size. The editor and exports keep the document size." showInfo={editor.showInfo}>
+      <ParamRow label={t('Fit')} info={t('In Play, Contain shows the whole document, Cover fills and crops, and Stretch fills both axes. Adapt gives the document the screen\'s shape, so formulas and physics walls see the screen\'s size. The editor and exports keep the document size.')} showInfo={editor.showInfo}>
         <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. Adapt resizes the document. -->
         <!-- A list, not a segmented control: four options don't fit the inspector's width. -->
-        <Select value={editor.viewportFit} label="Fit to the screen" width="132px" options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' }, { value: 'stretch', label: 'Stretch' }, ...(doc ? [{ value: 'adapt', label: 'Adapt' }] : [])]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
+        <Select value={editor.viewportFit} label={t('Fit to the screen')} width="132px" options={[{ value: 'contain', label: t('Contain') }, { value: 'cover', label: t('Cover') }, { value: 'stretch', label: t('Stretch') }, ...(doc ? [{ value: 'adapt', label: t('Adapt') }] : [])]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
       </ParamRow>
       {#if editor.viewportFit === 'adapt' && doc}
-        <ParamRow label="Content" for="doc-adapt-content" info="On: the content scales to fit the screen. Off: it keeps the document's size, centred." showInfo={editor.showInfo}>
-          <Checkbox id="doc-adapt-content" label="Scale the content to the screen" checked={editor.adaptContent} onchange={(value) => editor.setAdaptContent(value)} />
+        <ParamRow label={t('Content')} for="doc-adapt-content" info={t('On: the content scales to fit the screen. Off: it keeps the document\'s size, centred.')} showInfo={editor.showInfo}>
+          <Checkbox id="doc-adapt-content" label={t('Scale the content to the screen')} checked={editor.adaptContent} onchange={(value) => editor.setAdaptContent(value)} />
         </ParamRow>
       {/if}
     {/if}
     {#if doc}
-      <div class="actions"><Button label="Fit to drawing" onclick={() => editor.fitDocument()} /></div>
+      <div class="actions"><Button label={t('Fit to drawing')} onclick={() => editor.fitDocument()} /></div>
     {/if}
   </Section>
-  <Section title="Time" bind:open={sectionOpen.time}>
-    <ParamRow label="Infinite" for="doc-infinite-time" info={editor.animation?.infinite ? "The clock keeps running after the duration. Timeline tracks hold their final state; use a looping composition for repetition." : undefined} showInfo={editor.showInfo}>
-      <Checkbox id="doc-infinite-time" label="Infinite time" checked={editor.animation?.infinite === true} onchange={(value) => editor.setInfiniteTime(value)} />
+  <Section title={t('Time')} bind:open={sectionOpen.time}>
+    <ParamRow label={t('Infinite')} for="doc-infinite-time" info={editor.animation?.infinite ? "The clock keeps running after the duration. Timeline tracks hold their final state; use a looping composition for repetition." : undefined} showInfo={editor.showInfo}>
+      <Checkbox id="doc-infinite-time" label={t('Infinite time')} checked={editor.animation?.infinite === true} onchange={(value) => editor.setInfiniteTime(value)} />
     </ParamRow>
   </Section>
-  <Section title="Seed generator" bind:open={sectionOpen.seed}>
-    <ParamRow label="Seed" for="scene-seed-generator" info="Linked effect seeds vary together while keeping their relative offsets. Changing this seed can also rebuild seeded layouts." showInfo={editor.showInfo}>
+  <Section title={t('Seed generator')} bind:open={sectionOpen.seed}>
+    <ParamRow label={t('Seed')} for="scene-seed-generator" info={t('Linked effect seeds vary together while keeping their relative offsets. Changing this seed can also rebuild seeded layouts.')} showInfo={editor.showInfo}>
       <NumberField id="scene-seed-generator" value={editor.seedGenerator} min={0} max={2147483647} step={1} onchange={(v) => editor.setSeedGenerator(v)} />
       <!-- The dice, as on effects: a new random seed (everything linked to the generator changes with it). -->
-      <IconButton icon="dice" label="New random seed" onclick={() => editor.setSeedGenerator(Math.floor(Math.random() * 100000))} />
+      <IconButton icon="dice" label={t('New random seed')} onclick={() => editor.setSeedGenerator(Math.floor(Math.random() * 100000))} />
     </ParamRow>
-    <ParamRow label="Every" for="scene-seed-every" info="Choose a new seed every N seconds of playback (0 = off). A looping timeline repeats the sequence; Infinite keeps generating new seeds." showInfo={editor.showInfo}>
+    <ParamRow label={t('Every')} for="scene-seed-every" info={t('Choose a new seed every N seconds of playback (0 = off). A looping timeline repeats the sequence; Infinite keeps generating new seeds.')} showInfo={editor.showInfo}>
       <!-- Re-seed on a beat (scene time, so it plays the same in Play and exports); 0 = keep this seed. -->
       <NumberField id="scene-seed-every" value={editor.seedEvery} min={0} step={0.1} unit="s" onchange={(v) => editor.setSeedEvery(v)} />
     </ParamRow>
-    <ParamRow label="On load" for="scene-seed-on-load" info="Play draws a new seed every time the scene loads, so it comes out different on each visit. The editor and exports keep this seed." showInfo={editor.showInfo}>
-      <Checkbox id="scene-seed-on-load" label="New seed on every load" checked={editor.scene?.seedOnLoad === true} onchange={(value) => editor.setSeedOnLoad(value)} />
+    <ParamRow label={t('On load')} for="scene-seed-on-load" info={t('Play draws a new seed every time the scene loads, so it comes out different on each visit. The editor and exports keep this seed.')} showInfo={editor.showInfo}>
+      <Checkbox id="scene-seed-on-load" label={t('New seed on every load')} checked={editor.scene?.seedOnLoad === true} onchange={(value) => editor.setSeedOnLoad(value)} />
     </ParamRow>
     <div class="actions">
-      <Button label="Link all seeds" title="Link numeric effect seeds to this generator, preserving their current differences" onclick={() => editor.linkSeedsToGenerator()} />
+      <Button label={t('Link all seeds')} title={t('Link numeric effect seeds to this generator, preserving their current differences')} onclick={() => editor.linkSeedsToGenerator()} />
     </div>
   </Section>
-  <Section title="Canvas" bind:open={sectionOpen.canvas}>
-    <ParamRow label="Background" info="For viewing only; it is not included in the exported SVG." showInfo={editor.showInfo}>
-      <ColorField value={editor.canvas || DEFAULT_CANVAS} label="Canvas background" swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
+  <Section title={t('Canvas')} bind:open={sectionOpen.canvas}>
+    <ParamRow label={t('Background')} info={t('For viewing only; it is not included in the exported SVG.')} showInfo={editor.showInfo}>
+      <ColorField value={editor.canvas || DEFAULT_CANVAS} label={t('Canvas background')} swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
       <span class="background-actions">
-        <IconButton icon="eyedropper" label={canPick ? 'Pick document background from screen' : 'Screen color picker is not supported in this browser'} disabled={!canPick || pickingBackground} onclick={pickBackground} />
-        {#if editor.canvas}<IconButton icon="close" label="Use the default canvas background" onclick={() => editor.setCanvas('')} />{/if}
+        <IconButton icon="eyedropper" label={canPick ? t('Pick document background from screen') : t('Screen color picker is not supported in this browser')} disabled={!canPick || pickingBackground} onclick={pickBackground} />
+        {#if editor.canvas}<IconButton icon="close" label={t('Use the default canvas background')} onclick={() => editor.setCanvas('')} />{/if}
       </span>
     </ParamRow>
   </Section>
-  <Section title="Palette" bind:open={sectionOpen.palette}>
-    <ParamRow label="Palette" info="The chosen palette appears in every color picker. Save keeps this document's colors as a palette in this browser." showInfo={editor.showInfo}>
+  <Section title={t('Palette')} bind:open={sectionOpen.palette}>
+    <ParamRow label={t('Palette')} info={t('The chosen palette appears in every color picker. Save keeps this document\'s colors as a palette in this browser.')} showInfo={editor.showInfo}>
       <Select
         value={editor.paletteName}
         options={[DOCUMENT_PALETTE, ...editor.palettes.map((p) => p.name)]}
-        label="Palette"
+        label={t('Palette')}
         width="132px"
         onchange={(v) => editor.selectPalette(v)}
       />
-      {#if own}<IconButton icon="trash" label="Delete this palette" onclick={() => current && editor.deletePalette(current.name)} />{/if}
+      {#if own}<IconButton icon="trash" label={t('Delete this palette')} onclick={() => current && editor.deletePalette(current.name)} />{/if}
     </ParamRow>
     {#if chips.length}
-      <div class="chips" aria-label="Palette colors">
+      <div class="chips" aria-label={t('Palette colors')}>
         {#each chips as c (c)}<span class="chip" title={c} style:background={c}></span>{/each}
       </div>
     {/if}
     {#if current}
-      <div class="actions"><Button label="Apply to drawing" title="Change the drawing's colors to this palette's, darkest to darkest and lightest to lightest" onclick={() => editor.applyPalette(current.name)} /></div>
+      <div class="actions"><Button label={t('Apply to drawing')} title={t('Change the drawing\'s colors to this palette\'s, darkest to darkest and lightest to lightest')} onclick={() => editor.applyPalette(current.name)} /></div>
     {/if}
-    <ParamRow label="Save as">
+    <ParamRow label={t('Save as')}>
       <input
         class="name"
-        placeholder="Palette name"
-        aria-label="New palette name"
+        placeholder={t('Palette name')}
+        aria-label={t('New palette name')}
         spellcheck="false"
         bind:value={saving}
         onkeydown={(e) => e.key === 'Enter' && save()}
       />
-      <Button label="Save" disabled={!saving.trim() || !editor.docColors.length} onclick={save} />
+      <Button label={t('Save')} disabled={!saving.trim() || !editor.docColors.length} onclick={save} />
     </ParamRow>
   </Section>
-  <VariableList title="Variables" bind:open={sectionOpen.variables} values={custom} namespace="scene.custom" prefix="var" allowRanges showInfo={editor.showInfo} info="Add numeric variables for formulas. Names can be edited; double-click to rename. Formulas can reference scene values and other scene.custom variables."
+  <VariableList title={t('Variables')} bind:open={sectionOpen.variables} values={custom} namespace="scene.custom" prefix="var" allowRanges showInfo={editor.showInfo} info={t('Add numeric variables for formulas. Names can be edited; double-click to rename. Formulas can reference scene values and other scene.custom variables.')}
     onchange={setVariable} onremove={removeVariable} onrename={renameVariable} />
 </div>
 

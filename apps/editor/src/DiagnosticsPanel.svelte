@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { IconButton } from '@svertik/ui';
   import CopyButton from './CopyButton.svelte';
   import { formatBytes } from './debug-report';
@@ -88,25 +89,25 @@
 
 <section class="diagnostics" aria-labelledby="diagnostics-title">
   <header>
-    <h2 id="diagnostics-title">Debug output</h2>
+    <h2 id="diagnostics-title">{t('Debug output')}</h2>
     <span class="count">{entries.length}</span>
     <span class="spacer"></span>
-    <IconButton icon="stopwatch" label={profile.running ? 'Stop performance profile' : 'Measure one scene playback'} active={profile.running} disabled={!sceneSummary} onclick={onprofile} />
-    <IconButton icon="trash" label="Clear diagnostic output" disabled={!entries.length} onclick={onclear} />
-    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? 'Restore editor layout' : 'Use all available space for diagnostics'} aria-pressed={maximized} onclick={onmaximize} />
-    <IconButton icon="down" label="Close diagnostics panel" onclick={onclose} />
+    <IconButton icon="stopwatch" label={profile.running ? t('Stop performance profile') : t('Measure one scene playback')} active={profile.running} disabled={!sceneSummary} onclick={onprofile} />
+    <IconButton icon="trash" label={t('Clear diagnostic output')} disabled={!entries.length} onclick={onclear} />
+    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? t('Restore editor layout') : t('Use all available space for diagnostics')} aria-pressed={maximized} onclick={onmaximize} />
+    <IconButton icon="down" label={t('Close diagnostics panel')} onclick={onclose} />
   </header>
-  <div class="summary" aria-label="Current scene complexity">
+  <div class="summary" aria-label={t('Current scene complexity')}>
     {#if sceneSummary}
       <span>{sceneSummary.nodes} nodes</span>
       <span>{sceneSummary.modifiers} modifiers</span>
       <span>{sceneSummary.animationTracks} tracks · {sceneSummary.keyframes} keys</span>
       {#if sceneSummary.importedSvgs}<span>{sceneSummary.importedSvgs} SVG · {formatBytes(sceneSummary.importedSvgBytes)}</span>{/if}
-    {:else}<span>No scene loaded</span>{/if}
+    {:else}<span>{t('No scene loaded')}</span>{/if}
     {#if latestSvg}<span class="last-svg">Last SVG: {latestSvg.analysisSkipped ? 'structure scan skipped' : `${latestSvg.elements.toLocaleString()} elements · ${latestSvg.pathCommands.toLocaleString()} path commands`}; {formatBytes(latestSvg.bytes)} · {latestSvg.images} images · {latestSvg.filters} filters</span>{/if}
   </div>
   {#if profile.running || profile.samples.length}
-    <section class="profile" aria-label="Frame render performance">
+    <section class="profile" aria-label={t('Frame render performance')}>
       <div class="profile-meta">
         <strong>Frame work (ms) · {profile.duration.toFixed(2)} s at {profile.fps} fps</strong>
         {#if profile.running}
@@ -115,7 +116,7 @@
           <span>avg {profileStats.average.toFixed(1)} ms · p95 {profileStats.p95.toFixed(1)} ms · peak {profileStats.peak.toFixed(1)} ms</span>
         {/if}
       </div>
-      <svg viewBox="0 0 1000 100" preserveAspectRatio="none" role="img" aria-label="Frame render time in milliseconds across the scene">
+      <svg viewBox="0 0 1000 100" preserveAspectRatio="none" role="img" aria-label={t('Frame render time in milliseconds across the scene')}>
         <line x1="4" x2="996" y1="90" y2="90" />
         {#if profileMax >= 16.7}<line class="budget" x1="4" x2="996" y1={90 - 16.7 / profileMax * 78} y2={90 - 16.7 / profileMax * 78} />{/if}
         {#if profileMax >= 50}<line class="warning" x1="4" x2="996" y1={90 - 50 / profileMax * 78} y2={90 - 50 / profileMax * 78} />{/if}
@@ -125,28 +126,28 @@
     </section>
   {/if}
   <div class="output sv-writing-theme" data-sv-theme="dark" role="log" aria-live="polite">
-    <CopyButton label="Copy debug report" onclick={() => oncopy(report(), 'Debug report')} />
+    <CopyButton label={t('Copy debug report')} onclick={() => oncopy(report(), t('Debug report'))} />
     {#if entries.length}
       {#each entries as entry (entry.id)}
         <article data-level={entry.level}>
           <time>{timeOf(entry.time)}</time>
           <strong>{entry.level === 'error' ? 'Error' : 'Warning'} · {entry.source}</strong>
           <span>{entry.message}</span>
-          {#if entry.stack}<details><summary>Stack</summary><pre>{entry.stack}</pre></details>{/if}
+          {#if entry.stack}<details><summary>{t('Stack')}</summary><pre>{entry.stack}</pre></details>{/if}
         </article>
       {/each}
     {:else}
-      <p>No errors or warnings.</p>
+      <p>{t('No errors or warnings.')}</p>
     {/if}
   </div>
   <footer>
     <span class="activity" title={activities.map((event) => `${timeOf(event.time)} · ${event.action}${event.detail ? ` · ${event.detail}` : ''}`).join('\n')}>
       {#if activities.length}{activities.at(-1)?.action}{activities.at(-1)?.detail ? ` · ${activities.at(-1)?.detail}` : ''}{:else}No recent activity{/if}
     </span>
-    <label title="Adds the current project, including artwork, SVG source, notes and script.">
-      <input type="checkbox" bind:checked={includeProject} /> Include project
+    <label title={t('Adds the current project, including artwork, SVG source, notes and script.')}>
+      <input type="checkbox" bind:checked={includeProject} /> {t('Include project')}
     </label>
-    <button type="button" class="download" onclick={() => onbundle(includeProject)}>Download report</button>
+    <button type="button" class="download" onclick={() => onbundle(includeProject)}>{t('Download report')}</button>
   </footer>
 </section>
 

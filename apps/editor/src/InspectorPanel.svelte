@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import Attributes from './Attributes.svelte';
   import DocumentAttributes from './DocumentAttributes.svelte';
@@ -70,10 +71,10 @@
   }
 </script>
 
-<section class="inspector-panel" aria-label="Inspector">
-  <div class="tabs" role="tablist" aria-label="Inspector panels" tabindex="-1" onkeydown={moveTab}>
-    <button id="inspector-tab-stack" type="button" role="tab" aria-selected={active === 'stack'} aria-controls="inspector-panel-stack" tabindex={active === 'stack' ? 0 : -1} onclick={() => (active = 'stack')}>Stack</button>
-    <button id="inspector-tab-document" type="button" role="tab" aria-selected={active === 'document'} aria-controls="inspector-panel-document" tabindex={active === 'document' ? 0 : -1} onclick={() => (active = 'document')}>Document</button>
+<section class="inspector-panel" aria-label={t('Inspector')}>
+  <div class="tabs" role="tablist" aria-label={t('Inspector panels')} tabindex="-1" onkeydown={moveTab}>
+    <button id="inspector-tab-stack" type="button" role="tab" aria-selected={active === 'stack'} aria-controls="inspector-panel-stack" tabindex={active === 'stack' ? 0 : -1} onclick={() => (active = 'stack')}>{t('Stack')}</button>
+    <button id="inspector-tab-document" type="button" role="tab" aria-selected={active === 'document'} aria-controls="inspector-panel-document" tabindex={active === 'document' ? 0 : -1} onclick={() => (active = 'document')}>{t('Document')}</button>
   </div>
 
   {#if active === 'stack'}
@@ -87,19 +88,19 @@
         class="split"
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize stack and attributes"
+        aria-label={t('Resize stack and attributes')}
         aria-valuemin={MIN}
         aria-valuemax={MAX}
         aria-valuenow={share}
         tabindex="0"
-        title="Drag to resize · double-click to reset"
+        title={t('Drag to resize · double-click to reset')}
         data-dragging={dragging || undefined}
         onpointerdown={startSplit}
         ondblclick={() => setShare(50)}
         onkeydown={splitKey}
       ></div>
       {/if}
-      <section class="properties" aria-label="Properties">
+      <section class="properties" aria-label={t('Properties')}>
         <div class="properties-body"><Attributes {editor} {onreplace} /></div>
       </section>
       {#if editor.showLayers}<LayersPanel {editor} />{/if}
@@ -109,7 +110,7 @@
       {#if editor.scene}
         <DocumentAttributes {editor} />
       {:else if editor.showInfo}
-        <div class="empty"><p>No document yet.</p><p>Import or create a scene to edit its size and palette.</p></div>
+        <div class="empty"><p>{t('No document yet.')}</p><p>{t('Import or create a scene to edit its size and palette.')}</p></div>
       {/if}
     </div>
   {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // The only place to export from (the svertik menu no longer repeats it). Each format says what it keeps.
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
@@ -20,26 +21,26 @@
 
   type Item = { label: string; icon: IconName; hint: string; run: () => void } | 'sep';
   const items: Item[] = $derived([
-    { label: 'SVG', icon: 'export', hint: 'Vector, the current frame', run: onexportsvg },
-    { label: 'PNG (2×)', icon: 'image', hint: 'Pixels at twice the size, the current frame', run: onexportpng },
-    { label: 'MP4', icon: 'play', hint: 'Video of one cycle, on the canvas colour', run: onexportmp4 },
-    { label: 'Animated SVG', icon: 'wave', hint: 'One .svg that plays by itself, no JavaScript', run: onexportanimsvg },
-    { label: 'Lottie (.json)', icon: 'timeline', hint: 'For Lottie players; lists what does not fit', run: onexportlottie },
+    { label: t('SVG'), icon: 'export', hint: t('Vector, the current frame'), run: onexportsvg },
+    { label: t('PNG (2×)'), icon: 'image', hint: t('Pixels at twice the size, the current frame'), run: onexportpng },
+    { label: t('MP4'), icon: 'play', hint: t('Video of one cycle, on the canvas colour'), run: onexportmp4 },
+    { label: t('Animated SVG'), icon: 'wave', hint: t('One .svg that plays by itself, no JavaScript'), run: onexportanimsvg },
+    { label: t('Lottie (.json)'), icon: 'timeline', hint: t('For Lottie players; lists what does not fit'), run: onexportlottie },
     'sep',
-    { label: 'Share link', icon: 'share', hint: 'A short link that opens the scene in the editor', run: onshare },
-    { label: 'Copy JSON', icon: 'object', hint: 'The scene, to paste into code or a file', run: oncopyjson },
+    { label: t('Share link'), icon: 'share', hint: t('A short link that opens the scene in the editor'), run: onshare },
+    { label: t('Copy JSON'), icon: 'object', hint: t('The scene, to paste into code or a file'), run: oncopyjson },
   ]);
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger class="sv-export-trigger" {disabled} title="Export the document, or copy its JSON">
-    Export <span class="caret" aria-hidden="true">▾</span>
+  <DropdownMenu.Trigger class="sv-export-trigger" {disabled} title={t('Export the document, or copy its JSON')}>
+    {t('Export')} <span class="caret" aria-hidden="true">▾</span>
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
     <DropdownMenu.Content class="sv-menu sv-export-menu" align="end" sideOffset={6}>
       {#if hidden.length}
         <!-- Hidden layers stay in the project file but are left out of every export. -->
-        <p class="layers-note">{hidden.length === 1 ? `Layer “${hidden[0]}” is hidden: it is left out of SVG, PNG, video and Lottie (the JSON keeps it).` : `${hidden.length} hidden layers are left out of SVG, PNG, video and Lottie (the JSON keeps them).`}</p>
+        <p class="layers-note">{hidden.length === 1 ? t('Layer “{name}” is hidden: it is left out of SVG, PNG, video and Lottie (the JSON keeps it).', { name: hidden[0]! }) : t('{count} hidden layers are left out of SVG, PNG, video and Lottie (the JSON keeps them).', { count: hidden.length })}</p>
       {/if}
       {#each items as it, i (i)}
         {#if it === 'sep'}

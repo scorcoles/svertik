@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   // A text's font: family (search over Fontsource's free catalogue, each name in its own
   // typeface), weight (only those the family has) and italic (if it has one). Downloaded when chosen.
   import { Popover } from 'bits-ui';
@@ -57,7 +58,7 @@
   const loading = $derived(editor.fontsTick >= 0 && !hasFont(fontKey(family, weight, italic)));
 </script>
 
-<ParamRow label="Font">
+<ParamRow label={t('Font')}>
   <Popover.Root bind:open>
     <Popover.Trigger class="sv-font-trigger" aria-label="Font: {family}" title={family}>
       <span class="name" style:font-family={shown[family] ? `'${shown[family]}', monospace` : undefined} use:preview={family}>{family}</span>
@@ -69,8 +70,8 @@
         <input
           class="search"
           type="search"
-          placeholder={catalog ? `Search ${catalog.length} free fonts` : 'Loading fonts…'}
-          aria-label="Search fonts"
+          placeholder={catalog ? t('Search {count} free fonts', { count: catalog.length }) : t('Loading fonts…')}
+          aria-label={t('Search fonts')}
           spellcheck="false"
           autofocus
           bind:value={query}
@@ -79,12 +80,12 @@
             if (e.key === 'Enter' && matches[0]) choose(matches[0]);
           }}
         />
-        <div class="cats" role="radiogroup" aria-label="Category">
+        <div class="cats" role="radiogroup" aria-label={t('Category')}>
           {#each CATEGORIES as [value, name] (value)}
             <button type="button" role="radio" aria-checked={category === value} onclick={() => (category = value)}>{name}</button>
           {/each}
         </div>
-        <div class="list" role="listbox" aria-label="Fonts">
+        <div class="list" role="listbox" aria-label={t('Fonts')}>
           {#each matches.slice(0, LIMIT) as f (f.family)}
             <button
               type="button"
@@ -96,27 +97,27 @@
               style:font-family={shown[f.family] ? `'${shown[f.family]}', monospace` : undefined}
             >{f.family}</button>
           {/each}
-          {#if matches.length > LIMIT}<p class="more">{matches.length - LIMIT} more: type to narrow it down</p>{/if}
-          {#if catalog && !matches.length}<p class="more">No font matches “{query}”</p>{/if}
+          {#if matches.length > LIMIT}<p class="more">{t('{count} more: type to narrow it down', { count: matches.length - LIMIT })}</p>{/if}
+          {#if catalog && !matches.length}<p class="more">{t('No font matches “{query}”', { query })}</p>{/if}
         </div>
-        <p class="foot">{category === 'picks' && !query ? 'A short, varied selection. ' : 'Most popular first. '}Free fonts from Fontsource, downloaded when used.</p>
+        <p class="foot">{category === 'picks' && !query ? t('A short, varied selection. ') : t('Most popular first. ')}Free fonts from Fontsource, downloaded when used.</p>
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>
 </ParamRow>
-<ParamRow label="Weight">
+<ParamRow label={t('Weight')}>
   <Select
     value={label(weight)}
     options={weights.map(label)}
-    label="Weight"
+    label={t('Weight')}
     onchange={(v) => editor.setShapeParam(node.id, 'weight', Number(String(v).split(' ')[0]))}
   />
 </ParamRow>
-<ParamRow label="Italic">
-  <Checkbox checked={italic} label="Italic" disabled={!!entry && !entry.italic} onchange={(v) => editor.setShapeParam(node.id, 'italic', v)} />
-  {#if entry && !entry.italic}<span class="dim">this family has no italic</span>{/if}
+<ParamRow label={t('Italic')}>
+  <Checkbox checked={italic} label={t('Italic')} disabled={!!entry && !entry.italic} onchange={(v) => editor.setShapeParam(node.id, 'italic', v)} />
+  {#if entry && !entry.italic}<span class="dim">{t('this family has no italic')}</span>{/if}
 </ParamRow>
-{#if loading}<p class="warn">Loading “{family}”… (drawn with Commit Mono until it arrives)</p>{/if}
+{#if loading}<p class="warn">{t('Loading “{family}”… (drawn with Commit Mono until it arrives)', { family })}</p>{/if}
 
 <style>
   :global(.sv-font-trigger) {

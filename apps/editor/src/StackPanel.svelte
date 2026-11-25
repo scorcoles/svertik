@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import type { ModifierInstance, SceneNode } from '@svertik/engine';
   import { IconButton, StackItem, type IconName } from '@svertik/ui';
   import { tick } from 'svelte';
@@ -264,7 +265,7 @@
     {#if m.children && open}
       {@render modifiers(m.children, depth + 1)}
       {#if m.children.length === 0 && editor.showInfo}
-        <p class="empty" style:--depth={depth + 1}>Drop or add a modifier here</p>
+        <p class="empty" style:--depth={depth + 1}>{t('Drop or add a modifier here')}</p>
       {/if}
     {/if}
   {/each}
@@ -318,24 +319,24 @@
   {/each}
 {/snippet}
 
-<section class="stack" aria-label="Stack" class:folded={!editor.stackOpen}>
-  <PanelHeader title="Stack" open={editor.stackOpen} ontoggle={(v) => (editor.stackOpen = v)} controls="stack-rows" detail={editor.scene ? `${editor.objectCount} ${editor.objectCount === 1 ? 'object' : 'objects'}` : undefined}>
-    <IconButton icon="expand-all" label="Expand all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
-    <IconButton icon="collapse-all" label="Collapse all" disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
+<section class="stack" aria-label={t('Stack')} class:folded={!editor.stackOpen}>
+  <PanelHeader title={t('Stack')} open={editor.stackOpen} ontoggle={(v) => (editor.stackOpen = v)} controls="stack-rows" detail={editor.scene ? `${editor.objectCount} ${editor.objectCount === 1 ? 'object' : 'objects'}` : undefined}>
+    <IconButton icon="expand-all" label={t('Expand all')} disabled={!editor.scene} onclick={() => editor.setAllCollapsed(false)} />
+    <IconButton icon="collapse-all" label={t('Collapse all')} disabled={!editor.scene} onclick={() => editor.setAllCollapsed(true)} />
     <IconButton
       icon={editor.packed ? 'unpack' : 'pack'}
-      label={editor.packed ? 'Unpack' : 'Pack (freeze the result)'}
+      label={editor.packed ? t('Unpack') : t('Pack (freeze the result)')}
       disabled={!editor.activeNode}
       onclick={() => (editor.packed ? editor.unpack() : editor.pack())}
     />
-    <IconButton icon="group" label="Group (⌘G)" disabled={!editor.activeNode} onclick={() => editor.group()} />
+    <IconButton icon="group" label={t('Group (⌘G)')} disabled={!editor.activeNode} onclick={() => editor.group()} />
     <!-- Add: opens the command line with "add " typed (every effect is there, searchable). -->
-    <IconButton icon="plus" label="Add modifier (/)" disabled={!editor.scene} onclick={() => editor.openCommand('add ')} />
+    <IconButton icon="plus" label={t('Add modifier (/)')} disabled={!editor.scene} onclick={() => editor.openCommand('add ')} />
   </PanelHeader>
   {#if !editor.stackOpen}
     <!-- Folded: only the header. -->
   {:else if editor.scene}
-    <div id="stack-rows" class="rows" role="tree" aria-label="Objects and modifiers" tabindex="-1" bind:this={rows} onkeydown={treeKey}>
+    <div id="stack-rows" class="rows" role="tree" aria-label={t('Objects and modifiers')} tabindex="-1" bind:this={rows} onkeydown={treeKey}>
       {@render nodes(top, 0)}
       {#if more}
         <p class="more" bind:this={sentinel}>{more} more {more === 1 ? 'object' : 'objects'}…</p>
@@ -343,7 +344,7 @@
     </div>
   {:else}
     {#if editor.showInfo}<div class="hint">
-      <p>No source yet.</p>
+      <p>{t('No source yet.')}</p>
       <p class="dim">Draw, import or open a demo to start stacking&nbsp;modifiers.</p>
     </div>{/if}
   {/if}

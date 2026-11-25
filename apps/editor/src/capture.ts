@@ -1,3 +1,5 @@
+import { t } from '@svertik/ui/i18n';
+
 /** Download the rendered frame, without advancing or re-evaluating the player. */
 export async function downloadFrame(svg: SVGSVGElement, background: string, name = 'svertik'): Promise<void> {
   const png = await captureFrame(svg, background);
@@ -41,7 +43,7 @@ export async function captureFrame(svg: SVGSVGElement, background: string): Prom
       png = await rasterizeSurface(svg, surface, width, height, background);
     } catch {
       // Keep an SVG-based fallback only when the frame still has vector geometry to capture.
-      if (!snapshot.querySelector('[data-svertik-shape]')) throw new Error('Could not capture the canvas frame');
+      if (!snapshot.querySelector('[data-svertik-shape]')) throw new Error(t('Could not capture the canvas frame'));
       png = await rasterize(source, width, height, background);
     }
   } else png = await rasterize(source, width, height, background);
@@ -69,7 +71,7 @@ async function rasterizeSurface(svg: SVGSVGElement, surface: HTMLCanvasElement, 
 
 function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error('Could not capture the frame')), 'image/png',
+    (blob) => blob ? resolve(blob) : reject(new Error(t('Could not capture the frame'))), 'image/png',
   ));
 }
 

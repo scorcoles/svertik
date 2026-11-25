@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { DropdownMenu } from 'bits-ui';
   import { Icon } from '@svertik/ui';
   import { DEMOS, type DemoName } from './demo-catalog';
@@ -9,7 +10,7 @@
 {#each DEMOS as demo (demo.which)}
   <DropdownMenu.Item class="sv-menu-item" onSelect={() => ondemo(demo.which)}>
     <Icon name="play" />
-    <span class="label"><strong>{demo.title}</strong><span class="description">{demo.description}</span></span>
+    <span class="label"><strong>{demo.title}</strong><span class="description">{t(demo.description)}</span></span>
   </DropdownMenu.Item>
 {/each}
 

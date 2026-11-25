@@ -3,6 +3,7 @@
 // sheet; elsewhere, the clipboard.
 import type { Editor } from './editor.svelte';
 import type { ShareTarget } from './share';
+import { t } from '@svertik/ui/i18n';
 
 /** How each place shows its notices: `ms` 0 keeps one until the next; `clear` hides it. */
 export interface Notices {
@@ -10,7 +11,7 @@ export interface Notices {
   clear: () => void;
 }
 
-export const TOO_BIG = 'Too big for a link: save the project (.json) and send the file';
+export const TOO_BIG = t('Too big for a link: save the project (.json) and send the file');
 let sharing = false;
 
 /**
@@ -20,7 +21,7 @@ let sharing = false;
 export async function shareScene(editor: Editor, { say, clear }: Notices, target: ShareTarget, preview?: () => Promise<Blob>): Promise<void> {
   if (sharing || !editor.scene) return;
   sharing = true;
-  say('Creating link…', 0);
+  say(t('Creating link…'), 0);
   // Making the link may go to the link service: start it now, inside the click.
   const pending = editor.shareURL(target, preview);
   try {
@@ -48,9 +49,9 @@ export async function shareScene(editor: Editor, { say, clear }: Notices, target
         if (!url) return say(TOO_BIG);
         await navigator.clipboard.writeText(url);
       }
-      say(target === 'edit' ? 'Link copied: it opens this scene in the editor' : 'Link copied: it opens this scene in Play');
+      say(target === 'edit' ? t('Link copied: it opens this scene in the editor') : t('Link copied: it opens this scene in Play'));
     } catch {
-      say((await pending.catch(() => null)) ? 'Could not copy the link' : TOO_BIG);
+      say((await pending.catch(() => null)) ? t('Could not copy the link') : TOO_BIG);
     }
   } finally {
     sharing = false;

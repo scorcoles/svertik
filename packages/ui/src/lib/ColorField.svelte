@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import { Popover } from 'bits-ui';
   import ColorPicker from './ColorPicker.svelte';
   import { DOCUMENT_PALETTE, usePalettes } from './palettes';
@@ -45,7 +46,7 @@
 
 <div class="sv-color" data-compact={compact || undefined} data-invalid={editing && !HEX.test(draft.trim()) ? '' : undefined}>
   <Popover.Root bind:open>
-    <Popover.Trigger class="sv-color-swatch" style="background: {value}" aria-label={label ? `${label} swatches` : 'Color swatches'} />
+    <Popover.Trigger class="sv-color-swatch" style="background: {value}" aria-label={label ? `${label} swatches` : t('Color swatches')} />
     <Popover.Portal>
       <Popover.Content class="sv-color-popover" side="bottom" align="start" sideOffset={4}>
         <ColorPicker {value} width={184} onchange={set} />
@@ -57,13 +58,13 @@
           onchange={(e) => { const v = e.currentTarget.value.trim(); if (HEX.test(v)) set(v); else e.currentTarget.value = value.toUpperCase(); }}
           onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
-        <div class="grid" role="listbox" aria-label="Swatches">
+        <div class="grid" role="listbox" aria-label={t('Swatches')}>
           {#each BASE as c (c)}
             <button type="button" class="chip" role="option" aria-selected={c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
           {/each}
         </div>
         {#if palettes}
-          <select class="pal" aria-label="Palette" value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
+          <select class="pal" aria-label={t('Palette')} value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
             <option value={DOCUMENT_PALETTE}>{DOCUMENT_PALETTE}</option>
             {#each palettes.list as p (p.name)}<option value={p.name}>{p.name}</option>{/each}
           </select>
@@ -77,7 +78,7 @@
             {/each}
           </div>
         {:else if palettes}
-          <p class="empty">No colors yet.</p>
+          <p class="empty">{t('No colors yet.')}</p>
         {/if}
       </Popover.Content>
     </Popover.Portal>

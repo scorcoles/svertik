@@ -2,26 +2,27 @@
 // CommandLine.svelte runs them against the editor. Tested in verbs.test.ts.
 
 import type { ParamSchema } from '@svertik/engine';
+import { t } from '@svertik/ui/i18n';
 import { assignments, tokenize, typable } from './command';
 
 export type Verb = 'add' | 'set' | 'key' | 'select' | 'goto' | 'export';
 
 export const VERBS: readonly { verb: Verb; usage: string; description: string }[] = [
-  { verb: 'add', usage: 'add twist angle=45', description: 'Add an effect to the selection. "add" is optional: "twist angle=45" works too.' },
-  { verb: 'set', usage: 'set angle=90 radius=0.5', description: 'Change parameters of the selected effect, or of the selected object (x, y, rotation, scale, opacity and its shape).' },
-  { verb: 'key', usage: 'key angle  ·  key angle=90', description: 'Put a keyframe at the playhead on each parameter named. With a value, set it first.' },
-  { verb: 'select', usage: 'select Comet', description: 'Select an object or an effect by its name.' },
-  { verb: 'goto', usage: 'goto 1.5  ·  goto 30f  ·  goto end', description: 'Move the playhead: seconds, frames (30f), start, end or a marker name.' },
-  { verb: 'export', usage: 'export png', description: 'Export the document: svg, png, mp4, animsvg, lottie, or json (copies it).' },
+  { verb: 'add', usage: 'add twist angle=45', description: t('Add an effect to the selection. "add" is optional: "twist angle=45" works too.') },
+  { verb: 'set', usage: 'set angle=90 radius=0.5', description: t('Change parameters of the selected effect, or of the selected object (x, y, rotation, scale, opacity and its shape).') },
+  { verb: 'key', usage: 'key angle  ·  key angle=90', description: t('Put a keyframe at the playhead on each parameter named. With a value, set it first.') },
+  { verb: 'select', usage: 'select Comet', description: t('Select an object or an effect by its name.') },
+  { verb: 'goto', usage: 'goto 1.5  ·  goto 30f  ·  goto end', description: t('Move the playhead: seconds, frames (30f), start, end or a marker name.') },
+  { verb: 'export', usage: 'export png', description: t('Export the document: svg, png, mp4, animsvg, lottie, or json (copies it).') },
 ];
 
 export const EXPORT_FORMATS = [
-  { format: 'svg', label: 'SVG', detail: 'Vector, the current frame' },
-  { format: 'png', label: 'PNG (2×)', detail: 'Pixels at twice the size, the current frame' },
-  { format: 'mp4', label: 'MP4', detail: 'Video of one cycle' },
-  { format: 'animsvg', label: 'Animated SVG', detail: 'One .svg that plays by itself' },
-  { format: 'lottie', label: 'Lottie (.json)', detail: 'For Lottie players' },
-  { format: 'json', label: 'Copy JSON', detail: 'The scene, to the clipboard' },
+  { format: 'svg', label: 'SVG', detail: t('Vector, the current frame') },
+  { format: 'png', label: 'PNG (2×)', detail: t('Pixels at twice the size, the current frame') },
+  { format: 'mp4', label: 'MP4', detail: t('Video of one cycle') },
+  { format: 'animsvg', label: t('Animated SVG'), detail: t('One .svg that plays by itself') },
+  { format: 'lottie', label: 'Lottie (.json)', detail: t('For Lottie players') },
+  { format: 'json', label: t('Copy JSON'), detail: t('The scene, to the clipboard') },
 ] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number]['format'];
 
@@ -44,11 +45,11 @@ export type Assign = { ok: true; values: Record<string, unknown>; bare: string[]
 /** "set" and "key" arguments against the target's parameters. */
 export function parseAssignments(verb: 'set' | 'key', rest: string, params: ParamSchema, label: string): Assign {
   const tokens = tokenize(rest);
-  if (!tokens.length) return { ok: false, error: verb === 'set' ? 'Name a parameter and its value, e.g. set angle=90.' : 'Name the parameters to key, e.g. key angle.' };
+  if (!tokens.length) return { ok: false, error: verb === 'set' ? t('Name a parameter and its value, e.g. set angle=90.') : t('Name the parameters to key, e.g. key angle.') };
   const a = assignments(params, tokens, label, verb === 'key');
   if (!a.ok) return a;
   for (const name of [...Object.keys(a.values), ...a.bare]) {
-    if (!typable(params[name]!)) return { ok: false, error: `${name} can't be typed yet: set it in the inspector.` };
+    if (!typable(params[name]!)) return { ok: false, error: t('{name} can\'t be typed yet: set it in the inspector.', { name }) };
   }
   return a;
 }
@@ -57,7 +58,7 @@ export function parseAssignments(verb: 'set' | 'key', rest: string, params: Para
 export function parseTime(text: string, ctx: { fps: number; duration: number; markers: readonly { name: string; t: number }[] }): { ok: true; t: number } | { ok: false; error: string } {
   const raw = text.trim();
   const q = raw.toLowerCase();
-  if (!q) return { ok: false, error: 'Say where: goto 1.5, goto 30f, goto end or a marker name.' };
+  if (!q) return { ok: false, error: t('Say where: goto 1.5, goto 30f, goto end or a marker name.') };
   if (q === 'start') return { ok: true, t: 0 };
   if (q === 'end') return { ok: true, t: ctx.duration };
   const seconds = /^(\d+(?:\.\d+)?|\.\d+)s?$/.exec(q);
@@ -66,7 +67,7 @@ export function parseTime(text: string, ctx: { fps: number; duration: number; ma
   if (frames) return { ok: true, t: Math.min(ctx.duration, Number(frames[1]) / ctx.fps) };
   const marker = ctx.markers.find((m) => m.name.toLowerCase() === q);
   if (marker) return { ok: true, t: marker.t };
-  return { ok: false, error: `No marker called "${raw}". Use seconds (1.5), frames (30f), start or end.` };
+  return { ok: false, error: t('No marker called "{name}". Use seconds (1.5), frames (30f), start or end.', { name: raw }) };
 }
 
 /** Names that match what is typed: exact first, then prefix, then substring (ignoring case). */

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { autonomousGenerators } from '@svertik/engine';
   import { DropdownMenu } from 'bits-ui';
   import { Icon, type IconName } from '@svertik/ui';
@@ -39,7 +40,7 @@
     >
       {#each types as type (type)}
         {@const source = autonomousGenerators.find((item) => item.type === type)}
-        <DropdownMenu.Item class="sv-menu-item" disabled={!source && !editor.canAdd(type)} title={!source && !editor.canAdd(type) ? 'Not available for raster images' : undefined} onSelect={() => source ? editor.addShape(type) : editor.add(type)}>
+        <DropdownMenu.Item class="sv-menu-item" disabled={!source && !editor.canAdd(type)} title={!source && !editor.canAdd(type) ? t('Not available for raster images') : undefined} onSelect={() => source ? editor.addShape(type) : editor.add(type)}>
           <Icon name={type as IconName} />
           <span class="effect-name">{source?.label ?? registry.get(type)?.label}</span>
         </DropdownMenu.Item>
@@ -47,7 +48,7 @@
       <!-- Footer: points to the command line right where people look for an effect. -->
       <DropdownMenu.Separator class="sv-menu-rule" />
       <DropdownMenu.Item class="sv-menu-item search-all" onSelect={() => { toCommand = true; editor.openCommand(); }}>
-        <span class="effect-name">Search all effects…</span>
+        <span class="effect-name">{t('Search all effects…')}</span>
         <kbd>/</kbd>
       </DropdownMenu.Item>
     </DropdownMenu.Content>

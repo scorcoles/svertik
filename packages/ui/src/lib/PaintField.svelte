@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './i18n';
   import { Popover } from 'bits-ui';
   import ColorField from './ColorField.svelte';
   import ColorPicker from './ColorPicker.svelte';
@@ -124,7 +125,7 @@
     <Popover.Portal>
       <Popover.Content class="sv-paint-popover" side="bottom" align="start" sideOffset={4}>
         <div class="modes">
-          <Segmented value={grad ? grad.kind : 'solid'} label="Paint" options={[{value:'solid',label:'Solid'},{value:'linear',label:'Linear'},{value:'radial',label:'Radial'}]} onchange={(v) => v === 'solid' ? toSolid() : toGradient(v as 'linear'|'radial')} />
+          <Segmented value={grad ? grad.kind : 'solid'} label={t('Paint')} options={[{value:'solid',label:t('Solid')},{value:'linear',label:t('Linear')},{value:'radial',label:t('Radial')}]} onchange={(v) => v === 'solid' ? toSolid() : toGradient(v as 'linear'|'radial')} />
         </div>
         {#if !grad}
           <div class="solid">
@@ -137,13 +138,13 @@
               onchange={(e) => { const v = e.currentTarget.value.trim(); if (HEX.test(v)) setSolid(v); else e.currentTarget.value = solid.toUpperCase(); }}
               onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             />
-            <div class="grid" role="listbox" aria-label="Swatches">
+            <div class="grid" role="listbox" aria-label={t('Swatches')}>
               {#each BASE as c (c)}
                 <button type="button" class="chip" role="option" aria-selected={c === solid.toLowerCase()} aria-label={c} title={c} style:background={c} onclick={() => setSolid(c)}></button>
               {/each}
             </div>
             {#if palettes}
-              <select class="pal" aria-label="Palette" value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
+              <select class="pal" aria-label={t('Palette')} value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
                 <option value={DOCUMENT_PALETTE}>{DOCUMENT_PALETTE}</option>
                 {#each palettes.list as p (p.name)}<option value={p.name}>{p.name}</option>{/each}
               </select>
@@ -157,38 +158,38 @@
                 {/each}
               </div>
             {:else if palettes}
-              <p class="empty">No colors yet.</p>
+              <p class="empty">{t('No colors yet.')}</p>
             {/if}
           </div>
         {:else}
           <div class="gedit">
             {#if grad.kind === 'linear'}
-              <ParamRow label="Angle">
+              <ParamRow label={t('Angle')}>
                 <NumberField value={angleOf(grad)} step={1} unit="°" onchange={setAngle} />
               </ParamRow>
             {:else}
-              <ParamRow label="Center">
+              <ParamRow label={t('Center')}>
                 <NumberField value={grad.cx ?? 0.5} step={0.01} min={0} max={1} onchange={(v)=>updateGrad({cx:v})} />
                 <NumberField value={grad.cy ?? 0.5} step={0.01} min={0} max={1} onchange={(v)=>updateGrad({cy:v})} />
               </ParamRow>
-              <ParamRow label="Radius">
+              <ParamRow label={t('Radius')}>
                 <NumberField value={grad.r ?? 0.5} step={0.01} min={0} max={2} onchange={(v)=>updateGrad({r:v})} />
               </ParamRow>
-              <ParamRow label="Focus">
+              <ParamRow label={t('Focus')}>
                 <NumberField value={grad.fx ?? grad.cx ?? 0.5} step={0.01} min={0} max={1} onchange={(v)=>updateGrad({fx:v})} />
                 <NumberField value={grad.fy ?? grad.cy ?? 0.5} step={0.01} min={0} max={1} onchange={(v)=>updateGrad({fy:v})} />
               </ParamRow>
             {/if}
-            <ParamRow label="Spread">
-              <Select value={grad.spreadMethod ?? 'pad'} options={['pad','reflect','repeat']} label="Spread" onchange={(v)=>updateGrad({spreadMethod: v as any})} />
+            <ParamRow label={t('Spread')}>
+              <Select value={grad.spreadMethod ?? 'pad'} options={['pad','reflect','repeat']} label={t('Spread')} onchange={(v)=>updateGrad({spreadMethod: v as any})} />
             </ParamRow>
             <div class="stops">
-              <div class="stops-head"><span>Stops</span><button type="button" class="add" onclick={addStop}>+ Add</button></div>
+              <div class="stops-head"><span>{t('Stops')}</span><button type="button" class="add" onclick={addStop}>{t('+ Add')}</button></div>
               {#each grad.stops as stop, i (i)}
                 <div class="stop">
-                  <input class="off" type="number" min="0" max="1" step="0.01" value={stop.offset} aria-label="Offset" onchange={(e)=>setStop(i,{offset: Number(e.currentTarget.value)})} />
-                  <ColorField value={stop.color} label="Stop color" {swatches} onchange={(v: string)=>setStop(i,{color:v})} />
-                  <input class="op" type="number" min="0" max="1" step="0.01" value={stop.opacity ?? 1} aria-label="Opacity" onchange={(e)=>setStop(i,{opacity: Number(e.currentTarget.value)})} />
+                  <input class="off" type="number" min="0" max="1" step="0.01" value={stop.offset} aria-label={t('Offset')} onchange={(e)=>setStop(i,{offset: Number(e.currentTarget.value)})} />
+                  <ColorField value={stop.color} label={t('Stop color')} {swatches} onchange={(v: string)=>setStop(i,{color:v})} />
+                  <input class="op" type="number" min="0" max="1" step="0.01" value={stop.opacity ?? 1} aria-label={t('Opacity')} onchange={(e)=>setStop(i,{opacity: Number(e.currentTarget.value)})} />
                   <button type="button" class="del" disabled={grad.stops.length<=2} onclick={()=>removeStop(i)}>×</button>
                 </div>
               {/each}
@@ -200,7 +201,7 @@
   </Popover.Root>
   {#if !compact}
     {#if grad}
-      <span class="label">{grad.kind} gradient</span>
+      <span class="label">{grad.kind === 'radial' ? t('Radial gradient') : t('Linear gradient')}</span>
     {:else}
       <span class="label">{solid.toUpperCase()}</span>
     {/if}

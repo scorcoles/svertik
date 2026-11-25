@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '@svertik/ui';
   import { IconButton, NumberField } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
 
@@ -11,23 +12,23 @@
   }
 </script>
 
-<div class="time-controls" role="group" aria-label="Playback controls">
+<div class="time-controls" role="group" aria-label={t('Playback controls')}>
   {#if editor.animation?.markers?.length}
-    <select class="marker-jump" aria-label="Jump to marker" title="Jump to marker" value="" onchange={(e) => {
+    <select class="marker-jump" aria-label={t('Jump to marker')} title={t('Jump to marker')} value="" onchange={(e) => {
       const marker = editor.animation?.markers?.find(m => m.id === e.currentTarget.value);
       if (marker) seek(marker.t);
       e.currentTarget.value = '';
     }}>
-      <option value="">Markers</option>
+      <option value="">{t('Markers')}</option>
       {#each editor.animation.markers as marker (marker.id)}<option value={marker.id}>{marker.name} · {marker.t.toFixed(2)} s</option>{/each}
     </select>
   {/if}
-  <IconButton icon="to-start" label="Go to start" onclick={() => seek(0)} />
-  <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? 'Pause animation (Space)' : 'Play animation (Space)'} active={editor.playing} onclick={() => editor.togglePlayback()} />
+  <IconButton icon="to-start" label={t('Go to start')} onclick={() => seek(0)} />
+  <IconButton icon={editor.playing ? 'pause' : 'play'} label={editor.playing ? t('Pause animation (Space)') : t('Play animation (Space)')} active={editor.playing} onclick={() => editor.togglePlayback()} />
   <input
     class="scrubber"
     type="range"
-    aria-label="Animation time"
+    aria-label={t('Animation time')}
     aria-valuetext={`${editor.time.toFixed(2)} seconds`}
     min="0"
     max={duration}
@@ -35,9 +36,9 @@
     value={Math.min(editor.time, duration)}
     oninput={(event) => seek(event.currentTarget.valueAsNumber)}
   />
-  <NumberField decimals={2} label="Current time" value={editor.time} min={0} max={editor.animation?.infinite ? undefined : duration} step={1 / fps} unit="s" width="64px" onchange={seek} />
+  <NumberField decimals={2} label={t('Current time')} value={editor.time} min={0} max={editor.animation?.infinite ? undefined : duration} step={1 / fps} unit="s" width="64px" onchange={seek} />
   <span class="separator" aria-hidden="true">/</span>
-  <NumberField decimals={2} label="Animation duration" value={duration} min={0.1} step={0.1} unit="s" width="58px" onchange={(value) => editor.setDuration(value)} />
+  <NumberField decimals={2} label={t('Animation duration')} value={duration} min={0.1} step={0.1} unit="s" width="58px" onchange={(value) => editor.setDuration(value)} />
 </div>
 
 <style>

@@ -2,6 +2,7 @@
 // The grammar is the scene JSON's (type and parameter names as they are), so a person and an agent
 // write the same thing. No Svelte here: tested on its own (command.test.ts).
 
+import { t } from '@svertik/ui/i18n';
 import { EFFECT_MENUS, menuOf, type ParamSchema, type ParamSpec } from '@svertik/engine';
 
 export interface CommandEntry {
@@ -168,29 +169,29 @@ export function value(name: string, spec: ParamSpec, raw: string): { ok: true; v
     case 'angle':
     case 'seed': {
       const n = Number(text);
-      if (text === '' || !Number.isFinite(n)) return { ok: false, error: `${name} needs a number, not "${text}".` };
-      if (spec.type === 'seed' && !Number.isInteger(n)) return { ok: false, error: `${name} needs a whole number.` };
+      if (text === '' || !Number.isFinite(n)) return { ok: false, error: t('{name} needs a number, not "{text}".', { name, text }) };
+      if (spec.type === 'seed' && !Number.isInteger(n)) return { ok: false, error: t('{name} needs a whole number.', { name }) };
       if (spec.type === 'number' && ((spec.min !== undefined && n < spec.min) || (spec.max !== undefined && n > spec.max))) {
-        const range = spec.min !== undefined && spec.max !== undefined ? `between ${spec.min} and ${spec.max}` : spec.min !== undefined ? `at least ${spec.min}` : `at most ${spec.max}`;
-        return { ok: false, error: `${name} must be ${range}; got ${n}.` };
+        const range = spec.min !== undefined && spec.max !== undefined ? t('between {min} and {max}', { min: spec.min, max: spec.max }) : spec.min !== undefined ? t('at least {min}', { min: spec.min }) : t('at most {max}', { max: spec.max! });
+        return { ok: false, error: t('{name} must be {range}; got {value}.', { name, range, value: n }) };
       }
       return { ok: true, value: n };
     }
     case 'boolean': {
-      const t = text.toLowerCase();
-      if (['true', 'on', 'yes', '1'].includes(t)) return { ok: true, value: true };
-      if (['false', 'off', 'no', '0'].includes(t)) return { ok: true, value: false };
-      return { ok: false, error: `${name} is true or false, not "${text}".` };
+      const word = text.toLowerCase();
+      if (['true', 'on', 'yes', '1'].includes(word)) return { ok: true, value: true };
+      if (['false', 'off', 'no', '0'].includes(word)) return { ok: true, value: false };
+      return { ok: false, error: t('{name} is true or false, not "{text}".', { name, text }) };
     }
     case 'enum': {
       const option = spec.options.find((o) => o.toLowerCase() === text.toLowerCase());
-      return option ? { ok: true, value: option } : { ok: false, error: `${name} is one of ${spec.options.join(', ')}.` };
+      return option ? { ok: true, value: option } : { ok: false, error: t('{name} is one of {options}.', { name, options: spec.options.join(', ') }) };
     }
     case 'text':
     case 'font':
       return { ok: true, value: text };
     default:
-      return { ok: false, error: `${name} can't be typed yet: set it in the inspector after adding.` };
+      return { ok: false, error: t('{name} can\'t be typed yet: set it in the inspector after adding.', { name }) };
   }
 }
 
@@ -201,9 +202,9 @@ export type Command =
 /** The whole command, ready to run, or the first error with its fix. */
 export function compile(catalog: readonly CommandEntry[], input: string): Command {
   const p = parse(input);
-  if (!p.name) return { ok: false, error: 'Type an effect name, e.g. twist angle=45.' };
+  if (!p.name) return { ok: false, error: t('Type an effect name, e.g. twist angle=45.') };
   const entry = resolve(catalog, p.name);
-  if (!entry) return { ok: false, error: `No effect called "${p.name}". Tab completes names.` };
+  if (!entry) return { ok: false, error: t('No effect called "{name}". Tab completes names.', { name: p.name }) };
   const a = assignments(entry.params, p.args, entry.label, false);
   return a.ok ? { ok: true, entry, params: a.values } : a;
 }
@@ -220,12 +221,12 @@ export function assignments(params: ParamSchema, tokens: readonly string[], labe
   const known = () => Object.keys(params).filter((k) => typable(params[k]!));
   for (const arg of tokens) {
     const eq = arg.indexOf('=');
-    if (eq === 0 || (eq < 0 && !allowBare)) return { ok: false, error: `Write parameters as name=value ("${arg}").` };
+    if (eq === 0 || (eq < 0 && !allowBare)) return { ok: false, error: t('Write parameters as name=value ("{text}").', { text: arg }) };
     const key = eq < 0 ? arg : arg.slice(0, eq);
     const name = Object.keys(params).find((k) => k.toLowerCase() === key.toLowerCase());
     if (!name) {
       const k = known();
-      return { ok: false, error: `${label} has no parameter "${key}"${k.length ? `. Try: ${k.slice(0, 6).join(', ')}${k.length > 6 ? '…' : ''}` : ''}.` };
+      return { ok: false, error: k.length ? t('{effect} has no parameter "{name}". Try: {names}.', { effect: label, name: key, names: `${k.slice(0, 6).join(', ')}${k.length > 6 ? '…' : ''}` }) : t('{effect} has no parameter "{name}".', { effect: label, name: key }) };
     }
     if (eq < 0) {
       bare.push(name);
