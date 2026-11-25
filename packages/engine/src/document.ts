@@ -467,6 +467,9 @@ export function createDocumentEvaluator(
           // Parent translations cancel in Gravity's relative floor frame; its orientation and scale
           // are known before the parent's geometry-dependent pivot is evaluated.
           const gravitySpace: SceneSpace = { world: multiply(ancestorLinear.get(node.id) ?? IDENTITY, world), frame: sceneFrame };
+          // Document edges as walls: from the document into this stack, with its whole place in the scene
+          // (the previous pass knows it for nested groups; at the top level `world` is already all of it).
+          if (doc && scene.physicsBounds) gravitySpace.edges = invert(known.get(node.id)?.world ?? world);
           // Physics too: it turns a click's direction (in the document) into its own axes.
           const usesGravity = (m: ModifierInstance): boolean => m.type === 'gravity' || m.type === 'physics' || !!m.children?.some(usesGravity);
           stack = stack.map((m) => (needsScene(m) ? { ...m, scene: usesGravity(m) ? gravitySpace : space } : m));

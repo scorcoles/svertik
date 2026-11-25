@@ -39,7 +39,11 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   if (!Array.isArray(raw.objects)) return { errors: [...errors, 'objects must be an array'], warnings };
   const scene = raw as SceneV1;
   if (scene.clipToDocument !== undefined && typeof scene.clipToDocument !== 'boolean') errors.push('clipToDocument must be true or false');
-  if (scene.fullViewport !== undefined && typeof scene.fullViewport !== 'boolean' && !['contain', 'cover', 'stretch'].includes(scene.fullViewport as string)) errors.push('fullViewport must be true/false or "contain", "cover" or "stretch"');
+  if (scene.fullViewport !== undefined && typeof scene.fullViewport !== 'boolean' && !['contain', 'cover', 'stretch', 'adapt'].includes(scene.fullViewport as string)) errors.push('fullViewport must be true/false or "contain", "cover", "stretch" or "adapt"');
+  if (scene.adaptContent !== undefined && typeof scene.adaptContent !== 'boolean') errors.push('adaptContent must be true or false');
+  if (scene.physicsBounds !== undefined && typeof scene.physicsBounds !== 'boolean') errors.push('physicsBounds must be true or false');
+  if (scene.fullViewport === 'adapt' && !scene.document) warnings.push('fullViewport "adapt" needs a document size: without one it behaves as "contain"');
+  if (scene.physicsBounds && !scene.document) warnings.push('physicsBounds needs a document size: without one there are no walls');
   if (scene.seedEvery !== undefined && !(typeof scene.seedEvery === 'number' && Number.isFinite(scene.seedEvery) && scene.seedEvery >= 0)) errors.push('seedEvery must be a number of seconds, 0 or more');
   const registry = new Map(modifiers.map((m) => [m.type, m]));
 

@@ -55,4 +55,23 @@ describe('Full viewport', () => {
       expect(svg.getAttribute('preserveAspectRatio')).toBe('xMinYMin meet');
     } finally { vi.unstubAllGlobals(); }
   });
+
+  // Adapt: the document itself takes the viewport's shape, around the same centre.
+  it.each([
+    // Content on: × (800 / 1080) to fit the height, so 2000 px across are 2700 document px.
+    [true, '-1350 -540 2700 1080'],
+    // Content off: 1 document px per CSS px.
+    [false, '-1000 -400 2000 800'],
+  ] as const)('Adapt (content %s) gives the document the viewport\'s shape', (adaptContent, viewBox) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.getBoundingClientRect = () => ({ width: 2000, height: 800, x: 0, y: 0, left: 0, top: 0, right: 2000, bottom: 800, toJSON: () => ({}) });
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    try {
+      const player = createPlayer(createEngine(builtins), svg, { ...scene('adapt'), ...(adaptContent ? {} : { adaptContent: false }) });
+      expect(svg.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+      expect(svg.getAttribute('viewBox')).toBe(viewBox);
+      player.stop();
+    } finally { vi.unstubAllGlobals(); }
+  });
 });

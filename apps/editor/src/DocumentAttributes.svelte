@@ -100,15 +100,26 @@
         <input id="doc-clip" type="checkbox" aria-label="Clip to the document in Play" title="In Play, hide whatever lies outside the document" checked={editor.scene?.clipToDocument === true} onchange={(event) => editor.setClipToDocument(event.currentTarget.checked)} />
       </div>
     {/if}
+    {#if doc}
+      <div class="full-viewport-row">
+        <label for="doc-physics-bounds">Walls</label>
+        <input id="doc-physics-bounds" type="checkbox" aria-label="Document edges are physics walls" title="Physics: bodies bounce off the document's edges (with Adapt, the screen's)" checked={editor.scene?.physicsBounds === true} onchange={(event) => editor.setPhysicsBounds(event.currentTarget.checked)} />
+      </div>
+    {/if}
     <div class="full-viewport-row">
       <label for="doc-embed-svgs">SVGs</label>
       <input id="doc-embed-svgs" type="checkbox" aria-label="Embed SVG files in the project" title="Save imported SVGs inside the project file. Off: the project keeps only their file names, and the SVGs stay next to it" checked={editor.embedSources} onchange={(event) => (editor.embedSources = event.currentTarget.checked)} />
     </div>
     {#if editor.viewportFit}
-      <ParamRow label="Fit" info="In Play, Contain shows the whole document, Cover fills and crops, and Stretch fills both axes. The editor and exports keep the document size." showInfo={editor.showInfo}>
-        <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. -->
-        <Segmented value={editor.viewportFit} label="Fit to the screen" options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' }, { value: 'stretch', label: 'Stretch' }]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
+      <ParamRow label="Fit" info="In Play, Contain shows the whole document, Cover fills and crops, and Stretch fills both axes. Adapt gives the document the screen's shape, so formulas and physics walls see the screen's size. The editor and exports keep the document size." showInfo={editor.showInfo}>
+        <!-- As CSS object-fit: Contain shows it all, Cover fills and crops, Stretch fills and distorts. Adapt resizes the document. -->
+        <Segmented value={editor.viewportFit} label="Fit to the screen" options={[{ value: 'contain', label: 'Contain' }, { value: 'cover', label: 'Cover' }, { value: 'stretch', label: 'Stretch' }, ...(doc ? [{ value: 'adapt', label: 'Adapt' }] : [])]} onchange={(v) => editor.setViewportFit(v as ViewportFit)} />
       </ParamRow>
+      {#if editor.viewportFit === 'adapt' && doc}
+        <ParamRow label="Content" for="doc-adapt-content" info="On: the content scales to fit the screen. Off: it keeps the document's size, centred." showInfo={editor.showInfo}>
+          <Checkbox id="doc-adapt-content" label="Scale the content to the screen" checked={editor.adaptContent} onchange={(value) => editor.setAdaptContent(value)} />
+        </ParamRow>
+      {/if}
     {/if}
     {#if doc}
       <div class="actions"><Button label="Fit to drawing" onclick={() => editor.fitDocument()} /></div>

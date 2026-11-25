@@ -1574,7 +1574,7 @@ export class Editor {
   setFullViewport(enabled: boolean) {
     if (!this.scene) return;
     if (enabled) this.scene.fullViewport = true;
-    else delete this.scene.fullViewport;
+    else { delete this.scene.fullViewport; delete this.scene.adaptContent; }
     this.record(true);
   }
   /** Clip to the document in Play (nothing outside it shows). */
@@ -1588,6 +1588,23 @@ export class Editor {
   setViewportFit(fit: ViewportFit) {
     if (!this.scene) return;
     this.scene.fullViewport = fit === 'contain' ? true : fit;
+    // Adapt starts with its content scaled to fit (stored as absent); the other fits don't use it.
+    delete this.scene.adaptContent;
+    this.record(true);
+  }
+  /** Adapt: scale the content to the viewport (on) or keep it at the document's size in the middle. */
+  get adaptContent(): boolean { return this.scene?.adaptContent !== false; }
+  setAdaptContent(enabled: boolean) {
+    if (!this.scene) return;
+    if (enabled) delete this.scene.adaptContent;
+    else this.scene.adaptContent = false;
+    this.record(true);
+  }
+  /** The document's edges are walls for every Physics. */
+  setPhysicsBounds(enabled: boolean) {
+    if (!this.scene) return;
+    if (enabled) this.scene.physicsBounds = true;
+    else delete this.scene.physicsBounds;
     this.record(true);
   }
   /** Seconds between automatic re-seeds (0: off). */

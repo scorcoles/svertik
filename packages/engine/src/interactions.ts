@@ -1,5 +1,5 @@
 import { createMouseInstances, type MouseEventKind } from './mouse';
-import { neutralPointer, neutralRuntime, sceneDuration, VIEWPORT_ASPECT, viewportFit, type SceneBurst, type SceneDrag, type ScenePoke, type ScenePointer, type SceneRuntime } from './scene';
+import { adaptedDocument, neutralPointer, neutralRuntime, sceneDuration, VIEWPORT_ASPECT, viewportFit, type SceneBurst, type SceneDrag, type ScenePoke, type ScenePointer, type SceneRuntime } from './scene';
 // Interactions: something happens (the pointer enters or leaves an object, a click, the drawing scrolls
 // into view) and svertik does something:
 // - tween: a value goes to another with its duration and curve, and comes back (on leave, or the next click);
@@ -357,8 +357,17 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const originalAspectRatio = svg.getAttribute('preserveAspectRatio');
   const fit = viewportFit(scene);
   if (fit) svg.setAttribute('preserveAspectRatio', VIEWPORT_ASPECT[fit]);
+  // Adapt: the document takes the <svg>'s shape on screen, so every frame is evaluated with that document
+  // (its size, `scene.width`/`height`, the Physics bounds). It follows resizes.
+  const measureAdapted = () => {
+    if (fit !== 'adapt' || typeof svg.getBoundingClientRect !== 'function') return null;
+    const r = svg.getBoundingClientRect();
+    return adaptedDocument(scene, r.width, r.height);
+  };
+  let adapted = measureAdapted();
+  const withDocument = (s: SceneV1): SceneV1 => (adapted ? { ...s, document: adapted } : s);
   const renderer = options.renderer ?? 'svg';
-  const first = anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene;
+  const first = withDocument(anim ? sampleScene(scene, reduce && autoplay ? anim.duration : 0) : scene);
   const live: { update(s: SceneV1): void; doc(): DocumentResult | null; onCanvas?(): boolean; hit?(x: number, y: number): string | null; surface?(): HTMLCanvasElement | null; renderer?(): Renderer; setRenderer?(r: Renderer): void; destroy?(): void } =
     // Without a renderer option: the plain SVG mount. With one (even `svg`), the switchable one.
     options.renderer === undefined ? engine.mount(svg, first) : mountCanvas(engine, svg, first, renderer);
@@ -440,7 +449,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       if (drags.length) drags = drags.filter((drag) => drag.points[0]!.at <= t + 1e-6);
       const withPokes = pokes.length || bursts.length || drags.length ? { ...stepped, ...(pokes.length ? { pokes } : {}), ...(bursts.length ? { bursts } : {}), ...(drags.length ? { drags: drags.map((d) => ({ ...d, points: d.points.slice() })) } : {}) } : stepped;
       const framed = mouse.apply(usesPointer || usesRuntime ? { ...withPokes, ...(usesPointer ? { pointer: { ...pointerNow } } : {}), ...(usesRuntime ? { runtime: { ...runtimeNow } } : {}) } : withPokes, now / 1000);
-      live.update(framed);
+      live.update(withDocument(framed));
       if (scene.clipToDocument && svg.getAttribute('viewBox') !== lastViewBox) { lastViewBox = svg.getAttribute('viewBox'); clipToDocument(); }
       mouseDirty = false;
       pointerDirty = false;
@@ -456,6 +465,19 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       frame = requestAnimationFrame(draw);
     }
   };
+  const readapt = () => {
+    const next = measureAdapted();
+    if (!next || (adapted && next.width === adapted.width && next.height === adapted.height)) return;
+    adapted = next;
+    mouseDirty = true;
+    wake();
+  };
+  // Once the resize settles: new walls make a Physics recompute its world from the start.
+  let readaptTimer: ReturnType<typeof setTimeout> | undefined;
+  const adaptObserver = fit === 'adapt' && scene.document && typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => { clearTimeout(readaptTimer); readaptTimer = setTimeout(readapt, 150); })
+    : null;
+  adaptObserver?.observe(svg);
   const enter = (e: Event) => {
     if (live.onCanvas?.()) return;
     inter.event('enter', nodeOf(e));
@@ -803,6 +825,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       cancelAnimationFrame(frame);
       io?.disconnect();
       resized?.disconnect();
+      adaptObserver?.disconnect();
+      clearTimeout(readaptTimer);
       if (scene.clipToDocument) {
         if (typeof window !== 'undefined') window.removeEventListener('resize', clipToDocument);
         svg.style.clipPath = originalClip;

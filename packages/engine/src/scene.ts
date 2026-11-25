@@ -150,25 +150,52 @@ export function customNumber(v: unknown): number | null {
   return Math.min(v.max ?? Infinity, Math.max(v.min ?? -Infinity, v.value));
 }
 
-export type ViewportFit = 'contain' | 'cover' | 'stretch';
+export type ViewportFit = 'contain' | 'cover' | 'stretch' | 'adapt';
 
 /** How Play fits the document to a full viewport, or null when the scene is not full-viewport. */
 export function viewportFit(scene: Pick<SceneV1, 'fullViewport'>): ViewportFit | null {
   const f = scene.fullViewport;
-  return f === true ? 'contain' : f === 'contain' || f === 'cover' || f === 'stretch' ? f : null;
+  return f === true ? 'contain' : f === 'contain' || f === 'cover' || f === 'stretch' || f === 'adapt' ? f : null;
+}
+
+/**
+ * Adapt: the document takes the viewport's shape (`width` × `height`, in CSS px), around the same centre.
+ * With `adaptContent` (the default) the content scales as Contain would fit it; without it, it stays at its
+ * own size (1 document px = 1 CSS px) in the middle. Null without a document or a measurable viewport.
+ */
+export function adaptedDocument(
+  scene: Pick<SceneV1, 'document' | 'adaptContent'>,
+  width: number,
+  height: number,
+): NonNullable<SceneV1['document']> | null {
+  const doc = scene.document;
+  if (!doc || !(width > 0) || !(height > 0) || !(doc.width > 0) || !(doc.height > 0)) return null;
+  const scale = scene.adaptContent === false ? 1 : Math.min(width / doc.width, height / doc.height);
+  return { ...doc, width: width / scale, height: height / scale };
 }
 
 /** The SVG `preserveAspectRatio` for a viewport fit. */
-export const VIEWPORT_ASPECT: Record<ViewportFit, string> = { contain: 'xMidYMid meet', cover: 'xMidYMid slice', stretch: 'none' };
+export const VIEWPORT_ASPECT: Record<ViewportFit, string> = { contain: 'xMidYMid meet', cover: 'xMidYMid slice', stretch: 'none', adapt: 'xMidYMid meet' };
 
 export interface SceneV1 {
   version: 1;
   /**
    * Fill the viewport during Play, like CSS object-fit: `contain` (whole document, no distortion; also what
-   * `true` means), `cover` (fills the screen, crops what overflows) or `stretch` (fills both axes, distorts).
-   * Editor geometry and exports are unchanged.
+   * `true` means), `cover` (fills the screen, crops what overflows), `stretch` (fills both axes, distorts) or
+   * `adapt` (the document itself takes the viewport's shape, so `scene.width`/`height` and the Physics bounds
+   * follow the screen; see `adaptContent`). Editor geometry and exports are unchanged.
    */
   fullViewport?: boolean | ViewportFit;
+  /**
+   * With `fullViewport: "adapt"`: scale the content to fit the viewport (on, the default) or keep it at the
+   * document's own size in the middle (`false`).
+   */
+  adaptContent?: boolean;
+  /**
+   * The document's edges are walls for every Physics in the scene: bodies bounce off them. With Adapt, the
+   * edges are the viewport's.
+   */
+  physicsBounds?: boolean;
   /**
    * Clip to the document in Play: whatever lies outside it is not shown (by default the stage lets it
    * overflow, and Contain shows it in the bands). Exports already stop at the document; the editor has its

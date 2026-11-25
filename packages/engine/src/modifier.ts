@@ -117,6 +117,11 @@ export interface ModifierContext {
 export interface SceneSpace {
   world: Mat;
   frame: Bounds;
+  /**
+   * The scene's `physicsBounds`: takes document coordinates into this stack's (the inverse of its full place
+   * in the scene), so Physics can raise walls at the document's edges (`frame`). Absent when off.
+   */
+  edges?: Mat;
 }
 
 /**

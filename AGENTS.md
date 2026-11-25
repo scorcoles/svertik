@@ -133,6 +133,10 @@ An instance with `mouse: { event, rate?, distance?, button?, count?, lifetime?, 
 
 `fullViewport` on SceneV1 fills the whole viewport in both Play hosts (off/absent by default), fitted like CSS `object-fit`: `true` or `"contain"` shows the whole document without distortion (bands where the aspect ratio differs), `"cover"` fills the screen and crops the overflow, `"stretch"` fills both axes and distorts. `createPlayer` sets SVG `preserveAspectRatio` to `xMidYMid meet`, `xMidYMid slice` or `none`; document coordinates, editor bounds and headless exports stay unchanged.
 
+`fullViewport: "adapt"` (needs a fixed `document`) instead gives the document the viewport's shape in Play, around the same centre: `scene.width`/`height` and physics walls follow the screen. `adaptContent` (absent = on) scales the content to fit, like Contain, growing the document along the spare axis; `adaptContent: false` keeps the content at 1 document px per CSS px in the middle. Editor: **Document → Fit → Adapt**, **Content**.
+
+`physicsBounds: true` on SceneV1 (needs a fixed `document`; editor: **Document → Walls**) turns the document's edges into static walls for every Physics in the scene (Adapt: the screen's edges), so bodies bounce inside without hidden wall rectangles.
+
 `clipToDocument: true` on SceneV1 hides, in both Play hosts, whatever lies outside the document (by default it overflows the stage and shows in Contain's bands). `createPlayer` applies it as a CSS `clip-path` on the SVG; exports already stop at the document. Editor: **Document → Clip**. Not the editor-only View → Hide outside.
 
 ## Infinite time and cycle

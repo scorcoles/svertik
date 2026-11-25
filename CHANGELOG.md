@@ -2,6 +2,13 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.15
+
+### Added
+
+- **Document → Fit → Adapt** (`fullViewport: "adapt"`): in Play the document takes the screen's shape around its centre, so `scene.width`/`height` and the physics walls follow the screen. **Content** (on by default) scales the content to fit; off, it keeps its size in the middle.
+- **Document → Walls** (`physicsBounds`): the document's edges are walls for every Physics in the scene (with Adapt, the screen's edges). No more hidden rectangles to keep bodies in.
+
 ## 0.0.14
 
 ### Added

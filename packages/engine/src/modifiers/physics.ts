@@ -1,7 +1,8 @@
 import { bounds, flatten, line, mapPoints, networkLinkShape, type Bounds, type Geometry, type Shape, type Vec2 } from '../geometry';
 import { collisionBody, createStepper, type CollisionBody, type State, type StepSettings } from './gravity-collisions';
 import { gravityBody, type Body } from './gravity-physics';
-import { defineModifier, resolveParams, type HistoryLookup } from '../modifier';
+import { defineModifier, resolveParams, type HistoryLookup, type SceneSpace } from '../modifier';
+import { apply as applyMat } from '../matrix';
 import { crack } from './crack';
 import { hasSoftMaterial, softGeometry, softPlanOf, softStepper, type Frame, type SoftPlan, type SoftSettings } from './softbody-physics';
 
@@ -744,6 +745,27 @@ function kicksOf(geo: Geometry, speed: number, world: readonly number[] | undefi
   return kicks;
 }
 
+/**
+ * The scene's `physicsBounds`: four static walls just outside the document's edges, as thick as the document
+ * is large (nothing fast goes through), in this stack's coordinates.
+ */
+function documentWalls(space: SceneSpace | undefined): Geometry[] {
+  if (!space?.edges) return [];
+  const { x, y, width: w, height: h } = space.frame;
+  const t = Math.max(w, h);
+  const rect = (x0: number, y0: number, x1: number, y1: number): Geometry => {
+    const corners = ([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] as Vec2[]).map((q) => applyMat(space.edges!, q));
+    const segs = corners.map((q, i) => line(corners[i]!, corners[(i + 1) % 4]!));
+    return { viewBox: [x0, y0, x1 - x0, y1 - y0], shapes: [{ subpaths: [{ start: corners[0]!, segs, closed: true }], style: {} }] };
+  };
+  return [
+    rect(x - t, y - t, x + w + t, y),
+    rect(x - t, y + h, x + w + t, y + h + t),
+    rect(x - t, y, x, y + h),
+    rect(x + w, y, x + w + t, y + h),
+  ];
+}
+
 /** General purpose 2D rigid-body simulation for all elements in a group. */
 export const physics = defineModifier({
   type: 'physics',
@@ -774,7 +796,7 @@ export const physics = defineModifier({
     const history: HistoryLookup | undefined = ctx.history && signature
       ? { ...ctx.history, key: `${ctx.history.key}|burst:${pieceCount}:${p.burstSpeed}:${signature}`, at: (t) => { const then = ctx.history!.at(t); return then ? { ...then, geo: burstAt(then.geo, t) } : null; } }
       : ctx.history;
-    const solids = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; });
+    const solids = [...new Set(p.solids)].flatMap((id) => { const target = ctx.target?.(id); return target ? [target] : []; }).concat(documentWalls(ctx.scene));
     const detail = Math.max(Math.max(ctx.bounds.width, ctx.bounds.height) * 0.006, 0.25);
     const friction = Math.max(0, Math.min(1, p.friction)), bounce = Math.max(0, Math.min(1, p.bounce));
     const size = Math.max(ctx.bounds.width, ctx.bounds.height) || 1;
