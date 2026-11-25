@@ -794,6 +794,34 @@ describe('File and tracks', () => {
 });
 
 describe('Pack', () => {
+  it.each([false, true])('packs the three-cross scene from the stack or inspector (explicit id: %s)', (explicit) => {
+    const e = new Editor();
+    const ids = ['cross-fdhdy0', 'cross-o4x053', 'cross-dr77w2'];
+    e.scene = {
+      version: 1, document: { width: 1400, height: 900 },
+      objects: ids.map((id, i) => ({
+        kind: 'shape' as const, id, name: ['Cross copy 2', 'Cross copy', 'Cross'][i]!, shape: 'cross',
+        params: { size: 253, width: 51, fill: true, fillColor: '#333333', stroke: false,
+          strokeColor: '#ededed', strokeWidth: 2, strokeJoin: 'round', strokeCap: 'round',
+          dash: 0, gap: 0, dashOffset: 0, behind: false },
+        stack: [], transform: { x: [0.13, 426.03, -426.03000000000003][i]!, y: 0 },
+      })),
+    };
+    expect(validateScene(e.scene).errors).toEqual([]);
+    e.selected = ids[0]!;
+    e.toggleSelect(ids[1]!);
+    e.toggleSelect(ids[2]!);
+    const before = box(e);
+    e.pack(explicit ? e.activeNode!.id : undefined);
+    expect(e.scene!.objects).toHaveLength(1);
+    expect(e.packed).toBe(true);
+    const after = box(e);
+    for (const key of ['x', 'y', 'width', 'height'] as const) expect(after[key]).toBeCloseTo(before[key], 5);
+    e.unpack();
+    expect(e.scene!.objects.map((n) => n.id)).toEqual(ids);
+    expect(validateScene(e.scene!).errors).toEqual([]);
+  });
+
   it.each([2, 3, 40])('packs %i selected objects together and unpacks in one undo step', (count) => {
     const e = new Editor();
     e.scene = { version: 1, objects: Array.from({ length: count }, (_, i) => ({

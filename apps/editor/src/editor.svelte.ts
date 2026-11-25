@@ -1771,7 +1771,7 @@ export class Editor {
   #packEngine: ReturnType<typeof createEngine> | null = null;
   /** Packs the active node: its result stays, with nothing more to compute; the original goes inside. */
   pack(id?: string | null) {
-    const selection = id === undefined ? this.selectedNodes : [];
+    const selection = id === undefined || id === this.currentNode?.id ? this.selectedNodes : [];
     id ??= this.activeNode?.id ?? null;
     if (!this.scene || !id) return;
     this.flush();

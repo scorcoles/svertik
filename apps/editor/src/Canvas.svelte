@@ -551,7 +551,7 @@
   let guideDrag = $state<GuideDrag | null>(null);
   let rulerTicks = $state<{ x: RulerTick[]; y: RulerTick[] }>({ x: [], y: [] });
   let selection = $state<Rect | null>(null);
-  /** The other selected nodes (⇧ + click): only their frame. */
+  /** Individual frames for every node in a multi-selection, including the active one. */
   let others = $state<Rect[]>([]);
   const rectOf = (id: string): Rect | null => {
     const info = nodes.get(id);
@@ -565,9 +565,10 @@
     const node = editor.currentNode;
     const rest = editor.selectedNodes.filter((n) => n.id !== node?.id).map((n) => n.id);
     const frame = requestAnimationFrame(() => {
-      others = rest.map(rectOf).filter((r): r is Rect => !!r);
+      const secondary = rest.map(rectOf).filter((r): r is Rect => !!r);
       const main = node ? rectOf(node.id) : null;
-      const boxes = [...(main ? [main] : []), ...others];
+      const boxes = [...(main ? [main] : []), ...secondary];
+      others = boxes.length > 1 ? boxes : [];
       if (boxes.length > 1) {
         const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
         selection = { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y };
