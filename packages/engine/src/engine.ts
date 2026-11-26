@@ -9,7 +9,8 @@ import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type HistoryLookup, type ModifierContext, type SceneSpace, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
-import { createExpressionMemory, evaluateSceneExpressions } from './expression';
+import { createExpressionMemory, evaluateSceneExpressions, type ParamDefaults } from './expression';
+import { shapeRegistry } from './shapes';
 import { hasMissingPacks, restorePacks } from './pack';
 
 export interface ModifierInstance {
@@ -228,7 +229,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const withPacks = (scene: SceneV1) => {
     if (!hasMissingPacks(scene)) return scene;
     const out = structuredClone(scene);
-    restorePacks(out, (s) => packDocuments.evaluate(expandCompositions(evaluateSceneExpressions(withPacks(s)), registry)), packCache);
+    restorePacks(out, (s) => packDocuments.evaluate(expandCompositions(evaluateSceneExpressions(withPacks(s), { defaults }), registry)), packCache);
     return out;
   };
   // The past, for effects that read it (`history`): the scene at other times, with every stack cut right
@@ -258,7 +259,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
         if (pastCache.key !== k) pastCache.key = k, pastCache.at.clear();
         let hit = pastCache.at.get(t);
         if (!hit) {
-          const then = expandCompositions(evaluateSceneExpressions(withoutUnborn({ ...sampleScene(base as SceneV1, t), at: t })), registry);
+          const then = expandCompositions(evaluateSceneExpressions(withoutUnborn({ ...sampleScene(base as SceneV1, t), at: t }), { defaults }), registry);
           hit = { doc: pastDocuments.evaluate(then), scene: then };
           pastCache.at.set(t, hit);
           if (pastCache.at.size > 2000) pastCache.at.delete(pastCache.at.keys().next().value!);
@@ -318,10 +319,20 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   };
   // smooth() and spring() remember the last frame here: only this frame-by-frame evaluation writes it.
   const memory = createExpressionMemory();
+  // Default values by type, for `this.name` formulas that read a parameter the scene leaves unset.
+  const defaultsCache = new Map<string, Record<string, unknown> | undefined>();
+  const defaults: ParamDefaults = (owner, type) => {
+    const key = `${owner}:${type}`;
+    if (!defaultsCache.has(key)) {
+      const schema = owner === 'shape' ? shapeRegistry.get(type)?.params : registry.get(type)?.params;
+      defaultsCache.set(key, schema ? resolveParams(schema) as Record<string, unknown> : undefined);
+    }
+    return defaultsCache.get(key);
+  };
   const evaluateDocument = (scene: SceneV1) => {
     // Copies born at runtime are filtered before compositions expand (expansion drops their birth time).
     const raw = withoutUnborn(withDefaultExpressions(withPacks(scene)));
-    return documents.evaluate(expandCompositions(evaluateSceneExpressions(raw, { memory }), registry), usesHistory(raw) ? pastOf(raw) : undefined);
+    return documents.evaluate(expandCompositions(evaluateSceneExpressions(raw, { memory, defaults }), registry), usesHistory(raw) ? pastOf(raw) : undefined);
   };
   const flat = (scene: SceneV1) => evaluateDocument(scene).geometry;
 

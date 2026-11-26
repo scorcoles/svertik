@@ -22,6 +22,8 @@ export interface ExpressionContext {
   props?: Record<string, number>;
   /** The copy being built, inside a shape's Each (`element.*`); absent elsewhere. */
   element?: Partial<ElementValues>;
+  /** The other numeric values of the object or effect the formula belongs to (`this.name`). */
+  self?: Record<string, number>;
   /** Numeric values exposed by direct children, keyed by their stable scene IDs. */
   children?: Record<string, Record<string, number>>;
   /** The live pointer (`scene.mouse.*`); the neutral one when absent. */
@@ -168,6 +170,12 @@ function parse(source: string): Expr {
         if (!key || !(ELEMENT_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a supported element value: ${ELEMENT_FIELDS.join(', ')}.`);
         return { kind: 'variable', name: `element.${key}` };
       }
+      if (token === 'this') {
+        expect('.');
+        const key = take();
+        if (!key || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(key)) throw new Error('Use a value name after this., e.g. this.outer.');
+        return { kind: 'variable', name: `this.${key}` };
+      }
       if (token === 'props') {
         expect('.');
         const key = take();
@@ -260,6 +268,12 @@ function run(tree: Expr, context: ExpressionContext): number {
     if (tree.name.startsWith('element.')) {
       const value = context.element?.[tree.name.slice('element.'.length) as keyof ElementValues];
       if (!Number.isFinite(value)) throw new Error('element.* is only available in Each.');
+      return value!;
+    }
+    if (tree.name.startsWith('this.')) {
+      const key = tree.name.slice('this.'.length);
+      const value = context.self?.[key];
+      if (!Number.isFinite(value)) throw new Error(`Unknown value “this.${key}”.`);
       return value!;
     }
     if (tree.name.startsWith('props.')) {
@@ -504,16 +518,59 @@ const BARE_CONTEXT: ExpressionContext = { time: 0, frame: 0, fps: 30, duration: 
  */
 export function evaluateForElement(params: Record<string, unknown>, element: ElementValues, context?: unknown): Record<string, unknown> {
   const ctx: ExpressionContext = { ...((context as ExpressionContext | undefined) ?? BARE_CONTEXT), element };
-  const one = (v: NumericExpression) => { try { return evaluateExpression(v.$expr, ctx); } catch { return v.fallback; } };
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(params)) {
-    out[key] = isNumericExpression(value) ? one(value) : Array.isArray(value) ? value.map((v) => (isNumericExpression(v) ? one(v) : v)) : value;
-  }
+  const out: Record<string, unknown> = { ...params };
+  resolveTogether([out], ctx);
   return out;
 }
 
+/**
+ * Resolves the formulas of one object or effect together, so each can read the others as `this.name`
+ * (`this.outer - 50`). Plain numbers are known from the start; formulas resolve in whatever order their
+ * dependencies allow, and one left in a cycle (or failing) takes its fallback. Point lists can read `this`
+ * but are not readable themselves. The first record wins when two hold the same name.
+ */
+function resolveTogether(records: (Record<string, unknown> | undefined)[], ctx: ExpressionContext, defaults?: Record<string, unknown>): void {
+  const self: Record<string, number> = {};
+  const pending: [Record<string, unknown>, string, NumericExpression][] = [];
+  for (const values of records) {
+    for (const [key, value] of Object.entries(values ?? {})) {
+      if (typeof value === 'number' && Number.isFinite(value)) { if (!(key in self)) self[key] = value; }
+      else if (isNumericExpression(value)) pending.push([values!, key, value]);
+    }
+  }
+  // Values left at their default (not saved in the scene) are readable too.
+  for (const [key, value] of Object.entries(defaults ?? {})) if (!(key in self) && !pending.some(([, k]) => k === key) && typeof value === 'number' && Number.isFinite(value)) self[key] = value;
+  const local: ExpressionContext = { ...ctx, self };
+  let progress = true;
+  while (pending.length && progress) {
+    progress = false;
+    for (let i = 0; i < pending.length; i++) {
+      const [values, key, formula] = pending[i]!;
+      let value: number;
+      try { value = evaluateExpression(formula.$expr, local); } catch { continue; }
+      values[key] = value;
+      if (!(key in self)) self[key] = value;
+      pending.splice(i--, 1);
+      progress = true;
+    }
+  }
+  for (const [values, key, formula] of pending) { values[key] = formula.fallback; if (!(key in self)) self[key] = formula.fallback; }
+  for (const values of records) {
+    for (const [key, value] of Object.entries(values ?? {})) {
+      if (!Array.isArray(value)) continue;
+      values![key] = value.map((v) => {
+        if (!isNumericExpression(v)) return v;
+        try { return evaluateExpression(v.$expr, local); } catch { return v.fallback; }
+      });
+    }
+  }
+}
+
 /** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
-export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number; memory?: ExpressionMemory } = {}): SceneV1 {
+/** Default parameter values of a shape or effect type, so `this.name` reads values the scene leaves unset. */
+export type ParamDefaults = (owner: 'shape' | 'effect', type: string) => Record<string, unknown> | undefined;
+
+export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number; memory?: ExpressionMemory; defaults?: ParamDefaults } = {}): SceneV1 {
   if (!sceneHasExpressions(scene)) return scene;
   const out = structuredClone(scene) as SceneV1;
   const time = out.at ?? 0;
@@ -547,7 +604,7 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
       const children: Record<string, Record<string, number>> = {};
       for (const child of item.children ?? []) children[child.id] = numericValues(child.params);
       const ctx: ExpressionContext = { ...context, props: inherited, children: { ...exposedChildren, ...children } };
-      params(item.params, true, ctx);
+      resolveTogether([item.params], ctx, options.defaults?.('effect', item.type));
       if (item.type === 'each') {
         // Each evaluates its children's formulas per element (element.*): keep them, with the context they run in.
         const { memory: _memory, ...plain } = ctx;
@@ -572,13 +629,18 @@ export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?:
         directChildren[child.id] = childValues;
       }
       const nodeContext: ExpressionContext = { ...context, props: { ...parentNative, ...inheritedCustom }, children: directChildren };
-      params(node.transform as Record<string, unknown> | undefined, true, nodeContext);
-      if (node.opacity !== undefined && isNumericExpression(node.opacity)) node.opacity = numericValues({ opacity: node.opacity }, nodeContext).opacity;
+      // Shape values, placement and opacity resolve together, so `this.name` reads any of them.
+      const opacity = node.opacity === undefined ? undefined : { opacity: node.opacity as unknown };
+      resolveTogether(
+        [node.kind === 'shape' ? node.params as Record<string, unknown> : undefined, node.transform as Record<string, unknown> | undefined, opacity],
+        nodeContext,
+        { x: 0, y: 0, scale: 1, rotation: 0, ...(node.kind === 'shape' ? options.defaults?.('shape', node.shape) : undefined) },
+      );
+      if (opacity) node.opacity = opacity.opacity as number;
       const ownCustom = numericValues(node.props, nodeContext);
       if (node.props) node.props = ownCustom;
       const outgoingCustom = { ...inheritedCustom, ...ownCustom };
       if (node.kind === 'shape') {
-        params(node.params, true, nodeContext);
         if (node.shape === 'text' && hasTextExpressions(node.params.text)) {
           // Dynamic values such as clocks can change the string width as digits are added. Pin the
           // evaluated copy to its typographic left edge so the readout grows to the right without
@@ -639,6 +701,7 @@ const ELEMENT_ABOUT: Record<(typeof ELEMENT_FIELDS)[number], string> = {
 
 /** What each `scene.*` variable means, keyed like `describeSceneVariables` (`time`, `mouse.posX`…). */
 const VARIABLE_ABOUT: Record<string, string> = {
+  'this.*': 'Another numeric value of the same object or effect, e.g. this.outer - 50',
   'props.*': 'Numeric values from the direct parent, plus custom props explicitly forwarded through the hierarchy',
   'children["id"].property': 'A numeric value from a direct child, addressed by its stable ID and property name',
   cycle: 'Completed duration windows, from 0 (keeps growing with Infinite time)',
@@ -714,6 +777,7 @@ export function expressionReference(): { variables: (ExpressionReferenceEntry & 
   return {
     variables: [
       ...keys.map((key) => ({ key, name: `scene.${key}`, about: VARIABLE_ABOUT[key] ?? '' })),
+      { key: 'this.*', name: 'this.name', about: VARIABLE_ABOUT['this.*']! },
       { key: 'props.*', name: 'props.name', about: VARIABLE_ABOUT['props.*']! },
       ...ELEMENT_FIELDS.map((key) => ({ key: `element.${key}`, name: `element.${key}`, about: ELEMENT_ABOUT[key] })),
       { key: 'children["id"].property', name: 'children["id"].property', about: VARIABLE_ABOUT['children["id"].property']! },

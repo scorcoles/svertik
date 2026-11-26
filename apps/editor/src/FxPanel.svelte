@@ -3,7 +3,7 @@
   import { expressionReference } from '@svertik/engine';
   import { IconButton, formulaTarget, insertFormula } from '@svertik/ui';
   import TextZoom from './TextZoom.svelte';
-  import type { Editor } from './editor.svelte';
+  import { locateModifier, locateNode, type Editor } from './editor.svelte';
 
   let { editor, maximized, onmaximize, onclose, oncopy }: { editor: Editor; maximized: boolean; onmaximize: () => void; onclose: () => void; oncopy: (text: string, what: string) => void } = $props();
 
@@ -16,6 +16,16 @@
   };
   const variable = (v: { name: string; about: string }) => ({ name: v.name, insert: v.name, caretBack: 0, about: v.about });
 
+  // `this.*` names of the selection: its shape values, placement and opacity, or the effect's values.
+  const thisNames = $derived.by(() => {
+    const scene = editor.scene, id = editor.selected;
+    if (!scene || !id) return [] as string[];
+    const numeric = (values: unknown) => Object.entries((values ?? {}) as Record<string, unknown>).filter(([, v]) => typeof v === 'number' || (!!v && typeof v === 'object' && '$expr' in v)).map(([k]) => k);
+    const node = locateNode(scene.objects, id)?.node;
+    if (node) return [...new Set([...(node.kind === 'shape' ? numeric(node.params) : []), ...numeric({ x: 0, y: 0, scale: 1, rotation: 0, ...node.transform }), ...(node.opacity === undefined ? [] : ['opacity'])])];
+    return numeric(locateModifier(scene, id)?.inst.params);
+  });
+
   const sections = $derived([
     { title: t('Scene'), rows: reference.variables.filter((v) => !v.key.includes('.')).map(variable) },
     { title: t('Mouse'), note: t('Live only in Play'), rows: reference.variables.filter((v) => v.key.startsWith('mouse.')).map(variable) },
@@ -24,6 +34,13 @@
       title: t('Custom'),
       note: 'Document → Variables',
       rows: Object.keys(editor.scene?.custom ?? {}).map((key) => variable({ name: `scene.custom.${key}`, about: '' })),
+    },
+    {
+      title: t('This'),
+      note: t('Values of the selection'),
+      rows: thisNames.length
+        ? thisNames.map((key) => variable({ name: `this.${key}`, about: '' }))
+        : reference.variables.filter((v) => v.key === 'this.*').map(variable),
     },
     { title: t('Props'), note: t('Incoming parent values'), rows: reference.variables.filter((v) => v.key === 'props.*').map(variable) },
     { title: t('Children'), note: t('Direct child values'), rows: reference.variables.filter((v) => v.key === 'children["id"].property').map(variable) },

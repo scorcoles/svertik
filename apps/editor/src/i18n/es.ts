@@ -307,6 +307,8 @@ export const ES: Record<string, string> = {
   '0 in renders': '0 en los renders',
   'Custom': 'Propias',
   'Incoming parent values': 'Valores que llegan del padre',
+  This: 'This',
+  'Values of the selection': 'Valores de la selección',
   'Children': 'Hijos',
   'Direct child values': 'Valores de los hijos directos',
   'Constants': 'Constantes',
