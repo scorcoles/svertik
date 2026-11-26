@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '@svertik/ui';
+  import { setFormulaWhere, t } from '@svertik/ui';
   // With nothing selected: the document. Its size is what is exported and what Play mode shows.
   import { Button, Checkbox, ColorField, IconButton, NumberField, ParamRow, Section, Segmented, Select } from '@svertik/ui';
   import { DOCUMENT_PALETTE, PALETTES, type CustomVariable, type ViewportFit } from '@svertik/engine';
@@ -7,6 +7,7 @@
   import VariableList from './VariableList.svelte';
 
   let { editor }: { editor: Editor } = $props();
+  setFormulaWhere(() => [t('Document')]);
   const canPick = typeof window !== 'undefined' && 'EyeDropper' in window;
   let pickingBackground = $state(false);
   async function pickBackground() {

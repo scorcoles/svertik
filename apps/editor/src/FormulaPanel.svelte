@@ -2,7 +2,6 @@
   import { t } from '@svertik/ui';
   import { IconButton, formulaEditor, formulaField } from '@svertik/ui';
   import { validateExpression } from '@svertik/engine';
-  import { onMount } from 'svelte';
   import TextZoom from './TextZoom.svelte';
   import CopyButton from './CopyButton.svelte';
   import type { Editor } from './editor.svelte';
@@ -26,13 +25,26 @@
     shown = field?.value ?? value;
   });
   const follow = () => { if (layer && field) { layer.scrollTop = field.scrollTop; layer.scrollLeft = field.scrollLeft; } };
-  function close() { editor.flush(); formulaEditor.close(); onclose?.(); }
-  onMount(() => field?.focus({ preventScroll: true }));
+  // Escape gives the focus back to the field it was opened from.
+  function close() {
+    const owner = open?.owner;
+    editor.flush();
+    formulaEditor.close();
+    onclose?.();
+    if (owner?.isConnected) owner.focus({ preventScroll: true });
+  }
+  // Each formula opened here takes the focus, the caret at its end: ready to type.
+  $effect(() => {
+    void open?.owner;
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    field.setSelectionRange(field.value.length, field.value.length);
+  });
 </script>
 
 {#if open}
 <section class="formula" aria-label={t('Formula editor')}>
-  <header><strong>ƒx</strong><span>{open.label}</span>
+  <header><strong>ƒx</strong><span class="where">{#each open.where as part}{part}<i>›</i>{/each}<b>{open.label}</b></span>
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
     <button type="button" aria-pressed={editor.fxOpen} title={t('Variables and functions; a click inserts them here')} onclick={() => (editor.fxOpen = !editor.fxOpen)}>{t('Reference')}</button>
     {#if onmaximize}<IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? t('Restore editor layout') : t('Use all available space for the formula')} aria-pressed={maximized} onclick={onmaximize} />{/if}
@@ -57,7 +69,7 @@
     <aside>
       {#if error}<p class="error" role="status">{error}</p>{:else}<p class="ok">{t('Valid formula.')}</p>{/if}
       <p>{t('Break lines and indent as you like: spaces and line breaks don’t change the result.')}</p>
-      <p>{t('Changes apply as you type. ⌘/Ctrl+Enter in any ƒx field opens it here; Escape closes.')}</p>
+      <p>{t('Changes apply as you type. Escape closes and goes back to the field.')}</p>
     </aside>
   </div>
 </section>
@@ -66,7 +78,9 @@
 <style>
   .formula { display: flex; flex-direction: column; min-height: 0; background: var(--sv-surface-panel); color: var(--sv-text-primary); border-top: 1px solid var(--sv-rule-default); font: 11px var(--sv-font-mono); }
   header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 4px 8px; }
-  header span { flex: 1; overflow: hidden; color: var(--sv-text-muted); text-overflow: ellipsis; white-space: nowrap; }
+  .where { flex: 1; min-width: 0; overflow: hidden; color: var(--sv-text-muted); text-overflow: ellipsis; white-space: nowrap; }
+  .where i { padding: 0 6px; font-style: normal; color: var(--sv-text-disabled); }
+  .where b { font-weight: inherit; color: var(--sv-text-primary); }
   .body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 30%); gap: 8px; min-height: 0; flex: 1; padding: 0 8px 8px; }
   .editor { position: relative; min-height: 0; font-family: var(--sv-font-mono); background: none; }
   /* The coloured layer and the field share every metric, so each letter sits exactly over its colour. */

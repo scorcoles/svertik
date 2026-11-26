@@ -1,9 +1,9 @@
 <script lang="ts">
   import { t } from '@svertik/ui';
   import { tick } from 'svelte';
-  import { FormulaExpand, IconButton, NumberField, Section, Slider, formulaField } from '@svertik/ui';
-  /** Each formula field, by name: its expand button opens that field in the formula editor. */
-  const inputs = $state<Record<string, HTMLInputElement | undefined>>({});
+  import { FormulaButton, IconButton, NumberField, Section, Slider } from '@svertik/ui';
+  /** The variable just turned into a formula: its editor opens, ready to type. */
+  let opening = $state<string | null>(null);
   import { customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
   import InfoTip from './InfoTip.svelte';
 
@@ -79,18 +79,13 @@
       <div class="var-control">
         {#if expression}
           <div class="variable-expression" data-invalid={expressionError || undefined}>
-            <input bind:this={inputs[name]} class="expression-input" value={expression.$expr} aria-label={`${name} expression`} aria-invalid={expressionError ? 'true' : undefined}
-              title={expressionError ?? t('Use {namespace} values, props.name, children["id"].property, scene variables, and math functions.', { namespace })} spellcheck="false"
-              oninput={(e) => onchange(name, { ...expression, $expr: e.currentTarget.value })}
-              use:formulaField={{ label: name, value: expression.$expr, commit: (next) => onchange(name, { ...expression, $expr: next }) }}
-              onkeydown={(e) => e.stopPropagation()} />
-            <FormulaExpand field={inputs[name]} label={name} />
+            <FormulaButton label={name} value={expression.$expr} error={expressionError} open={opening === name} commit={(next) => onchange(name, { ...expression, $expr: next })} />
             <button class="expression-toggle" type="button" aria-label={t('Use a number for {name}', { name })} title={t('Switch to a number')} onclick={() => onchange(name, expression.fallback)}>ƒx</button>
             {#if expressionError}<span class="expression-error" role="status">{expressionError}</span>{/if}
           </div>
         {:else}
           <NumberField value={n} step={ranged?.step ?? 0.1} min={ranged?.min} max={ranged?.max} width="72px" label={`${name} value`}
-            trailingAction={{ label: t('Use an expression for {name}', { name }), title: t('Use an expression with incoming props, child values, scene variables, and math functions'), onclick: () => onchange(name, { $expr: String(n), fallback: n }) }}
+            trailingAction={{ label: t('Use an expression for {name}', { name }), title: t('Use an expression with incoming props, child values, scene variables, and math functions'), onclick: () => { opening = name; onchange(name, { $expr: String(n), fallback: n }); } }}
             onchange={(v) => setNumber(name, value, v)} />
           {#if ranged && ranged.min !== undefined && ranged.max !== undefined}
             <Slider value={n} min={ranged.min} max={ranged.max} step={ranged.step ?? 0.01} label={name} width="56px" onchange={(v) => setNumber(name, value, v)} />
@@ -131,7 +126,6 @@
   .variable-expression { position: relative; display: flex; flex: 1 1 auto; align-items: center; gap: var(--sv-space-4); height: 20px; min-width: 0; padding: 0 var(--sv-space-6); box-sizing: border-box; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
   .variable-expression:focus-within { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .variable-expression[data-invalid] { border-color: var(--sv-signal-error); }
-  .expression-input { flex: 1; min-width: 0; padding: 0; color: var(--sv-text-primary); background: none; border: 0; outline: none; font: inherit; }
   .expression-toggle { flex: none; width: 18px; height: 16px; padding: 0; color: var(--sv-text-muted); background: none; border: 0; font: inherit; font-size: 9px; line-height: 1; cursor: pointer; }
   .expression-toggle:hover { color: var(--sv-accent-text); }
   .expression-error { position: absolute; z-index: 4; top: calc(100% + var(--sv-space-4)); left: 0; width: 100%; padding: var(--sv-space-4) var(--sv-space-6); box-sizing: border-box; color: var(--sv-signal-error); background: var(--sv-surface-panel); border: var(--sv-border-1) solid var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }

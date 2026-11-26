@@ -23,6 +23,6 @@ export { default as StackItem } from './StackItem.svelte';
 export { default as Tabs } from './Tabs.svelte';
 export * from './scrub';
 export * from './palettes';
-export { expandFormula, formulaEditor, formulaField, formulaTarget, insertFormula, type FormulaEditing, type FormulaFieldOptions } from './formula-target.svelte';
-export { default as FormulaExpand } from './FormulaExpand.svelte';
+export { expandFormula, formulaEditor, formulaField, formulaWhereOf, setFormulaWhere, formulaTarget, insertFormula, type FormulaEditing, type FormulaFieldOptions } from './formula-target.svelte';
+export { default as FormulaButton } from './FormulaButton.svelte';
 export { setTranslations, t } from './i18n';

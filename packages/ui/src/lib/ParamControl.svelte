@@ -5,7 +5,7 @@
   import Checkbox from './Checkbox.svelte';
   import ColorField from './ColorField.svelte';
   import IconButton from './IconButton.svelte';
-  import FormulaExpand from './FormulaExpand.svelte';
+  import FormulaButton from './FormulaButton.svelte';
   import PaintField from './PaintField.svelte';
   import PivotSelect from './PivotSelect.svelte';
   import type { IconName } from './icons';
@@ -68,7 +68,9 @@
   const unitAction = $derived(spec.type === 'number' && spec.percentOf && onunit
     ? { label: `${spec.label ?? name.charAt(0).toUpperCase() + name.slice(1)}: use ${percent !== null ? 'px' : '%'}`, onclick: () => onunit?.(percent !== null ? 'px' : '%') }
     : undefined);
-  let expressionInput = $state<HTMLInputElement>();
+  // Set when the user turns this field into a formula: its editor opens, ready to type.
+  let openFormula = $state(false);
+  $effect(() => { if (!isNumericExpression(value)) openFormula = false; });
   const advanced = $derived((spec.type === 'number' || spec.type === 'seed') && spec.expression !== false);
   const expression = $derived(advanced && isNumericExpression(value) ? value : null);
   const numericFieldWidth = $derived(fieldWidth ?? (expression ? '132px' : '80px'));
@@ -109,20 +111,8 @@
     {#if expression}
       <div class="expression-control" style={`--sv-field-width: ${numericFieldWidth}`}>
         <div class="expression-field" data-invalid={expressionError || undefined}>
-          <input
-            bind:this={expressionInput}
-            class="sv-expression"
-            value={expression.$expr}
-            aria-label={`${label} expression`}
-            aria-invalid={expressionError ? 'true' : undefined}
-            title={expressionError ?? t('Use scene.time, scene.cycle, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.width, scene.height, scene.aspect, scene.dt, scene.scroll, scene.pixelRatio, scene.clock.hour/minute/second, scene.mouse.posX/posY/fracX/fracY/down/inside/velX/velY/downMs/rightDown/middleDown/clicks/clickMs/wheel, scene.custom.name; functions: min, max, clamp, lerp, sin, cos, random(min, max, seed?)…')}
-            spellcheck="false"
-            oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
-            use:formulaField={{ label, value: expression.$expr, commit: (next) => onchange({ ...expression, $expr: next }) }}
-            onkeydown={(e) => e.stopPropagation()}
-          />
+          <FormulaButton {label} value={expression.$expr} error={expressionError} open={openFormula} commit={(next) => onchange({ ...expression, $expr: next })} />
           {#if spec.type === 'number' && spec.unit && spec.unit !== 'fraction'}<span class="expression-unit">{spec.unit}</span>{/if}
-          <FormulaExpand field={expressionInput} {label} />
           <button
             class="expression-toggle"
             type="button"
@@ -148,7 +138,7 @@
           label: t('Use an expression for {name}', { name: label }),
           title: expression ? t('Expression enabled; switch to a number') : t('Use an expression with scene variables'),
           active: !!expression,
-          onclick: () => onchange({ $expr: spec.type === 'seed' ? 'scene.seedGenerator' : String(value), fallback: Number(value) }),
+          onclick: () => { openFormula = true; onchange({ $expr: spec.type === 'seed' ? 'scene.seedGenerator' : String(value), fallback: Number(value) }); },
         } : undefined}
         onchange={spec.type === 'number' ? emit : onchange}
       />
@@ -310,17 +300,6 @@
     line-height: 1.3;
     white-space: normal;
     overflow-wrap: anywhere;
-  }
-  .sv-expression {
-    flex: 1;
-    min-width: 0;
-    padding: 0;
-    box-sizing: border-box;
-    color: var(--sv-text-primary);
-    background: none;
-    border: 0;
-    outline: none;
-    font: inherit;
   }
   .expression-toggle {
     flex: none;

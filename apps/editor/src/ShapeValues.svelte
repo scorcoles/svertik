@@ -2,9 +2,9 @@
   import { t } from '@svertik/ui';
   // Each › Shape: per-copy values for the shape's own parameters. Every row is one parameter and its formula,
   // which reads element.* (the copy Each is building).
-  import { FormulaExpand, IconButton, Section, Select, formulaField } from '@svertik/ui';
-  /** Each formula field, by name: its expand button opens that field in the formula editor. */
-  const inputs = $state<Record<string, HTMLInputElement | undefined>>({});
+  import { FormulaButton, IconButton, Section, Select } from '@svertik/ui';
+  /** The row just added: its formula editor opens, ready to type. */
+  let opening = $state<string | null>(null);
   import { isNumericExpression, validateExpression, type ParamSchema } from '@svertik/engine';
   import InfoTip from './InfoTip.svelte';
 
@@ -32,6 +32,7 @@
     const next = free[0];
     if (!next) return;
     const n = current(next.value);
+    opening = next.value;
     onchange({ ...each, [next.value]: { $expr: String(n), fallback: n } });
   }
   function set(key: string, source: string) {
@@ -61,11 +62,7 @@
     <div class="row">
       <Select value={key} options={[...numeric.filter((o) => o.value === key), ...free]} label={t('Parameter')} width="100%" onchange={(to) => rekey(key, to)} />
       <div class="formula">
-        <div class="variable-expression" data-invalid={error || undefined}><input bind:this={inputs[key]} class="expression-input" value={source} aria-label={t('{name} per copy', { name: key })} aria-invalid={error ? 'true' : undefined} spellcheck="false"
-          title={error ?? t('A formula per copy: element.distance, element.u, element.index… plus props, scene variables and math functions.')}
-          oninput={(e) => set(key, e.currentTarget.value)}
-          use:formulaField={{ label: t('{name} per copy', { name: key }), value: source, commit: (next) => set(key, next) }}
-          onkeydown={(e) => e.stopPropagation()} /><FormulaExpand field={inputs[key]} label={t('{name} per copy', { name: key })} /><span class="fx" aria-hidden="true" title={t('A formula, evaluated for each copy')}>ƒx</span></div>
+        <div class="variable-expression" data-invalid={error || undefined}><FormulaButton label={t('{name} per copy', { name: key })} value={source} {error} open={opening === key} commit={(next) => set(key, next)} /><span class="fx" aria-hidden="true" title={t('A formula, evaluated for each copy')}>ƒx</span></div>
         <IconButton icon="trash" label={t('Remove {name} per copy', { name: key })} onclick={() => remove(key)} />
       </div>
       {#if error}<span class="expression-error" role="status">{error}</span>{/if}
@@ -81,7 +78,6 @@
   .variable-expression { display: flex; flex: 1 1 auto; align-items: center; height: 20px; min-width: 0; padding: 0 var(--sv-space-6); box-sizing: border-box; background: var(--sv-surface-field); border: var(--sv-border-1) solid var(--sv-rule-default); }
   .variable-expression:focus-within { outline: 1px solid var(--sv-accent-text); outline-offset: 1px; }
   .variable-expression[data-invalid] { border-color: var(--sv-signal-error); }
-  .expression-input { flex: 1; min-width: 0; padding: 0; color: var(--sv-text-primary); background: none; border: 0; outline: none; font: inherit; }
   /* Always a formula: the same ƒx mark the other formula fields show, in the accent colour. */
   .fx { flex: none; padding-left: var(--sv-space-4); color: var(--sv-accent-text); font-size: 9px; line-height: 1; cursor: default; user-select: none; }
   .expression-error { color: var(--sv-signal-error); font-size: var(--sv-font-size-11); line-height: 1.3; overflow-wrap: anywhere; }

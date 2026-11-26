@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import NodeAttributes from './NodeAttributes.svelte';
 import { Editor } from './editor.svelte';
+import { formulaEditor } from '@svertik/ui';
 
 it('offers ƒx for Mouse numeric fields and edits independent Offset components', async () => {
   const editor = new Editor();
@@ -19,12 +20,14 @@ it('offers ƒx for Mouse numeric fields and edits independent Offset components'
     }
     target.querySelector<HTMLButtonElement>('button[aria-label="Use an expression for Offset X"]')!.click();
     flushSync();
-    const input = target.querySelector<HTMLInputElement>('input[aria-label="Offset X expression"]')!;
-    expect(input).not.toBeNull();
-    input.value = 'random(-10, 10, scene.frame)'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    // Turning it into a formula opens the formula editor on it, titled with where it is.
+    const button = target.querySelector<HTMLButtonElement>('button[aria-label="Edit the formula of Offset X"]')!;
+    expect(button).not.toBeNull();
+    expect(formulaEditor.current).toMatchObject({ owner: button, label: 'Offset X', where: ['Mouse'] });
+    formulaEditor.current!.commit('random(-10, 10, scene.frame)');
     flushSync();
     expect(editor.scene.objects[0]).toMatchObject({ mouse: { offset: [{ $expr: 'random(-10, 10, scene.frame)', fallback: 0 }, 0] } });
-  } finally { await unmount(component); target.remove(); }
+  } finally { formulaEditor.close(); await unmount(component); target.remove(); }
 });
 
 it.each([true, false])('hides generic node actions only on Mouse Instance (mouse: %s)', async mouse => {

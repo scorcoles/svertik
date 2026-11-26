@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '@svertik/ui';
+  import { setFormulaWhere, t } from '@svertik/ui';
   import { Button, Checkbox, IconButton, ParamList, ParamRow, Section, Tabs } from '@svertik/ui';
   import { effectDescriptions, resolveParams, isNumericExpression, shapeRegistry, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode } from '@svertik/engine';
   import { layerOf } from './layer-of';
@@ -28,6 +28,11 @@
     if (panel) panel.scrollTop = 0;
   });
   const m = $derived(editor.current);
+  // The formula editor's title: Object › Parent effect › Effect › field.
+  setFormulaWhere(() => {
+    const label = (i: { type: string; name?: string } | null | undefined) => (i ? i.name || registry.get(i.type)?.label || i.type : '');
+    return [editor.activeNode?.name ?? '', label(editor.currentParent), label(m)];
+  });
   function particlePreset(preset: (typeof PARTICLE_PRESETS)[number]) {
     if (!m || m.type !== 'particles') return;
     const params = { ...resolveParams(registry.get('particles')!.params), ...preset.params, time: m.params?.time ?? { $expr: 'scene.time', fallback: 0 }, seed: m.params?.seed ?? 1, center: m.params?.center ?? [.5,.5] };

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '@svertik/ui';
+  import { setFormulaWhere, t } from '@svertik/ui';
 import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, isNumericExpression, placementOf, shapeRegistry, walkNodes, type Ease, type ParamSpec, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
   import VariableList from './VariableList.svelte';
@@ -15,6 +15,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
     onreplace: () => void;
   }
   let { editor, node, onreplace }: Props = $props();
+  setFormulaWhere(() => [node.name]);
   const p = $derived(placementOf(node));
   let positionSpace = $state<'local' | 'world'>('local');
   const parentInfo = $derived.by(() => {
