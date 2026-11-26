@@ -2,6 +2,19 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.26
+
+### Added
+
+- `scene.object.<name>.<value>` in formulas: read any other object of the scene by its system name, made from its display name ("Esféra Roja copia" → `esfera_roja_copia`): its placement, opacity, shape values, props, and its effects by name, nested (`scene.object.esfera.grid.each.transform.rotation`). Formulas that read each other across objects resolve in passes; renaming an object or an effect rewrites the formulas that use it, in the same undo step.
+- The Console, in place of Debug (status bar → Console): a shell like a browser's. Type an expression and see its value at the current time; the editor's errors and warnings and the stopwatch's measurement come in the same stream. Pin expressions to keep them live on top while the scene plays; ↑/↓ for history; text zoom. Commands: `play()`, `pause()`, `stop()`, `goto(s)`, `frame(n)`, `select(name)`, `set(name.value, n)`, `seed(n?)`, `undo()`, `redo()`, `objects()`, `pin()`, `unpin()`, `clear()`, `help()`. It docks below the canvas or as a column on the right.
+- Suggestions while writing formulas, in the console and the formula editor: after `scene.`, `scene.object.` (objects, then their values and effects), `this.`, `element.` inside Each, and functions. ↑/↓, Tab or Enter, Escape; Ctrl+Space asks for them. Inside a call, parameter help shows its signature with the argument being written (`clamp(x, min, max)`, `scene.countDown(seconds)`).
+
+### Changed
+
+- The side panel (Stack, Document) can be made wider or narrower by dragging its left edge; double-click for the usual width. The browser remembers it.
+- Notes can dock on the right too, sharing the column with the Console.
+
 ## 0.0.25
 
 ### Added

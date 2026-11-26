@@ -5,15 +5,20 @@
   import TextZoom from './TextZoom.svelte';
   import CopyButton from './CopyButton.svelte';
 
-  let { editor, maximized, onmaximize, onclose, oncopy }: { editor: Editor; maximized: boolean; onmaximize: () => void; onclose: () => void; oncopy: (text: string, what: string) => void } = $props();
+  let { editor, maximized, onmaximize, onclose, oncopy, dock = 'bottom', ondock }: {
+    editor: Editor; maximized: boolean; onmaximize: () => void; onclose: () => void; oncopy: (text: string, what: string) => void;
+    /** Below the canvas, or in the column on the right. */
+    dock?: 'bottom' | 'right'; ondock?: (dock: 'bottom' | 'right') => void;
+  } = $props();
 </script>
 
-<section class="notes" aria-labelledby="notes-title">
+<section class="notes" data-dock={dock} aria-labelledby="notes-title">
   <header>
     <h2 id="notes-title">{t('Scene notes')}</h2>
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
-    <IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? t('Restore editor layout') : t('Use all available space for notes')} aria-pressed={maximized} onclick={onmaximize} />
-    <IconButton icon="down" label={t('Close notes panel')} onclick={onclose} />
+    {#if ondock}<IconButton icon={dock === 'right' ? 'dock-bottom' : 'dock-right'} label={dock === 'right' ? t('Move the notes below the canvas') : t('Move the notes to the right')} onclick={() => ondock(dock === 'right' ? 'bottom' : 'right')} />{/if}
+    {#if dock === 'bottom'}<IconButton icon={maximized ? 'restore' : 'maximize'} label={maximized ? t('Restore editor layout') : t('Use all available space for notes')} aria-pressed={maximized} onclick={onmaximize} />{/if}
+    <IconButton icon={dock === 'right' ? 'close' : 'down'} label={t('Close notes panel')} onclick={onclose} />
   </header>
   <div class="note-editor">
     <textarea class="sv-writing-theme" data-sv-theme="dark"

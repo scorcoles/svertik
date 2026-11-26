@@ -1,6 +1,7 @@
 import { noise2D, rng } from './random';
 import { CLOCK_FIELDS, DEVICE_FIELDS, customNumber, neutralPointer, neutralRuntime, POINTER_FIELDS, sceneDuration, type SceneRuntime, type ScenePointer } from './scene';
 import type { SceneNode, SceneV1 } from './document';
+import { objectValues, readsObjects, sceneNames } from './object-names';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
 export interface NumericExpression {
@@ -24,6 +25,8 @@ export interface ExpressionContext {
   element?: Partial<ElementValues>;
   /** The other numeric values of the object or effect the formula belongs to (`this.name`). */
   self?: Record<string, number>;
+  /** Values of the scene's objects and effects by path (`esfera.x`, `esfera.grid.each.rotation`): `scene.object.*`. */
+  objects?: Record<string, number>;
   /** Numeric values exposed by direct children, keyed by their stable scene IDs. */
   children?: Record<string, Record<string, number>>;
   /** The live pointer (`scene.mouse.*`); the neutral one when absent. */
@@ -198,6 +201,18 @@ function parse(source: string): Expr {
           if (!key || !(CLOCK_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a clock field after scene.clock.: ${CLOCK_FIELDS.join(', ')}.`);
           return { kind: 'variable', name: `scene.clock.${key}` };
         }
+        if (field === 'object') {
+          // scene.object.<object>[.<effect>…].<value>: a path of names, at least the object and one value.
+          const parts: string[] = [];
+          do {
+            expect('.');
+            const part = take();
+            if (!part || !/^[A-Za-z_][A-Za-z_0-9]*$/.test(part)) throw new Error('Use scene.object.<object name>.<value>, e.g. scene.object.sphere.x.');
+            parts.push(part);
+          } while (peek() === '.');
+          if (parts.length < 2) throw new Error('Use scene.object.<object name>.<value>, e.g. scene.object.sphere.x.');
+          return { kind: 'variable', name: `scene.object.${parts.join('.')}` };
+        }
         if (field === 'device') {
           expect('.');
           const key = take();
@@ -299,6 +314,12 @@ function run(tree: Expr, context: ExpressionContext): number {
       return Number.isFinite(value) ? value! : neutralPointer({})[key];
     }
     if (tree.name === 'scene.aspect') return context.height && context.width ? context.width / context.height : 0;
+    if (tree.name.startsWith('scene.object.')) {
+      const path = tree.name.slice('scene.object.'.length);
+      const value = context.objects?.[path];
+      if (!Number.isFinite(value)) throw new Error(`Unknown object value “${path}”.`);
+      return value!;
+    }
     if (tree.name.startsWith('scene.device.')) {
       const key = DEVICE_FIELDS[tree.name.slice('scene.device.'.length) as keyof typeof DEVICE_FIELDS];
       const value = context.runtime?.[key];
@@ -481,7 +502,7 @@ export function describeSceneVariables(values: SceneExpressionValues, pointer?: 
 }
 
 /** Resolve the live values exposed to expressions, without evaluating every object parameter. */
-export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, randomSalt = 0, memory?: ExpressionMemory): SceneExpressionValues {
+export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, randomSalt = 0, memory?: ExpressionMemory, objects?: Record<string, number>): SceneExpressionValues {
   const fps = scene.animation?.fps ?? 30;
   const duration = sceneDuration(scene);
   const context: SceneExpressionValues = {
@@ -498,6 +519,7 @@ export function evaluateSceneVariables(scene: SceneV1, time = scene.at ?? 0, ran
     mouse: { ...neutralPointer(scene), ...scene.pointer },
     runtime: { ...neutralRuntime(scene), ...scene.runtime },
     ...(memory ? { memory } : {}),
+    ...(objects ? { objects } : {}),
     custom: Object.fromEntries(Object.entries(scene.custom ?? {}).flatMap(([key, value]) => {
       const n = customNumber(value);
       return n === null ? [] : [[key, n]];
@@ -578,17 +600,38 @@ function resolveTogether(records: (Record<string, unknown> | undefined)[], ctx: 
   }
 }
 
-/** Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. */
 /** Default parameter values of a shape or effect type, so `this.name` reads values the scene leaves unset. */
 export type ParamDefaults = (owner: 'shape' | 'effect', type: string) => Record<string, unknown> | undefined;
 
-export function evaluateSceneExpressions(scene: SceneV1, options: { randomSalt?: number; memory?: ExpressionMemory; defaults?: ParamDefaults } = {}): SceneV1 {
+type FormulaOptions = { randomSalt?: number; memory?: ExpressionMemory; defaults?: ParamDefaults };
+
+/**
+ * Evaluate scene formulas on a clone so a changing playhead never overwrites the saved expression. Formulas that
+ * read other objects (`scene.object.…`) are resolved in passes: each pass reads the values the previous one left
+ * (the first, the fallbacks), until nothing changes; a cycle settles on what its last pass gave.
+ */
+export function evaluateSceneExpressions(scene: SceneV1, options: FormulaOptions = {}): SceneV1 {
+  if (!sceneHasExpressions(scene) || !readsObjects(scene)) return evaluateOnce(scene, options);
+  const names = sceneNames(scene);
+  let objects: Record<string, number> | undefined;
+  // Passes without the followers' memory (smooth, spring step once per frame: only the last pass, with it).
+  const { memory, ...plain } = options;
+  for (let pass = 0; pass < 6; pass++) {
+    const next = objectValues(evaluateOnce(scene, { ...plain, objects }), names, options.defaults);
+    const settled = objects && Object.keys(next).length === Object.keys(objects).length && Object.entries(next).every(([k, v]) => objects![k] === v);
+    objects = next;
+    if (settled) break;
+  }
+  return evaluateOnce(scene, { ...options, objects });
+}
+
+function evaluateOnce(scene: SceneV1, options: FormulaOptions & { objects?: Record<string, number> }): SceneV1 {
   if (!sceneHasExpressions(scene)) return scene;
   const out = structuredClone(scene) as SceneV1;
   const time = out.at ?? 0;
   const fps = out.animation?.fps ?? 30;
   const duration = sceneDuration(out);
-  const context: ExpressionContext = { ...evaluateSceneVariables(out, time, options.randomSalt ?? 0, options.memory), randomSalt: options.randomSalt ?? 0 };
+  const context: ExpressionContext = { ...evaluateSceneVariables(out, time, options.randomSalt ?? 0, options.memory, options.objects), randomSalt: options.randomSalt ?? 0 };
   const params = (values?: Record<string, unknown>, points = false, ctx: ExpressionContext = context) => {
     if (!values) return;
     const one = (value: NumericExpression) => {

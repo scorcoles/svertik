@@ -6,6 +6,8 @@
   import CopyButton from './CopyButton.svelte';
   import type { Editor } from './editor.svelte';
   import { highlightFormula } from './formula-highlight';
+  import Autocomplete from './Autocomplete.svelte';
+  import { sceneScope } from './console.svelte';
 
   // The formula editor: any ƒx field (a parameter, a variable, a prop, a per-copy value) opened large, to read and
   // write long formulas over several lines. It edits the field it came from, live, and closes when that field goes.
@@ -13,6 +15,13 @@
   let field = $state<HTMLTextAreaElement>();
   let layer = $state<HTMLPreElement>();
   const open = $derived(formulaEditor.current);
+  // Suggestions here: other objects' values, the selection's own (this.), and element.* inside Each.
+  const completionScope = () => {
+    const scene = editor.scene;
+    if (!scene) return { scene: null };
+    const scope = sceneScope(scene, editor.time, editor.selected);
+    return { scene, objects: scope.objects, self: scope.self ? Object.keys(scope.self) : undefined, element: open?.where.some((w) => /^each/i.test(w)) ?? false };
+  };
   // What the field shows, coloured in a layer under it (the field's own text is transparent; its caret is not).
   let shown = $state('');
   const coloured = $derived(open?.template ? null : highlightFormula(shown));
@@ -67,6 +76,7 @@
       <CopyButton label={t('Copy formula')} disabled={!open.value || !oncopy} onclick={() => oncopy?.(open.value, t('Formula'))} />
     </div>
     <aside>
+      <Autocomplete {field} label={open.label} scope={completionScope} />
       {#if error}<p class="error" role="status">{error}</p>{:else}<p class="ok">{t('Valid formula.')}</p>{/if}
       <p>{t('Break lines and indent as you like: spaces and line breaks don’t change the result.')}</p>
       <p>{t('Changes apply as you type. Escape closes and goes back to the field.')}</p>

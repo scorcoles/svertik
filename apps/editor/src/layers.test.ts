@@ -132,3 +132,22 @@ describe('opening a scene without a name', () => {
     expect(e.name).toBe('untitled');
   });
 });
+
+describe('renaming keeps scene.object references', () => {
+  it('rewrites formulas when an object or an effect is renamed, in one undo step', () => {
+    const e = new Editor();
+    const scene = JSON.stringify({ version: 1, objects: [
+      { kind: 'shape', id: 'ball', name: 'Bola Roja', shape: 'ellipse', params: {}, stack: [{ id: 'tw', type: 'twist', params: { angle: 10 } }] },
+      { kind: 'shape', id: 'f', name: 'F', shape: 'ellipse', params: { width: { $expr: 'scene.object.bola_roja.x + scene.object.bola_roja.twist.angle', fallback: 0 } }, stack: [] },
+    ] });
+    expect(e.openProject(scene)).toBe(true);
+    const formula = () => ((e.scene!.objects[1] as { params: Record<string, { $expr: string }> }).params.width!.$expr);
+    e.setNode('ball', 'name', 'Esfera', true);
+    expect(formula()).toBe('scene.object.esfera.x + scene.object.esfera.twist.angle');
+    e.renameModifier('tw', 'Giro');
+    e.flush();
+    expect(formula()).toBe('scene.object.esfera.x + scene.object.esfera.giro.angle');
+    e.undo();
+    expect(formula()).toBe('scene.object.esfera.x + scene.object.esfera.twist.angle');
+  });
+});

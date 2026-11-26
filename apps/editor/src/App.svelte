@@ -26,7 +26,7 @@
   import FormulaPanel from './FormulaPanel.svelte';
   import NotesPanel from './NotesPanel.svelte';
   import FxPanel from './FxPanel.svelte';
-  import DiagnosticsPanel from './DiagnosticsPanel.svelte';
+  import ConsolePanel from './ConsolePanel.svelte';
   import { formatBytes, inspectSvgComplexity, summarizeScene, svgComplexityWarnings, type SvgComplexity } from './debug-report';
   import Toolbar from './Toolbar.svelte';
   import ModifierRail from './ModifierRail.svelte';
@@ -55,6 +55,57 @@
   let panelMaximized = $state(false);
   let maximizedPanel = $state<'code' | 'notes' | 'debug' | 'textFx' | 'formula' | 'fx'>('code');
   let diagnosticsOpen = $state(false);
+  // The console sits below the canvas or as a column on the right (remembered in the browser).
+  let consoleDock = $state<'bottom' | 'right'>(readConsoleDock());
+  let consoleWidth = $state(380);
+  // The side panel (Stack, Document): its width, dragged from its left edge and remembered in the browser.
+  let inspectorWidth = $state(readInspectorWidth());
+  function readInspectorWidth() { try { const w = Number(localStorage.getItem('svertik.inspector.width')); return w >= 260 && w <= 640 ? w : 300; } catch { return 300; } }
+  function setInspectorWidth(w: number) {
+    inspectorWidth = Math.round(Math.max(260, Math.min(640, w)));
+    try { localStorage.setItem('svertik.inspector.width', String(inspectorWidth)); } catch { /* the browser keeps none */ }
+  }
+  function startInspectorResize(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, w0 = inspectorWidth;
+    const move = (ev: PointerEvent) => setInspectorWidth(w0 + x0 - ev.clientX);
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  }
+  function readConsoleDock(): 'bottom' | 'right' { try { return localStorage.getItem('svertik.console.dock') === 'right' ? 'right' : 'bottom'; } catch { return 'bottom'; } }
+  function setConsoleDock(dock: 'bottom' | 'right') {
+    consoleDock = dock;
+    panelMaximized = false;
+    try { localStorage.setItem('svertik.console.dock', dock); } catch { /* the browser keeps none */ }
+  }
+  const consoleRight = $derived(diagnosticsOpen && consoleDock === 'right');
+  // The notes can live in the same right-hand column (one above the other when both are there).
+  let notesDock = $state<'bottom' | 'right'>(readNotesDock());
+  function readNotesDock(): 'bottom' | 'right' { try { return localStorage.getItem('svertik.notes.dock') === 'right' ? 'right' : 'bottom'; } catch { return 'bottom'; } }
+  function setNotesDock(dock: 'bottom' | 'right') {
+    notesDock = dock;
+    panelMaximized = false;
+    try { localStorage.setItem('svertik.notes.dock', dock); } catch { /* the browser keeps none */ }
+  }
+  const notesRight = $derived(editor.notesOpen && !!editor.scene && notesDock === 'right');
+  const sideOpen = $derived(consoleRight || notesRight);
+  function startConsoleResize(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, w0 = consoleWidth;
+    const move = (ev: PointerEvent) => { consoleWidth = Math.max(260, Math.min(window.innerWidth * 0.6, w0 + x0 - ev.clientX)); };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  }
   type DiagnosticEntry = { id: number; level: 'error' | 'warning'; source: string; message: string; time: number; stack?: string };
   type ActivityEntry = { time: number; action: string; detail?: string };
   let diagnostics = $state<DiagnosticEntry[]>([]);
@@ -164,7 +215,8 @@
   function toggleDiagnostics() {
     if (diagnosticsOpen && profile.running) stopPerformanceProfile();
     diagnosticsOpen = !diagnosticsOpen;
-    if (diagnosticsOpen) {
+    // Below the canvas it takes the place of the other bottom panels; on the right it lives beside them.
+    if (diagnosticsOpen && consoleDock === 'bottom') {
       editor.notesOpen = false;
       editor.codeOpen = false;
       editor.timelineOpen = false;
@@ -694,6 +746,31 @@
 
 <svelte:window onkeydown={keydown} onpaste={paste} oncopy={(e) => copySelection(e)} oncut={(e) => copySelection(e, true)} />
 
+{#snippet notesPanel()}
+  <NotesPanel {editor} dock={notesDock} ondock={setNotesDock} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('notes')} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />
+{/snippet}
+
+{#snippet consolePanel()}
+  <ConsolePanel
+    {editor}
+    dock={consoleDock}
+    ondock={setConsoleDock}
+    entries={diagnostics}
+        {sceneSummary}
+        {latestSvg}
+        {activities}
+        {profile}
+        maximized={panelMaximized}
+        onmaximize={() => togglePanelMaximized('debug')}
+        onclose={() => { if (profile.running) stopPerformanceProfile(); diagnosticsOpen = false; panelMaximized = false; }}
+        onclear={() => { diagnostics = []; if (!profile.running) profile = { ...profile, samples: [] }; }}
+        oncopy={copy}
+        report={() => JSON.stringify(makeDebugReport(), null, 2)}
+        onbundle={downloadDebugBundle}
+        onprofile={runPerformanceProfile}
+      />
+{/snippet}
+
 {#snippet panelResizeHandle(panel: string, label: string)}
   <button class="resize" type="button" aria-label={t('Resize {panel} panel', { panel: label })} title={t('Resize {panel}: drag or use Up/Down arrows', { panel: label })} onpointerdown={(e) => startPanelResize(e, panel)} onkeydown={(e) => resizePanelKey(e, panel)}></button>
 {/snippet}
@@ -719,7 +796,7 @@
     })}
     onnew={() => guard(() => { projectHandle = null; editor.returnToStart(); })}
   />
-  <main class:panel-maximized={panelMaximized}>
+  <main class:panel-maximized={panelMaximized} class:console-right={sideOpen} style:--console-width={`${consoleWidth}px`} style:--inspector-width={`${inspectorWidth}px`}>
     {#if !panelMaximized}<ModifierRail {editor} {placeAtCenter} />{/if}
     <div
       class="left"
@@ -729,8 +806,8 @@
           ...(editor.textFxNode && editor.scene && locateNode(editor.scene.objects, editor.textFxNode)?.node.kind === 'shape' && (locateNode(editor.scene.objects, editor.textFxNode)?.node as { shape?: string })?.shape === 'text' ? ['6px', `${panelHeights.textFx ?? 220}px`] : []),
           ...(formulaEditor.current && editor.scene ? ['6px', `${panelHeights.formula ?? 200}px`] : []),
           ...(editor.fxOpen && editor.scene ? ['6px', panelHeights.fx ? `${panelHeights.fx}px` : 'minmax(140px, 32%)'] : []),
-          ...(editor.notesOpen && editor.scene ? ['6px', panelHeights.notes ? `${panelHeights.notes}px` : 'minmax(120px, 25%)'] : []),
-          ...(diagnosticsOpen ? ['6px', panelHeights.debug ? `${panelHeights.debug}px` : profile.running || profile.samples.length ? 'minmax(180px, 34%)' : 'minmax(100px, 22%)'] : []),
+          ...(editor.notesOpen && editor.scene && notesDock === 'bottom' ? ['6px', panelHeights.notes ? `${panelHeights.notes}px` : 'minmax(120px, 25%)'] : []),
+          ...(diagnosticsOpen && consoleDock === 'bottom' ? ['6px', panelHeights.debug ? `${panelHeights.debug}px` : profile.running || profile.samples.length ? 'minmax(180px, 34%)' : 'minmax(100px, 22%)'] : []),
           ...(editor.codeOpen && editor.scene ? ['6px', `${panelHeights.code}px`] : []),
           ...(editor.timelineOpen && editor.scene ? ['6px', panelHeights.timeline ? `${panelHeights.timeline}px` : 'minmax(120px, 30%)'] : []),
         ].join(' ')}
@@ -749,24 +826,10 @@
       {/if}
       {#if !panelMaximized && editor.fxOpen && editor.scene}{@render panelResizeHandle('fx', 'ƒx reference')}{/if}
       {#if editor.fxOpen && editor.scene && (!panelMaximized || maximizedPanel === 'fx')}<FxPanel {editor} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('fx')} onclose={() => { editor.fxOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
-      {#if !panelMaximized && editor.notesOpen && editor.scene}{@render panelResizeHandle('notes', t('Notes'))}{/if}
-      {#if editor.notesOpen && editor.scene && (!panelMaximized || maximizedPanel === 'notes')}<NotesPanel {editor} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('notes')} onclose={() => { editor.notesOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}
-      {#if !panelMaximized && diagnosticsOpen}{@render panelResizeHandle('debug', t('Debug'))}{/if}
-      {#if diagnosticsOpen && (!panelMaximized || maximizedPanel === 'debug')}<DiagnosticsPanel
-        entries={diagnostics}
-        {sceneSummary}
-        {latestSvg}
-        {activities}
-        {profile}
-        maximized={panelMaximized}
-        onmaximize={() => togglePanelMaximized('debug')}
-        onclose={() => { if (profile.running) stopPerformanceProfile(); diagnosticsOpen = false; panelMaximized = false; }}
-        onclear={() => (diagnostics = [])}
-        oncopy={copy}
-        report={() => JSON.stringify(makeDebugReport(), null, 2)}
-        onbundle={downloadDebugBundle}
-        onprofile={runPerformanceProfile}
-      />{/if}
+      {#if !panelMaximized && editor.notesOpen && editor.scene && notesDock === 'bottom'}{@render panelResizeHandle('notes', t('Notes'))}{/if}
+      {#if editor.notesOpen && editor.scene && notesDock === 'bottom' && (!panelMaximized || maximizedPanel === 'notes')}{@render notesPanel()}{/if}
+      {#if !panelMaximized && diagnosticsOpen && consoleDock === 'bottom'}{@render panelResizeHandle('debug', t('Console'))}{/if}
+      {#if diagnosticsOpen && consoleDock === 'bottom' && (!panelMaximized || maximizedPanel === 'debug')}{@render consolePanel()}{/if}
       {#if editor.codeOpen && editor.scene && CodePanelComp && (!panelMaximized || maximizedPanel === 'code')}
         {#if !panelMaximized}
           {@render panelResizeHandle('code', t('Code'))}
@@ -775,14 +838,24 @@
       {/if}
       {#if !panelMaximized && editor.timelineOpen && editor.scene}{@render panelResizeHandle('timeline', t('Timeline'))}<Timeline {editor} />{/if}
     </div>
+    {#if sideOpen && !panelMaximized}
+      <button class="resize-x" type="button" aria-label={t('Resize the console')} onpointerdown={startConsoleResize}></button>
+      <aside class="console-dock">
+        {#if notesRight}{@render notesPanel()}{/if}
+        {#if consoleRight}{@render consolePanel()}{/if}
+      </aside>
+    {/if}
     {#if !panelMaximized}<aside class="inspector">
+      <button class="resize-inspector" type="button" aria-label={t('Resize the side panel')} title={t('Drag to resize; double-click for the usual width')} onpointerdown={startInspectorResize} ondblclick={() => setInspectorWidth(300)}></button>
       <InspectorPanel {editor} bind:active={inspectorTab} onreplace={() => replaceInput.click()} />
     </aside>{/if}
   </main>
   {#snippet diagnosticsToggle()}
-    <span class="diagnostics-toggle" data-warning={warningCount > 0 || undefined}>
-      <IconButton icon="bug" label={`${diagnosticsOpen ? t('Close debug output') : t('Open debug output')}${diagnostics.length ? ` (${diagnostics.length})` : ''}${warningCount ? ` · ${warningCount === 1 ? t('1 warning') : t('{count} warnings', { count: warningCount })}` : ''}`} active={diagnosticsOpen} aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics} />
-    </span>
+    <!-- A panel like the others; errors and warnings waiting in it show as a count. -->
+    <button type="button" class="console-toggle" aria-pressed={diagnosticsOpen} onclick={toggleDiagnostics}
+      title={`${diagnosticsOpen ? t('Close the console') : t('Open the console')}${warningCount ? ` · ${warningCount === 1 ? t('1 warning') : t('{count} warnings', { count: warningCount })}` : ''}`}>
+      {t('Console')}{#if diagnostics.length}<span class="badge" data-errors={diagnostics.length > warningCount || undefined}>{diagnostics.length}</span>{/if} {diagnosticsOpen ? '▾' : '▴'}
+    </button>
   {/snippet}
   <footer class="status" class:no-inspector={panelMaximized}>
     {#if !editor.commandInEffectsSlot}<CommandLine {editor} />{/if}
@@ -861,12 +934,19 @@
   .app { display: grid; grid-template-rows: auto 1fr auto; height: 100dvh; }
   main {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 300px;
+    grid-template-columns: auto minmax(0, 1fr) var(--inspector-width, 300px);
     grid-template-areas: 'rail left inspector';
     min-height: 0;
   }
   .left { grid-area: left; display: grid; min-height: 0; min-width: 0; }
   main.panel-maximized { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left'; }
+  main.console-right { grid-template-columns: auto minmax(0, 1fr) 6px var(--console-width, 380px) var(--inspector-width, 300px); grid-template-areas: 'rail left resize console inspector'; }
+  .resize-x { grid-area: resize; padding: 0; cursor: ew-resize; touch-action: none; background: var(--sv-surface-panel); border: 0; border-left: var(--sv-border-1) solid var(--sv-rule-default); }
+  .resize-x:hover { background: var(--sv-accent-selection); }
+  .console-dock { grid-area: console; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  /* min-width 0: each panel takes the column's width, and long text wraps inside it instead of widening it. */
+  .console-dock > :global(*) { flex: 1 1 0; min-width: 0; min-height: 0; }
+  .console-dock > :global(* + *) { border-top: var(--sv-border-1) solid var(--sv-rule-default); }
   .left.maximized { grid-template-rows: minmax(0, 1fr); }
   .resize {
     cursor: ns-resize;
@@ -878,7 +958,10 @@
   }
   .resize:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: -1px; }
   .resize:hover { background: var(--sv-accent-selection); }
+  .resize-inspector { position: absolute; top: 0; bottom: 0; left: -3px; z-index: 5; width: 6px; padding: 0; cursor: ew-resize; touch-action: none; background: none; border: 0; }
+  .resize-inspector:hover, .resize-inspector:active { background: var(--sv-accent-selection); }
   .inspector {
+    position: relative;
     grid-area: inspector;
     display: flex;
     flex-direction: column;
@@ -920,11 +1003,8 @@
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-text); border-color: var(--sv-accent-fill); }
   :global([data-sv-theme='light']) .status-actions button[aria-pressed='true'] { color: #000; background: var(--sv-accent-fill); border-color: #256f60; }
   .status-meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
-  .diagnostics-toggle { display: flex; align-items: center; }
-  .diagnostics-toggle :global(.sv-icon-button) { width: 20px; height: 20px; color: var(--sv-text-muted); }
-  .diagnostics-toggle :global(.sv-icon) { width: 13px; height: 13px; }
-  .diagnostics-toggle :global(.sv-icon-button:hover) { color: var(--sv-text-primary); }
-  .diagnostics-toggle[data-warning] :global(.sv-icon-button) { color: var(--sv-signal-warning); }
+  .console-toggle .badge { margin-left: 4px; color: var(--sv-signal-warning); font-variant-numeric: tabular-nums; }
+  .console-toggle .badge[data-errors] { color: var(--sv-signal-error); }
   .video-export {
     position: fixed;
     z-index: 110;
@@ -966,6 +1046,7 @@
       grid-template-areas: 'rail left' 'rail inspector';
     }
     .inspector { border-left: 0; border-top: var(--sv-border-1) solid var(--sv-rule-default); max-height: 55dvh; }
+    .resize-inspector { display: none; }
     main.panel-maximized { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: 'left'; }
   }
 </style>

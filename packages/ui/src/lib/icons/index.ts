@@ -26,6 +26,11 @@ export const icons = {
   'expand-all': 'M4.5 6l3.5-3.5L11.5 6 M4.5 10l3.5 3.5 3.5-3.5',
   'collapse-all': 'M4.5 2.5l3.5 3.5 3.5-3.5 M4.5 13.5l3.5-3.5 3.5 3.5',
   maximize: 'M6 2.5H2.5V6 M10 2.5h3.5V6 M2.5 10v3.5H6 M13.5 10v3.5H10',
+  copy: 'M5.5 5.5h7v8h-7z M3.5 10.5v-8h7',
+  pin: 'M5.5 2.5h5 M6.5 2.5v4L4 9h8L9.5 6.5v-4 M8 9v4.5',
+  'dock-right': 'M2.5 3.5h11v9h-11z M9.5 3.5v9',
+  'dock-bottom': 'M2.5 3.5h11v9h-11z M2.5 9.5h11',
+  console: 'M2.5 3.5h11v9h-11z M5 6.5 7 8 5 9.5 M8.5 10h2.5',
   restore: 'M6 2.5v3.5H2.5 M10 2.5v3.5h3.5 M2.5 10H6v3.5 M13.5 10H10v3.5',
   minus: 'M3.5 8h9',
   // Fit to width: arrows on both sides.

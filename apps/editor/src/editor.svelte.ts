@@ -65,6 +65,9 @@ import {
   PALETTES,
   type Palette,
   type ParamSchema,
+  renameReferences,
+  sceneNames,
+  type SceneNames,
 } from '@svertik/engine';
 import { DEFAULT_SCRIPT } from './code';
 import { compactJSON } from './exporters';
@@ -3025,6 +3028,15 @@ export class Editor {
     this.record();
   }
 
+  /** Sets a value of any effect (not only the selected one): the console's set(). Animated values get a key. */
+  setModifierParam(id: string, name: string, value: unknown) {
+    const at = this.scene ? locateModifier(this.scene, id) : null;
+    if (!at || this.isLocked(at.owner.id)) return;
+    at.inst.params = { ...at.inst.params, [name]: value };
+    this.#parameterChanged({ node: at.owner.id, on: 'modifier', modifier: id, param: name }, value);
+    this.record();
+  }
+
   /** Replaces all the values of a modifier with free parameters (Each › Shape: the shape's parameter names). */
   setFreeParams(id: string, params: Record<string, unknown>) {
     if (this.activeNode && this.isLocked(this.activeNode.id)) return;
@@ -3133,7 +3145,22 @@ export class Editor {
     if (list && list.some((x) => !alive({ node: x.node }) || !alive(x.target))) scene.interactions = list.filter((x) => alive({ node: x.node }) && alive(x.target));
   }
 
+  /** The system names at the last recorded change, to keep `scene.object.…` references when they change. */
+  #names: { scene: SceneV1; names: SceneNames } | null = null;
+  /**
+   * An object or effect renamed (or a repeated name whose `_2` moved after a delete or a reorder): formulas that read
+   * it through `scene.object.<name>` are rewritten to its new name, in the same history step.
+   */
+  #keepReferences() {
+    const scene = this.scene;
+    if (!scene) { this.#names = null; return; }
+    const names = sceneNames(scene);
+    if (this.#names?.scene === scene) renameReferences(scene, this.#names.names, names);
+    this.#names = { scene, names };
+  }
+
   record(now = false) {
+    this.#keepReferences();
     clearTimeout(this.#timer);
     const push = () => {
       this.#pending = false;

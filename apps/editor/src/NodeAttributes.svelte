@@ -468,7 +468,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
     </Section>
   {/if}
   {#if node.kind !== 'group' || !node.layer}
-    <Section title={t('Values for formulas')} open={false}>
+    <div class="formula-values"><Section title={t('Values for formulas')} open={false}>
       {#snippet action()}{#if editor.showInfo}<InfoTip text={t('A formula of this object reads these as this.name, e.g. this.radius - 50. Click one to copy it.')} />{/if}{/snippet}
       <div class="this-list"><ThisValues
         schema={shapeDef?.params ?? {}}
@@ -481,7 +481,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
           ...(node.opacity === undefined ? [] : [{ name: 'opacity', label: t('Opacity'), value: node.opacity }]),
         ]}
         oncopied={(message) => (editor.notice = message)} /></div>
-    </Section>
+    </Section></div>
   {/if}
   {#if isText && node.kind === 'shape' && textUpdate.length}
     <Section title={t('Text playback')}>
@@ -513,6 +513,8 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
+  /* Clear of the action buttons above it. */
+  .formula-values { margin-top: var(--sv-space-12); }
   .this-list { padding: 0 var(--sv-space-8) var(--sv-space-8); }
   .props-list { padding: 0 var(--sv-space-8) var(--sv-space-4) 100px; }
   .prop-row { display: flex; justify-content: space-between; gap: var(--sv-space-8); padding: 2px 0; color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
