@@ -2,6 +2,17 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.24
+
+### Added
+
+- `scene.device.tiltX`, `scene.device.tiltY` and `scene.device.active` in formulas: how a phone or tablet is tilted in Play (−1…1 from how it was held, following the screen's orientation), and whether a motion sensor is feeding them. iOS asks for permission on the first tap. The ƒx reference lists them under Device. Example: a grid of eyes that look where you tip the phone, the mouse on a computer.
+
+### Changed
+
+- A scene opened from a file without a name takes the file's name (without .json) instead of "untitled".
+- Projects are .json files only: the old .svrtk extension is no longer offered or recognised by the editor and the CLI (the soft body sample is now `demos/softbody-material.json`).
+
 ## 0.0.23
 
 ### Changed

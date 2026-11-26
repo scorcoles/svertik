@@ -79,7 +79,7 @@
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
-<input bind:this={compositionFile} type="file" accept=".json,application/json,.svrtk" hidden onchange={async (e) => {
+<input bind:this={compositionFile} type="file" accept=".json,application/json" hidden onchange={async (e) => {
   const file = e.currentTarget.files?.[0];
   if (file) editor.importComposition(await file.text(), file.name);
   e.currentTarget.value = '';

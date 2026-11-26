@@ -30,6 +30,7 @@
     { title: t('Scene'), rows: reference.variables.filter((v) => !v.key.includes('.')).map(variable) },
     { title: t('Mouse'), note: t('Live only in Play'), rows: reference.variables.filter((v) => v.key.startsWith('mouse.')).map(variable) },
     { title: t('Clock'), note: t('0 in renders'), rows: reference.variables.filter((v) => v.key.startsWith('clock.')).map(variable) },
+    { title: t('Device'), note: t('Phone tilt, in Play'), rows: reference.variables.filter((v) => v.key.startsWith('device.')).map(variable) },
     {
       title: t('Custom'),
       note: 'Document → Variables',

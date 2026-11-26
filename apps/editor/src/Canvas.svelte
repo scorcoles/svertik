@@ -1541,7 +1541,7 @@
     e.preventDefault();
     dropping = false;
     // Several files at once: one object for each.
-    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg|json|image\/(png|webp|jpeg)/i.test(file.type) || /\.(svg|png|webp|jpe?g|svrtk|json)$/i.test(file.name)) onfile(file);
+    for (const file of Array.from(e.dataTransfer?.files ?? [])) if (/svg|json|image\/(png|webp|jpeg)/i.test(file.type) || /\.(svg|png|webp|jpe?g|json)$/i.test(file.name)) onfile(file);
   }
 </script>
 

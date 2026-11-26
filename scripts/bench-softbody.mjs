@@ -6,7 +6,7 @@ const require = createRequire(new URL('../packages/cli/package.json', import.met
 const { register } = await import(require.resolve('tsx/esm/api').replace('.cjs', '.mjs'));
 register();
 const { builtins, createEngine, validateScene } = await import('../packages/engine/src/index.ts');
-const scene = JSON.parse(readFileSync(new URL('../apps/editor/public/demos/softbody-material.svrtk', import.meta.url), 'utf8'));
+const scene = JSON.parse(readFileSync(new URL('../apps/editor/public/demos/softbody-material.json', import.meta.url), 'utf8'));
 const report = validateScene(scene);
 if (report.errors.length || report.warnings.length) throw Error(JSON.stringify(report));
 const engine = createEngine(builtins), samples = [];

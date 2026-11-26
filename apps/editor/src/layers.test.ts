@@ -116,3 +116,19 @@ describe('opening a scene with layers', () => {
     expect(e.showLayers).toBe(false);
   });
 });
+
+describe('opening a scene without a name', () => {
+  const bare = JSON.stringify({ version: 1, objects: [] });
+  it('takes the file name, without its extension', () => {
+    const e = new Editor();
+    expect(e.openProject(bare, 'eyes_003.json')).toBe(true);
+    expect(e.name).toBe('eyes_003');
+  });
+  it('keeps the project name when it has one, and is untitled without either', () => {
+    const e = new Editor();
+    e.openProject(JSON.stringify({ svertik: 'project', version: 1, name: 'Ojos', scene: { version: 1, objects: [] } }), 'eyes.json');
+    expect(e.name).toBe('Ojos');
+    e.openProject(bare);
+    expect(e.name).toBe('untitled');
+  });
+});

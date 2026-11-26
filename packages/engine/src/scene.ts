@@ -309,9 +309,17 @@ export interface SceneRuntime {
   pixelRatio: number;
   /** The real clock, local time (renders and exports see 0: they are not about when they run). */
   hour: number; minute: number; second: number;
+  /**
+   * How the phone or tablet is tilted, −1…1 on each axis (`scene.device.tiltX`: right is positive; `tiltY`: the
+   * top edge tipped away from the viewer is negative, towards them positive), from the position it was held in when
+   * the sensor started; `deviceActive` is 1 while a motion sensor feeds them. 0 on a computer, in renders and exports.
+   */
+  tiltX: number; tiltY: number; deviceActive: number;
 }
 export const CLOCK_FIELDS = ['hour', 'minute', 'second'] as const;
-export const neutralRuntime = (scene: Pick<SceneV1, 'animation'>): SceneRuntime => ({ dt: 1 / (scene.animation?.fps || 30), scroll: 0, pixelRatio: 1, hour: 0, minute: 0, second: 0 });
+/** `scene.device.*`, by the name formulas use, and the runtime value each reads. */
+export const DEVICE_FIELDS = { tiltX: 'tiltX', tiltY: 'tiltY', active: 'deviceActive' } as const;
+export const neutralRuntime = (scene: Pick<SceneV1, 'animation'>): SceneRuntime => ({ dt: 1 / (scene.animation?.fps || 30), scroll: 0, pixelRatio: 1, hour: 0, minute: 0, second: 0, tiltX: 0, tiltY: 0, deviceActive: 0 });
 
 /** The scene (what is saved and exported). */
 export type Scene = SceneV1;

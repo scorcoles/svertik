@@ -3274,7 +3274,8 @@ export class Editor {
   }
 
   /** Opens a saved project. Returns false if the text is not a svertik project. */
-  openProject(text: string): boolean {
+  /** `fileName`: the file it came from; a scene saved without a name takes it (without .json). */
+  openProject(text: string, fileName?: string): boolean {
     let data: { svertik?: string; name?: string; canvas?: string; script?: string; embedSources?: boolean; scene?: unknown };
     try {
       data = JSON.parse(text);
@@ -3301,7 +3302,7 @@ export class Editor {
       const def = node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
       if (node.kind === 'shape' && def) node.params = { ...resolveParams(def.params), ...node.params };
     }
-    this.name = data.name ?? 'untitled';
+    this.name = data.name || fileName?.replace(/^.*[\\/]/, '').replace(/\.json$/i, '') || 'untitled';
     if (data.canvas) this.canvas = data.canvas;
     this.script = data.script ?? DEFAULT_SCRIPT;
     this.missingSvgs = missingSources(this.scene);

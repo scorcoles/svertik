@@ -1,5 +1,5 @@
 import { noise2D, rng } from './random';
-import { CLOCK_FIELDS, customNumber, neutralPointer, neutralRuntime, POINTER_FIELDS, sceneDuration, type SceneRuntime, type ScenePointer } from './scene';
+import { CLOCK_FIELDS, DEVICE_FIELDS, customNumber, neutralPointer, neutralRuntime, POINTER_FIELDS, sceneDuration, type SceneRuntime, type ScenePointer } from './scene';
 import type { SceneNode, SceneV1 } from './document';
 
 /** Numeric parameter stored as a formula, with its last plain value as a safe fallback. */
@@ -198,13 +198,19 @@ function parse(source: string): Expr {
           if (!key || !(CLOCK_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a clock field after scene.clock.: ${CLOCK_FIELDS.join(', ')}.`);
           return { kind: 'variable', name: `scene.clock.${key}` };
         }
+        if (field === 'device') {
+          expect('.');
+          const key = take();
+          if (!key || !Object.hasOwn(DEVICE_FIELDS, key)) throw new Error(`Use a device field after scene.device.: ${Object.keys(DEVICE_FIELDS).join(', ')}.`);
+          return { kind: 'variable', name: `scene.device.${key}` };
+        }
         if (field === 'mouse') {
           expect('.');
           const key = take();
           if (!key || !(POINTER_FIELDS as readonly string[]).includes(key)) throw new Error(`Use a pointer field after scene.mouse.: ${POINTER_FIELDS.join(', ')}.`);
           return { kind: 'variable', name: `scene.mouse.${key}` };
         }
-        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, width, height, aspect, dt, scroll, pixelRatio, clock.hour, mouse.posX, or custom.name.');
+        if (!(field && field in SCENE_VARIABLES)) throw new Error('Use a supported scene variable: time, cycle, frame, fps, duration, progress, seedGenerator, width, height, aspect, dt, scroll, pixelRatio, clock.hour, device.tiltX, mouse.posX, or custom.name.');
         return { kind: 'variable', name: SCENE_VARIABLES[field as keyof typeof SCENE_VARIABLES] };
       }
       if (token === 'pi' || token === 'e') return { kind: 'variable', name: token };
@@ -293,6 +299,11 @@ function run(tree: Expr, context: ExpressionContext): number {
       return Number.isFinite(value) ? value! : neutralPointer({})[key];
     }
     if (tree.name === 'scene.aspect') return context.height && context.width ? context.width / context.height : 0;
+    if (tree.name.startsWith('scene.device.')) {
+      const key = DEVICE_FIELDS[tree.name.slice('scene.device.'.length) as keyof typeof DEVICE_FIELDS];
+      const value = context.runtime?.[key];
+      return Number.isFinite(value) ? value! : 0;
+    }
     if (tree.name === 'scene.dt' || tree.name === 'scene.scroll' || tree.name === 'scene.pixelRatio' || tree.name.startsWith('scene.clock.')) {
       const key = (tree.name.startsWith('scene.clock.') ? tree.name.slice('scene.clock.'.length) : tree.name.slice('scene.'.length)) as keyof SceneRuntime;
       const value = context.runtime?.[key];
@@ -464,6 +475,7 @@ export function describeSceneVariables(values: SceneExpressionValues, pointer?: 
   const read = (name: string): number => { const v = run({ kind: 'variable', name }, ctx); return Number.isFinite(v) ? v : 0; };
   for (const key of Object.keys(SCENE_VARIABLES)) out[key] = read(SCENE_VARIABLES[key as keyof typeof SCENE_VARIABLES]);
   for (const key of CLOCK_FIELDS) out[`clock.${key}`] = read(`scene.clock.${key}`);
+  for (const key of Object.keys(DEVICE_FIELDS)) out[`device.${key}`] = read(`scene.device.${key}`);
   for (const key of POINTER_FIELDS) out[`mouse.${key}`] = read(`scene.mouse.${key}`);
   return out;
 }
@@ -720,6 +732,9 @@ const VARIABLE_ABOUT: Record<string, string> = {
   'clock.hour': 'Real local hour (0 in renders and exports)',
   'clock.minute': 'Real local minute (0 in renders and exports)',
   'clock.second': 'Real local second, with fractions (0 in renders and exports)',
+  'device.tiltX': 'Phone tilt left (−1) to right (1), from how it was held; in Play on phones and tablets',
+  'device.tiltY': 'Phone tilt, top edge away (−1) to towards you (1), from how it was held',
+  'device.active': '1 while a motion sensor feeds the tilt (0 on a computer and in renders)',
   'mouse.posX': 'Pointer X in scene px',
   'mouse.posY': 'Pointer Y in scene px',
   'mouse.fracX': 'Pointer X across the document, from 0 to 1',

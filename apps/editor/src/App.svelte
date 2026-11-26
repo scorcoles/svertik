@@ -305,10 +305,10 @@
       return;
     }
     const text = await file.text();
-    // A project (JSON, or a bare scene's JSON; .svrtk too): it opens whole. Otherwise it is an SVG to add.
-    if (/\.(svrtk|json)$/i.test(file.name) || /^\s*\{/.test(text)) {
+    // A project (JSON, or a bare scene's JSON): it opens whole. Otherwise it is an SVG to add.
+    if (/\.json$/i.test(file.name) || /^\s*\{/.test(text)) {
       guard(() => {
-        if (editor.openProject(text)) {
+        if (editor.openProject(text, file.name)) {
           projectHandle = null;
           missingDismissed = false;
           recordActivity('Opened project');
@@ -341,7 +341,7 @@
       if (saved !== 'downloaded') {
         projectHandle = saved;
         // The name chosen in the picker becomes the project's name.
-        const picked = saved.name.replace(/\.(svrtk|json)$/i, '');
+        const picked = saved.name.replace(/\.json$/i, '');
         if (picked && picked !== editor.name) {
           editor.name = picked;
           // The name is part of the file: write it again with the new one.
@@ -816,7 +816,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    accept=".svg,image/svg+xml,.png,image/png,.webp,image/webp,.jpg,.jpeg,image/jpeg,.json,application/json,.svrtk"
+    accept=".svg,image/svg+xml,.png,image/png,.webp,image/webp,.jpg,.jpeg,image/jpeg,.json,application/json"
     multiple
     hidden
     onchange={async (e) => {

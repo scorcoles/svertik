@@ -97,6 +97,8 @@ export const ES: Record<string, string> = {
   'Copy {reference}': 'Copiar {reference}',
   'Copied {reference}': '{reference} copiado',
   'Values for formulas': 'Valores para fórmulas',
+  Device: 'Dispositivo',
+  'Phone tilt, in Play': 'Inclinación del móvil, en Play',
   'A formula of this object reads these as this.name, e.g. this.radius - 50. Click one to copy it.': 'Una fórmula de este objeto los lee como this.nombre, p. ej. this.radius - 50. Pulsa uno para copiarlo.',
   'Reset': 'Restablecer',
   'Remove': 'Quitar',

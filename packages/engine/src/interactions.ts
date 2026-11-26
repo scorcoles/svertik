@@ -342,7 +342,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   const usesClickMs = /scene\.mouse\.clickMs/.test(sceneText);
   // `scene.dt`, `scene.scroll`, `scene.pixelRatio`, `scene.clock.*`: supplied by the player each frame it is used.
   const usesClock = /scene\.clock\./.test(sceneText), usesScroll = /scene\.scroll/.test(sceneText);
-  const usesRuntime = /scene\.(dt|scroll|pixelRatio|clock\.)/.test(sceneText);
+  const usesRuntime = /scene\.(dt|scroll|pixelRatio|clock\.|device\.)/.test(sceneText);
+  const usesDevice = /scene\.device\./.test(sceneText);
   const wantsRuntime = () => usesRuntime || hostWants();
   const runtimeNow: SceneRuntime = neutralRuntime(scene);
   let clickAt = 0;
@@ -584,6 +585,38 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     if (wantsPointer()) { pointerDirty = true; wake(); }
   };
   const scrolled = () => { if (usesScroll || hostWants()) { pointerDirty = true; wake(); } };
+  // `scene.device.*`: the phone's tilt, from the position it was held in when the sensor started (and again
+  // after the screen turns). The axes follow the screen, so tilting right is right in portrait and landscape.
+  let tiltRest: [number, number] | null = null;
+  const screenAngle = () => (typeof screen !== 'undefined' && screen.orientation ? screen.orientation.angle : Number((globalThis as { orientation?: number }).orientation) || 0);
+  const oriented = (e: DeviceOrientationEvent) => {
+    if (e.beta === null || e.gamma === null || !Number.isFinite(e.beta) || !Number.isFinite(e.gamma)) return;
+    const a = ((screenAngle() % 360) + 360) % 360;
+    const [x, y] = a === 90 ? [e.beta, -e.gamma] : a === 180 ? [-e.gamma, -e.beta] : a === 270 ? [-e.beta, e.gamma] : [e.gamma, e.beta];
+    tiltRest ??= [x, y];
+    const unit = (v: number) => Math.max(-1, Math.min(1, v / 30));
+    runtimeNow.tiltX = unit(x - tiltRest[0]);
+    runtimeNow.tiltY = unit(y - tiltRest[1]);
+    runtimeNow.deviceActive = 1;
+    pointerDirty = true;
+    wake();
+  };
+  const turned = () => { tiltRest = null; };
+  let listeningTilt = false;
+  const listenTilt = () => {
+    if (listeningTilt || typeof window === 'undefined') return;
+    listeningTilt = true;
+    window.addEventListener('deviceorientation', oriented);
+    window.addEventListener('orientationchange', turned);
+  };
+  // iOS asks for permission, and only from a tap: the first one on the drawing asks.
+  type Permission = { requestPermission?: () => Promise<string> };
+  const askTilt = () => {
+    const ask = (globalThis as { DeviceOrientationEvent?: Permission }).DeviceOrientationEvent?.requestPermission;
+    svg.removeEventListener('click', askTilt);
+    if (!ask) return;
+    ask().then((answer) => { if (answer === 'granted') listenTilt(); }, () => {});
+  };
   const emit = (kind: MouseEventKind, e: MouseEvent) => {
     const m = svg.getScreenCTM?.();
     if (!m) return false;
@@ -773,6 +806,10 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     svg.addEventListener('wheel', mouseWheel, { passive: false });
   }
   if (typeof window !== 'undefined' && (usesScroll || options.pointer)) window.addEventListener('scroll', scrolled, { passive: true });
+  if (usesDevice && typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+    if (typeof (window.DeviceOrientationEvent as unknown as Permission).requestPermission === 'function') svg.addEventListener('click', askTilt);
+    else listenTilt();
+  }
   if (usesPointer || options.pointer) {
     svg.addEventListener('pointermove', trackPointer);
     svg.addEventListener('pointerdown', trackPointer);
@@ -863,7 +900,12 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       svg.removeEventListener('pointerleave', leavePointer);
       svg.removeEventListener('click', countClick);
       svg.removeEventListener('wheel', countWheel);
-      if (typeof window !== 'undefined') window.removeEventListener('scroll', scrolled);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('scroll', scrolled);
+        window.removeEventListener('deviceorientation', oriented);
+        window.removeEventListener('orientationchange', turned);
+      }
+      svg.removeEventListener('click', askTilt);
       svg.removeEventListener('pointerdown', notePointer);
       if (pokesOn || sweepOn) svg.style.touchAction = touchAction;
       svg.removeEventListener('pointermove', sweepMove);

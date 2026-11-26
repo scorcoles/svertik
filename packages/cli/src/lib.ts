@@ -61,7 +61,7 @@ export interface Loaded {
  * keeps outside (`href`) are read next to the file.
  */
 export function loadInput(text: string, fileName: string): Loaded {
-  const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(svrtk|json|svg)$/i, '');
+  const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(json|svg)$/i, '');
   if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
     return { scene: { version: 1, objects: [{ kind: 'object', id: 'object-1', name: `${base}.svg`, source: text, stack: [] }] }, name: base };
   }
