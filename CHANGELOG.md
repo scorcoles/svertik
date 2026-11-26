@@ -2,6 +2,13 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.29
+
+### Added
+
+- Envelope and Perspective are edited on a picture in the panel: the box at rest, the warped grid the effect makes (Envelope's control net too) and its points to drag (⇧ locks an axis, double-click resets one, Alt+click sets a key; animated points turn into diamonds, filled where there is a key). The canvas handles of every point parameter (centres, Envelope and Perspective points…) do the same: diamonds when animated, Alt+click for a key. Their numbers are one click away (Show values).
+- Presets for effects, as live thumbnails: selecting one of 57 effects (deformers, glitches, generators, colour and finish, Particles…) shows a few ready looks above its parameters, drawn on the selected object itself. Hover one to see it move (presets with motion animate); click to apply it. A preset sets its values and puts the rest back to their defaults, keeping where the effect sits and what it is linked to (centres, targets, the clock, seeds); the one the effect matches is marked. They are ordinary values afterwards: tweak away. Particles' motion presets joined them. View › Show presets hides them (on by default).
+
 ## 0.0.28
 
 ### Added

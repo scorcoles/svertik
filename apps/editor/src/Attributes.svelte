@@ -9,7 +9,8 @@
   import ShapeValues from './ShapeValues.svelte';
   import InfoTip from './InfoTip.svelte';
   import ThisValues from './ThisValues.svelte';
-  import { PARTICLE_PRESETS } from './particle-presets';
+  import PresetStrip from './PresetStrip.svelte';
+  import MeshField from './MeshField.svelte';
   import { categoryOf } from './command';
 
   let { editor, onreplace }: { editor: Editor; onreplace: () => void } = $props();
@@ -33,13 +34,6 @@
     const label = (i: { type: string; name?: string } | null | undefined) => (i ? i.name || registry.get(i.type)?.label || i.type : '');
     return [editor.activeNode?.name ?? '', label(editor.currentParent), label(m)];
   });
-  function particlePreset(preset: (typeof PARTICLE_PRESETS)[number]) {
-    if (!m || m.type !== 'particles') return;
-    const params = { ...resolveParams(registry.get('particles')!.params), ...preset.params, time: m.params?.time ?? { $expr: 'scene.time', fallback: 0 }, seed: m.params?.seed ?? 1, center: m.params?.center ?? [.5,.5] };
-    editor.flush();
-    for (const [name, value] of Object.entries(params)) editor.setParam(name, value);
-    editor.flush();
-  }
   // Animation: the diamond of each effect parameter (a track on this effect of this object).
   const target = (param: string) => ({ node: editor.activeNode?.id ?? '', on: 'modifier' as const, modifier: m?.id, param });
   const keyOf = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.keyState(target(param)));
@@ -123,6 +117,16 @@
     return [...out];
   });
   const schema = $derived(Object.entries(def?.params ?? {}) as [string, ParamSpec][]);
+  // Mesh effects (Envelope's nine points, Perspective's four corners) are edited on a picture; their numbers
+  // stay a click away.
+  const MESH: Record<string, { kind: 'envelope' | 'perspective'; names: string[] }> = {
+    envelope: { kind: 'envelope', names: ['p00', 'p10', 'p20', 'p01', 'p11', 'p21', 'p02', 'p12', 'p22'] },
+    perspective: { kind: 'perspective', names: ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'] },
+  };
+  const mesh = $derived(m ? MESH[m.type] : undefined);
+  let meshNumbers = $state(false);
+  const meshDefaults = $derived(Object.fromEntries((mesh?.names ?? []).map((n) => [n, (def?.params[n]?.default ?? [0, 0]) as [number, number]])));
+  const mainShown = $derived(mesh && !meshNumbers ? main.filter(([name]) => !mesh.names.includes(name)) : main);
   const help = $derived.by(() => {
     if (!m || !def) return '';
     if (editor.currentParent?.type === 'wiggle' && m.type === 'transform') return t('Wiggle rotates and scales around this Transform pivot. Drag the Pivot handle to change its center of action.');
@@ -145,6 +149,13 @@
   });
 </script>
 
+{#snippet meshEditor()}
+  {#if m && mesh}
+    <MeshField kind={mesh.kind} values={(m.params ?? {}) as Record<string, unknown>} defaults={meshDefaults} onchange={(name, value) => editor.setParam(name, value)} {keyOf} {onkey} />
+    <div class="mesh-actions"><button type="button" class="mesh-toggle" aria-pressed={meshNumbers} onclick={() => (meshNumbers = !meshNumbers)}>{meshNumbers ? t('Hide values') : t('Show values')}</button></div>
+  {/if}
+{/snippet}
+
 <section class="attrs" aria-label={t('Attributes')} bind:this={panel}>
   {#if m && def}
     <header>
@@ -158,11 +169,7 @@
       {#snippet children(tab)}
         {#if tab === 'Params'}
           <div class="params">
-            {#if m.type === 'particles'}
-              <div class="particle-presets" role="group" aria-label={t('Particle motion presets')}>
-                {#each PARTICLE_PRESETS as preset}<Button label={preset.name} title={preset.tip} onclick={() => particlePreset(preset)} />{/each}
-              </div>
-            {/if}
+            {#if editor.showPresets}<PresetStrip {editor} />{/if}
             {#if m.type === 'shapevalues'}
               {@const owner = editor.activeNode}
               {@const shapeDef = owner?.kind === 'shape' ? shapeRegistry.get(owner.shape) : undefined}
@@ -170,10 +177,12 @@
                 problem={editor.currentParent?.type !== 'each' ? t('Shape only works inside Each.') : !shapeDef || owner?.kind !== 'shape' || owner.shape === 'text' || owner.shape === 'path' ? t('Shape works on shape objects (not Text or Path).') : undefined}
                 onchange={(values) => editor.setFreeParams(m.id, values)} />
             {/if}
-            <ParamList swatches={editor.docColors} params={main} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
+            {#if mesh?.kind === 'perspective'}{@render meshEditor()}{/if}
+            <ParamList swatches={editor.docColors} params={mainShown} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
             {#each groups as [group, entries] (group)}
               <Section title={group}>
-                <ParamList swatches={editor.docColors} params={entries} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />
+                {#if mesh?.kind === 'envelope' && group === 'Mesh'}{@render meshEditor()}{/if}
+                {#if !(mesh?.kind === 'envelope' && group === 'Mesh') || meshNumbers}<ParamList swatches={editor.docColors} params={entries} {schema} values={m.params} nodes={others} onselectnode={(id) => (editor.selected = id)} {keyOf} {onkey} onchange={(n, v) => editor.setParam(n, v)} />{/if}
               </Section>
             {/each}
             {#if m.type !== 'shapevalues'}<VariableList title={t('Props')} values={m.props ?? {}} namespace="props" prefix="prop" showInfo={editor.showInfo} reserved={Object.keys(m.params ?? {})}
@@ -223,7 +232,9 @@
 </section>
 
 <style>
-  .particle-presets { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 8px 8px; }
+  .mesh-actions { display: flex; justify-content: center; padding: 0 var(--sv-space-8) var(--sv-space-8); }
+  .mesh-toggle { height: 20px; padding: 0 var(--sv-space-6); font: inherit; font-size: var(--sv-font-size-10); color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); border-radius: 0; cursor: pointer; }
+  .mesh-toggle:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .attrs { flex: 1; min-height: 0; overflow-y: auto; }
   header { display: flex; align-items: center; justify-content: space-between; gap: var(--sv-space-8); height: 28px; padding: 0 var(--sv-space-4) 0 var(--sv-space-8); }
   .meta { margin-left: auto; }

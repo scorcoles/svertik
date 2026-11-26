@@ -1504,10 +1504,15 @@
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
 
+  /** A point handle's animation (the parameter's diamond): none, animated, or a key at the playhead. */
+  const handleTarget = (param: string) => ({ node: editor.activeNode?.id ?? '', on: 'modifier' as const, modifier: editor.current?.id, param });
+  const handleKey = (param: string) => (void editor.time, void editor.animation?.tracks.length, editor.current ? editor.keyState(handleTarget(param)) : undefined);
   function grab(e: PointerEvent, h: Handle) {
     if (space) return;
     e.preventDefault();
     e.stopPropagation();
+    // Alt+click: a key for this point at the playhead (or none, if there is one), as its diamond does.
+    if (e.altKey && editor.current && editor.activeNode) { editor.toggleKey(handleTarget(h.name)); return; }
     takeFocus();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
@@ -1801,14 +1806,16 @@
         ></button>
       {/if}
       {#each handles as h (h.name)}
+        {@const keyed = handleKey(h.name)}
         <button
           type="button"
           class="handle"
+          data-key={keyed === 'animated' || keyed === 'key' ? keyed : undefined}
           style:left="{h.x}px"
           style:top="{h.y}px"
           data-active={editor.marker || hover === h.name || grabbing === h.name ? '' : undefined}
           aria-label={t('Move {handle} (arrow keys nudge)', { handle: h.label })}
-          title={h.label}
+          title={`${h.label} · ${t('Alt+click: key')}`}
           onpointerdown={(e) => grab(e, h)}
           onpointerenter={() => (hover = h.name)}
           onpointerleave={() => (hover = null)}
@@ -1985,6 +1992,10 @@
     cursor: move;
   }
   .handle:hover { scale: 1.15; }
+  /* Animated: a diamond, outlined in turquoise; with a key at the playhead, filled (like the parameter's diamond). */
+  .handle[data-key] { width: 12px; height: 12px; rotate: 45deg; border-radius: 0; border-color: var(--sv-accent-fill); background: #fff; }
+  .handle[data-key='key'] { background: var(--sv-accent-fill); }
+  .handle[data-key]::before, .handle[data-key]::after { rotate: -45deg; }
   .handle::before,
   .handle::after { content: ''; position: absolute; display: none; background: var(--sv-signal-error); pointer-events: none; }
   .handle::before { left: 50%; top: -9px; width: 1px; height: 27px; translate: -50% 0; }

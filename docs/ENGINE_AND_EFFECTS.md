@@ -1568,6 +1568,12 @@ In the editor, selecting a Range in the stack highlights only the elements that 
 In Wire, in the editor and in both players, every visible object with Bones shows its chain (bones and joints, root marked) as it is in that frame, following formulas and playback. The evaluated document gives them as `doc.guides()` (document coordinates; `effectGuides` and `drawGuides` are exported for custom hosts). In the editor, selecting a Bones effect draws its chain as an actuator: drag a joint to turn the bone that ends there (⇧ snaps to 15°); with IK, move Target instead.
 
 
+## Effect presets and the mesh editor (editor)
+
+Selecting an effect in the editor shows its presets above the parameters (57 effects): live thumbnails of the selected object with each preset applied, drawn on the canvas colour; hovering one plays it (presets may hold `scene.time` formulas), clicking applies it in one undo step. A preset sets its own values and puts the others back to their defaults, keeping the effect's placement and links (centre-like points, node targets, the clock `time`, seeds). Effects whose look lives in fine detail (Halftone, Dithering, Crosshatch, Pixelate, Scanlines, Wave Lines, Vector Grain, Grain) show a close-up. **View → Show presets** hides them. Presets are ordinary parameter values: nothing about them is stored in the scene.
+
+Envelope and Perspective are edited on a picture in the panel: the box at rest, the warped grid the effect makes (Envelope's control net too) and the points to drag (⇧ locks an axis, double-click resets a point); **Show values** lists the numbers. Point handles there and on the canvas turn into diamonds when animated (filled where there is a key at the playhead); Alt+click a point to add or remove a key.
+
 ## Manual Path primitive (0.0.4)
 
 `shape: "path"` stores editable source contours in `params.contours`. Each contour has `closed: boolean` and `points`, with each point storing `point: [x, y]`, `in: [dx, dy]`, `out: [dx, dy]`, and `mode: "corner" | "free" | "smooth" | "symmetric"`. Handles are offsets from their anchor in local pixels. Corner removes handles; Free moves them independently; Smooth links their angle while retaining separate lengths; Symmetric links angle and length. Multiple contours share the shape's fill/stroke and procedural stack.

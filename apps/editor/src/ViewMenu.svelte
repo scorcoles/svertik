@@ -8,7 +8,7 @@
   let { editor }: { editor: Editor } = $props();
   let open = $state(false);
 
-  type Key = 'lightTheme' | 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled' | 'showInfo' | 'showLayers';
+  type Key = 'lightTheme' | 'showOriginal' | 'showWire' | 'onionSkin' | 'showBounds' | 'hideOutside' | 'showGrid' | 'showRulers' | 'showGuides' | 'smartGuides' | 'animationDisabled' | 'showInfo' | 'showPresets' | 'showLayers';
   const groups: { heading: string; options: { key: Key; label: string; hint?: string }[] }[] = [
     { heading: t('Display'), options: [
       { key: 'showOriginal', label: t('Original'), hint: t('The drawing before the stack') },
@@ -29,6 +29,7 @@
       { key: 'showGuides', label: t('Guides'), hint: t('Lines from the rulers, saved in the scene') },
       { key: 'smartGuides', label: t('Smart guides'), hint: t('Snap to edges, centers and the document') },
       { key: 'showInfo', label: t('Show info'), hint: t('Show help and descriptions in the panels') },
+      { key: 'showPresets', label: t('Show presets'), hint: t('Preset thumbnails above an effect’s parameters') },
       { key: 'showLayers', label: t('Layers panel'), hint: t('Below the properties; its × closes it') },
     ] },
   ];

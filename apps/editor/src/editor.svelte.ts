@@ -856,6 +856,10 @@ export class Editor {
   #showInfo = $state(readPref('svertik.showInfo') !== 'off');
   get showInfo() { return this.#showInfo; }
   set showInfo(on: boolean) { this.#showInfo = on; writePref('svertik.showInfo', on ? '' : 'off'); }
+  /** View › Show presets: the effects' preset thumbnails (on by default; remembered in this browser). */
+  #showPresets = $state(readPref('svertik.showPresets') !== 'off');
+  get showPresets() { return this.#showPresets; }
+  set showPresets(on: boolean) { this.#showPresets = on; writePref('svertik.showPresets', on ? '' : 'off'); }
   /** Temporarily freeze scene time without removing animation data from the document. */
   #animationDisabled = $state(readPref('svertik.animation-disabled') === 'on');
   get animationDisabled() { return this.#animationDisabled; }
