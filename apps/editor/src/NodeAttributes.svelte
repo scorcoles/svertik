@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PresetStrip from './PresetStrip.svelte';
   import { setFormulaWhere, t } from '@svertik/ui';
 import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpressions, isNumericExpression, placementOf, shapeRegistry, walkNodes, type Ease, type ParamSpec, type SceneNode } from '@svertik/engine';
   import FontField from './FontField.svelte';
@@ -169,6 +170,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   {/if}
 </header>
 <div class="params">
+  {#if node.kind === 'shape' && shapeDef?.timeDriven && editor.showPresets}<PresetStrip {editor} shape />{/if}
   {#if editor.selectedNodes.length > 1}<InfoTip text={t('{count} selected. Scale applies to all around their shared center.', { count: editor.selectedNodes.length })} visible={editor.showInfo} />{/if}
   {#if node.kind === 'group' && node.composition}
     <Section title={t('Composition')}>

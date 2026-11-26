@@ -466,7 +466,7 @@ export function sceneHasExpressions(scene: SceneV1): boolean {
   const has = (params?: Record<string, unknown>, points = false) => Object.values(params ?? {}).some(v => isNumericExpression(v) || (points && Array.isArray(v) && v.some(isNumericExpression)));
   const stackHas = (stack?: SceneNode['stack']): boolean => (stack ?? []).some((m) => has(m.params, true) || has(m.props, true) || stackHas(m.children));
   const nodeHas = (node: SceneNode): boolean =>
-    has(node.props, true) || (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
+    has(node.props, true) || has(node.transform as Record<string, unknown> | undefined) || isNumericExpression(node.opacity) || (node.kind === 'instance' && has(node.mouse, true)) || (node.kind === 'group' && !!node.composition) || (node.kind === 'shape' && (has(node.params, true) || (node.shape === 'text' && hasTextExpressions(node.params.text)))) || stackHas(node.stack) || !!node.children?.some(nodeHas);
   // A re-seeding generator changes the drawing over time too.
   return (Number(scene.seedEvery) > 0) || Object.values(scene.custom ?? {}).some(isNumericExpression) || scene.objects.some(nodeHas);
 }

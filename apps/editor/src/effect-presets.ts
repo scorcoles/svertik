@@ -109,10 +109,10 @@ export const EFFECT_PRESETS: Record<string, EffectPreset[]> = {
     { name: t('Diamonds'), params: { spacing: 14, shape: 'diamond', angle: 0, min: 0.8, max: 1.05 } },
   ],
   crosshatch: [
-    { name: t('Pen'), params: { spacing: 6, layers: 3, invert: true } },
-    { name: t('Engraving'), params: { spacing: 3, layers: 2, width: 0.6, invert: true } },
-    { name: t('Sketch'), params: { spacing: 9, layers: 4, width: 1.4, invert: true } },
-    { name: t('Single'), params: { spacing: 5, layers: 1, angle: 30, invert: true } },
+    { name: t('Pen'), params: { spacing: 6, layers: 3, gamma: 0.25 } },
+    { name: t('Engraving'), params: { spacing: 3, layers: 2, width: 0.6, gamma: 0.25 } },
+    { name: t('Sketch'), params: { spacing: 9, layers: 4, width: 1.4, gamma: 0.25 } },
+    { name: t('Single'), params: { spacing: 5, layers: 1, angle: 30, gamma: 0.1 } },
   ],
   dithering: [
     { name: t('Bayer'), params: { algorithm: 'bayer', spacing: 6 } },
@@ -273,6 +273,13 @@ export const EFFECT_PRESETS: Record<string, EffectPreset[]> = {
     { name: t('Dense'), params: { spacing: 5, width: 0.8, invert: true } },
     { name: t('Flowing'), params: { time: fx('scene.time'), speed: 1, invert: true } },
   ],
+  weave: [
+    { name: t('Tight'), params: { gap: 4 } },
+    { name: t('Basket'), params: { gap: 12 } },
+    { name: t('Loose'), params: { gap: 28 } },
+    { name: t('Lace'), params: { gap: 48, samples: 16 } },
+    { name: t('Breathing'), params: { gap: fx('16 + 12 * sin(scene.time * 3)', 16) } },
+  ],
   metaball: [
     { name: t('Goo'), params: { reach: 30 } },
     { name: t('Melted'), params: { reach: 80 } },
@@ -311,10 +318,11 @@ export const EFFECT_PRESETS: Record<string, EffectPreset[]> = {
     { name: t('Riso'), params: { mode: 'duotone', dark: '#0078bf', light: '#ff48b0' } },
   ],
   vectorgrain: [
-    { name: t('Soft edge'), params: {} },
-    { name: t('Dusty'), params: { density: 4000, shape: 'speck' } },
-    { name: t('Halo'), params: { edge: 'outside', falloff: 60 } },
-    { name: t('Grit'), params: { interior: 0.5, density: 3000, shape: 'square', size: 0.8 } },
+    { name: t('Stipple'), params: { source: 'replace', density: 3000, falloff: 40, interior: 0.5 } },
+    { name: t('Soft edge'), params: { source: 'replace', falloff: 220 } },
+    { name: t('Dusty'), params: { source: 'replace', density: 4000, shape: 'speck', interior: 0.15, size: 2 } },
+    { name: t('Grit'), params: { source: 'replace', density: 4000, shape: 'square', interior: 0.6, size: 1.5 } },
+    { name: t('Halo'), params: { edge: 'outside', falloff: 60, size: 2 } },
   ],
   blur: [
     { name: t('Soft'), params: { amount: 4 } },
@@ -352,7 +360,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset[]> = {
  * of the drawing, this fraction of its size, instead of the whole of it.
  */
 export const PRESET_ZOOM: Record<string, number> = {
-  halftone: 0.35, dithering: 0.35, crosshatch: 0.4, pixelate: 0.5, scanlines: 0.4, wavelines: 0.5, vectorgrain: 0.5, grain: 0.4,
+  halftone: 0.35, dithering: 0.35, crosshatch: 0.4, pixelate: 0.5, scanlines: 0.4, wavelines: 0.5, grain: 0.4,
 };
 
 /** What a preset keeps from the effect as it is (unless it sets it): its place on the drawing and its links. */
@@ -364,22 +372,49 @@ const kept = (name: string, spec: ParamSpec) =>
 /** A plain copy (values may come from the editor's reactive state, which structuredClone refuses). */
 const copy = (value: unknown) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
-export function presetValues(schema: Record<string, ParamSpec>, current: Record<string, unknown>, preset: EffectPreset): Record<string, unknown> {
+export function presetValues(schema: Record<string, ParamSpec>, current: Record<string, unknown>, preset: EffectPreset, keep = kept): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [name, spec] of Object.entries(schema)) {
     if (name in preset.params) out[name] = copy(preset.params[name]);
-    else if (kept(name, spec) && name in current) out[name] = copy(current[name]);
+    else if (keep(name, spec) && name in current) out[name] = copy(current[name]);
     else out[name] = copy((spec as { default?: unknown }).default);
   }
   return out;
 }
 
 /** Whether the effect is exactly as the preset leaves it (what it keeps aside). */
-export function matchesPreset(schema: Record<string, ParamSpec>, current: Record<string, unknown>, preset: EffectPreset): boolean {
+export function matchesPreset(schema: Record<string, ParamSpec>, current: Record<string, unknown>, preset: EffectPreset, keep = kept): boolean {
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   return Object.entries(schema).every(([name, spec]) => {
     const value = name in current ? current[name] : (spec as { default?: unknown }).default;
     if (name in preset.params) return same(value, preset.params[name]);
-    return kept(name, spec) || same(value, (spec as { default?: unknown }).default);
+    return keep(name, spec) || same(value, (spec as { default?: unknown }).default);
   });
 }
+
+/**
+ * Presets of the generator primitives (Draw › Random wave, Random bars): they change the signal and keep the
+ * object's size, style, seed and clock.
+ */
+export const SHAPE_PRESETS: Record<string, EffectPreset[]> = {
+  randomwave: [
+    { name: t('Noise'), params: { waveform: 'random', cycles: 3 } },
+    { name: t('Sine'), params: { waveform: 'sine', cycles: 3 } },
+    { name: t('Square'), params: { waveform: 'square', cycles: 4 } },
+    { name: t('Triangle'), params: { waveform: 'triangle', cycles: 5 } },
+    { name: t('Saw'), params: { waveform: 'sawtooth', cycles: 6 } },
+    { name: t('Calm'), params: { waveform: 'sine', cycles: 1, amplitude: 0.25, speed: 0.2 } },
+    { name: t('Racing'), params: { waveform: 'sine', cycles: 10, speed: 3 } },
+    { name: t('Jagged'), params: { waveform: 'random', cycles: 14, amplitude: 0.8, points: 240 } },
+  ],
+  randombars: [
+    { name: t('Equalizer'), params: { bars: 48, gap: 0.3 } },
+    { name: t('Barcode'), params: { bars: 160, gap: 0, amplitude: 1 } },
+    { name: t('Skyline'), params: { bars: 40, gap: 0.1, direction: 'top' } },
+    { name: t('Fine'), params: { bars: 200, gap: 0.4, amplitude: 0.6 } },
+    { name: t('Reflection'), params: { bars: 64, direction: 'bottom' } },
+  ],
+};
+/** What a generator preset keeps: size, style, seed and clock. */
+export const keptByShapes = (name: string, spec: ParamSpec) =>
+  ['width', 'height', 'time', 'fps'].includes(name) || spec.type === 'seed' || (spec as { group?: string }).group === 'Style';

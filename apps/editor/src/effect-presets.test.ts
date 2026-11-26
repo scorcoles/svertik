@@ -40,3 +40,24 @@ describe('effect presets', () => {
     expect(matchesPreset(schema, { ...values, amplitude: 0.3 }, flag)).toBe(false);
   });
 });
+
+describe('generator presets (Random wave, Random bars)', () => {
+  it('name real values, render, and keep size, style, seed and clock', async () => {
+    const { shapeRegistry } = await import('@svertik/engine');
+    const { SHAPE_PRESETS, keptByShapes } = await import('./effect-presets');
+    const engine = createEngine(builtins);
+    for (const [shape, presets] of Object.entries(SHAPE_PRESETS)) {
+      const schema = shapeRegistry.get(shape)!.params as Record<string, ParamSpec>;
+      for (const preset of presets) {
+        for (const name of Object.keys(preset.params)) expect(schema[name], `${shape} › ${preset.name} › ${name}`).toBeTruthy();
+        const params = presetValues(schema, { width: 400, fillColor: '#ff0000', seed: 7, time: { $expr: 'scene.time', fallback: 0 } }, preset, keptByShapes);
+        expect(params.width).toBe(400);
+        expect(params.fillColor).toBe('#ff0000');
+        expect(params.seed).toBe(7);
+        expect(params.time).toEqual({ $expr: 'scene.time', fallback: 0 });
+        const scene = { version: 1, objects: [{ kind: 'shape', id: 's', name: 'S', shape, params, stack: [] }] } as SceneV1;
+        expect(engine.evaluateDocument({ ...scene, at: 1.2 }).geometry.shapes.length, `${shape} › ${preset.name}`).toBeGreaterThan(0);
+      }
+    }
+  });
+});

@@ -1051,6 +1051,13 @@ describe('Utils: Tracer', () => {
     expect(list[1]!.stack[0]).toMatchObject({ type: 'trace', params: { target: star } });
     expect(e.current?.type).toBe('trace');
   });
+  it("draws the trail in the object's own colour (not the line's near-white default)", () => {
+    const e = fresh();
+    e.addShape('star', { fillColor: '#737373' });
+    e.addTracer();
+    const line = e.scene!.objects[1]!;
+    expect(line.kind === 'shape' && line.params.strokeColor).toBe('#737373');
+  });
 });
 
 describe('paletas', () => {

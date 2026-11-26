@@ -2,6 +2,22 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.30
+
+### Added
+
+- Presets for the generator primitives Random wave (Noise, Sine, Square, Triangle, Saw, Calm, Racing, Jagged) and Random bars (Equalizer, Barcode, Skyline, Fine, Reflection), as live thumbnails above their values; they keep the object's size, style, seed and clock. Weave got presets back (Tight, Basket, Loose, Lace, Breathing): they show on crossing linework.
+
+### Changed
+
+- Draw › Wave is called Random wave again, beside Random bars, so it isn't mistaken for Deform › Wave. Saved scenes are unchanged (`randomwave`).
+
+### Fixed
+
+- A scene whose only formulas were on an object's position, scale, rotation or opacity drew them unresolved (the object vanished): the engine now counts those formulas too.
+- Utils → Tracer draws the trail in the object's own colour (its fill, else its stroke), not the line's near-white default that vanished on a light canvas.
+- Vector Grain, Halftone and Crosshatch presets read on any colour (Vector Grain's replace the drawing with its stipple; Crosshatch's no longer invert, so dark objects get lines too).
+
 ## 0.0.29
 
 ### Added

@@ -1,12 +1,13 @@
 <script lang="ts">
-  // Presets of the selected effect as live thumbnails: the selected object with each preset applied. Hover one
-  // to see it move; click to apply it. The one the effect matches now is marked.
+  // Presets of the selected effect (or, with `shape`, of the selected generator primitive) as live thumbnails:
+  // the selected object with each preset applied. Hover one to see it move; click to apply it. The one the
+  // effect or primitive matches now is marked.
   import { t } from '@svertik/ui';
-  import { bounds, builtins, createEngine, renderInto, sampleScene, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode, type SceneV1 } from '@svertik/engine';
+  import { bounds, builtins, createEngine, renderInto, sampleScene, shapeRegistry, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode, type SceneV1 } from '@svertik/engine';
   import { DEFAULT_CANVAS, registry, type Editor } from './editor.svelte';
-  import { EFFECT_PRESETS, PRESET_ZOOM, matchesPreset, presetValues, type EffectPreset } from './effect-presets';
+  import { EFFECT_PRESETS, PRESET_ZOOM, SHAPE_PRESETS, keptByShapes, matchesPreset, presetValues, type EffectPreset } from './effect-presets';
 
-  let { editor }: { editor: Editor } = $props();
+  let { editor, shape = false }: { editor: Editor; shape?: boolean } = $props();
 
   // An engine of its own: thumbnails must not disturb the canvas's caches or live worlds.
   const engine = createEngine(builtins);
@@ -15,25 +16,29 @@
   /** Hovered thumbnails loop over this many seconds. */
   const LOOP = 4;
 
-  const m = $derived(editor.current);
-  const presets = $derived(m ? EFFECT_PRESETS[m.type] ?? [] : []);
-  const schema = $derived((m ? registry.get(m.type)?.params ?? {} : {}) as Record<string, ParamSpec>);
-  const values = $derived((m?.params ?? {}) as Record<string, unknown>);
-  const active = $derived(presets.findIndex((p) => matchesPreset(schema, values, p)));
+  const m = $derived(shape ? null : editor.current);
+  /** The generator primitive (shape mode): the selected object, if it is one. */
+  const primitive = $derived.by(() => { const n = shape ? editor.currentNode : null; return n?.kind === 'shape' ? n : null; });
+  const presets = $derived(m ? EFFECT_PRESETS[m.type] ?? [] : primitive ? SHAPE_PRESETS[primitive.shape] ?? [] : []);
+  const schema = $derived((m ? registry.get(m.type)?.params ?? {} : primitive ? shapeRegistry.get(primitive.shape)?.params ?? {} : {}) as Record<string, ParamSpec>);
+  const values = $derived(((m ?? primitive)?.params ?? {}) as Record<string, unknown>);
+  const keep = $derived(primitive ? keptByShapes : undefined);
+  const active = $derived(presets.findIndex((p) => matchesPreset(schema, values, p, keep)));
 
   let tiles = $state<SVGSVGElement[]>([]);
   let failed = $state<boolean[]>([]);
 
   /** The selected object alone, at time `at`, with this effect set to the preset (and centred). */
   function sceneFor(preset: EffectPreset, at: number): SceneV1 | null {
-    const scene = editor.scene, owner = editor.activeNode, effect = m;
-    if (!scene || !owner || !effect) return null;
+    const scene = editor.scene, owner = primitive ?? editor.activeNode, effect = m;
+    if (!scene || !owner || (!effect && !primitive)) return null;
     const sampled = sampleScene($state.snapshot(scene) as SceneV1, at);
     const found = [...walkNodes(sampled.objects)].find(({ node }) => node.id === owner.id)?.node;
     if (!found) return null;
     const node = structuredClone(found) as SceneNode;
+    if (primitive && node.kind === 'shape') node.params = presetValues(schema, node.params as Record<string, unknown>, preset, keep) as typeof node.params;
     const swap = (list: ModifierInstance[] | undefined): ModifierInstance[] | undefined => list?.map((inst) =>
-      inst.id === effect.id ? { ...inst, enabled: true, params: presetValues(schema, (inst.params ?? {}) as Record<string, unknown>, preset) } : { ...inst, ...(inst.children ? { children: swap(inst.children) } : {}) });
+      inst.id === effect?.id ? { ...inst, enabled: true, params: presetValues(schema, (inst.params ?? {}) as Record<string, unknown>, preset) } : { ...inst, ...(inst.children ? { children: swap(inst.children) } : {}) });
     node.stack = swap(node.stack) ?? [];
     node.transform = { ...node.transform, x: 0, y: 0 };
     node.visible = true;
@@ -63,11 +68,13 @@
   // Still thumbnails: redrawn when the object changes (this effect's own values aside, which the presets
   // replace), a moment after the last change so dragging a value elsewhere doesn't redraw them each step.
   const objectKey = $derived.by(() => {
-    const owner = editor.activeNode, effect = m;
-    if (!owner || !effect) return '';
+    const owner = primitive ?? editor.activeNode, effect = m;
+    if (!owner || (!effect && !primitive)) return '';
     const copy = $state.snapshot(owner) as SceneNode;
-    const blank = (list: ModifierInstance[] | undefined): unknown => list?.map((inst) => inst.id === effect.id ? { id: inst.id } : { ...inst, children: blank(inst.children) });
-    return JSON.stringify([effect.type, { ...copy, transform: undefined, stack: blank(copy.stack) }, editor.fontsTick]);
+    const blank = (list: ModifierInstance[] | undefined): unknown => list?.map((inst) => inst.id === effect?.id ? { id: inst.id } : { ...inst, children: blank(inst.children) });
+    // A primitive's presets replace its own values (its style aside, which they keep).
+    const params = primitive ? Object.fromEntries(Object.entries(copy.kind === 'shape' ? copy.params : {}).filter(([name]) => keptByShapes(name, schema[name] ?? ({} as ParamSpec)))) : undefined;
+    return JSON.stringify([effect?.type ?? primitive?.shape, { ...copy, transform: undefined, stack: blank(copy.stack), ...(params ? { params } : {}) }, editor.fontsTick]);
   });
   $effect(() => {
     void objectKey; void presets;
@@ -98,17 +105,17 @@
   $effect(() => () => cancelAnimationFrame(frame));
 
   function apply(preset: EffectPreset) {
-    if (!m) return;
-    const next = presetValues(schema, values, preset);
+    const next = presetValues(schema, $state.snapshot(values) as Record<string, unknown>, preset, keep);
     editor.flush();
-    for (const [name, value] of Object.entries(next)) editor.setParam(name, value);
+    if (primitive) editor.setShapeParams(primitive.id, next);
+    else if (m) for (const [name, value] of Object.entries(next)) editor.setParam(name, value);
     editor.flush();
   }
 </script>
 
 {#if presets.length}
   <div class="presets" role="group" aria-label={t('Presets')}>
-    {#each presets as preset, i (m?.type + ':' + i)}
+    {#each presets as preset, i ((m?.type ?? primitive?.shape) + ':' + i)}
       <button type="button" class="preset" data-active={i === active || undefined} title={preset.tip ?? preset.name}
         aria-pressed={i === active} onclick={() => apply(preset)} onpointerenter={() => enter(i)} onpointerleave={() => leave(i)}>
         <svg bind:this={tiles[i]} class="thumb" style:background={editor.canvas || DEFAULT_CANVAS} data-failed={failed[i] || undefined} aria-hidden="true" preserveAspectRatio="xMidYMid meet"></svg>

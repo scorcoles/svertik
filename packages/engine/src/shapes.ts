@@ -565,7 +565,7 @@ const sourceStyle = {
 
 /** Autonomous synthesizer-style wave source. Random retains the original seeded signal mode. */
 export const randomWave = defineShape({
-  type: 'randomwave', label: 'Wave', timeDriven: true, fixedStroke: true, resize: { x: ['width'], y: ['height'] },
+  type: 'randomwave', label: 'Random wave', timeDriven: true, fixedStroke: true, resize: { x: ['width'], y: ['height'] },
   params: {
     width: { type: 'number', default: 900, min: 1, step: 1, unit: 'px', group: 'Generator' },
     height: { type: 'number', default: 360, min: 1, step: 1, unit: 'px', group: 'Generator' },

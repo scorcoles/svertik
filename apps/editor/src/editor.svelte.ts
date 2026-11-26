@@ -82,6 +82,13 @@ export const modifierTypes = builtins.map((m) => m.type).filter((type) => !neste
 /** Default canvas colour: the one used until the document sets its own. */
 export const DEFAULT_CANVAS = '#ffffff';
 
+/** The colour a Tracer draws an object's trail in: the object's fill, or its stroke, or the accent. */
+function tracerColor(node: SceneNode): string {
+  const params = node.kind === 'shape' ? (node.params as Record<string, unknown>) : {};
+  const hex = (v: unknown) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : undefined);
+  return (params.fill !== false && hex(params.fillColor)) || (params.stroke === true && hex(params.strokeColor)) || '#09fdd1';
+}
+
 /** Fill for new primitives: visible on the default light canvas. */
 export const DEFAULT_FILL = '#333333';
 
@@ -1375,7 +1382,8 @@ export class Editor {
       id: `line-${uid()}`,
       name,
       shape: 'line',
-      params: { ...resolveParams(def.params), strokeWidth: 2 },
+      // In the object's own colour (its fill, or its stroke): the line's default near-white disappears on a light canvas.
+      params: { ...resolveParams(def.params), strokeWidth: 2, strokeColor: tracerColor(at.node) },
       stack: [{ id: `trace-${uid()}`, type: 'trace', enabled: true, params: { ...resolveParams(tdef.params), target: at.node.id } }],
     };
     // Behind the object (the trail does not cover it), in the top list (outside groups).
