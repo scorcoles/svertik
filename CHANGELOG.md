@@ -15,6 +15,11 @@ svertik is alpha software. Save project files regularly.
 - The side panel (Stack, Document) can be made wider or narrower by dragging its left edge; double-click for the usual width. The browser remembers it.
 - Notes can dock on the right too, sharing the column with the Console.
 
+### Fixed
+
+- An object whose position, scale, rotation or opacity holds a formula showed empty fields in the inspector: it now shows the formula (a click opens it in the formula editor, ƒx turns it back into a number), and dragging the label no longer overwrites it.
+- The console colours its commands and their arguments as such, not as unknown names; suggestions follow the console's text zoom.
+
 ## 0.0.25
 
 ### Added

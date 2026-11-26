@@ -17,7 +17,8 @@ const PIECE = /(\s+)|("(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?)|((?:\d+(?:\.\d*)?|\
  * (a whole `scene.mouse.posX` chain), numbers, operators, and brackets with their nesting depth. A name the
  * language doesn't know is `unknown`. Joining the pieces gives back the text exactly.
  */
-export function tokenizeFormula(source: string): FormulaToken[] {
+/** `calls`: more names that are calls here, besides the formula functions (the console's commands). */
+export function tokenizeFormula(source: string, calls?: ReadonlySet<string>): FormulaToken[] {
   const out: FormulaToken[] = [];
   let depth = 0;
   let chain = false;
@@ -40,7 +41,7 @@ export function tokenizeFormula(source: string): FormulaToken[] {
         out.push({ text, kind: 'variable' });
         chain = rest.startsWith('.') || rest.startsWith('[');
       } else {
-        out.push({ text, kind: rest.startsWith('(') ? (FUNCTIONS.has(name) ? 'function' : 'unknown') : name === 'pi' || name === 'e' ? 'number' : 'unknown' });
+        out.push({ text, kind: rest.startsWith('(') ? (FUNCTIONS.has(name) || calls?.has(name) ? 'function' : 'unknown') : name === 'pi' || name === 'e' ? 'number' : 'unknown' });
         chain = false;
       }
       continue;
@@ -63,8 +64,9 @@ export function tokenizeFormula(source: string): FormulaToken[] {
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** The formula as HTML spans (`fx-number`, `fx-bracket fx-depth-1`…), for a layer drawn under the text field. */
-export function highlightFormula(source: string): string {
-  const html = tokenizeFormula(source)
+/** `lenient`: names it doesn't know are not flagged (a console command's arguments are names: `set(orbit.radius, 3)`). */
+export function highlightFormula(source: string, calls?: ReadonlySet<string>, lenient = false): string {
+  const html = tokenizeFormula(source, calls).map((t) => (lenient && t.kind === 'unknown' ? { ...t, kind: 'variable' as const } : t))
     .map((t) => (t.kind === 'space' ? escape(t.text) : `<span class="fx-${t.kind}${t.depth !== undefined ? ` fx-depth-${t.depth % 3}` : ''}">${escape(t.text)}</span>`))
     .join('');
   // A trailing line break needs a line after it, or the layer ends shorter than the field.

@@ -153,6 +153,7 @@
   };
   // Commands are offered at the start of the line, with their arguments as the signature.
   const commands = COMMANDS.map((c) => ({ label: `${c.name}(${c.args})`, insert: c.args ? `${c.name}(` : `${c.name}()`, detail: c.about() }));
+  const commandNames = new Set(COMMANDS.map((c) => c.name));
   const total = $derived(entries.length + consoleState.evals.length);
 </script>
 
@@ -230,7 +231,7 @@
           {:else}
             {@const entry = line.entry}
             <article class="eval" data-level={entry.result.error ? 'error' : undefined}>
-              <button type="button" class="source fx-code" title={t('Copy it to the input line')} onclick={() => reuse(entry.input)}><i>›</i>{@html highlightFormula(entry.input)}</button>
+              <button type="button" class="source fx-code" title={t('Copy it to the input line')} onclick={() => reuse(entry.input)}><i>›</i>{@html highlightFormula(entry.input, commandNames, !!commandOf(entry.input))}</button>
               {#if entry.result.error}<span class="error">{entry.result.error}</span>{:else if entry.result.value !== undefined}<output>{formatValue(entry.result.value)}</output>{:else if entry.result.message}<pre class="message">{entry.result.message}</pre>{/if}
             </article>
           {/if}

@@ -3028,6 +3028,16 @@ export class Editor {
     this.record();
   }
 
+  /** An object's position, scale, rotation or opacity set to a formula (or back to a number) from the inspector. */
+  setNodeFormula(id: string, key: 'x' | 'y' | 'scale' | 'rotation' | 'opacity', value: unknown) {
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || this.isLocked(id)) return;
+    if (key === 'opacity') at.node.opacity = value as number;
+    else at.node.transform = { ...at.node.transform, [key]: value as number };
+    this.#parameterChanged({ node: id, on: 'node', param: key }, value);
+    this.record();
+  }
+
   /** Sets a value of any effect (not only the selected one): the console's set(). Animated values get a key. */
   setModifierParam(id: string, name: string, value: unknown) {
     const at = this.scene ? locateModifier(this.scene, id) : null;

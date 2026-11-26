@@ -5,6 +5,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   import VariableList from './VariableList.svelte';
   import InfoTip from './InfoTip.svelte';
   import ThisValues from './ThisValues.svelte';
+  import NodeFormula from './NodeFormula.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider, groupOptions } from '@svertik/ui';
   import { layerOf } from './layer-of';
   import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
@@ -17,6 +18,10 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   let { editor, node, onreplace }: Props = $props();
   setFormulaWhere(() => [node.name]);
   const p = $derived(placementOf(node));
+  // Placement values may hold formulas: those show as formulas, not as numbers.
+  const raw = $derived({ x: node.transform?.x, y: node.transform?.y, scale: node.transform?.scale, rotation: node.transform?.rotation, opacity: node.opacity } as Record<string, unknown>);
+  const formulaOf = (key: string) => (isNumericExpression(raw[key]) ? (raw[key] as { $expr: string; fallback: number }) : null);
+  const setFormula = (key: 'x' | 'y' | 'scale' | 'rotation' | 'opacity') => (next: unknown) => editor.setNodeFormula(node.id, key, next);
   let positionSpace = $state<'local' | 'world'>('local');
   const parentInfo = $derived.by(() => {
     const parent = editor.scene ? locateNode(editor.scene.objects, node.id)?.parent : null;
@@ -256,20 +261,30 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
       </ParamRow>
     {/if}
     <ParamRow label={t('Position')} for="node-x" keyState={nodeKey('x')} onkey={() => toggleNode('x', 'y')}>
-      <PointField id="node-x" label={t('Position')} step={1} value={shownPosition} onchange={setPosition} />
+      {#if formulaOf('x') || formulaOf('y')}
+        <!-- One axis or both hold a formula: each shows its own (a plain one stays a number). -->
+        <span class="axis">X</span>
+        {#if formulaOf('x')}<NodeFormula label={`${t('Position')} X`} value={formulaOf('x')!} onchange={setFormula('x')} />{:else}<NumberField id="node-x" value={p.x} step={1} onchange={(v) => editor.setNode(node.id, 'x', v)} />{/if}
+        <span class="axis">Y</span>
+        {#if formulaOf('y')}<NodeFormula label={`${t('Position')} Y`} value={formulaOf('y')!} onchange={setFormula('y')} />{:else}<NumberField value={p.y} step={1} onchange={(v) => editor.setNode(node.id, 'y', v)} />{/if}
+      {:else}
+        <PointField id="node-x" label={t('Position')} step={1} value={shownPosition} onchange={setPosition} />
+      {/if}
       <span class="mini">
         <IconButton icon="center" label={t('Center in document')} disabled={!editor.infos.has(node.id)} onclick={() => editor.centerNode(node.id)} />
       </span>
     </ParamRow>
-    <ParamRow label={t('Scale')} for="node-scale" keyState={nodeKey('scale')} onkey={() => toggleNode('scale')} scrub={{ value: p.scale, step: 0.01, min: 0, onchange: changeScale }}>
+    <ParamRow label={t('Scale')} for="node-scale" keyState={nodeKey('scale')} onkey={() => toggleNode('scale')} scrub={formulaOf('scale') ? undefined : { value: p.scale, step: 0.01, min: 0, onchange: changeScale }}>
+      {#if formulaOf('scale')}<NodeFormula label={t('Scale')} value={formulaOf('scale')!} onchange={setFormula('scale')} />{:else}
       <NumberField id="node-scale" value={p.scale} step={0.01} min={0} onchange={changeScale} />
-      <Slider value={p.scale} min={0} max={scaleSliderMax} step={0.01} curve="quadratic" label={t('Scale')} onchange={changeScale} />
+      <Slider value={p.scale} min={0} max={scaleSliderMax} step={0.01} curve="quadratic" label={t('Scale')} onchange={changeScale} />{/if}
     </ParamRow>
     <ParamRow label={t('Stretch')} for="node-stretch">
       <PointField id="node-stretch" label={t('Stretch')} step={0.01} value={p.stretch ?? [1, 1]} onchange={(v) => editor.setNode(node.id, 'stretch', v)} />
     </ParamRow>
-    <ParamRow label={t('Rotation')} for="node-rot" keyState={nodeKey('rotation')} onkey={() => toggleNode('rotation')} scrub={{ value: p.rotation, step: 1, onchange: (v) => editor.setNode(node.id, 'rotation', v) }}>
-      <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />
+    <ParamRow label={t('Rotation')} for="node-rot" keyState={nodeKey('rotation')} onkey={() => toggleNode('rotation')} scrub={formulaOf('rotation') ? undefined : { value: p.rotation, step: 1, onchange: (v) => editor.setNode(node.id, 'rotation', v) }}>
+      {#if formulaOf('rotation')}<NodeFormula label={t('Rotation')} value={formulaOf('rotation')!} onchange={setFormula('rotation')} />{:else}
+      <NumberField id="node-rot" value={p.rotation} step={1} unit="°" onchange={(v) => editor.setNode(node.id, 'rotation', v)} />{/if}
     </ParamRow>
     <ParamRow label={t('Pivot')} for="node-pivot">
       <PointField id="node-pivot" label={t('Pivot')} step={0.01} value={p.pivot ?? [0.5, 0.5]} onchange={(v) => editor.setPivot(node.id, v)} />
@@ -290,8 +305,9 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   {/if}
   <Section title={t('Display')}>
     <ParamRow label={t('Opacity')} for="node-op" keyState={nodeKey('opacity')} onkey={() => toggleNode('opacity')}>
+      {#if formulaOf('opacity')}<NodeFormula label={t('Opacity')} value={formulaOf('opacity')!} onchange={setFormula('opacity')} />{:else}
       <NumberField id="node-op" value={node.opacity ?? 1} step={0.01} min={0} max={1} onchange={(v) => editor.setNode(node.id, 'opacity', v)} />
-      <Slider value={node.opacity ?? 1} min={0} max={1} step={0.01} label={t('Opacity')} onchange={(v) => editor.setNode(node.id, 'opacity', v)} />
+      <Slider value={node.opacity ?? 1} min={0} max={1} step={0.01} label={t('Opacity')} onchange={(v) => editor.setNode(node.id, 'opacity', v)} />{/if}
     </ParamRow>
     <ParamRow label={t('Blend')} for="node-blend">
       <Select value={node.blend ?? 'normal'} options={BLEND_MODES} label={t('Blend mode')} onchange={(v) => editor.setNode(node.id, 'blend', v, true)} />
@@ -514,6 +530,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
   /* Clear of the action buttons above it. */
+  .axis { flex: none; color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .formula-values { margin-top: var(--sv-space-12); }
   .this-list { padding: 0 var(--sv-space-8) var(--sv-space-8); }
   .props-list { padding: 0 var(--sv-space-8) var(--sv-space-4) 100px; }

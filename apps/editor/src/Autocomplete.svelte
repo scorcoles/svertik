@@ -98,7 +98,7 @@
 {/if}
 
 <style>
-  .suggestions { box-sizing: border-box; width: 100%; margin-top: 2px; background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-strong); font: 11px var(--sv-font-mono); }
+  .suggestions { box-sizing: border-box; width: 100%; margin-top: 2px; background: var(--sv-surface-panel); border: 1px solid var(--sv-rule-strong); font-family: var(--sv-font-mono); font-size: inherit; }
   ul { max-height: 160px; overflow: auto; margin: 0; padding: 2px 0; list-style: none; }
   button { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; width: 100%; padding: 1px 8px; color: var(--sv-text-primary); background: none; border: 0; border-radius: 0; font: inherit; text-align: left; cursor: pointer; }
   li[aria-selected='true'] button { background: var(--sv-accent-selection); }

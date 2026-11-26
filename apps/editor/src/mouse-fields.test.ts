@@ -45,3 +45,27 @@ it.each([true, false])('hides generic node actions only on Mouse Instance (mouse
     if (mouse) expect(target.querySelector('button[aria-label="Target"]')).not.toBeNull();
   } finally { await unmount(component); target.remove(); }
 });
+
+it('shows formulas on an object’s position, rotation and opacity instead of empty fields', async () => {
+  const { formulaEditor } = await import('@svertik/ui');
+  const editor = new Editor();
+  editor.scene = { version: 1, objects: [
+    { kind: 'shape', id: 'p', name: 'Planet', shape: 'ellipse', params: {}, stack: [], opacity: { $expr: 'scene.progress', fallback: 1 } as unknown as number,
+      transform: { x: { $expr: 'scene.object.sun.x + 10', fallback: 0 } as unknown as number, y: 5, rotation: { $expr: 'scene.time * 6', fallback: 0 } as unknown as number } },
+  ] };
+  editor.selected = 'p';
+  const target = document.createElement('div'); document.body.append(target);
+  const component = mount(NodeAttributes, { target, props: { editor, node: editor.scene.objects[0]!, onreplace() {} } });
+  try {
+    flushSync();
+    const formula = (name: string) => target.querySelector<HTMLButtonElement>(`button[aria-label="Edit the formula of ${name}"]`);
+    expect(formula('Position X')?.textContent).toBe('scene.object.sun.x + 10');
+    expect(formula('Rotation')?.textContent).toBe('scene.time * 6');
+    expect(formula('Opacity')?.textContent).toBe('scene.progress');
+    expect(formula('Position Y')).toBeNull();
+    // ƒx turns it back into its number.
+    target.querySelector<HTMLButtonElement>('button[aria-label="Use a number for Rotation"]')!.click();
+    flushSync();
+    expect((editor.scene.objects[0] as { transform: Record<string, unknown> }).transform.rotation).toBe(0);
+  } finally { formulaEditor.close(); await unmount(component); target.remove(); }
+});
