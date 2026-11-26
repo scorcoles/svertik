@@ -2,7 +2,7 @@
 
 `type: "rigidbody"` · Deformer: moves the points of the drawing. · Editor menu: **Motion**.
 
-How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
+How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest. Pin holds one point of the body (Point, fractions of its box; the left middle, where Bones' chain starts, by default) where it is: the body turns about it, as a hinge, and contacts turn it instead of shifting it.
 
 ## Parameters
 
@@ -11,6 +11,8 @@ How a child of a Physics group (or of an object with Gravity) starts: initial Ve
 | `velocity` | point | `[0,0]` | [x, y], px | unit: px |
 | `spin` | number | `0` | step 1 | unit: °/s |
 | `immovable` | boolean | `false` |  |  |
+| `pin` | boolean | `false` |  | not animatable; only when `immovable` is `false`; group: Pin |
+| `pinPoint` | point | `[0,0.5]` | [x, y], fractions of the box (0–1) | only when `immovable` is `false` and `pin` is `true`; group: Pin; label: Point |
 | `centerOfMassMode` | enum | `"auto"` | `auto`, `custom` | group: Mass; label: Mass center |
 | `centerOfMass` | point | `[0.5,0.5]` | [x, y], fractions of the box (0–1) | only when `centerOfMassMode` is `custom`; group: Mass; label: Position |
 | `attractor` | boolean | `false` |  | group: Attraction |
@@ -36,6 +38,11 @@ Inside a node's `stack` (effects run top to bottom):
     ],
     "spin": 0,
     "immovable": false,
+    "pin": false,
+    "pinPoint": [
+      0,
+      0.5
+    ],
     "centerOfMassMode": "auto",
     "centerOfMass": [
       0.5,

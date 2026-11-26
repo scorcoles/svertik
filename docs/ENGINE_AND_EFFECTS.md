@@ -503,10 +503,12 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `recovery`: number, default `10`, 0..100
    - `pins` (**Pin fibers**): "free" | "start" | "ends", default `"free"`, not animatable
    - `segments` (**Resolution**): number, default `24`, 4..64, not animatable
-30. **`rigidbody`** (Rigid Body, menu Motion): How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest.
+30. **`rigidbody`** (Rigid Body, menu Motion): How a child of a Physics group (or of an object with Gravity) starts: initial Velocity and Spin, Immovable to make it a fixed collider, and the Mass center (Auto uses the geometry's; Custom moves it with a handle, changing how the body turns and rests). Attractor pulls the other rigid bodies towards the nearest point of its solid geometry with an inverse-square field (holes kept): Strength and Range are relative to the largest body, moving or fixed; the reaction moves the attractor unless it is Immovable. Absorption reduces bounce and damps motion on impact while keeping the approach speed, and Settle zeroes residual motion below a speed, so bodies rebound a few times and come to rest. Pin holds one point of the body (Point, fractions of its box; the left middle, where Bones' chain starts, by default) where it is: the body turns about it, as a hinge, and contacts turn it instead of shifting it.
    - `velocity`: point, default `[0,0]`, px
    - `spin`: number, default `0`, °/s
    - `immovable`: boolean, default `false`
+   - `pin`: boolean, default `false`, not animatable, only when `immovable` is `false`
+   - `pinPoint` (**Point**): point, default `[0,0.5]`, fraction, only when `immovable` is `false` and `pin` is `true`
    - `centerOfMassMode` (**Mass center**): "auto" | "custom", default `"auto"`
    - `centerOfMass` (**Position**): point, default `[0.5,0.5]`, fraction, only when `centerOfMassMode` is `custom`
    - `attractor`: boolean, default `false`
@@ -1563,7 +1565,7 @@ Press **W** in the editor or either player to switch the evaluated geometry to W
 
 In the editor, selecting a Range in the stack highlights only the elements that Range affects. Five stable colours distinguish different Ranges, one active highlight at a time; no new random colour is sampled during playback. Switching to an object or a different kind of effect clears the Range highlight. Range preview also works before adding children. View zoom changes pattern scale, not evaluated scene geometry.
 
-In the editor's Wire view, every visible object with Bones shows its chain (bones and joints, root marked) at the playhead, following formulas and playback. Selecting a Bones effect draws its chain as an actuator: drag a joint to turn the bone that ends there (⇧ snaps to 15°); with IK, move Target instead.
+In Wire, in the editor and in both players, every visible object with Bones shows its chain (bones and joints, root marked) as it is in that frame, following formulas and playback. The evaluated document gives them as `doc.guides()` (document coordinates; `effectGuides` and `drawGuides` are exported for custom hosts). In the editor, selecting a Bones effect draws its chain as an actuator: drag a joint to turn the bone that ends there (⇧ snaps to 15°); with IK, move Target instead.
 
 
 ## Manual Path primitive (0.0.4)

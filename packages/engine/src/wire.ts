@@ -91,7 +91,7 @@ function wireHits(svg: SVGSVGElement, on: boolean) {
     });
     for (let i = source.length; i < old.length; i++) old[i]!.remove();
   };
-  sync(Array.from(svg.children).filter((el) => el !== layer && !['defs', 'style'].includes(el.tagName.toLowerCase())), layer);
+  sync(Array.from(svg.children).filter((el) => el !== layer && !el.matches('[data-wire-guides]') && !['defs', 'style'].includes(el.tagName.toLowerCase())), layer);
   if (svg.lastElementChild !== layer) svg.append(layer);
 }
 
@@ -116,8 +116,8 @@ export function installWire(svg: SVGSVGElement, scene: SceneV1, options: WireOpt
   const observer = new MutationObserver((records) => {
     if (records.some((r) => {
       const el = r.target as Element;
-      if (el.closest?.('[data-wire-hits], [data-wire-hatch]')) return false;
-      if (r.type === 'childList' && el === svg) return [...r.addedNodes, ...r.removedNodes].some((n) => n.nodeType === 1 && !(n as Element).matches('[data-wire-hits], [data-wire-hatch]'));
+      if (el.closest?.('[data-wire-hits], [data-wire-hatch], [data-wire-guides]')) return false;
+      if (r.type === 'childList' && el === svg) return [...r.addedNodes, ...r.removedNodes].some((n) => n.nodeType === 1 && !(n as Element).matches('[data-wire-hits], [data-wire-hatch], [data-wire-guides]'));
       return true;
     })) refresh();
   });

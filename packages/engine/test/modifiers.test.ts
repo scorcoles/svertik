@@ -1391,3 +1391,48 @@ describe('dashed stroke and stroke behind', () => {
     expect(geo.shapes[0]!.style).toMatchObject({ 'stroke-dasharray': '4 4', 'paint-order': 'stroke' });
   });
 });
+
+describe('effect guides (Wire)', () => {
+  it("the evaluated document gives Bones' chain in document coordinates, formulas resolved", () => {
+    const doc = createEngine(builtins).evaluateDocument({
+      version: 1,
+      objects: [{
+        kind: 'shape', id: 'bar', name: 'Bar', shape: 'rectangle', params: { width: 300, height: 40 }, transform: { x: 100, y: 50 },
+        stack: [{ id: 'b', type: 'bones', params: { segments: 3, angle1: 0, angle2: { $expr: '30 + 60', fallback: 0 }, angle3: 0, smooth: 0 } }],
+      }],
+    });
+    const [g] = doc.guides!();
+    expect(g!.node).toBe('bar');
+    expect(g!.points).toHaveLength(4);
+    // Start at the bar's left end (x = 100 - 150, y = 50); the second bone turns 90° (the formula), down.
+    expect(g!.points[0]![0]).toBeCloseTo(-50, 6);
+    expect(g!.points[0]![1]).toBeCloseTo(50, 6);
+    expect(g!.points[2]![0]).toBeCloseTo(g!.points[1]![0], 6);
+    expect(g!.points[2]![1] - g!.points[1]![1]).toBeCloseTo(100, 6);
+  });
+});
+
+describe('effect guides follow what moves the drawing above', () => {
+  it('a group effect that carries its child (here a Transform) carries its guides too', () => {
+    const doc = createEngine(builtins).evaluateDocument({
+      version: 1,
+      objects: [{
+        kind: 'group', id: 'g', name: 'G', stack: [{ id: 't', type: 'transform', params: { x: 100, y: 0, rotation: 90 } }],
+        children: [{
+          kind: 'shape', id: 'bar', name: 'Bar', shape: 'rectangle', params: { width: 300, height: 40 },
+          stack: [{ id: 'b', type: 'bones', params: { segments: 3, angle1: 0, angle2: 0, angle3: 20, smooth: 0 } }],
+        }],
+      }],
+    });
+    const [g] = doc.guides!();
+    // The bar turned a quarter about its centre and moved 100 right: its chain is vertical, from top to bottom.
+    const [root, j1] = [g!.points[0]!, g!.points[1]!];
+    expect(root[0]).toBeCloseTo(j1[0], 3);
+    expect(Math.abs(root[1] - j1[1])).toBeCloseTo(100, 3);
+    // And the chain's root lies on the drawing (one of its corners' ends), not where the bar was.
+    const pts = doc.geometry.shapes.flatMap((s) => s.subpaths.flatMap((p) => [p.start, ...p.segs.map((q) => q.p)]));
+    const xs = pts.map((p) => p[0]);
+    expect(root[0]).toBeGreaterThan(Math.min(...xs));
+    expect(root[0]).toBeLessThan(Math.max(...xs));
+  });
+});

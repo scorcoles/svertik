@@ -201,7 +201,7 @@
   .meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); }
   .spacer { flex: 1; }
   .full-viewport-row { display: flex; align-items: center; gap: var(--sv-space-8); height: var(--sv-size-row); padding: 0 var(--sv-space-8); }
-  .full-viewport-row label { flex: none; width: 84px; text-align: right; color: var(--sv-text-secondary); cursor: pointer; }
+  .full-viewport-row label { flex: none; width: clamp(84px, 30%, 150px); text-align: right; color: var(--sv-text-secondary); cursor: pointer; }
   .full-viewport-row input { width: 12px; height: 12px; margin: 0; accent-color: var(--sv-accent-fill); cursor: pointer; }
   .dimensions { position: relative; }
   .swap { position: absolute; left: 176px; top: 50%; translate: 0 -50%; display: flex; }

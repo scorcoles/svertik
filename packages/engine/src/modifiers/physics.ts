@@ -884,8 +884,9 @@ export const physics = defineModifier({
     // layer renumbers element keys, so the player can't rebuild it from what is drawn).
     const pokeable = (out: Geometry): Geometry => p.poke > 0 || pieceCount >= 2 || p.drag ? { ...out, shapes: out.shapes.map((shape, i) => ({ ...shape, body: `${shape.node ?? ''}#${shape.bodyGroup ?? shape.clone ?? i}`, ...(p.poke > 0 ? { pokeable: true } : {}), ...(pieceCount >= 2 && !shape.burstSpeed ? { burstable: true } : {}), ...(p.drag ? { draggable: true } : {}) })) } : out;
     if (hasSoftMaterial(geo)) {
+      // As with rigid bodies below, the world's key leaves out what follows the input's size.
       const settings: SoftSettings = { acceleration: p.acceleration, floor: null, rotation: 0, friction, bounce, collisions: p.collisions, ...(p.damping > 0 ? { damping: p.damping } : {}) };
-      const { run, state } = simulate(geo, time, history, scope + '|soft', JSON.stringify([settings, solidsKey, size]), (input) => softRun(input, settings, solids, size, solidsKey), kicks, drags);
+      const { run, state } = simulate(geo, time, history, scope + '|soft', JSON.stringify([settings, solidsKey]), (input) => softRun(input, settings, solids, size, solidsKey), kicks, drags);
       const plan = (run as SoftRun).plan;
       return pokeable(plan.paths.length ? softGeometry(plan, state) : geo);
     }
@@ -893,7 +894,10 @@ export const physics = defineModifier({
     const settings: StepSettings = { acceleration: p.acceleration, planes: [], friction, bounce, collide: p.collisions, contactDamping: 0, ...(p.damping > 0 ? { damping: p.damping } : {}) };
     // Hover push: the pointer's path sweeps the bodies it passes near (Play).
     const sweep = p.push > 0 && ctx.scene?.sweeps?.length ? { samples: ctx.scene.sweeps, radius: p.push } : undefined;
-    const { run, state } = simulate(geo, time, history, scope, JSON.stringify([settings, solidsKey, detail]), (input) => rigidRun(layoutOf(input, solids, detail), settings), kicks, drags, sweep);
+    // The world's key leaves out Detail: it follows the input's size, which an animated input (Bones, a Wave…)
+    // changes every frame, and a new key would restart the world from the first frame's shapes each time.
+    // Shapes and detail are the run's (a change swaps the bodies and goes on).
+    const { run, state } = simulate(geo, time, history, scope, JSON.stringify([settings, solidsKey]), (input) => rigidRun(layoutOf(input, solids, detail), settings), kicks, drags, sweep);
     const now = (run as RigidRun).layout, states = state.states;
 
     const transforms = new Map<Shape, (point: readonly [number, number]) => [number, number]>();

@@ -19,6 +19,7 @@ import { apply as applyMat, invert } from './matrix';
 import type { Engine } from './engine';
 import { restorePacks } from './pack';
 import { mountCanvas, type Renderer } from './canvas';
+import { drawGuides } from './guides';
 
 export type Trigger = 'hover' | 'click' | 'enter' | 'pointer';
 export type Action = 'tween' | 'play' | 'seed' | 'toggle' | 'follow';
@@ -394,6 +395,16 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
     const key = `inset(${px(Math.min(y0, y1))} ${px(r.width - Math.max(x0, x1))} ${px(r.height - Math.max(y0, y1))} ${px(Math.min(x0, x1))})`;
     if (key !== clipKey) svg.style.clipPath = clipKey = key;
   };
+  // Wire: the effects' guides (Bones' chain) over the drawing, redrawn with every frame and when Wire is
+  // toggled (also while paused).
+  const guides = () => drawGuides(svg, svg.classList.contains('wire') ? live.doc()?.guides?.() ?? null : null);
+  let wireOn = svg.classList.contains('wire');
+  const wireWatch = typeof MutationObserver === 'function' ? new MutationObserver(() => {
+    const on = svg.classList.contains('wire');
+    if (on !== wireOn) { wireOn = on; guides(); }
+  }) : null;
+  wireWatch?.observe(svg, { attributes: true, attributeFilter: ['class'] });
+  guides();
   let lastViewBox = svg.getAttribute('viewBox');
   const resized = typeof ResizeObserver === 'function' && scene.clipToDocument ? new ResizeObserver(clipToDocument) : null;
   resized?.observe(svg);
@@ -458,6 +469,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       const withPokes = pokes.length || bursts.length || drags.length || sweeps.length ? { ...stepped, ...(pokes.length ? { pokes } : {}), ...(bursts.length ? { bursts } : {}), ...(drags.length ? { drags: drags.map((d) => ({ ...d, points: d.points.slice() })) } : {}), ...(sweeps.length ? { sweeps: sweeps.slice() } : {}) } : stepped;
       const framed = mouse.apply(usesPointer || usesRuntime ? { ...withPokes, ...(usesPointer ? { pointer: { ...pointerNow } } : {}), ...(usesRuntime ? { runtime: { ...runtimeNow } } : {}) } : withPokes, now / 1000);
       live.update(withDocument(framed));
+      if (wireOn) guides();
       if (scene.clipToDocument && svg.getAttribute('viewBox') !== lastViewBox) { lastViewBox = svg.getAttribute('viewBox'); clipToDocument(); }
       mouseDirty = false;
       pointerDirty = false;
@@ -883,6 +895,8 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
       cancelAnimationFrame(frame);
       io?.disconnect();
       resized?.disconnect();
+      wireWatch?.disconnect();
+      drawGuides(svg, null);
       adaptObserver?.disconnect();
       clearTimeout(readaptTimer);
       if (scene.clipToDocument) {

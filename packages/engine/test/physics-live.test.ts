@@ -393,3 +393,60 @@ describe('Defaults', () => {
     expect(Number(shapes[0]!.style.opacity ?? shapes[0]!.style['fill-opacity'])).toBeCloseTo(0.5, 6);
   });
 });
+
+describe('Physics with an animated input', () => {
+  // A bar that grows (its width follows the time) towards a box, without gravity. The group's size changes
+  // every frame: the world must go on (not restart from the first frame's shapes), so the bar pushes the box.
+  const s: SceneV1 = {
+    version: 1,
+    animation: { duration: 3, fps: 30, tracks: [] },
+    objects: [{
+      kind: 'group', id: 'g', name: 'World',
+      stack: [{ id: 'ph', type: 'physics', params: { time: { $expr: 'scene.time', fallback: 0 }, acceleration: [0, 0], bounce: 0 } }],
+      children: [
+        { kind: 'shape', id: 'bar', name: 'Bar', shape: 'rectangle', params: { width: { $expr: '60 + 300 * scene.time', fallback: 60 }, height: 40 }, transform: { x: -100, y: 0 }, stack: [{ id: 'fix', type: 'rigidbody', params: { immovable: true } }] },
+        { kind: 'shape', id: 'box', name: 'Box', shape: 'rectangle', params: { width: 60, height: 60 }, transform: { x: 100, y: 0 }, stack: [] },
+      ],
+    }],
+  };
+  it('a growing body pushes the one it reaches', () => {
+    const e = createEngine(builtins);
+    let box = centre(e, s, 0, 'box');
+    for (let f = 1; f <= 45; f++) box = centre(e, s, f / 30, 'box');
+    // At 1.5 s the bar's right end is at -100 + 255 = 155: the box (60 wide) is pushed past it.
+    expect(box!.x).toBeGreaterThan(150);
+  });
+});
+
+describe('Rigid Body pin', () => {
+  // A bar pinned by its left end, under gravity: it swings down about that end, which stays put.
+  const s = (pin: boolean): SceneV1 => ({
+    version: 1,
+    animation: { duration: 3, fps: 30, tracks: [] },
+    objects: [{
+      kind: 'group', id: 'g', name: 'World',
+      stack: [{ id: 'ph', type: 'physics', params: { time: { $expr: 'scene.time', fallback: 0 }, acceleration: [0, 600], bounce: 0 } }],
+      children: [{ kind: 'shape', id: 'bar', name: 'Bar', shape: 'rectangle', params: { width: 200, height: 20 }, transform: { x: 100, y: 0 }, stack: [{ id: 'rb', type: 'rigidbody', params: { pin, pinPoint: [0, 0.5] } }] }],
+    }],
+  });
+  const ends = (e: ReturnType<typeof createEngine>, scene: SceneV1, t: number) => {
+    const pts = e.evaluateDocument({ ...sampleScene(scene, t), at: t }).geometry.shapes.flatMap((x) => x.subpaths.flatMap((p) => [p.start, ...p.segs.map((q) => q.p)]));
+    return pts;
+  };
+  it('the pinned point stays, the rest swings down', () => {
+    const e = createEngine(builtins);
+    let pts = ends(e, s(true), 0);
+    for (let f = 1; f <= 30; f++) pts = ends(e, s(true), f / 30);
+    // Some point of the bar is still near the pin (0, 0); the far end has swung down, about 200 from it.
+    expect(Math.min(...pts.map(([x, y]) => Math.hypot(x, y)))).toBeLessThan(12);
+    const far = pts.reduce((a, b) => (Math.hypot(...b) > Math.hypot(...a) ? b : a));
+    expect(Math.hypot(...far)).toBeLessThan(215);
+    expect(far[1]).toBeGreaterThan(100);
+  });
+  it('without the pin it just falls', () => {
+    const e = createEngine(builtins);
+    let pts = ends(e, s(false), 0);
+    for (let f = 1; f <= 30; f++) pts = ends(e, s(false), f / 30);
+    expect(Math.min(...pts.map(([, y]) => y))).toBeGreaterThan(200);
+  });
+});

@@ -40,6 +40,8 @@ export interface Impulse {
   attractionSleepThreshold?: number;
   /** Normalized mass-center position within this body group's bounds. */
   centerOfMass?: Vec2;
+  /** Pin: a point of the body (in the drawing's coordinates, carried with it as it is placed) held in place; the body turns about it. */
+  pin?: Vec2;
 }
 
 export interface SoftMaterial {

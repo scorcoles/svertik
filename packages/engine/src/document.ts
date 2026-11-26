@@ -64,6 +64,8 @@ export interface DocumentResult {
   /** The source of each object, placed in the document (to show it as a ghost). */
   sources: Geometry;
   nodes: Map<string, NodeInfo>;
+  /** The effects' guides (Bones' chain), in document coordinates; computed when first asked. */
+  guides?(): import('./guides').EffectGuide[];
 }
 
 export const placementOf = (n: NodeBase): Placement => ({ ...DEFAULT_PLACEMENT, ...n.transform });
@@ -112,7 +114,8 @@ const transformGeo = (geo: Geometry, m: Mat): Geometry => {
     if (shape.force) out = { ...out, force: transformForce(shape.force, m) };
     if (shape.impulse) {
       const [x, y] = shape.impulse.velocity;
-      out = { ...out, impulse: { ...shape.impulse, velocity: [m[0] * x + m[2] * y, m[1] * x + m[3] * y], spin: shape.impulse.spin * (m[0] * m[3] - m[1] * m[2] < 0 ? -1 : 1) } };
+      const pin = shape.impulse.pin;
+      out = { ...out, impulse: { ...shape.impulse, velocity: [m[0] * x + m[2] * y, m[1] * x + m[3] * y], spin: shape.impulse.spin * (m[0] * m[3] - m[1] * m[2] < 0 ? -1 : 1), ...(pin ? { pin: [m[0] * pin[0] + m[2] * pin[1] + m[4], m[1] * pin[0] + m[3] * pin[1] + m[5]] as Vec2 } : {}) } };
     }
     return out;
   });

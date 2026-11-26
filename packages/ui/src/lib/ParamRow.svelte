@@ -102,7 +102,9 @@
   .sv-param[data-keyed] .label-cell { padding-left: var(--sv-space-8); }
   .sv-param[data-tall] { height: auto; align-items: flex-start; padding-top: var(--sv-space-4); padding-bottom: var(--sv-space-4); }
   .sv-param[data-tall] label { padding-top: var(--sv-space-2); }
-  .label-cell { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--sv-space-4); width: 84px; min-width: 0; }
+  /* The label column grows with the panel (84 px at the usual width, up to 150 px when it is widened), so long
+     labels stay on one line. */
+  .label-cell { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--sv-space-4); width: clamp(84px, 30%, 150px); min-width: 0; }
   .row-info { position: relative; display: inline-flex; flex: none; }
   .info-trigger { display: inline-grid; place-items: center; width: 12px; height: 12px; padding: 0; color: var(--sv-text-secondary); opacity: .5; background: transparent; border: 1px solid currentColor; border-radius: 50%; font: inherit; font-size: 8px; font-weight: 600; line-height: 1; cursor: help; }
   .info-trigger:hover, .info-trigger:focus-visible { color: var(--sv-accent-text); opacity: 1; outline: none; }
@@ -126,4 +128,8 @@
   }
   label[data-scrubbable] { cursor: ew-resize; user-select: none; }
   .control { flex: 1; display: flex; align-items: center; gap: var(--sv-space-8); min-width: 0; }
+  /* In a widened panel, sliders, dropdowns and formulas take the room (each up to a limit); fields keep their size. */
+  .sv-param .control > :global(.sv-slider) { flex: 1 1 auto; min-width: 48px; max-width: 240px; }
+  .sv-param .control > :global(.sv-select) { flex: 1 1 auto; max-width: 260px; }
+  .sv-param .control > :global(.expression-control) { flex: 1 1 auto; max-width: 320px; }
 </style>

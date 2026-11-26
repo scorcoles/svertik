@@ -1307,40 +1307,25 @@
   // effect draws its own through its actuator, with handles.
   let guides = $state<{ lines: string[]; points: [number, number, boolean][] } | null>(null);
   // Drawn on the next frame (the result's position must be laid out first). While playing, every frame
-  // changes the time: a pending frame is never cancelled, it just draws the latest state.
-  let guidesInput: { scene: SceneV1 | null; time: number; selected?: string } = { scene: null, time: 0 };
+  // changes the drawing: a pending frame is never cancelled, it just draws the latest state. The guides come
+  // from the evaluated document (formulas resolved at the playhead), as in the players.
+  let guidesInput: { doc: DocumentResult | null; selected?: string } = { doc: null };
   let guidesFrame = 0;
-  const hasGuides = (list: SceneNode[]): boolean =>
-    list.some((n) => n.visible !== false && (n.stack?.some((m) => m.enabled !== false && !!registry.get(m.type)?.guides) || (n.kind === 'group' && !n.composition && hasGuides(n.children))));
   $effect(() => {
-    void view; void stageSize; void viewBox; void nodes;
-    const scene = editor.showWire && editor.scene ? ($state.snapshot(editor.scene) as SceneV1) : null;
-    guidesInput = { scene: scene && hasGuides(scene.objects) ? scene : null, time: editor.time, selected: editor.current?.id };
+    void view; void stageSize; void viewBox;
+    guidesInput = { doc: editor.showWire ? evaluatedDocument : null, selected: editor.current?.id };
     if (!guidesFrame) guidesFrame = requestAnimationFrame(drawGuides);
   });
   $effect(() => () => { if (guidesFrame) cancelAnimationFrame(guidesFrame); });
   function drawGuides() {
     guidesFrame = 0;
-    const { scene, time, selected } = guidesInput;
-    if (!scene) return (guides = null);
-    // Formulas resolved at the playhead, so the bones sit where the drawing is.
-    const resolved = evaluateSceneExpressions(sampleScene(scene, time));
+    const { doc, selected } = guidesInput;
     const out: { lines: string[]; points: [number, number, boolean][] } = { lines: [], points: [] };
-    const visit = (list: SceneNode[]) => {
-      for (const n of list) {
-        const info = nodes.get(n.id);
-        for (const m of info && n.visible !== false ? n.stack ?? [] : []) {
-          const def = m.enabled === false || m.id === selected ? undefined : registry.get(m.type);
-          if (!def?.guides || !info) continue;
-          const g = def.guides(resolveParams(def.params, (m.params ?? {}) as Record<string, unknown>) as never, info.refs?.[m.id] || info.bounds);
-          const at = (q: readonly [number, number]) => docToStage(...apply(info.matrix, q));
-          out.lines.push(...g.lines.map((l) => l.map(at).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')));
-          g.points.forEach((q, i) => { const xy = at(q); if (xy) out.points.push([xy[0], xy[1], i === 0]); });
-        }
-        if (n.kind === 'group' && !n.composition) visit(n.children);
-      }
-    };
-    visit(resolved.objects);
+    for (const g of doc?.guides?.() ?? []) {
+      if (g.effect === selected) continue;
+      out.lines.push(...g.lines.map((l) => l.map((q) => docToStage(q[0], q[1])).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')));
+      g.points.forEach((q, i) => { const xy = docToStage(q[0], q[1]); if (xy) out.points.push([xy[0], xy[1], i === 0]); });
+    }
     guides = out.lines.length ? out : null;
   }
 

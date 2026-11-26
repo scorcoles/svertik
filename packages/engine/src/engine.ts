@@ -9,6 +9,7 @@ import { importSVG } from './importer';
 import { chainFrom, type FilterChain } from './chain';
 import { resolveParams, type HistoryLookup, type ModifierContext, type SceneSpace, type ModifierDef, type ResolvedModifier, type TrailLookup } from './modifier';
 import { renderInto, toSVG, type ToSVGOptions } from './render';
+import { effectGuides, type EffectGuide } from './guides';
 import { createExpressionMemory, evaluateSceneExpressions, type ParamDefaults } from './expression';
 import { shapeRegistry } from './shapes';
 import { hasMissingPacks, restorePacks } from './pack';
@@ -341,7 +342,10 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
   const evaluateDocument = (scene: SceneV1) => {
     // Copies born at runtime are filtered before compositions expand (expansion drops their birth time).
     const raw = withoutUnborn(withDefaultExpressions(withPacks(scene)));
-    return documents.evaluate(expandCompositions(evaluateSceneExpressions(raw, { memory, defaults }), registry), usesHistory(raw) ? pastOf(raw) : undefined);
+    const resolved = expandCompositions(evaluateSceneExpressions(raw, { memory, defaults }), registry);
+    const doc = documents.evaluate(resolved, usesHistory(raw) ? pastOf(raw) : undefined);
+    let guides: EffectGuide[] | undefined;
+    return { ...doc, guides: () => (guides ??= effectGuides(resolved, doc.nodes, registry, doc)) };
   };
   const flat = (scene: SceneV1) => evaluateDocument(scene).geometry;
 

@@ -24,6 +24,7 @@ export { validateScene, type SceneReport } from './validate';
 export * from './modifiers';
 export { rng, noise2D } from './random';
 export { wireColors, wireBodyKinds, updateWirePatterns, highlightWireRange, wireSelectionPalette, wirePalette, wireCSS, installWire, type WireOptions } from './wire';
+export { effectGuides, drawGuides, type EffectGuide } from './guides';
 export { parseColor, toHex, rgbToHsl, hslToRgb, mixColor, rgbToOklab, oklchToRgb } from './color';
 export * from './palettes';
 export { effectDescriptions, shapeDescriptions } from './descriptions';

@@ -270,6 +270,37 @@ export function createStepper(bodies: CollisionBody[], settings: StepSettings): 
     return fixed = index;
   };
 
+  // Pinned bodies (Rigid Body › Pin): a point of the body held where it is in the input, turning about it.
+  // `anchor` is that point in the body's own frame (from its centre at rest); `at`, where it is held.
+  const pins = bodies.map(({ body, fixed, impulse }) => !fixed && impulse?.pin ? { anchor: [impulse.pin[0] - body.center[0], impulse.pin[1] - body.center[1]] as Vec2, at: impulse.pin } : null);
+  const pinned = pins.some(Boolean);
+  const armOf = (i: number, state: State): Vec2 => {
+    const [ax, ay] = pins[i]!.anchor, c = Math.cos(state.angle), s = Math.sin(state.angle);
+    return [ax * c - ay * s, ax * s + ay * c];
+  };
+  /** Puts each pinned body back on its pin (keeping its angle). */
+  const holdPins = (states: State[]) => {
+    if (pinned) pins.forEach((pin, i) => {
+      if (!pin) return;
+      const [rx, ry] = armOf(i, states[i]!);
+      states[i]!.x = pin.at[0] - rx; states[i]!.y = pin.at[1] - ry;
+    });
+  };
+  /** Cancels the speed of each pinned body's pinned point (an impulse there: it keeps turning about it). */
+  const stopPins = (states: State[]) => {
+    if (pinned) pins.forEach((pin, i) => {
+      if (!pin) return;
+      const state = states[i]!, { body } = bodies[i]!;
+      const im = 1 / body.mass, ii = 1 / (body.mass * body.inertia);
+      const [rx, ry] = armOf(i, state);
+      const vx = state.vx - state.omega * ry, vy = state.vy + state.omega * rx;
+      const a = im + ii * ry * ry, b = -ii * rx * ry, d = im + ii * rx * rx, det = a * d - b * b;
+      if (Math.abs(det) < 1e-18) return;
+      const px = -(d * vx - b * vy) / det, py = -(-b * vx + a * vy) / det;
+      state.vx += px * im; state.vy += py * im; state.omega += (rx * py - ry * px) * ii;
+    });
+  };
+
   const initial = (start?: (State | undefined)[]) => bodies.map(({ body, fixed, impulse }, i): State => {
     // A body that takes over from another (when the pieces change) starts where that one left off.
     const given = start?.[i];
@@ -338,6 +369,8 @@ export function createStepper(bodies: CollisionBody[], settings: StepSettings): 
       const [ax, ay] = bodyAccelerations[i]!;
       return { ...state, x: state.x + state.vx * dt + ax * dt * dt / 2, y: state.y + state.vy * dt + ay * dt * dt / 2, vx: state.vx + ax * dt, vy: state.vy + ay * dt, angle: state.angle + state.omega * dt };
     });
+    holdPins(states);
+    stopPins(states);
     // Only bodies that can touch something are placed: with no collisions between bodies, no solids and no
     // floor, a body moves freely and placing its outline every step would cost the most for nothing.
     const solid = index.parts.length > 0;
@@ -351,8 +384,19 @@ export function createStepper(bodies: CollisionBody[], settings: StepSettings): 
       const absorption = Math.max(absorptionOf(a.index), b ? absorptionOf(b.index) : 0);
       const restitution = bounce * (1 - Math.max(0, Math.min(1, absorption)));
       const correction = Math.max(0, depth - slop) * 0.8 / total;
-      a.state.x -= nx * correction * a.im; a.state.y -= ny * correction * a.im;
-      if (b) { b.state.x += nx * correction * b.im; b.state.y += ny * correction * b.im; }
+      // A pinned body can't be shifted: it turns about its pin, so that the contact moves out by as much.
+      const push = (body: Placed, amount: number) => {
+        const pin = pins[body.index];
+        if (!pin) { body.state.x += nx * amount; body.state.y += ny * amount; return; }
+        const [px, py] = points[0] ?? [body.state.x, body.state.y];
+        const qx = px - pin.at[0], qy = py - pin.at[1], lever = -qy * nx + qx * ny;
+        if (Math.abs(lever) < size * 1e-3) return;
+        body.state.angle += Math.max(-0.2, Math.min(0.2, amount / lever));
+        const [rx, ry] = armOf(body.index, body.state);
+        body.state.x = pin.at[0] - rx; body.state.y = pin.at[1] - ry;
+      };
+      push(a, -correction * a.im);
+      if (b) push(b, correction * b.im);
       for (const [x, y] of points) {
         const avx = a.state.vx - a.state.omega * (y - a.state.y), avy = a.state.vy + a.state.omega * (x - a.state.x);
         const bvx = b ? b.state.vx - b.state.omega * (y - b.state.y) : 0, bvy = b ? b.state.vy + b.state.omega * (x - b.state.x) : 0;
@@ -429,6 +473,21 @@ export function createStepper(bodies: CollisionBody[], settings: StepSettings): 
       const tangent = Math.max(-friction * normal, Math.min(friction * normal, contact.tangent - relative(tx, ty) / tangentMass));
       apply(tangent - contact.tangent, tx, ty); contact.tangent = tangent;
     }
+    // Pins are solved with the contacts, so a pinned body passes on (and takes) pushes through its pin.
+    if (pinned) for (let iteration = 0; iteration < 12; iteration++) {
+      for (const contact of contacts) {
+        if (!pins[contact.a.index] && !(contact.b && pins[contact.b.index])) continue;
+        const { a, b, nx, ny, x, y } = contact;
+        const rx = x - a.state.x, ry = y - a.state.y, sx = b ? x - b.state.x : 0, sy = b ? y - b.state.y : 0;
+        const relative = ((b ? b.state.vx - b.state.omega * sy : 0) - (a.state.vx - a.state.omega * ry)) * nx + ((b ? b.state.vy + b.state.omega * sx : 0) - (a.state.vy + a.state.omega * rx)) * ny;
+        const normalMass = a.im + (b?.im ?? 0) + (rx * ny - ry * nx) ** 2 * a.ii + (sx * ny - sy * nx) ** 2 * (b?.ii ?? 0);
+        const normal = Math.max(0, contact.normal + (contact.target - relative) / normalMass), amount = normal - contact.normal;
+        a.state.vx -= amount * nx * a.im; a.state.vy -= amount * ny * a.im; a.state.omega -= (rx * ny - ry * nx) * amount * a.ii;
+        if (b) { b.state.vx += amount * nx * b.im; b.state.vy += amount * ny * b.im; b.state.omega += (sx * ny - sy * nx) * amount * b.ii; }
+        contact.normal = normal;
+      }
+      stopPins(states);
+    }
     const after = energy();
     if (after > energyBefore * (1 + 1e-9) && after > 0) {
       const k = Math.sqrt(energyBefore / after);
@@ -469,6 +528,8 @@ export function createStepper(bodies: CollisionBody[], settings: StepSettings): 
       const touching = new Set(contacts.flatMap((c) => c.b ? [c.a.index, c.b.index] : [c.a.index]));
       for (const i of touching) if (!bodies[i]!.fixed) states[i]!.omega *= Math.exp(-contactDamping * dt);
     }
+    // Contacts may have pushed a pinned body off its pin: back onto it.
+    holdPins(states);
     return { states, pending: stillPending };
   };
   return { bodies, initial, pendingOf, advance };

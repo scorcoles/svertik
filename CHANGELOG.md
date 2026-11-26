@@ -2,6 +2,19 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.28
+
+### Added
+
+- Rigid Body › Pin: holds one point of the body where it is (Point, fractions of its box; Bones' Start by default), so it turns about it like a hinge: a pendulum, a door, arms rooted at their base. Contacts turn a pinned body instead of shifting it.
+- Wire in the players (Play, shared links, the embedded player) shows Bones' chains too, as the editor does. The evaluated document gives them as `doc.guides()`.
+
+### Fixed
+
+- Bones' guides in Wire follow the body when Physics (or any effect of a group above) moves or turns it.
+- Physics restarted its world on every frame when a body's shape was animated (Bones, Wave, a formula on its size…), so animated bodies never collided: it now goes on, swapping in the new shapes.
+- In a widened side panel, labels get a wider column (no more "Acceleratio / n") and sliders, dropdowns and formulas take the room.
+
 ## 0.0.27
 
 ### Added
