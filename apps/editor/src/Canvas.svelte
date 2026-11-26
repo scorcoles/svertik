@@ -2,7 +2,7 @@
   import { t } from '@svertik/ui';
   import type { DemoName } from './demo-catalog';
   import { untrack } from 'svelte';
-  import { apply, bounds, builtins, buildShape, hasTextExpressions, type PathContour, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type DocumentResult, type Geometry, type Mat, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
+  import { apply, bounds, builtins, resizeOffset, resizeShapeParams, shapeResizes, buildShape, hasTextExpressions, type PathContour, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type DocumentResult, type Geometry, type Mat, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
@@ -838,6 +838,25 @@
     const localPivot = apply(toLocal, pivotDoc);
     const targets = snapTargets(selectedTreeIds());
     const threshold = 8 / Math.abs(result?.getScreenCTM()?.a || 1);
+    // A primitive resizes through its size values (width, radius…), not its scale: formulas that read them
+    // keep working, and the scale stays for whoever sets it on purpose.
+    const byValues = !multiple && node.kind === 'shape' && !!info.pivot && !!info.origin ? shapeResizes(node.shape) : null;
+    const params0 = node.kind === 'shape' ? $state.snapshot(node.params) as Record<string, unknown> : {};
+    // `free`: a stretch on one or both axes, which shapes sized by one value (a Donut's radius) can't take.
+    const resizeTo = (sx: number, sy: number, fixed: Vec2, free: boolean) => {
+      if (node.kind !== 'shape' || !byValues || !info.pivot || !info.origin) return false;
+      if (!(free ? byValues.axes : byValues.uniform)) return false;
+      const params = resizeShapeParams(node.shape, params0, sx, sy);
+      if (!params) return false;
+      // The offset is in the node's parent space, the same as x and y.
+      const [dx, dy] = resizeOffset(p0, info.pivot, info.origin, fixed, sx, sy);
+      editor.resizeShape(node.id, params, p0.x + dx, p0.y + dy);
+      return true;
+    };
+    const sizeText = (sx: number, sy: number) => {
+      const w = info.bounds.width * sx, h = info.bounds.height * sy;
+      return `${Math.round(w)} × ${Math.round(h)}`;
+    };
     const move = (ev: PointerEvent) => {
       let [x, y] = at(ev);
       const label = { x: ev.clientX - r.left + 14, y: ev.clientY - r.top + 14 };
@@ -859,8 +878,15 @@
           const fixedY = mode === 'stretch-y-top' ? info.bounds.y + info.bounds.height : info.bounds.y;
           const measureX = edgeStretch ? fixedX : localPivot[0];
           const measureY = edgeStretch ? fixedY : localPivot[1];
-          const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * Math.max(0.01, Math.abs((local[0] - measureX) / (localStart[0] - measureX || 1)));
-          const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * Math.max(0.01, Math.abs((local[1] - measureY) / (localStart[1] - measureY || 1)));
+          const rx = Math.max(0.01, Math.abs((local[0] - measureX) / (localStart[0] - measureX || 1)));
+          const ry = Math.max(0.01, Math.abs((local[1] - measureY) / (localStart[1] - measureY || 1)));
+          const vx = mode.startsWith('stretch-y-') ? 1 : rx, vy = mode.startsWith('stretch-x-') ? 1 : ry;
+          if (resizeTo(vx, vy, edgeStretch ? [fixedX, fixedY] : info.pivot ?? localPivot, true)) {
+            gesture = { text: sizeText(vx, vy), ...label };
+            return;
+          }
+          const sx = Math.max(0.01, p0.stretch?.[0] ?? 1) * rx;
+          const sy = Math.max(0.01, p0.stretch?.[1] ?? 1) * ry;
           const next: [number, number] = [mode.startsWith('stretch-y-') ? (p0.stretch?.[0] ?? 1) : sx, mode.startsWith('stretch-x-') ? (p0.stretch?.[1] ?? 1) : sy];
           editor.setNode(node.id, 'stretch', next);
           if (edgeStretch) {
@@ -881,6 +907,10 @@
           return;
         }
         const factor = Math.max(0.01, Math.hypot(x, y) / d0);
+        if (info.pivot && resizeTo(factor, factor, info.pivot, false)) {
+          gesture = { text: sizeText(factor, factor), ...label };
+          return;
+        }
         const k = Math.round((scaleAll ? factor : p0.scale * factor) * 100) / 100;
         if (scaleAll) scaleAll(k); else editor.setNode(node.id, 'scale', k);
         gesture = { text: `× ${k.toFixed(2)}`, ...label };

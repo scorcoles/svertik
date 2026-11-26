@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.22
+
+### Changed
+
+- Resizing a primitive on the canvas changes its size values (width, height, radius, size, a Path's points…) instead of its scale, so formulas that read them keep working (a Donut's `this.radius - 50` stays a 50 px ring). It grows around the pivot from a corner, or from the opposite side from an edge; the label by the pointer shows its size. Shapes sized by one value still stretch when pulled on one axis; several objects, groups and imported SVGs still scale. Scale stays in the inspector.
+
 ## 0.0.21
 
 ### Added

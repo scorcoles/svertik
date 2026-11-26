@@ -49,6 +49,9 @@ export interface NodeInfo {
   matrix: Mat;
   /** Box of the node's result, already in the document (to select it). */
   box: Bounds;
+  /** Objects and shapes: the local point placed at (x, y) and the transform centre the engine used (local). */
+  origin?: Vec2;
+  pivot?: Vec2;
 }
 
 export interface DocumentResult {
@@ -564,7 +567,8 @@ export function createDocumentEvaluator(
             if (info && own.length) info.box = boundsOf({ viewBox: entry.result.viewBox, shapes: own }, world);
           }
           results.set(node.id, entry.result);
-          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: boundsOf(entry.result, world) });
+          const usedPivot = pivotPoint(ref, originPivot ?? p.pivot);
+          nodes.set(node.id, { id: node.id, kind: node.kind, bounds: ref, refs: entry.refs, matrix: world, box: boundsOf(entry.result, world), origin: origin ?? centerOf(ref), pivot: usedPivot });
           if (node.visible === false || (imageFillSources.has(node.id) && entry.result.shapes.some((shape) => shape.image))) return [];
           return withMask(node, withFilters(node, withBlend(withOpacity(adoptInner(node, entry.result, placed.shapes.map((s) => ({ ...s, node: s.node ?? node.id }))), node.opacity), node.blend)));
         }

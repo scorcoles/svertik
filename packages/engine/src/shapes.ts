@@ -25,6 +25,12 @@ export interface ShapeDef<P extends ParamSchema = ParamSchema> {
   fixedStroke?: boolean;
   /** The point that goes at the node's position, if not the centre of its box (Text with an anchor). */
   origin?(p: ParamValues<P>): Vec2 | null;
+  /**
+   * The parameters that make its size, so resizing it on the canvas changes them instead of the scale: `x` and
+   * `y` follow each axis, `both` only a uniform resize (a shape with `both` can't be stretched by its values).
+   * `least` follows the smaller of the two factors (a rectangle's corners).
+   */
+  resize?: { x?: string[]; y?: string[]; both?: string[]; least?: string[] };
 }
 
 const defineShape = <P extends ParamSchema>(d: ShapeDef<P>): ShapeDef<P> => d;
@@ -88,6 +94,7 @@ function ellipse(rx: number, ry: number): SubPath {
 
 export const rectangle = defineShape({
   type: 'rectangle',
+  resize: { x: ['width'], y: ['height'], least: ['radius', 'radiusTopLeft', 'radiusTopRight', 'radiusBottomRight', 'radiusBottomLeft'] },
   label: 'Rectangle',
   params: {
     width: { type: 'number', default: 160, min: 1, step: 1, unit: 'px', pair: 'height', percentOf: 'documentWidth' },
@@ -129,6 +136,7 @@ export const rectangle = defineShape({
 
 export const ellipseShape = defineShape({
   type: 'ellipse',
+  resize: { x: ['width'], y: ['height'] },
   label: 'Ellipse',
   params: {
     width: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', pair: 'height', percentOf: 'documentWidth' },
@@ -141,6 +149,7 @@ export const ellipseShape = defineShape({
 /** A ring: two exact circles, the inner one the other way round, so it cuts the hole with any fill rule. */
 export const donut = defineShape({
   type: 'donut',
+  resize: { both: ['radius', 'innerRadius'] },
   label: 'Donut',
   section: 'Donut radius',
   params: {
@@ -172,6 +181,7 @@ const ring = (n: number, r: (i: number) => number, rotation: number): Vec2[] =>
 
 export const polygon = defineShape({
   type: 'polygon',
+  resize: { both: ['radius'] },
   label: 'Polygon',
   params: {
     radius: { type: 'number', default: 80, min: 1, step: 1, unit: 'px' },
@@ -184,6 +194,7 @@ export const polygon = defineShape({
 
 export const star = defineShape({
   type: 'star',
+  resize: { both: ['radius'] },
   label: 'Star',
   params: {
     radius: { type: 'number', default: 80, min: 1, step: 1, unit: 'px' },
@@ -200,6 +211,7 @@ export const star = defineShape({
 
 export const lineShape = defineShape({
   type: 'line',
+  resize: { both: ['length'] },
   label: 'Line',
   params: {
     length: { type: 'number', default: 200, min: 1, step: 1, unit: 'px' },
@@ -217,6 +229,7 @@ export const lineShape = defineShape({
 
 export const spiral = defineShape({
   type: 'spiral',
+  resize: { both: ['radius'] },
   label: 'Spiral',
   params: {
     radius: { type: 'number', default: 90, min: 1, step: 1, unit: 'px' },
@@ -275,6 +288,7 @@ const PAWN: SubPath[] = [
 /** A filled plus sign. Width controls the arm thickness independently of its overall size. */
 export const cross = defineShape({
   type: 'cross',
+  resize: { both: ['size', 'width'] },
   label: 'Cross',
   params: {
     size: { type: 'number', default: 140, min: 1, step: 1, unit: 'px', label: 'Size' },
@@ -294,6 +308,7 @@ export const cross = defineShape({
 /** A single continuous outline, including circular heads as exact cubic arcs. */
 export const arrow = defineShape({
   type: 'arrow', label: 'Arrow',
+  resize: { x: ['length'], y: ['width'] },
   params: {
     length: { type: 'number', default: 240, min: 1, step: 1, unit: 'px', label: 'Length' },
     width: { type: 'number', default: 24, min: 1, step: 1, unit: 'px', label: 'Body width' },
@@ -344,6 +359,7 @@ export const arrow = defineShape({
 
 export const pawn = defineShape({
   type: 'pawn',
+  resize: { both: ['height'] },
   label: 'Pawn',
   params: {
     height: { type: 'number', default: 200, min: 1, step: 1, unit: 'px' },
@@ -399,6 +415,7 @@ function glyphSubpaths(commands: { type: string; x?: number; y?: number; x1?: nu
 
 export const text = defineShape({
   type: 'text',
+  resize: { both: ['size'] },
   label: 'Text',
   params: {
     text: { type: 'text', default: 'svertik', label: 'Text', expression: true },
@@ -548,7 +565,7 @@ const sourceStyle = {
 
 /** Autonomous synthesizer-style wave source. Random retains the original seeded signal mode. */
 export const randomWave = defineShape({
-  type: 'randomwave', label: 'Wave', timeDriven: true, fixedStroke: true,
+  type: 'randomwave', label: 'Wave', timeDriven: true, fixedStroke: true, resize: { x: ['width'], y: ['height'] },
   params: {
     width: { type: 'number', default: 900, min: 1, step: 1, unit: 'px', group: 'Generator' },
     height: { type: 'number', default: 360, min: 1, step: 1, unit: 'px', group: 'Generator' },
@@ -602,7 +619,7 @@ export const randomWave = defineShape({
 
 /** An autonomous seeded signal source drawn as changing vertical bars around a horizontal centreline. */
 export const randomBars = defineShape({
-  type: 'randombars', label: 'Random bars', timeDriven: true,
+  type: 'randombars', label: 'Random bars', timeDriven: true, resize: { x: ['width'], y: ['height'] },
   // Keep the centreline fixed while the changing bar heights alter the geometry bounds.
   origin: () => [0, 0],
   params: {

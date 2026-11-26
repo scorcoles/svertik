@@ -264,6 +264,10 @@ All shapes share these style parameters:
 - `dashOffset` (**Dash offset**): number, default `0`, -10000..10000, px, only when `stroke` is `true`
 - `behind` (**Behind fill**): boolean, default `false`, not animatable, only when `stroke` is `true`
 
+### Resizing primitives
+
+Resizing a primitive with the editor's canvas handles changes its size values, not its transform `scale`: width and height for Rectangle, Ellipse, Wave and Random bars (each axis on its own, corner radii with the smaller factor), length and width for Arrow, radius for Donut (with its inner radius), Polygon, Star and Spiral, length for Line, size and width for Cross, height for Pawn, size for Text, and the points of a Path. Numbers are multiplied; formulas (`this.radius - 50`) and percentages stay and follow by themselves; stroke and style don't change. Shapes sized by one value (Donut, Polygon, Star, Spiral, Line, Cross, Pawn, Text) fall back to the transform's `stretch` when pulled on one axis. Scale stays in the inspector. Several objects, groups and imported SVGs still scale. In code: `resizeShapeParams(shape, params, sx, sy)` and, to keep a point in place, `resizeOffset(placement, pivot, origin, fixed, sx, sy)` with the `pivot` and `origin` from the node's evaluated `NodeInfo`.
+
 ### Shape Registry
 
 1. **`rectangle`** (Rectangle): A rectangle, with optional rounded corners. Each radius is capped at half the shorter side of the rectangle, then adjacent corners are scaled together if needed to fit.

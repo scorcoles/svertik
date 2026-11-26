@@ -14,6 +14,7 @@ export { toAnimatedSVG, type AnimatedSVGExport } from './animsvg';
 export { analyzeMotion, type MotionAnalysis, type MotionLayer } from './motion';
 export * from './matrix';
 export * from './shapes';
+export { resizeOffset, resizeShapeParams, shapeResizes } from './resize';
 export * from './fonts';
 export * from './animation';
 export * from './expression';

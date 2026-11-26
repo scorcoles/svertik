@@ -1475,6 +1475,27 @@ export class Editor {
     this.record();
   }
 
+  /**
+   * Resizes a primitive through its size values (canvas handles): sets the values that changed and moves it
+   * to (x, y), so it grows around the right point. Animated values get a key, like a typed value would.
+   */
+  resizeShape(id: string, params: Record<string, unknown>, x: number, y: number) {
+    if (this.isLocked(id)) return;
+    const at = this.scene ? locateNode(this.scene.objects, id) : null;
+    if (!at || at.node.kind !== 'shape') return;
+    const r = (n: number) => Math.round(n * 100) / 100;
+    for (const [name, value] of Object.entries(params)) {
+      const next = typeof value === 'number' ? r(value) : value;
+      if (at.node.params[name] === next) continue;
+      at.node.params[name] = next;
+      if (typeof next === 'number') this.#parameterChanged({ node: id, on: 'shape', param: name }, next);
+    }
+    at.node.transform = { ...at.node.transform, x: r(x), y: r(y) };
+    this.#autoKey({ node: id, on: 'node', param: 'x' }, r(x));
+    this.#autoKey({ node: id, on: 'node', param: 'y' }, r(y));
+    this.record();
+  }
+
   /** Set related shape parameters as one undoable edit (used by linked controls). */
   setShapeParams(id: string, values: Record<string, unknown>) {
     if (this.isLocked(id)) return;
