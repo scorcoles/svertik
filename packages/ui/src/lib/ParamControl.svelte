@@ -5,6 +5,7 @@
   import Checkbox from './Checkbox.svelte';
   import ColorField from './ColorField.svelte';
   import IconButton from './IconButton.svelte';
+  import FormulaExpand from './FormulaExpand.svelte';
   import PaintField from './PaintField.svelte';
   import PivotSelect from './PivotSelect.svelte';
   import type { IconName } from './icons';
@@ -67,6 +68,7 @@
   const unitAction = $derived(spec.type === 'number' && spec.percentOf && onunit
     ? { label: `${spec.label ?? name.charAt(0).toUpperCase() + name.slice(1)}: use ${percent !== null ? 'px' : '%'}`, onclick: () => onunit?.(percent !== null ? 'px' : '%') }
     : undefined);
+  let expressionInput = $state<HTMLInputElement>();
   const advanced = $derived((spec.type === 'number' || spec.type === 'seed') && spec.expression !== false);
   const expression = $derived(advanced && isNumericExpression(value) ? value : null);
   const numericFieldWidth = $derived(fieldWidth ?? (expression ? '132px' : '80px'));
@@ -108,6 +110,7 @@
       <div class="expression-control" style={`--sv-field-width: ${numericFieldWidth}`}>
         <div class="expression-field" data-invalid={expressionError || undefined}>
           <input
+            bind:this={expressionInput}
             class="sv-expression"
             value={expression.$expr}
             aria-label={`${label} expression`}
@@ -115,10 +118,11 @@
             title={expressionError ?? t('Use scene.time, scene.cycle, scene.frame, scene.fps, scene.duration, scene.progress, scene.seedGenerator, scene.width, scene.height, scene.aspect, scene.dt, scene.scroll, scene.pixelRatio, scene.clock.hour/minute/second, scene.mouse.posX/posY/fracX/fracY/down/inside/velX/velY/downMs/rightDown/middleDown/clicks/clickMs/wheel, scene.custom.name; functions: min, max, clamp, lerp, sin, cos, random(min, max, seed?)…')}
             spellcheck="false"
             oninput={(e) => onchange({ ...expression, $expr: e.currentTarget.value })}
-            use:formulaField={{ label, commit: (next) => onchange({ ...expression, $expr: next }) }}
+            use:formulaField={{ label, value: expression.$expr, commit: (next) => onchange({ ...expression, $expr: next }) }}
             onkeydown={(e) => e.stopPropagation()}
           />
           {#if spec.type === 'number' && spec.unit && spec.unit !== 'fraction'}<span class="expression-unit">{spec.unit}</span>{/if}
+          <FormulaExpand field={expressionInput} {label} />
           <button
             class="expression-toggle"
             type="button"

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { t } from '@svertik/ui';
   import { tick } from 'svelte';
-  import { IconButton, NumberField, Section, Slider, formulaField } from '@svertik/ui';
+  import { FormulaExpand, IconButton, NumberField, Section, Slider, formulaField } from '@svertik/ui';
+  /** Each formula field, by name: its expand button opens that field in the formula editor. */
+  const inputs = $state<Record<string, HTMLInputElement | undefined>>({});
   import { customNumber, isNumericExpression, isRangedVariable, validateExpression, type CustomVariable, type RangedVariable } from '@svertik/engine';
   import InfoTip from './InfoTip.svelte';
 
@@ -77,11 +79,12 @@
       <div class="var-control">
         {#if expression}
           <div class="variable-expression" data-invalid={expressionError || undefined}>
-            <input class="expression-input" value={expression.$expr} aria-label={`${name} expression`} aria-invalid={expressionError ? 'true' : undefined}
+            <input bind:this={inputs[name]} class="expression-input" value={expression.$expr} aria-label={`${name} expression`} aria-invalid={expressionError ? 'true' : undefined}
               title={expressionError ?? t('Use {namespace} values, props.name, children["id"].property, scene variables, and math functions.', { namespace })} spellcheck="false"
               oninput={(e) => onchange(name, { ...expression, $expr: e.currentTarget.value })}
-              use:formulaField={{ label: name, commit: (next) => onchange(name, { ...expression, $expr: next }) }}
+              use:formulaField={{ label: name, value: expression.$expr, commit: (next) => onchange(name, { ...expression, $expr: next }) }}
               onkeydown={(e) => e.stopPropagation()} />
+            <FormulaExpand field={inputs[name]} label={name} />
             <button class="expression-toggle" type="button" aria-label={t('Use a number for {name}', { name })} title={t('Switch to a number')} onclick={() => onchange(name, expression.fallback)}>ƒx</button>
             {#if expressionError}<span class="expression-error" role="status">{expressionError}</span>{/if}
           </div>

@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.25
+
+### Added
+
+- The formula editor: the expand button of any ƒx field (parameters, document variables, props, Each › Shape values), or ⌘/Ctrl+Enter in it, opens the formula large below the canvas, to write it over several lines. It edits that field live, shows whether it is valid, takes names from the ƒx reference, and closes when the field goes. Formulas can now be up to 4096 characters.
+
 ## 0.0.24
 
 ### Added

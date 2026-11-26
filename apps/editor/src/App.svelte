@@ -8,7 +8,7 @@
   import { BUNDLED, ensureFont, loadBundled } from './fonts';
   // The version, from one place: the editor's package.json.
   import { version } from '../package.json';
-  import { IconButton } from '@svertik/ui';
+  import { IconButton, formulaEditor } from '@svertik/ui';
   import Canvas from './Canvas.svelte';
   import { DEFAULT_CANVAS, Editor, locateModifier, locateNode, modifierTypes } from './editor.svelte';
   import { providePalettes } from '@svertik/ui';
@@ -23,6 +23,7 @@
   import ShortcutsDialog from './ShortcutsDialog.svelte';
   import ExportReport from './ExportReport.svelte';
   import TextFxPanel from './TextFxPanel.svelte';
+  import FormulaPanel from './FormulaPanel.svelte';
   import NotesPanel from './NotesPanel.svelte';
   import FxPanel from './FxPanel.svelte';
   import DiagnosticsPanel from './DiagnosticsPanel.svelte';
@@ -52,7 +53,7 @@
   // panel are not in the startup but in the UI stage.
   let CodePanelComp = $state<Component<{ editor: Editor; oncopy: (text: string, what: string) => void | boolean | Promise<void | boolean>; maximized: boolean; onmaximize: () => void; ondiagnostic: (source: string, level: 'error' | 'warning', message: string, stack?: string) => void; onactivity: (action: string, detail?: string) => void }> | undefined>(undefined);
   let panelMaximized = $state(false);
-  let maximizedPanel = $state<'code' | 'notes' | 'debug' | 'textFx' | 'fx'>('code');
+  let maximizedPanel = $state<'code' | 'notes' | 'debug' | 'textFx' | 'formula' | 'fx'>('code');
   let diagnosticsOpen = $state(false);
   type DiagnosticEntry = { id: number; level: 'error' | 'warning'; source: string; message: string; time: number; stack?: string };
   type ActivityEntry = { time: number; action: string; detail?: string };
@@ -687,7 +688,7 @@
     return () => cancelAnimationFrame(frame);
   });
   $effect(() => {
-    if (panelMaximized && !({ code: editor.codeOpen, notes: editor.notesOpen, debug: diagnosticsOpen, textFx: !!editor.textFxNode, fx: editor.fxOpen }[maximizedPanel])) panelMaximized = false;
+    if (panelMaximized && !({ code: editor.codeOpen, notes: editor.notesOpen, debug: diagnosticsOpen, textFx: !!editor.textFxNode, formula: !!formulaEditor.current, fx: editor.fxOpen }[maximizedPanel])) panelMaximized = false;
   });
 </script>
 
@@ -726,6 +727,7 @@
       style:grid-template-rows={panelMaximized ? 'minmax(0, 1fr)' : [
           'minmax(0, 1fr)',
           ...(editor.textFxNode && editor.scene && locateNode(editor.scene.objects, editor.textFxNode)?.node.kind === 'shape' && (locateNode(editor.scene.objects, editor.textFxNode)?.node as { shape?: string })?.shape === 'text' ? ['6px', `${panelHeights.textFx ?? 220}px`] : []),
+          ...(formulaEditor.current && editor.scene ? ['6px', `${panelHeights.formula ?? 200}px`] : []),
           ...(editor.fxOpen && editor.scene ? ['6px', panelHeights.fx ? `${panelHeights.fx}px` : 'minmax(140px, 32%)'] : []),
           ...(editor.notesOpen && editor.scene ? ['6px', panelHeights.notes ? `${panelHeights.notes}px` : 'minmax(120px, 25%)'] : []),
           ...(diagnosticsOpen ? ['6px', panelHeights.debug ? `${panelHeights.debug}px` : profile.running || profile.samples.length ? 'minmax(180px, 34%)' : 'minmax(100px, 22%)'] : []),
@@ -740,6 +742,10 @@
           {#if !panelMaximized}{@render panelResizeHandle('textFx', t('Text expressions'))}{/if}
           {#key textFx.id}<TextFxPanel {editor} node={textFx} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('textFx')} onclose={() => (panelMaximized = false)} oncopy={copy} />{/key}
         {/if}
+      {/if}
+      {#if formulaEditor.current && editor.scene && (!panelMaximized || maximizedPanel === 'formula')}
+        {#if !panelMaximized}{@render panelResizeHandle('formula', t('Formula editor'))}{/if}
+        <FormulaPanel {editor} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('formula')} onclose={() => (panelMaximized = false)} oncopy={copy} />
       {/if}
       {#if !panelMaximized && editor.fxOpen && editor.scene}{@render panelResizeHandle('fx', 'ƒx reference')}{/if}
       {#if editor.fxOpen && editor.scene && (!panelMaximized || maximizedPanel === 'fx')}<FxPanel {editor} maximized={panelMaximized} onmaximize={() => togglePanelMaximized('fx')} onclose={() => { editor.fxOpen = false; panelMaximized = false; }} oncopy={copy} />{/if}

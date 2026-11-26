@@ -123,14 +123,14 @@ const SCENE_VARIABLES = {
 const parsed = new Map<string, Expr>();
 
 function parse(source: string): Expr {
-  if (source.length > 512) throw new Error('Expression is too long (maximum 512 characters).');
+  if (source.length > 4096) throw new Error('Expression is too long (maximum 4096 characters).');
   const tokens = source.match(/\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*|\*\*|[\[\]()+\-*/%^.,])/gy);
   if (!tokens) throw new Error('Enter an expression.');
   const list = tokens.map((t) => t.trim()).filter(Boolean);
   const consumed = tokens.join('').length;
   if (source.slice(consumed).trim()) throw new Error(`Unexpected input near “${source.slice(consumed).trim()}”.`);
   let i = 0;
-  if (tokens.length > 256) throw new Error('Expression is too complex (maximum 256 tokens).');
+  if (tokens.length > 1024) throw new Error('Expression is too complex (maximum 1024 tokens).');
   const peek = () => list[i];
   const take = () => list[i++];
   const expect = (token: string) => { if (take() !== token) throw new Error(`Expected “${token}”.`); };
