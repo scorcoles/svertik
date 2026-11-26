@@ -838,6 +838,15 @@ export class Editor {
   #showLayers = $state(readPref('svertik.panel.layersShown') === 'on');
   get showLayers() { return this.#showLayers; }
   set showLayers(on: boolean) { this.#showLayers = on; writePref('svertik.panel.layersShown', on ? 'on' : 'off'); }
+  /**
+   * A scene that arrives with more than two layers shows the Layers panel, open, without asking: its layers
+   * are part of how it is made. Only for this scene: the saved preference (shown or not) stays as it was.
+   */
+  #revealLayers(scene: SceneV1) {
+    if (scene.objects.filter((o) => o.kind === 'group' && o.layer).length <= 2) return;
+    this.#showLayers = true;
+    this.#layersOpen = true;
+  }
   #showWire = $state(readPref('svertik.wire') === 'on');
   get showWire() { return this.#showWire; }
   set showWire(on: boolean) { this.#showWire = on; writePref('svertik.wire', on ? 'on' : 'off'); }
@@ -3286,6 +3295,7 @@ export class Editor {
     this.demoOrigin = null;
     this.#restorePacks(scene);
     this.scene = scene;
+    this.#revealLayers(scene);
     // Primitives, with all their parameters (missing ones at their default): the panel needs them.
     for (const { node } of walkNodes(this.scene.objects)) {
       const def = node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
@@ -3424,6 +3434,7 @@ export class Editor {
     this.#compositionViews = [];
     this.#restorePacks(scene);
     this.scene = scene;
+    this.#revealLayers(scene);
     this.name = state.name.replace(/\.svg$/i, '');
     this.missingSvgs = missingSources(scene);
     if (state.script) this.script = state.script;

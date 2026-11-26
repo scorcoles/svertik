@@ -95,3 +95,24 @@ describe('layers', () => {
     expect(e.selectedNodes).toHaveLength(2);
   });
 });
+
+describe('opening a scene with layers', () => {
+  const layered = (n: number) => JSON.stringify({
+    version: 1,
+    objects: Array.from({ length: n }, (_, i) => ({ kind: 'group', id: `layer-${i}`, name: `Layer ${i + 1}`, layer: true, children: [{ kind: 'shape', id: `s-${i}`, name: 'S', shape: 'rectangle', params: {}, stack: [] }], stack: [] })),
+  });
+  it('shows the Layers panel, open, when the scene has more than two layers', () => {
+    const e = new Editor();
+    e.showLayers = false;
+    e.layersOpen = false;
+    expect(e.openProject(layered(3))).toBe(true);
+    expect(e.showLayers).toBe(true);
+    expect(e.layersOpen).toBe(true);
+  });
+  it('leaves it as it was with two layers or fewer', () => {
+    const e = new Editor();
+    e.showLayers = false;
+    expect(e.openProject(layered(2))).toBe(true);
+    expect(e.showLayers).toBe(false);
+  });
+});
