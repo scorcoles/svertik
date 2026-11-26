@@ -2,6 +2,12 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.23
+
+### Changed
+
+- Faster scenes driven by the pointer or by formulas: an effect that reads another object (a Clone placed inside a hidden shape) is no longer redone every frame while that object stays the same; Network finds where each link leaves its node exactly instead of sampling, and keeps only the nearest neighbours instead of sorting them all; Play only rewrites the paths that changed. A dense 8-layer network ring under a hover lens went from about 196 ms to 27 ms per frame.
+
 ## 0.0.22
 
 ### Changed

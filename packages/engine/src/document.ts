@@ -184,7 +184,13 @@ export interface PastScenes {
 }
 
 /** Geometry of another node, already in the coordinates of the stack asking for it (or null if not known yet). */
-export type TargetLookup = (id: string) => Geometry | null;
+export type TargetLookup = ((id: string) => Geometry | null) & {
+  /**
+   * A fingerprint of what the lookup would give for `id`, without building it, registered as a dependency the
+   * same as a lookup: a stack step that looked at other objects is reused while their fingerprints don't change.
+   */
+  fingerprint?: (id: string) => number;
+};
 
 /**
  * Evaluates the tree. `runStack` applies a stack to a geometry with its reference box;
@@ -369,15 +375,23 @@ export function createDocumentEvaluator(
       let asked = false;
       // What was asked in this pass, to know whether the next one is needed.
       const seenDeps: { owner: string; id: string; h: number }[] = [];
-      const lookupFor = (ownerId: string, deps?: [string, number][]): TargetLookup => (id) => {
-        if (!id || id === ownerId) return null;
-        asked = true;
-        const h = depOf(ownerId, id);
-        deps?.push([id, h]);
-        seenDeps.push({ owner: ownerId, id, h });
-        const owner = known.get(ownerId);
-        const t = known.get(id);
-        return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
+      const lookupFor = (ownerId: string, deps?: [string, number][]): TargetLookup => {
+        const register = (id: string) => {
+          asked = true;
+          const h = depOf(ownerId, id);
+          deps?.push([id, h]);
+          seenDeps.push({ owner: ownerId, id, h });
+          return h;
+        };
+        const look: TargetLookup = (id) => {
+          if (!id || id === ownerId) return null;
+          register(id);
+          const owner = known.get(ownerId);
+          const t = known.get(id);
+          return owner && t ? transformGeo(t.geo, invert(owner.world)) : null;
+        };
+        look.fingerprint = (id) => (!id || id === ownerId ? -3 : register(id));
+        return look;
       };
 
       // Trails: oldest first, on a fixed grid of times; the last one, now.

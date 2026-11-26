@@ -363,8 +363,12 @@ export function renderInto(svg: SVGSVGElement, geo: Geometry, { precision = 2 }:
       const placement = imagePlacement(shape);
       const attrs: Record<string, string> = { href: shape.image.href, x: '0', y: '0', width: String(shape.image.width), height: String(shape.image.height), transform: placement, preserveAspectRatio: shape.image.preserveAspectRatio };
       for (const [k, v] of Object.entries(attrs)) if (path.getAttribute(k) !== v) path.setAttribute(k, v);
-    } else path.setAttribute('d', toPathData(shape, precision, true));
-    if (shape.node) path.setAttribute('data-node', shape.node);
+    } else {
+      // Rewriting an unchanged `d` still makes the browser parse and repaint the path: only set what changed.
+      const d = toPathData(shape, precision, true);
+      if (path.getAttribute('d') !== d) path.setAttribute('d', d);
+    }
+    if (shape.node) { if (path.getAttribute('data-node') !== shape.node) path.setAttribute('data-node', shape.node); }
     else path.removeAttribute('data-node');
     if (shape.rangeSelections?.length) path.setAttribute('data-ranges', JSON.stringify(shape.rangeSelections));
     else path.removeAttribute('data-ranges');

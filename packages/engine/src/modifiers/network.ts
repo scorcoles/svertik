@@ -6,6 +6,8 @@ interface Node {
   center: Vec2;
   box: ReturnType<typeof bounds>;
   inside: (point: Vec2) => boolean;
+  /** Its outline as segments (the closed contours, or the box), for where a link leaves it. */
+  edges: [Vec2, Vec2][];
 }
 
 /** Draws deduplicated nearest-neighbour links between existing geometry elements. */
@@ -47,19 +49,32 @@ export const network = defineModifier({
       if (Number.isFinite(center[0]) && Number.isFinite(center[1])) {
         const node = nodes.length;
         for (const shape of shapes) nodeForShape.set(shape, node);
-        nodes.push({ geometry, center, box, inside });
+        const corners: Vec2[] = [[box.x, box.y], [box.x + box.width, box.y], [box.x + box.width, box.y + box.height], [box.x, box.y + box.height]];
+        const rings = polygons.length ? polygons.flat() : [corners];
+        const edges = rings.flatMap((ring) => ring.map((point, k) => [point, ring[(k + 1) % ring.length]!] as [Vec2, Vec2]));
+        nodes.push({ geometry, center, box, inside, edges });
       }
     }
     if (nodes.length < 2) return geo;
 
     const maxDistance = Math.max(0, p.maxDistance);
+    // Each node keeps only its `neighbors` nearest, in order (distance, then index), instead of sorting them all.
+    const keep = Math.max(0, Math.floor(p.neighbors));
     const candidates = nodes.map(() => [] as { index: number; distance: number }[]);
+    const offer = (near: { index: number; distance: number }[], index: number, distance: number) => {
+      const last = near[near.length - 1];
+      if (near.length >= keep && last && (distance > last.distance || (distance === last.distance && index > last.index))) return;
+      let at = near.length;
+      while (at > 0 && (near[at - 1]!.distance > distance || (near[at - 1]!.distance === distance && near[at - 1]!.index > index))) at--;
+      near.splice(at, 0, { index, distance });
+      if (near.length > keep) near.pop();
+    };
     const addPair = (i: number, j: number) => {
       const a = nodes[i]!, b = nodes[j]!;
       const distance = Math.hypot(b.center[0] - a.center[0], b.center[1] - a.center[1]);
       if (distance <= 1e-6 || (maxDistance > 0 && distance > maxDistance)) return;
-      candidates[i]!.push({ index: j, distance });
-      candidates[j]!.push({ index: i, distance });
+      offer(candidates[i]!, j, distance);
+      offer(candidates[j]!, i, distance);
     };
 
     // A finite max distance keeps large cloned grids local instead of comparing every pair.
@@ -85,31 +100,30 @@ export const network = defineModifier({
 
     const edges = new Set<string>();
     candidates.forEach((near, i) => {
-      near.sort((a, b) => a.distance - b.distance || a.index - b.index);
-      for (const candidate of near.slice(0, Math.floor(p.neighbors))) {
+      for (const candidate of near) {
         const a = Math.min(i, candidate.index), b = Math.max(i, candidate.index);
         edges.add(`${a}:${b}`);
       }
     });
 
-    const clipFromCenter = (node: Node, toward: Vec2, distance: number) => {
-      if (!node.inside(node.center)) return 0;
-      const steps = 32;
-      let insideT = 0;
-      for (let step = 1; step <= steps; step++) {
-        const t = step / steps;
-        const point: Vec2 = [node.center[0] + toward[0] * distance * t, node.center[1] + toward[1] * distance * t];
-        if (node.inside(point)) { insideT = t; continue; }
-        let lo = insideT, hi = t;
-        for (let k = 0; k < 18; k++) {
-          const mid = (lo + hi) / 2;
-          const sample: Vec2 = [node.center[0] + toward[0] * distance * mid, node.center[1] + toward[1] * distance * mid];
-          if (node.inside(sample)) lo = mid;
-          else hi = mid;
-        }
-        return distance * ((lo + hi) / 2);
+    // Where a link leaves its node: the first crossing of the ray from the centre with the node's outline
+    // (exact, instead of sampling the ray); 0 when the centre is outside it or the outline is not crossed.
+    const centred = nodes.map((node) => node.inside(node.center));
+    const clipFromCenter = (index: number, toward: Vec2, distance: number) => {
+      const node = nodes[index]!;
+      if (!centred[index]) return 0;
+      const [cx, cy] = node.center, [dx, dy] = toward;
+      let nearest = Infinity;
+      for (const [a, b] of node.edges) {
+        const ex = b[0] - a[0], ey = b[1] - a[1];
+        const det = dx * ey - dy * ex;
+        if (Math.abs(det) < 1e-12) continue;
+        const ax = a[0] - cx, ay = a[1] - cy;
+        const t = (ax * ey - ay * ex) / det;
+        const u = (ax * dy - ay * dx) / det;
+        if (t > 1e-9 && u >= 0 && u <= 1 && t < nearest) nearest = t;
       }
-      return 0;
+      return nearest <= distance ? nearest : 0;
     };
 
     const lineShapes: Shape[] = [];
@@ -119,8 +133,8 @@ export const network = defineModifier({
       const a = nodes[i]!, b = nodes[j]!;
       const dx = b.center[0] - a.center[0], dy = b.center[1] - a.center[1];
       const distance = Math.hypot(dx, dy), direction: Vec2 = [dx / distance, dy / distance];
-      const startOffset = clipFromCenter(a, direction, distance) + p.gap;
-      const endOffset = clipFromCenter(b, [-direction[0], -direction[1]], distance) + p.gap;
+      const startOffset = clipFromCenter(i, direction, distance) + p.gap;
+      const endOffset = clipFromCenter(j, [-direction[0], -direction[1]], distance) + p.gap;
       if (startOffset + endOffset >= distance) continue;
       const start: Vec2 = [a.center[0] + direction[0] * startOffset, a.center[1] + direction[1] * startOffset];
       const end: Vec2 = [b.center[0] - direction[0] * endOffset, b.center[1] - direction[1] * endOffset];

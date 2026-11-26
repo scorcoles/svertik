@@ -2,7 +2,7 @@ import { expandCompositions } from './composition';
 import type { GroupNode, SceneNode } from './scene';
 // The scene (what is saved and exported as JSON) and the engine that evaluates it.
 
-import { createDocumentEvaluator, withoutUnborn, type DocumentResult, type PastScenes, type SceneV1 } from './document';
+import { createDocumentEvaluator, withoutUnborn, type DocumentResult, type PastScenes, type SceneV1, type TargetLookup } from './document';
 import { sampleScene } from './animation';
 import { bounds, keepInner, type Bounds, type Geometry } from './geometry';
 import { importSVG } from './importer';
@@ -66,7 +66,8 @@ const DEFAULT_RESOLUTION = 0.01;
 export interface StepMemo {
   base?: Geometry;
   resolution?: number;
-  steps: { key: string; geo: Geometry; dynamic: boolean; ref: Bounds }[];
+  /** `deps`: what a step that looked at other objects saw of them (fingerprints); absent when it can't be reused. */
+  steps: { key: string; geo: Geometry; dynamic: boolean; ref: Bounds; deps?: [string, number][] }[];
 }
 
 /**
@@ -147,7 +148,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
    * effects haven't changed, they are reused (animating the last of the stack doesn't redo the ones above).
    * A step that looks at another object is not reused (the other may have changed).
    */
-  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: (id: string) => Geometry | null, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined, rebuild?: (params: Record<string, number>) => Geometry | null): Geometry {
+  function runStack(geo: Geometry, stack: ModifierInstance[], ref: Bounds, resolution: number, target?: TargetLookup, memo?: StepMemo, refs?: StackRefs, trail?: TrailLookup, history?: (inst: ModifierInstance) => HistoryLookup | undefined, rebuild?: (params: Record<string, number>) => Geometry | null): Geometry {
     // Subdivision follows the reference box, which changes after an effect that reframes (a Clone grid): a
     // deformer after it bends at the scale of the whole grid, so tiny copies must not be cut at the source's scale.
     let res = Math.max(ref.width, ref.height) * resolution || 1;
@@ -157,7 +158,9 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       if (refs) refs[inst.id] = ref;
       const key = JSON.stringify([inst.id, inst.type, inst.enabled ?? true, inst.params ?? {}, inst.children ?? [], inst.scene ?? 0, inst.inWorld ?? false, inst.eachContext ?? 0]);
       const cached = memo?.steps[i];
-      if (reuse && cached && cached.key === key && !cached.dynamic) {
+      // A step that looked at other objects is reused while they look the same (a Clone on a hidden shape).
+      const same = (deps: [string, number][] | undefined) => !!deps && !!target?.fingerprint && deps.every(([id, h]) => target.fingerprint!(id) === h);
+      if (reuse && cached && cached.key === key && (!cached.dynamic || same(cached.deps))) {
         geo = cached.geo;
         ref = cached.ref;
         res = Math.max(ref.width, ref.height) * resolution || 1;
@@ -165,15 +168,21 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
       }
       reuse = false;
       let dynamic = false;
-      const look = target && ((id: string) => ((dynamic = true), target(id)));
-      const past: TrailLookup | undefined = trail && ((...args) => ((dynamic = true), trail(...args)));
+      // Fingerprints of the objects this step looks at; dropped when it also reads the past (it can't be reused).
+      let deps: [string, number][] | undefined = [];
+      const look = target && ((id: string) => {
+        dynamic = true;
+        if (deps && target.fingerprint) deps.push([id, target.fingerprint(id)]); else deps = undefined;
+        return target(id);
+      });
+      const past: TrailLookup | undefined = trail && ((...args) => ((dynamic = true), (deps = undefined), trail(...args)));
       if (inst.enabled !== false) {
         const def = registry.get(inst.type);
         if (!def) throw new Error(`svertik: unknown modifier "${inst.type}"`);
         if (def.kind !== 'filter' && !def.mask) {
           // What depends on its past is redone every time (the past can change without its input changing).
           const own = def.history ? history?.(inst) : undefined;
-          if (own) dynamic = true;
+          if (own) dynamic = true, deps = undefined;
           geo = keepInner(geo, def.apply(geo, resolveParams(def.params, inst.params), { id: inst.id, bounds: ref, resolution: res, target: look, trail: past, children: resolveChildren(inst.children), history: own, ...(inst.scene ? { scene: inst.scene } : {}), ...(inst.inWorld ? { inWorld: true } : {}), ...(inst.type === 'each' ? { expressions: inst.eachContext, ...(rebuild ? { rebuild } : {}) } : {}) }));
           if (def.reframe) {
             const b = bounds(geo);
@@ -184,7 +193,7 @@ export function createEngine(modifiers: readonly ModifierDef<any>[]): Engine {
           }
         }
       }
-      if (memo) memo.steps[i] = { key, geo, dynamic, ref };
+      if (memo) memo.steps[i] = { key, geo, dynamic, ref, ...(dynamic && deps ? { deps } : {}) };
     });
     // Mask is a post-process, even when it precedes Clone in the stack.
     const lastMask = [...stack].reverse().find(inst => inst.enabled !== false && registry.get(inst.type)?.mask && inst.params?.source);
