@@ -7,7 +7,7 @@
   import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
   import { hatchObjectAt } from './hit-regions';
-  import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag } from './gizmos';
+  import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag, type Gizmo } from './gizmos';
   import PathEdit from './PathEdit.svelte';
   import TextEdit from './TextEdit.svelte';
   import DropArea from './DropArea.svelte';
@@ -1303,25 +1303,46 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  // ── Guides of the selected effect (Bones' bones), in stage pixels.
-  let guides = $state<{ lines: string[]; points: [number, number][] } | null>(null);
+  // ── Effect guides in the Wire view (Bones' bones): every object's, in stage pixels. The selected
+  // effect draws its own through its actuator, with handles.
+  let guides = $state<{ lines: string[]; points: [number, number, boolean][] } | null>(null);
+  // Drawn on the next frame (the result's position must be laid out first). While playing, every frame
+  // changes the time: a pending frame is never cancelled, it just draws the latest state.
+  let guidesInput: { scene: SceneV1 | null; time: number; selected?: string } = { scene: null, time: 0 };
+  let guidesFrame = 0;
+  const hasGuides = (list: SceneNode[]): boolean =>
+    list.some((n) => n.visible !== false && (n.stack?.some((m) => m.enabled !== false && !!registry.get(m.type)?.guides) || (n.kind === 'group' && !n.composition && hasGuides(n.children))));
   $effect(() => {
     void view; void stageSize; void viewBox; void nodes;
-    const m = editor.current;
-    const def = m && !editor.currentParent ? registry.get(m.type) : undefined;
-    const params = def?.guides && m ? resolveParams(def.params, $state.snapshot(m.params) as Record<string, unknown>) : null;
-    const frame = requestAnimationFrame(() => {
-      const info = ownerInfo();
-      if (!def?.guides || !params || !info) return (guides = null);
-      const g = def.guides(params as never, refBox(info));
-      const at = (q: readonly [number, number]) => docToStage(...apply(info.matrix, q));
-      guides = {
-        lines: g.lines.map((l) => l.map(at).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')),
-        points: g.points.map(at).filter((q): q is [number, number] => !!q),
-      };
-    });
-    return () => cancelAnimationFrame(frame);
+    const scene = editor.showWire && editor.scene ? ($state.snapshot(editor.scene) as SceneV1) : null;
+    guidesInput = { scene: scene && hasGuides(scene.objects) ? scene : null, time: editor.time, selected: editor.current?.id };
+    if (!guidesFrame) guidesFrame = requestAnimationFrame(drawGuides);
   });
+  $effect(() => () => { if (guidesFrame) cancelAnimationFrame(guidesFrame); });
+  function drawGuides() {
+    guidesFrame = 0;
+    const { scene, time, selected } = guidesInput;
+    if (!scene) return (guides = null);
+    // Formulas resolved at the playhead, so the bones sit where the drawing is.
+    const resolved = evaluateSceneExpressions(sampleScene(scene, time));
+    const out: { lines: string[]; points: [number, number, boolean][] } = { lines: [], points: [] };
+    const visit = (list: SceneNode[]) => {
+      for (const n of list) {
+        const info = nodes.get(n.id);
+        for (const m of info && n.visible !== false ? n.stack ?? [] : []) {
+          const def = m.enabled === false || m.id === selected ? undefined : registry.get(m.type);
+          if (!def?.guides || !info) continue;
+          const g = def.guides(resolveParams(def.params, (m.params ?? {}) as Record<string, unknown>) as never, info.refs?.[m.id] || info.bounds);
+          const at = (q: readonly [number, number]) => docToStage(...apply(info.matrix, q));
+          out.lines.push(...g.lines.map((l) => l.map(at).filter((q): q is [number, number] => !!q).map((q) => q.join(',')).join(' ')));
+          g.points.forEach((q, i) => { const xy = at(q); if (xy) out.points.push([xy[0], xy[1], i === 0]); });
+        }
+        if (n.kind === 'group' && !n.composition) visit(n.children);
+      }
+    };
+    visit(resolved.objects);
+    guides = out.lines.length ? out : null;
+  }
 
   // ── Actuators of the selected effect: its wire and its handles (see gizmos.ts)
 
@@ -1373,10 +1394,16 @@
   };
   /** The gizmo already in stage pixels (recomputed after painting, like the handles). */
   let gizmoScreen = $state<{ lines: { d: string; tone: string; dashed: boolean; ribbon: boolean; drag?: Drag; label?: string }[]; handles: { x: number; y: number; label: string; drag: Drag; tone: string }[] } | null>(null);
+  // Like the guides: a pending frame is never cancelled (while playing, the gizmo changes every frame
+  // and cancelling would starve it); it draws the latest gizmo.
+  let gizmoInput: Gizmo | null = null;
+  let gizmoFrame = 0;
   $effect(() => {
     void view; void stageSize; void viewBox;
-    const g = gizmo;
-    const frame = requestAnimationFrame(() => {
+    gizmoInput = gizmo;
+    if (!gizmoFrame) gizmoFrame = requestAnimationFrame(() => {
+      gizmoFrame = 0;
+      const g = gizmoInput;
       const info = ownerInfo();
       if (!g || !info) return (gizmoScreen = null);
       const s = (pt: Vec2) => docToStage(...apply(info.matrix, pt));
@@ -1392,8 +1419,8 @@
         }),
       };
     });
-    return () => cancelAnimationFrame(frame);
   });
+  $effect(() => () => { if (gizmoFrame) cancelAnimationFrame(gizmoFrame); });
   let gizmoActive = $state(false);
   let gizmoHover = $state(false);
 
@@ -1678,11 +1705,11 @@
         {/if}
       {/if}
       {#if guides && !editor.tool}
-        <!-- Effect guides (the bones): segments and joints. -->
+        <!-- Effect guides in the Wire view (the bones): segments and joints. -->
         <svg class="guides" aria-hidden="true">
           <!-- A dark stroke below and a light one on top: readable over any colour. -->
           {#each guides.lines as l, i (i)}<polyline class="under" points={l} /><polyline points={l} />{/each}
-          {#each guides.points as [cx, cy], i (i)}<circle {cx} {cy} r={i === 0 ? 5 : 4} data-root={i === 0 || undefined} />{/each}
+          {#each guides.points as [cx, cy, root], i (i)}<circle {cx} {cy} r={root ? 5 : 4} data-root={root || undefined} />{/each}
         </svg>
       {/if}
       {#if selection && !editor.tool && !editor.playing && !editor.editingPath}

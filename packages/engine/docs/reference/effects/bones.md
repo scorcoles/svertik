@@ -2,7 +2,7 @@
 
 `type: "bones"` · Deformer: moves the points of the drawing. · Editor menu: **Deform**.
 
-A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.
+A chain of 2 to 6 bones from Start to End, each with its own length (relative to the others). Each bone turns on its joint (relative to the previous one) and drags what is around it; at each joint the drawing bends round an arc, keeping its thickness, and Smooth sets how long that arc is. With a Target, the angles are solved (IK) so the tip reaches it.
 
 ## Parameters
 
@@ -20,6 +20,12 @@ A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (r
 | `target` | point | `[0.8,0.1]` | [x, y], fractions of the box (0–1) | only when `ik` is `true` |
 | `start` | point | `[0,0.5]` | [x, y], fractions of the box (0–1) | group: Chain |
 | `end` | point | `[1,0.5]` | [x, y], fractions of the box (0–1) | group: Chain |
+| `length1` | number | `1` | min 0.1, max 10, step 0.05 | group: Chain; label: Length 1 |
+| `length2` | number | `1` | min 0.1, max 10, step 0.05 | group: Chain; label: Length 2 |
+| `length3` | number | `1` | min 0.1, max 10, step 0.05 | only when `segments` is `3` or `4` or `5` or `6`; group: Chain; label: Length 3 |
+| `length4` | number | `1` | min 0.1, max 10, step 0.05 | only when `segments` is `4` or `5` or `6`; group: Chain; label: Length 4 |
+| `length5` | number | `1` | min 0.1, max 10, step 0.05 | only when `segments` is `5` or `6`; group: Chain; label: Length 5 |
+| `length6` | number | `1` | min 0.1, max 10, step 0.05 | only when `segments` is `6`; group: Chain; label: Length 6 |
 
 Missing parameters take their default. Numbers and angles (and points and colours) can be animated with a track `{ on: "modifier", modifier: "<id>", param: "<name>" }` unless noted.
 
@@ -52,7 +58,13 @@ Inside a node's `stack` (effects run top to bottom):
     "end": [
       1,
       0.5
-    ]
+    ],
+    "length1": 1,
+    "length2": 1,
+    "length3": 1,
+    "length4": 1,
+    "length5": 1,
+    "length6": 1
   }
 }
 ```

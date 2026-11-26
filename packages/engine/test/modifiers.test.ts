@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { covers, simplify } from '../src/clip';
 import { sampleScene } from '../src/animation';
-import { bend, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type SceneV1, type Shape, type StackInput } from '../src';
+import { bend, bones, bounds, builtins, createEngine, noise, randomizeParams, resolveParams, rng, spherize, transform, twist, wave, zeroParams, toSVG, type SceneV1, type Shape, type StackInput } from '../src';
 
 const square = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>';
 const scene = (stack: StackInput['stack']): StackInput => ({ source: square, stack });
@@ -867,7 +867,45 @@ describe('bones', () => {
     const [x, y] = tip(run({ segments: 3, ik: true, target: [0.6, 4], smooth: 0 }));
     expect(Math.hypot(x - 60, y - 40)).toBeLessThan(6);
   });
+
+  it('IK with unequal lengths: the tip still reaches the target, also with Smooth', () => {
+    // The posed chain (the canvas guide) ends on the target; the drawing follows it.
+    const params = resolveParams(bones.params, { segments: 3, length1: 3, length2: 1, length3: 1, ik: true, target: [0.7, 3], smooth: 1 });
+    const pose = bones.guides!(params as never, { x: 0, y: 0, width: 100, height: 10 }).points;
+    const [x, y] = pose[pose.length - 1]!;
+    expect(Math.hypot(x - 70, y - 30)).toBeLessThan(0.5);
+    // Joint 1 is three fifths of the way: 60 from Start.
+    expect(Math.hypot(pose[1]![0] - pose[0]![0], pose[1]![1] - pose[0]![1])).toBeCloseTo(60, 6);
+    const [tx, ty] = tip(run({ segments: 3, length1: 3, length2: 1, length3: 1, ik: true, target: [0.7, 3], smooth: 1 }));
+    expect(Math.hypot(tx - 70, ty - 30)).toBeLessThan(15);
+  });
+
+  it('Length moves the joint: a long first bone keeps more of the bar straight', () => {
+    // Lengths 4 : 1 put the joint at x = 80; the second bone goes down from there.
+    const b = bounds(run({ segments: 2, length1: 4, length2: 1, angle1: 0, angle2: 90, smooth: 0 }));
+    expect(b.x + b.width).toBeGreaterThan(80);
+    expect(b.x + b.width).toBeLessThan(92);
+    expect(b.y + b.height).toBeGreaterThan(20);
+  });
+
+  it('a sharp bend of a thick bar does not fold the contour over itself', () => {
+    const thick = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><rect width="100" height="40"/></svg>';
+    for (const smooth of [0.3, 1]) {
+      const geo = createEngine(builtins).evaluateStack({ source: thick, stack: [{ id: 'b', type: 'bones', params: { segments: 2, angle1: 0, angle2: 120, smooth } }] });
+      const sp = geo.shapes[0]!.subpaths[0]!;
+      const ring = [sp.start, ...sp.segs.map((g) => g.p)];
+      const cross = (a: Vec, b: Vec, c: Vec, d: Vec) => {
+        const o = (p: Vec, q: Vec, r: Vec) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+        return o(a, b, c) * o(a, b, d) < -1e-9 && o(c, d, a) * o(c, d, b) < -1e-9;
+      };
+      let crossings = 0;
+      for (let i = 0; i < ring.length - 1; i++)
+        for (let j = i + 2; j < ring.length - 1; j++) if (cross(ring[i]!, ring[i + 1]!, ring[j]!, ring[j + 1]!)) crossings++;
+      expect(crossings).toBe(0);
+    }
+  });
 });
+type Vec = readonly [number, number];
 
 describe('glitch on strokes (no fill)', () => {
   const rings = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><g fill="none" stroke="#ededed" stroke-width="2"><circle cx="100" cy="100" r="40"/><circle cx="100" cy="100" r="80"/></g></svg>';

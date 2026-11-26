@@ -1,7 +1,7 @@
 // Canvas actuators: an effect's "wire" (Spherize's sphere, Rotate 3D's rings…)
 // and the handles that change its parameters. All in the node's local coordinates (its reference
 // box); the canvas takes them to the screen with the node's matrix.
-import { apply, IDENTITY, invert, squareToQuad, uprightBounds, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
+import { apply, bones, IDENTITY, invert, resolveParams, squareToQuad, uprightBounds, type Mat, type Bounds, type Vec2 } from '@svertik/engine';
 
 type Params = Record<string, unknown>;
 
@@ -648,7 +648,33 @@ Object.assign(builders, {
           : [],
     };
   },
+
+  bones(p: Params, b: Bounds): Gizmo {
+    // The posed chain; each joint after the root turns the bone that ends there (around the joint before
+    // it). With IK the angles are solved, so the tip is moved with Target's own handle instead.
+    const pose = bonesPose(p, b);
+    if (!pose) return { lines: [], handles: [] };
+    const n = Math.max(2, Math.min(6, Math.round(Number(p.segments ?? 3))));
+    return {
+      lines: [{ pts: pose }],
+      handles: p.ik === true ? [] : pose.slice(1, n + 1).map((q, i) => ({
+        at: q,
+        label: `Bone ${i + 1}`,
+        drag: (p0, from, to, snap) => {
+          const key = `angle${i + 1}`;
+          const a0 = Number(p0[key] ?? 12);
+          return { [key]: snapDeg(a0 + turn(pose[i]!, from, to), snap) };
+        },
+      })),
+    };
+  },
 } satisfies Record<string, (p: Params, b: Bounds) => Gizmo>);
+
+/** Bones' chain in its pose (the joints, from Start), as the effect computes it. */
+export function bonesPose(p: Params, b: Bounds): Vec2[] | null {
+  const pts = bones.guides?.(resolveParams(bones.params, p) as never, b).points;
+  return pts && pts.length > 1 ? pts.map((q) => [q[0], q[1]] as Vec2) : null;
+}
 
 export function gizmoFor(type: string, params: Params, bounds: Bounds, world: Mat = IDENTITY): Gizmo | null {
   if (type === 'crosshatch') return crosshatchGizmo(params, bounds, world);

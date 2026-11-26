@@ -13,7 +13,7 @@ Every built-in effect and primitive of `@svertik/engine`, generated from their s
 | [Spherize](effects/spherize.md) | `spherize` | Bulges (strength > 0) or pinches (strength < 0) what falls inside a circle. |
 | [Twist](effects/twist.md) | `twist` | A whirl: turns more the closer a point is to the center, and nothing at the edge of the radius. |
 | [Bend](effects/bend.md) | `bend` | Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. |
-| [Bones](effects/bones.md) | `bones` | A chain of 2 to 6 equal bones from Start to End. |
+| [Bones](effects/bones.md) | `bones` | A chain of 2 to 6 bones from Start to End, each with its own length (relative to the others). |
 | [Taper](effects/taper.md) | `taper` | Narrows (or widens) one end: the width across the axis changes along it. |
 | [Gather](effects/gather.md) | `gather` | Squeezes the drawing towards one side along an axis, by an amount that changes across it: Start applies at one edge (top for axis x, left for axis y), End at the other, positive towards the left/top and negative towards the right/bottom. |
 | [Compress](effects/compress.md) | `compress` | Crowds the drawing towards a center line along one axis (Strength > 0) or spreads it away from it (Strength < 0); both ends of the box stay put and the order of points is kept. |

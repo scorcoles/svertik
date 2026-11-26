@@ -5,7 +5,8 @@
   import { Icon, t, type IconName } from '@svertik/ui';
   import { chooseLocale, locale, LOCALES } from './i18n';
   import { ago, type Recent } from './recents';
-  import type { Editor } from './editor.svelte';
+  import { modifierTypes, type Editor } from './editor.svelte';
+  import { version } from '../package.json';
   import type { DemoName } from './demo-catalog';
 
   interface Props {
@@ -103,6 +104,9 @@
           {/each}
         </DropdownMenu.SubContent>
       </DropdownMenu.Sub>
+      <DropdownMenu.Separator class="sv-menu-sep" />
+      <!-- Information, not an action: the version and how many modifiers there are. -->
+      <div class="about">{t('svertik {version} alpha · {count} modifiers', { version, count: modifierTypes.length })}</div>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
@@ -134,4 +138,5 @@
   :global(.sv-app-trigger + * .sv-menu), :global(.sv-menu:has(.key)) { min-width: 300px; }
   :global(.sv-menu-sep) { height: 1px; margin: var(--sv-space-4) 0; background: var(--sv-rule-default); }
   :global(.sv-menu-item[data-disabled]) { opacity: 0.35; }
+  .about { padding: var(--sv-space-4) var(--sv-space-8); color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; cursor: default; user-select: text; }
 </style>

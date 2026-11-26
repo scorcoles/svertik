@@ -2,6 +2,22 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.27
+
+### Added
+
+- Bones: each bone has its own length (Length 1–6, in the Chain group; relative to the others, sharing the Start–End distance), so joints go where they are needed. IK takes the lengths into account.
+- Bones on the canvas: with the effect selected, its chain is an actuator and each joint a handle that turns the bone ending there (⇧ snaps to 15°). In Wire, every object's bones show at the playhead, formulas resolved.
+
+### Changed
+
+- Bones bends each joint round an arc tangent to both bones, like Bend: the thickness is kept, the inner side compresses instead of folding over and the outer side stays round. Smooth sets how long the arc is. Saved scenes keep their angles, but their joints now look like this.
+- The version and the number of modifiers moved from the status bar to the end of the svertik menu, so the status bar keeps to one line.
+
+### Fixed
+
+- Actuators and guides froze while playing when their values were animated (every frame cancelled the pending redraw); they now follow playback.
+
 ## 0.0.26
 
 ### Added

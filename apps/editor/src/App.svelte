@@ -860,7 +860,7 @@
   <footer class="status" class:no-inspector={panelMaximized}>
     {#if !editor.commandInEffectsSlot}<CommandLine {editor} />{/if}
     {#if canvasStatus}
-      <!-- Three groups, left to right: the canvas view, time, and the panels. Version info goes last, dimmed. -->
+      <!-- Three groups, left to right: the canvas view, time, and the panels. -->
       <div class="canvas-status status-group" role="group" aria-label={t('Canvas view')}>
         <span class="pct" title={t('Zoom (wheel or pinch)')}>{canvasStatus.percent}%</span>
         <button type="button" onclick={canvasStatus.fit} title={t('Fit (⇧1)')}>{t('Fit')}</button>
@@ -890,7 +890,6 @@
     {:else}
       <div class="status-actions">{@render diagnosticsToggle()}</div>
     {/if}
-    <span class="status-meta">{t('svertik {version} alpha · {count} modifiers', { version, count: modifierTypes.length })}</span>
   </footer>
   <input
     bind:this={fileInput}
@@ -1002,7 +1001,6 @@
   .status-actions button:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
   .status-actions button[aria-pressed='true'] { color: var(--sv-accent-text); border-color: var(--sv-accent-fill); }
   :global([data-sv-theme='light']) .status-actions button[aria-pressed='true'] { color: #000; background: var(--sv-accent-fill); border-color: #256f60; }
-  .status-meta { color: var(--sv-text-muted); font-size: var(--sv-font-size-10); white-space: nowrap; }
   .console-toggle .badge { margin-left: 4px; color: var(--sv-signal-warning); font-variant-numeric: tabular-nums; }
   .console-toggle .badge[data-errors] { color: var(--sv-signal-error); }
   .video-export {

@@ -266,10 +266,6 @@ All shapes share these style parameters:
 - `dashOffset` (**Dash offset**): number, default `0`, -10000..10000, px, only when `stroke` is `true`
 - `behind` (**Behind fill**): boolean, default `false`, not animatable, only when `stroke` is `true`
 
-### Resizing primitives
-
-Resizing a primitive with the editor's canvas handles changes its size values, not its transform `scale`: width and height for Rectangle, Ellipse, Wave and Random bars (each axis on its own, corner radii with the smaller factor), length and width for Arrow, radius for Donut (with its inner radius), Polygon, Star and Spiral, length for Line, size and width for Cross, height for Pawn, size for Text, and the points of a Path. Numbers are multiplied; formulas (`this.radius - 50`) and percentages stay and follow by themselves; stroke and style don't change. Shapes sized by one value (Donut, Polygon, Star, Spiral, Line, Cross, Pawn, Text) fall back to the transform's `stretch` when pulled on one axis. Scale stays in the inspector. Several objects, groups and imported SVGs still scale. In code: `resizeShapeParams(shape, params, sx, sy)` and, to keep a point in place, `resizeOffset(placement, pivot, origin, fixed, sx, sy)` with the `pivot` and `origin` from the node's evaluated `NodeInfo`.
-
 ### Shape Registry
 
 1. **`rectangle`** (Rectangle): A rectangle, with optional rounded corners. Each radius is capped at half the shorter side of the rectangle, then adjacent corners are scaled together if needed to fit.
@@ -359,7 +355,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
 5. **`bend`** (Bend, menu Deform): Curves the drawing like a sheet: the chosen axis becomes an arc of `angle` degrees. Positive angles bend the ends down (∩), negative ones up (∪).
    - `angle`: angle, default `90`
    - `axis`: "horizontal" | "vertical", default `"horizontal"`, not animatable
-6. **`bones`** (Bones, menu Deform): A chain of 2 to 6 equal bones from Start to End. Each bone turns on its joint (relative to the previous one) and drags what is around it, with a smooth transition at each joint. With a Target, the angles are solved (IK) so the tip reaches it.
+6. **`bones`** (Bones, menu Deform): A chain of 2 to 6 bones from Start to End, each with its own length (relative to the others). Each bone turns on its joint (relative to the previous one) and drags what is around it; at each joint the drawing bends round an arc, keeping its thickness, and Smooth sets how long that arc is. With a Target, the angles are solved (IK) so the tip reaches it.
    - `segments`: number, default `3`, 2..6
    - `angle1` (**Bone 1**): angle, default `12`, only when `ik` is `false`
    - `angle2` (**Bone 2**): angle, default `12`, only when `ik` is `false`
@@ -372,6 +368,12 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `target`: point, default `[0.8,0.1]`, fraction, only when `ik` is `true`
    - `start`: point, default `[0,0.5]`, fraction
    - `end`: point, default `[1,0.5]`, fraction
+   - `length1` (**Length 1**): number, default `1`, 0.1..10
+   - `length2` (**Length 2**): number, default `1`, 0.1..10
+   - `length3` (**Length 3**): number, default `1`, 0.1..10, only when `segments` is `3` or `4` or `5` or `6`
+   - `length4` (**Length 4**): number, default `1`, 0.1..10, only when `segments` is `4` or `5` or `6`
+   - `length5` (**Length 5**): number, default `1`, 0.1..10, only when `segments` is `5` or `6`
+   - `length6` (**Length 6**): number, default `1`, 0.1..10, only when `segments` is `6`
 7. **`taper`** (Taper, menu Deform): Narrows (or widens) one end: the width across the axis changes along it.
    - `amount`: number, default `0.5`, -1..1
    - `curve`: number, default `0`, -1..1
@@ -1560,6 +1562,8 @@ The runtime collection has the generator's ID, so references can address its eva
 Press **W** in the editor or either player to switch the evaluated geometry to Wire. The views share body classification, palette and screen-sized hatch patterns: mobile bodies use cyan, fixed bodies use yellow. Wire changes presentation only. Its invisible interaction geometry retains the original fills, stroke widths, opacity and masks, so selecting, dragging and clicking use the same areas as normal rendering. Wire is never saved as scene paint or exported.
 
 In the editor, selecting a Range in the stack highlights only the elements that Range affects. Five stable colours distinguish different Ranges, one active highlight at a time; no new random colour is sampled during playback. Switching to an object or a different kind of effect clears the Range highlight. Range preview also works before adding children. View zoom changes pattern scale, not evaluated scene geometry.
+
+In the editor's Wire view, every visible object with Bones shows its chain (bones and joints, root marked) at the playhead, following formulas and playback. Selecting a Bones effect draws its chain as an actuator: drag a joint to turn the bone that ends there (⇧ snaps to 15°); with IK, move Target instead.
 
 
 ## Manual Path primitive (0.0.4)
