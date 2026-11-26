@@ -1449,3 +1449,106 @@ it('keeps infinite editor time across duration, pause/resume and duration edits,
   expect(e.time).toBe(5);
   expect(e.animation?.loop).toBe(false);
 });
+
+describe('AI agent round trip', () => {
+  it('copies the scene with a prompt, and applies the scene in the answer as one undo step', () => {
+    const e = fresh();
+    e.addShape('star', { fillColor: '#123456' });
+    const prompt = e.agentPrompt()!;
+    expect(prompt).toContain('https://svertik.com/docs/engine/');
+    expect(prompt).toContain('"#123456"');
+    // No notes: the agent is asked to ask what the scene is for, and to keep the answer as notes.
+    expect(prompt).toContain('has no notes yet');
+    e.scene!.notes = 'A poster for a jazz night.';
+    expect(e.agentPrompt()).not.toContain('has no notes yet');
+    const scene = JSON.parse(prompt.match(/```json\n([\s\S]*?)```/)![1]!);
+    scene.objects[0].params.fillColor = '#ff0000';
+    // An answer with words around a fenced block.
+    const answer = 'Done! Here is the scene:\n```json\n' + JSON.stringify(scene) + '\n```\nEnjoy.';
+    expect(e.fromAgent(answer)).toBe('applied');
+    const fill = () => (e.scene!.objects[0]!.kind === 'shape' ? e.scene!.objects[0]!.params.fillColor : null);
+    expect(fill()).toBe('#ff0000');
+    e.undo();
+    expect(fill()).toBe('#123456');
+  });
+
+  it('says what is selected, so "this" in the request has a meaning', () => {
+    const e = fresh();
+    e.addShape('star');
+    const star = e.scene!.objects[0]!;
+    e.add('twist');
+    expect(e.agentPrompt()).toContain(`object "${star.name}" (id "${star.id}"), effect "Twist"`);
+  });
+
+  it('sends long embedded data as a stand-in and puts it back from the answer', () => {
+    const e = fresh();
+    e.addShape('star');
+    const big = '<svg xmlns="http://www.w3.org/2000/svg">' + '<path d="M0 0L10 10"/>'.repeat(200) + '</svg>';
+    e.scene!.objects.push({ kind: 'object', id: 'logo', name: 'Logo', source: big, stack: [] } as never);
+    const prompt = e.agentPrompt()!;
+    expect(prompt).not.toContain('<path d=');
+    expect(prompt).toContain('svertik:kept:1');
+    const scene = JSON.parse(prompt.match(/```json\n([\s\S]*?)```/)![1]!);
+    scene.objects[0].name = 'Renamed';
+    expect(e.fromAgent(JSON.stringify(scene))).toBe('applied');
+    const logo = e.scene!.objects.find((n) => n.id === 'logo') as { source?: string };
+    expect(logo.source).toBe(big);
+    // A stand-in this editor never gave out cannot be restored: reported, not applied.
+    scene.objects[1].source = 'svertik:kept:99';
+    expect(e.fromAgent(JSON.stringify(scene))).toBe('invalid');
+  });
+
+  it('leaves ordinary pastes alone and reports a broken scene', () => {
+    const e = fresh();
+    e.addShape('star');
+    expect(e.fromAgent('just some text')).toBe('none');
+    expect(e.fromAgent('{"version": 1, "objects": [{"kind": "shape", "id": "a", "name": "A", "shape": "nope", "params": {}, "stack": []}]}')).toBe('invalid');
+    expect(e.notice).toBeTruthy();
+    // A message for the agent, listing what to fix.
+    expect(e.agentFixRequest).toContain('does not validate');
+    expect(e.agentFixRequest).toContain('nope');
+  });
+});
+
+describe('rail colours: None', () => {
+  it('turns the selection\'s fill or stroke off, keeping its colour; picking a colour turns it back on', () => {
+    const e = fresh();
+    e.addShape('star', { fillColor: '#123456' });
+    const star = () => e.scene!.objects[0] as { params: Record<string, unknown> };
+    e.setFillNone();
+    expect(star().params.fill).toBe(false);
+    expect(star().params.fillColor).toBe('#123456');
+    expect(e.currentFillOff).toBe(true);
+    e.setFillColor('#ff0000');
+    expect(star().params.fill).toBe(true);
+    expect(e.currentFillOff).toBe(false);
+    e.setOutlineColor('#00ff00');
+    expect(e.currentStrokeOff).toBe(false);
+    e.setStrokeNone();
+    expect(star().params.stroke).toBe(false);
+    expect(e.currentStrokeOff).toBe(true);
+  });
+
+  it('without a selection, new primitives come without fill', () => {
+    const e = fresh();
+    e.selected = null;
+    e.setFillNone();
+    expect(e.currentFillOff).toBe(true);
+    e.addShape('rectangle');
+    expect((e.scene!.objects[0] as { params: Record<string, unknown> }).params.fill).toBe(false);
+  });
+});
+
+describe('swap fill and stroke', () => {
+  it('swaps the colours and which one is on, for the selection or for new primitives', () => {
+    const e = fresh();
+    e.addShape('star', { fillColor: '#111111', strokeColor: '#eeeeee', stroke: false });
+    e.swapFillStroke();
+    const p = (e.scene!.objects[0] as { params: Record<string, unknown> }).params;
+    expect([p.fillColor, p.strokeColor, p.fill, p.stroke]).toEqual(['#eeeeee', '#111111', false, true]);
+    e.selected = null;
+    e.fillColor = '#ff0000'; e.strokeColor = '#0000ff'; e.strokeOn = false;
+    e.swapFillStroke();
+    expect([e.fillColor, e.strokeColor, e.fillOn, e.strokeOn]).toEqual(['#0000ff', '#ff0000', false, true]);
+  });
+});

@@ -527,7 +527,7 @@ Every built-in effect, by kind. The pages in `packages/engine/docs/reference/` c
    - `curl`: number, default `1.2`, 0..2
    - `direction`: angle, default `0`
    - `seed`: seed, default `1`
-2. **`wavelines`** (Wave Lines, menu Draw): Turns sampled tone into horizontal vector lines. Darkness shapes each line’s offset and weight; Line spacing, Sample spacing, Wave amount and Wavelength control the texture. Speed moves the wave over Time, which follows scene.time unless it is set. Lines stay within the sampled silhouette; use Color or Tint after Wave Lines to style them.
+2. **`wavelines`** (Wave Lines, menu Draw): Turns sampled tone into horizontal vector lines. Darkness shapes each line’s offset and weight; Line spacing, Sample spacing, Wave amount and Wavelength control the texture. Speed moves the wave over Time, which follows scene.time unless it is set. Lines stay within the sampled silhouette and take the colour of the drawing below (its fill, else its stroke), changing where it changes; use Color or Tint after Wave Lines to style them.
    - `spacing` (**Line spacing**): number, default `12`, 2..120, px
    - `resolution` (**Sample spacing**): number, default `6`, 1..40, px
    - `amplitude` (**Wave amount**): number, default `22`, 0..160, px
@@ -1573,6 +1573,12 @@ In Wire, in the editor and in both players, every visible object with Bones show
 Selecting an effect in the editor shows its presets above the parameters (58 effects; also the generator primitives Random wave and Random bars, whose presets keep the object's size, style, seed and clock): live thumbnails of the selected object with each preset applied, drawn on the canvas colour; hovering one plays it (presets may hold `scene.time` formulas), clicking applies it in one undo step. A preset sets its own values and puts the others back to their defaults, keeping the effect's placement and links (centre-like points, node targets, the clock `time`, seeds). Effects whose look lives in fine detail (Halftone, Dithering, Crosshatch, Pixelate, Scanlines, Wave Lines, Grain) show a close-up. Weave's presets only differ on crossing open strokes. **View → Show presets** hides them. Presets are ordinary parameter values: nothing about them is stored in the scene.
 
 Envelope and Perspective are edited on a picture in the panel: the box at rest, the warped grid the effect makes (Envelope's control net too) and the points to drag (⇧ locks an axis, double-click resets a point); **Show values** lists the numbers. Point handles there and on the canvas turn into diamonds when animated (filled where there is a key at the playhead); Alt+click a point to add or remove a key.
+
+## Working with an AI agent from the editor
+
+**svertik menu → Copy for AI agent** copies a ready prompt for any agent (a chat, Claude Code, Cursor…): what svertik is, links to this guide and the effect reference, what is selected (so "this" in a request means it), the scene as JSON, and a place for the request. Without scene notes, it asks the agent to ask first what the scene is for and to keep the answer as notes. Long embedded data (imported SVG markup, images) travels as short `svertik:kept:N` stand-ins, restored when the answer comes back. Paste the agent's answer anywhere in the editor (not in a text field): the scene in it — the whole text, a JSON code block, or the outermost braces — is validated and applied as one undo step. If it doesn't validate, nothing changes and a message asking the agent to fix the listed errors goes to the clipboard.
+
+Fill and stroke on the rail also offer **None** (a white square crossed by a red line), which turns them off while keeping their colour, and a swap button (**⇧X**) that exchanges fill and stroke.
 
 ## Manual Path primitive (0.0.4)
 

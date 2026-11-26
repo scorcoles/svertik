@@ -32,6 +32,17 @@
       recents = [];
     }
   }
+  /** The scene with a ready prompt, for any AI agent; pasting its answer back into the editor applies it. */
+  async function copyForAgent() {
+    const text = editor.agentPrompt();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      editor.notice = t('Copied for an AI agent: paste it there, write your request at the end, and paste its answer back here.');
+    } catch {
+      editor.notice = t('Could not copy to the clipboard.');
+    }
+  }
   type Item = { label: string; icon: IconName; key?: string; run: () => void; needs?: boolean } | 'sep';
   const items: Item[] = $derived([
     { label: t('New scene'), icon: 'plus', run: onnew, needs: true },
@@ -39,6 +50,7 @@
     { label: t('Save project'), icon: 'save', key: '⌘S', run: onsave, needs: true },
     ...(onsaveas ? [{ label: t('Save as…'), icon: 'save' as const, key: '⇧⌘S', run: onsaveas, needs: true }] : []),
     { label: t('Share link'), icon: 'share', run: onshare, needs: true },
+    { label: t('Copy for AI agent'), icon: 'copy', run: copyForAgent, needs: true },
     'sep',
     { label: t('Take the tour'), icon: 'marker', run: ontour },
     { label: t('Keyboard shortcuts'), icon: 'settings', key: '?', run: () => (editor.showShortcuts = true) },

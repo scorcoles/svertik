@@ -791,6 +791,16 @@ export const ES: Record<string, string> = {
   'A Physics group: put objects inside it to simulate them.': 'Un grupo con Physics: mete objetos dentro para simularlos.',
   'Show presets': 'Mostrar presets',
   'Preset thumbnails above an effect’s parameters': 'Miniaturas de presets sobre los parámetros de un efecto',
+  'None': 'Ninguno',
+  'Swap fill and stroke (⇧X)': 'Intercambiar relleno y trazo (⇧X)',
+  'Swap fill and stroke': 'Intercambiar relleno y trazo',
+  // AI agent round trip
+  'A request to fix them is in the clipboard: paste it to the agent.': 'Tienes en el portapapeles una petición para corregirlos: pégasela al agente.',
+  'Copy for AI agent': 'Copiar para agente IA',
+  'Copied for an AI agent: paste it there, write your request at the end, and paste its answer back here.': 'Copiado para un agente IA: pégalo allí, escribe tu petición al final y pega aquí su respuesta.',
+  'Could not copy to the clipboard.': 'No se pudo copiar al portapapeles.',
+  'Scene from the agent applied · ⌘Z undoes it': 'Escena del agente aplicada · ⌘Z la deshace',
+  'The agent\'s scene has errors: {errors}': 'La escena del agente tiene errores: {errors}',
   // Mesh editor (Envelope, Perspective)
   'Alt+click: key': 'Alt+clic: clave',
   'Bottom': 'Abajo',

@@ -50,6 +50,7 @@
         ['⇧0', 'Actual size'],
         ['Enter', 'Edit the selected text or Path'],
         ['N', 'Point editing tool'],
+        ['⇧X', 'Swap fill and stroke'],
       ],
     },
     {

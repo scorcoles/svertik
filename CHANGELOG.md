@@ -2,6 +2,18 @@
 
 svertik is alpha software. Save project files regularly.
 
+## 0.0.31
+
+### Added
+
+- No colour for fill or stroke: the rail's Fill and Stroke swatches offer None (a white square crossed by a red line) beside white, greys and black. It turns the selection's fill or stroke off, keeping its colour for when a colour is picked again; without a selection, new primitives come without it.
+- Swap fill and stroke: arrows between the rail's Fill and Stroke, or ⇧X as in Illustrator. Colours and which one is on swap, on the selection or for new primitives.
+- svertik menu › Copy for AI agent: copies the scene with a ready prompt (what svertik is, links to the engine guide and the effect reference) for any AI agent — a chat, Claude Code, Cursor… Write the request at the end; paste the agent's answer back into the editor (anywhere but a text field) and the scene in it is applied as one undo step, even with words around a JSON code block. A scene that doesn't validate is reported instead. Without scene notes, the prompt asks the agent to ask first what the scene is for, and to keep the answer as notes. The prompt says what is selected (so "this" in a request means it); long embedded data (imported SVG markup, images) goes as short `svertik:kept:N` stand-ins that are put back when the answer is pasted; and when the answer doesn't validate, a message asking the agent to fix it is put in the clipboard.
+
+### Fixed
+
+- Wave Lines: a line that crosses areas of different colours changes colour where the drawing below does (it took the colour of its first point for all its length).
+
 ## 0.0.30
 
 ### Added

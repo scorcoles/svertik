@@ -71,6 +71,13 @@ export const wavelines = defineModifier({
         // The line may move, but it must still follow the sampled silhouette.
         const displaced = sample([x, displacedY]);
         if (!displaced) { flush(); continue; }
+        // Where the paint below changes (another colour), the line goes on in that colour: it ends here and a
+        // new stretch starts from the same point, so the line stays continuous.
+        const paintOf = (h: NonNullable<typeof hit>) => `${h.style.fill ?? ''}|${h.style.stroke ?? ''}|${h.style.opacity ?? ''}`;
+        if (inkSample && paintOf(inkSample) !== paintOf(hit)) {
+          points.push([x, displacedY]);
+          flush();
+        }
         points.push([x, displacedY]);
         toneSum += tone; count++;
         inkSample ??= hit;

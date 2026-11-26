@@ -13,8 +13,14 @@
     swatches?: string[];
     /** Only the swatch, without the hex field (narrow rows, like View). */
     compact?: boolean;
+    /** No colour (fill or stroke off): the swatch shows a white square crossed by a red line. */
+    none?: boolean;
+    /** Offers "None" among the swatches; picking a colour turns it back on (the caller's onchange). */
+    onnone?: () => void;
   }
-  let { value = $bindable(), label, id, onchange, swatches = [], compact = false }: Props = $props();
+  let { value = $bindable(), label, id, onchange, swatches = [], compact = false, none = false, onnone }: Props = $props();
+  /** The "no colour" look: white, crossed from bottom left to top right by a red line. */
+  const NONE_BG = 'linear-gradient(to top right, #fff calc(50% - 1px), #e5484d calc(50% - 0.6px), #e5484d calc(50% + 0.6px), #fff calc(50% + 1px))';
 
   // Muestras fijas: blanco, grises y negro.
   const BASE = ['#ffffff', '#d9d9d9', '#a6a6a6', '#737373', '#404040', '#1a1a1a', '#000000'];
@@ -46,7 +52,7 @@
 
 <div class="sv-color" data-compact={compact || undefined} data-invalid={editing && !HEX.test(draft.trim()) ? '' : undefined}>
   <Popover.Root bind:open>
-    <Popover.Trigger class="sv-color-swatch" style="background: {value}" aria-label={label ? `${label} swatches` : t('Color swatches')} />
+    <Popover.Trigger class="sv-color-swatch" style="background: {none ? NONE_BG : value}" aria-label={label ? `${label} swatches` : t('Color swatches')} title={none ? t('None') : undefined} />
     <Popover.Portal>
       <Popover.Content class="sv-color-popover" side="bottom" align="start" sideOffset={4}>
         <ColorPicker {value} width={184} onchange={set} />
@@ -60,8 +66,9 @@
         />
         <div class="grid" role="listbox" aria-label={t('Swatches')}>
           {#each BASE as c (c)}
-            <button type="button" class="chip" role="option" aria-selected={c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
+            <button type="button" class="chip" role="option" aria-selected={!none && c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
           {/each}
+          {#if onnone}<button type="button" class="chip" role="option" aria-selected={none} aria-label={t('None')} title={t('None')} style:background={NONE_BG} onclick={() => { onnone(); open = false; }}></button>{/if}
         </div>
         {#if palettes}
           <select class="pal" aria-label={t('Palette')} value={shown.name} onchange={(e) => palettes.select(e.currentTarget.value)}>
@@ -89,7 +96,7 @@
     type="text"
     spellcheck="false"
     aria-label={label}
-    value={editing ? draft : value.toUpperCase()}
+    value={editing ? draft : none ? t('None') : value.toUpperCase()}
     onfocus={(e) => { editing = true; draft = value.toUpperCase(); e.currentTarget.select(); }}
     oninput={(e) => (draft = e.currentTarget.value)}
     onblur={commit}

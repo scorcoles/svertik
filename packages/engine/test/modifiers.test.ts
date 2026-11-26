@@ -1436,3 +1436,18 @@ describe('effect guides follow what moves the drawing above', () => {
     expect(root[0]).toBeLessThan(Math.max(...xs));
   });
 });
+
+describe('Wave Lines colour', () => {
+  it('a line that crosses two colours changes colour where the drawing below does', () => {
+    const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="100" height="100" fill="#ff0000"/><rect x="100" width="100" height="100" fill="#111111"/></svg>';
+    const geo = createEngine(builtins).evaluateStack({ source: two, stack: [{ id: 'w', type: 'wavelines', params: { spacing: 20, resolution: 4, amplitude: 0 } }] });
+    const strokes = geo.shapes.map((s) => s.style.stroke);
+    expect(new Set(strokes)).toEqual(new Set(['#ff0000', '#111111']));
+    // Each colour's stretches stay on its own side.
+    for (const shape of geo.shapes) {
+      const xs = [shape.subpaths[0]!.start, ...shape.subpaths[0]!.segs.map((g) => g.p)].map((p) => p[0]);
+      if (shape.style.stroke === '#ff0000') expect(Math.max(...xs)).toBeLessThanOrEqual(104);
+      else expect(Math.min(...xs)).toBeGreaterThanOrEqual(96);
+    }
+  });
+});

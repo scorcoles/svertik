@@ -593,6 +593,10 @@
       e.preventDefault();
       const n = editor.keySelectionHere();
       if (n) say(`${n} key${n === 1 ? '' : 's'} at ${editor.time.toFixed(2)} s`);
+    } else if (e.shiftKey && !mod && !e.altKey && e.key.toLowerCase() === 'x' && editor.scene && !typing(e)) {
+      // ⇧X: swap fill and stroke, as in Illustrator.
+      e.preventDefault();
+      editor.swapFillStroke();
     } else if (mod && !e.altKey && e.key.toLowerCase() === 'a' && !typing(e)) {
       e.preventDefault();
       window.getSelection()?.removeAllRanges();
@@ -653,6 +657,21 @@
     const text = e.clipboardData?.getData('text/plain') ?? '';
     if (editor.paste(text, inPlace ? 0 : 16)) {
       e.preventDefault();
+      return;
+    }
+    // An AI agent's answer (from "Copy for AI agent"): its scene replaces this one, as one undo step.
+    const agent = editor.fromAgent(text);
+    if (agent !== 'none') {
+      e.preventDefault();
+      if (agent === 'applied') say(t('Scene from the agent applied · ⌘Z undoes it'), 2800);
+      // Not valid: a message asking the agent to fix it goes to the clipboard, to paste back to it.
+      else if (editor.agentFixRequest) {
+        const notice = editor.notice;
+        navigator.clipboard?.writeText(editor.agentFixRequest).then(
+          () => (editor.notice = `${notice} — ${t('A request to fix them is in the clipboard: paste it to the agent.')}`),
+          () => {},
+        );
+      }
       return;
     }
     if (/<svg[\s>]/i.test(text)) {

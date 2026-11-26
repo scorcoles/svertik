@@ -627,6 +627,8 @@ export class Editor {
   fillColor = $state(DEFAULT_FILL);
   strokeColor = $state('#ededed');
   strokeOn = $state(false);
+  /** New primitives without fill (the rail's fill set to None). */
+  fillOn = $state(true);
 
   // ── Palettes: the built-in ones and custom ones (in this browser, like the canvas colour)
 
@@ -1251,7 +1253,7 @@ export class Editor {
         ...resolveParams(def.params),
         ...(def.timeDriven
           ? { time: { $expr: 'scene.time', fallback: 0 } }
-          : { fillColor: this.fillColor, strokeColor: this.strokeColor, stroke: this.strokeOn }),
+          : { fillColor: this.fillColor, strokeColor: this.strokeColor, stroke: this.strokeOn, ...(this.fillOn ? {} : { fill: false }) }),
         ...params,
       },
       stack: [],
@@ -1575,12 +1577,51 @@ export class Editor {
   get currentOutline(): string {
     return String(this.#colorTargets()[0]?.params.strokeColor ?? this.strokeColor);
   }
+  /** Whether the rail's fill shows None: the selection's fill is off, or new primitives get none. */
+  get currentFillOff(): boolean {
+    const first = this.#colorTargets()[0];
+    return first ? first.params.fill === false : !this.#svgColorTargets().length && !this.fillOn;
+  }
+  /** Whether the rail's stroke shows None: the selection has no stroke, or new primitives get none. */
+  get currentStrokeOff(): boolean {
+    const first = this.#colorTargets()[0];
+    return first ? !first.params.stroke : !this.strokeOn;
+  }
+  /**
+   * Swaps fill and stroke (⇧X, the rail's arrows): colours and whether each is on. With a selection, its
+   * shapes; without one, the colours new primitives get.
+   */
+  swapFillStroke() {
+    const targets = this.#colorTargets();
+    if (!targets.length) {
+      [this.fillColor, this.strokeColor] = [this.strokeColor, this.fillColor];
+      [this.fillOn, this.strokeOn] = [this.strokeOn, this.fillOn];
+      return;
+    }
+    for (const n of targets) {
+      const p = n.params as Record<string, unknown>;
+      this.setShapeParams(n.id, { fillColor: p.strokeColor ?? this.strokeColor, strokeColor: p.fillColor ?? this.fillColor, fill: !!p.stroke, stroke: p.fill !== false });
+    }
+  }
+  /** Rail fill › None: the selection's fill off (its colour is kept for when it comes back); without one, new primitives'. */
+  setFillNone() {
+    const targets = this.#colorTargets();
+    if (!targets.length) { this.fillOn = false; return; }
+    for (const n of targets) if (n.params.fill !== false) this.setShapeParam(n.id, 'fill', false);
+  }
+  /** Rail stroke › None: the selection's stroke off; without one, new primitives'. */
+  setStrokeNone() {
+    const targets = this.#colorTargets();
+    if (!targets.length) { this.strokeOn = false; return; }
+    for (const n of targets) if (n.params.stroke) this.setShapeParam(n.id, 'stroke', false);
+  }
   /** Rail fill: with a selection, its own (and turns it on); without one, the new primitives'. */
   setFillColor(color: string) {
     const targets = this.#colorTargets();
     const svgTargets = this.#svgColorTargets();
     if (!targets.length && !svgTargets.length) {
       this.fillColor = color;
+      this.fillOn = true;
       return;
     }
     for (const n of targets) {
@@ -3073,6 +3114,123 @@ export class Editor {
     if (!modifier) return;
     modifier.props = Object.keys(props).length ? props : undefined;
     this.record();
+  }
+
+  /**
+   * Long embedded data (an imported SVG's markup, an image as a data: URL) goes to the agent as a short
+   * stand-in, `svertik:kept:N`, and comes back from it whole: the prompt stays small, and the agent can't
+   * damage what it can't read. The stand-ins live as long as this editor does.
+   */
+  #agentKept = new Map<string, string>();
+  #agentKeptByValue = new Map<string, string>();
+  /** The last fix request for the agent (its scene didn't validate), ready to paste to it. */
+  agentFixRequest: string | null = null;
+
+  #shrinkForAgent(value: unknown, key = ''): unknown {
+    if (typeof value === 'string') {
+      const long = value.length > 1000 && (key === 'source' || key === 'href' || value.startsWith('<') || value.startsWith('data:'));
+      if (!long) return value;
+      let token = this.#agentKeptByValue.get(value);
+      if (!token) {
+        token = `svertik:kept:${this.#agentKept.size + 1}`;
+        this.#agentKept.set(token, value);
+        this.#agentKeptByValue.set(value, token);
+      }
+      return token;
+    }
+    if (Array.isArray(value)) return value.map((item) => this.#shrinkForAgent(item));
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, this.#shrinkForAgent(v, k)]));
+    return value;
+  }
+  #restoreFromAgent(value: unknown, missing: Set<string>): unknown {
+    if (typeof value === 'string') {
+      if (!/^svertik:kept:\d+$/.test(value)) return value;
+      const kept = this.#agentKept.get(value);
+      if (kept === undefined) missing.add(value);
+      return kept ?? value;
+    }
+    if (Array.isArray(value)) return value.map((item) => this.#restoreFromAgent(item, missing));
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, this.#restoreFromAgent(v, missing)]));
+    return value;
+  }
+
+  /**
+   * What to paste into any AI agent (a chat, Claude Code, Cursor…): what svertik is, where its guide is, what
+   * is selected, this scene, and a place for the request. Its answer, pasted back into the editor, is applied
+   * by `fromAgent`.
+   */
+  agentPrompt(): string | null {
+    if (!this.scene) return null;
+    const scene = this.#shrinkForAgent($state.snapshot(this.scene)) as SceneV1;
+    const kept = JSON.stringify(scene).includes('svertik:kept:');
+    // What "this" means in the request: the selected object and effect.
+    const node = this.activeNode, effect = this.current;
+    const selected = node
+      ? `Selected in the editor: object "${node.name}" (id "${node.id}")${effect ? `, effect "${effect.name || registry.get(effect.type)?.label || effect.type}" (id "${effect.id}")` : ''}. When my request says "this", it means the selection.`
+      : 'Nothing is selected in the editor.';
+    return [
+      'You are editing a svertik scene: non-destructive SVG design and motion, stored as JSON (SceneV1).',
+      'Before editing, read the engine guide: https://svertik.com/docs/engine/ (every effect and its parameters: https://svertik.com/docs/reference/).',
+      'Keep "version": 1 and unique ids; the first object in "objects" is drawn in front. Treat the scene\'s "notes" as the author\'s direction.',
+      ...(kept ? ['Strings like "svertik:kept:1" stand for long embedded data (imported SVG markup, images): keep them exactly as they are.'] : []),
+      'Answer with the complete updated scene as a single JSON code block, so it can be pasted back into the editor.',
+      // Without notes, the agent doesn't know what the scene is for: it asks first and keeps the answer as notes.
+      ...(this.scene.notes?.trim() ? [] : [
+        'This scene has no notes yet. Before changing anything, ask me what it is for and what I want to do with it; once I answer, keep a short summary of that in the scene\'s "notes" field.',
+      ]),
+      selected,
+      '',
+      'The scene:',
+      '```json',
+      JSON.stringify(scene, null, 2),
+      '```',
+      '',
+      'My request: ',
+    ].join('\n');
+  }
+
+  /**
+   * An AI agent's answer pasted into the editor: the scene in it (the whole text, a ```json block, or the
+   * outermost braces) replaces this one as one undo step. 'none' when the text holds no scene (an ordinary
+   * paste goes on); 'invalid' when it does but validation fails: a notice says why, and `agentFixRequest`
+   * holds a message asking the agent to fix it.
+   */
+  fromAgent(text: string): 'applied' | 'invalid' | 'none' {
+    if (!text.includes('"objects"')) return 'none';
+    const candidates = [text, ...[...text.matchAll(/```(?:json)?\s*\n([\s\S]*?)```/g)].map((m) => m[1]!)];
+    const first = text.indexOf('{'), last = text.lastIndexOf('}');
+    if (first >= 0 && last > first) candidates.push(text.slice(first, last + 1));
+    let found: SceneV1 | null = null;
+    for (const candidate of candidates) {
+      try {
+        const data = JSON.parse(candidate) as { svertik?: string; scene?: unknown };
+        const scene = data?.svertik === 'project' ? data.scene : data;
+        if (isScene(scene)) { found = scene; break; }
+      } catch { /* not this one */ }
+    }
+    if (!found) return 'none';
+    const missing = new Set<string>();
+    found = this.#restoreFromAgent(found, missing) as SceneV1;
+    const report = validateScene(found, builtins);
+    const errors = [...report.errors, ...[...missing].map((token) => `"${token}" is unknown to this editor (copied in another session?): copy the scene for the agent again`)];
+    if (errors.length) {
+      this.agentFixRequest = [
+        'The scene you returned does not validate in svertik:',
+        ...errors.slice(0, 12).map((error) => `- ${error}`),
+        'Fix these and answer again with the complete scene as a single JSON code block.',
+      ].join('\n');
+      this.notice = t('The agent\'s scene has errors: {errors}', { errors: errors.slice(0, 3).join(' · ') });
+      return 'invalid';
+    }
+    this.agentFixRequest = null;
+    if (!this.scene) return this.openProject(JSON.stringify(found)) ? 'applied' : 'invalid';
+    // Primitives with all their parameters (missing ones at their default): the panel needs them.
+    for (const { node } of walkNodes(found.objects)) {
+      const def = node.kind === 'shape' ? shapeRegistry.get(node.shape) : undefined;
+      if (node.kind === 'shape' && def) node.params = { ...resolveParams(def.params), ...node.params };
+    }
+    this.applyScene(found);
+    return 'applied';
   }
 
   /** Replaces the whole scene (from the code panel). Returns false if nothing changes. */

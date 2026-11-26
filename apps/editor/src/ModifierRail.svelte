@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '@svertik/ui';
-  import { ColorField } from '@svertik/ui';
+  import { ColorField, IconButton } from '@svertik/ui';
   import type { Editor } from './editor.svelte';
   import Tools from './Tools.svelte';
 
@@ -26,11 +26,12 @@
     </button>
     <span class="color-row" title={t('Fill color: selection, or new objects')}>
       <span class="color-label">{t('Fill')}</span>
-      <ColorField compact label={t('Fill color')} value={editor.currentFill} swatches={editor.docColors} onchange={(v) => editor.setFillColor(v)} />
+      <ColorField compact label={t('Fill color')} value={editor.currentFill} none={editor.currentFillOff} onnone={() => editor.setFillNone()} swatches={editor.docColors} onchange={(v) => editor.setFillColor(v)} />
     </span>
+    <span class="swap"><IconButton icon="swap" label={t('Swap fill and stroke (⇧X)')} onclick={() => editor.swapFillStroke()} /></span>
     <span class="color-row" title={t('Outline color: selection, or new objects')}>
       <span class="color-label">{t('Stroke')}</span>
-      <ColorField compact label={t('Outline color')} value={editor.currentOutline} swatches={editor.docColors} onchange={(v) => editor.setOutlineColor(v)} />
+      <ColorField compact label={t('Outline color')} value={editor.currentOutline} none={editor.currentStrokeOff} onnone={() => editor.setStrokeNone()} swatches={editor.docColors} onchange={(v) => editor.setOutlineColor(v)} />
     </span>
   </div>
 </nav>
@@ -65,6 +66,7 @@
   .color-tool:disabled { display: none; }
   .color-tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
   /* Pickers a bit smaller than the buttons, with their name above. */
+  .swap :global(.sv-icon-button) { width: 20px; height: 16px; }
   .color-row { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 32px; }
   .colors :global(.sv-color[data-compact]) { width: 28px; height: 28px; padding: 3px; }
   .colors :global(.sv-color-swatch) { width: 20px; height: 20px; }

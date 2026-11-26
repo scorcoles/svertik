@@ -1,6 +1,6 @@
 {
   "name": "@svertik/cli",
-  "version": "0.0.30",
+  "version": "0.0.31",
   "type": "module",
   "description": "svertik in the terminal: renders projects to SVG or PNG, animation frames, and lists the effects.",
   "bin": {
