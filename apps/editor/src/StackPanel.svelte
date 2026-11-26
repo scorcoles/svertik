@@ -358,7 +358,9 @@
   .rows { overflow-y: auto; scroll-padding-top: var(--sv-size-row); }
   .drag { position: relative; }
   .drag.node { position: sticky; top: calc(var(--depth) * var(--sv-size-row)); z-index: calc(10 - var(--depth)); background: var(--sv-surface-panel); }
-  .hidden-node { opacity: 0.45; }
+  /* Dim what the row shows, not the row: it sticks to the top, and a translucent background would let
+     the rows scrolling under it show through. The eye stays clear, to turn it back on. */
+  .hidden-node :global(.sv-stack-item > :not(.eye)) { opacity: 0.45; }
   .drag[data-drop='before']::after,
   .drag[data-drop='after']::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: var(--sv-accent-fill); z-index: 1; }
   .drag[data-drop='before']::after { top: -1px; }
