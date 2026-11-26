@@ -8,6 +8,7 @@
   import VariableList from './VariableList.svelte';
   import ShapeValues from './ShapeValues.svelte';
   import InfoTip from './InfoTip.svelte';
+  import ThisValues from './ThisValues.svelte';
   import { PARTICLE_PRESETS } from './particle-presets';
   import { categoryOf } from './command';
 
@@ -190,6 +191,10 @@
             <dt>{t('Category')}</dt><dd>{categoryOf(def)}</dd>
             <dt>{t('Id')}</dt><dd>{m.id}</dd>
           </dl>
+          <section class="incoming-info" aria-label={t('Values for formulas')}>
+            <h3>{t('Values for formulas')}</h3>
+            <ThisValues schema={def.params ?? {}} values={m.params} oncopied={(message) => (editor.notice = message)} />
+          </section>
           {#if Object.keys(incomingProps).length}
             <section class="incoming-info" aria-label={t('Incoming props')}>
               <h3>{t('Incoming props')}</h3>

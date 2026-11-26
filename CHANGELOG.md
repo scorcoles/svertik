@@ -7,6 +7,7 @@ svertik is alpha software. Save project files regularly.
 ### Added
 
 - `this.name` in formulas: read another value of the same object or effect, e.g. a Donut's Inner as `this.radius - 50` keeps the ring 50 px wide. It reads shape parameters (also those left at their default), placement, opacity and an effect's own parameters; formulas that read each other resolve in order, cycles use their fallback. The ƒx reference lists the `this.*` names of the selection.
+- **Values for formulas** in an effect's Info tab and in an object's inspector: every `this.name` it can read, with its label and current value (also defaults); a click copies the reference.
 
 ## 0.0.20
 

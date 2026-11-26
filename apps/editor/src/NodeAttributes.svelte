@@ -4,6 +4,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   import FontField from './FontField.svelte';
   import VariableList from './VariableList.svelte';
   import InfoTip from './InfoTip.svelte';
+  import ThisValues from './ThisValues.svelte';
   import { Button, Checkbox, ColorField, IconButton, NodeTargets, NumberField, ParamList, ParamRow, PointField, Section, Segmented, Select, Slider, groupOptions } from '@svertik/ui';
   import { layerOf } from './layer-of';
   import { PRESETS, locateNode, registry, type Editor } from './editor.svelte';
@@ -465,6 +466,22 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
       </div>
     </Section>
   {/if}
+  {#if node.kind !== 'group' || !node.layer}
+    <Section title={t('Values for formulas')} open={false}>
+      {#snippet action()}{#if editor.showInfo}<InfoTip text={t('A formula of this object reads these as this.name, e.g. this.radius - 50. Click one to copy it.')} />{/if}{/snippet}
+      <div class="this-list"><ThisValues
+        schema={shapeDef?.params ?? {}}
+        values={node.kind === 'shape' ? node.params : undefined}
+        extra={[
+          { name: 'x', label: 'X', value: node.transform?.x ?? 0 },
+          { name: 'y', label: 'Y', value: node.transform?.y ?? 0 },
+          { name: 'scale', label: t('Scale'), value: node.transform?.scale ?? 1 },
+          { name: 'rotation', label: t('Rotation'), value: node.transform?.rotation ?? 0 },
+          ...(node.opacity === undefined ? [] : [{ name: 'opacity', label: t('Opacity'), value: node.opacity }]),
+        ]}
+        oncopied={(message) => (editor.notice = message)} /></div>
+    </Section>
+  {/if}
   {#if isText && node.kind === 'shape' && textUpdate.length}
     <Section title={t('Text playback')}>
       <ParamList params={textUpdate} values={node.params} onchange={setShapeParam} />
@@ -495,6 +512,7 @@ import { BLEND_MODES, EASES, mouseParams, apply, compositionParams, hasTextExpre
   .presets { display: flex; flex-wrap: wrap; gap: var(--sv-space-4); padding: var(--sv-space-4) var(--sv-space-8) 0 100px; }
   .mini :global(.sv-icon-button) { width: 18px; height: 18px; }
   .params { padding: var(--sv-space-6) 0; }
+  .this-list { padding: 0 var(--sv-space-8) var(--sv-space-8); }
   .props-list { padding: 0 var(--sv-space-8) var(--sv-space-4) 100px; }
   .prop-row { display: flex; justify-content: space-between; gap: var(--sv-space-8); padding: 2px 0; color: var(--sv-text-secondary); font-size: var(--sv-font-size-10); }
   .prop-row code { color: var(--sv-accent-text); }
