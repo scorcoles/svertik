@@ -7,14 +7,14 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateDocs, updateGuide } from './docs';
-import { describeEffects, describeScene, frameTimes, loadInput, registerBundledFonts, registerFontFile, renderPNG, renderSVG } from './lib';
+import { describeEffects, describeScene, frameTimes, loadInput, loadScript, registerBundledFonts, registerFontFile, renderPNG, renderSVG } from './lib';
 
-const HELP = `svertik: draws svertik projects (JSON or SVG) without opening the editor.
+const HELP = `svertik: draws svertik projects (JSON, SVG, or svertikJS scripts: .js, .mjs, .ts) without opening the editor.
 
   svertik render <input> [-o out.svg|out.png]
       --time <s>          animation time (default 0)
       --scale <n>         PNG: pixels per unit (default 2)
-      --background <c>    background (#rrggbb); transparent without it
+      --background <c>    background (#rrggbb), instead of the scene's own; transparent without either
       --frames <folder>   every frame of the animation, as numbered PNGs
       --fps <n>           frames per second for --frames (default: the project's)
       --font <Name=path>  registers a font for texts (can be repeated)
@@ -57,7 +57,9 @@ try {
     if (!input) fail(`missing input (svertik ${command} <file>)`);
     await registerBundledFonts();
     for (const f of flags('--font')) await registerFontFile(f);
-    const { scene, name } = loadInput(readFileSync(input, 'utf8'), input);
+    const { scene, name } = /\.(m?[jt]s)$/i.test(input)
+      ? await loadScript(input).then((r) => { r.warnings.forEach((w) => process.stderr.write(`svertik: ${w}\n`)); return r; })
+      : loadInput(readFileSync(input, 'utf8'), input);
     if (command === 'info') process.stdout.write(describeScene(scene) + '\n');
     else if (command === 'render') {
       const scale = Number(flag('--scale') ?? 2);

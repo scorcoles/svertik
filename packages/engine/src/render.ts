@@ -247,7 +247,12 @@ export function toSVG(geo: Geometry, { precision = 2 }: ToSVGOptions = {}): stri
   for (let i = open.length - 1; i >= 0; i--) lines.push(`${'  '.repeat(i + 1)}</g>`);
   const paths = lines.join('\n');
   const defs = imageFillDefs(geo) + gradientDefs(geo) + filterDefs(geo);
-  return `<svg xmlns="${SVG_NS}" viewBox="${x} ${y} ${w} ${h}">\n${defs ? `  <defs>${defs}</defs>\n` : ''}${paths}\n</svg>\n`;
+  return `<svg xmlns="${SVG_NS}" viewBox="${x} ${y} ${w} ${h}">\n${defs ? `  <defs>${defs}</defs>\n` : ''}${backgroundRect(geo.viewBox, geo.background)}${paths}\n</svg>\n`;
+}
+
+/** The scene's background as a rectangle over the whole viewBox (empty without one), first in the drawing. */
+export function backgroundRect([x, y, w, h]: readonly number[], background: string | undefined): string {
+  return background ? `  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${escapeAttr(background)}"/>\n` : '';
 }
 
 /** Affine map from the source image rectangle onto its transformed path footprint. */

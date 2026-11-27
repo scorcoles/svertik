@@ -4,7 +4,7 @@
   import { untrack } from 'svelte';
   import { apply, bounds, builtins, resizeOffset, resizeShapeParams, shapeResizes, buildShape, hasTextExpressions, type PathContour, createEngine, evaluateSceneExpressions, invert, isNumericExpression, pivotPoint, placementOf, renderInto, resolveParams, sampleScene, toPathData, wireColors, wireBodyKinds, highlightWireRange, updateWirePatterns as refreshWirePatterns, type DocumentResult, type Geometry, type Mat, type NodeInfo, type SceneNode, type SceneV1, type Vec2 } from '@svertik/engine';
   import { IconButton, type IconName } from '@svertik/ui';
-  import { DEFAULT_CANVAS, locateNode, registry, type Editor } from './editor.svelte';
+  import { DEFAULT_CANVAS, locateNode, registry, stageBackground, type Editor } from './editor.svelte';
   import { align, distribute, type Align, type Move } from './arrange';
   import { hatchObjectAt } from './hit-regions';
   import { CORNER_BOX, CORNER_SIZE, cornerTypes, gizmoFor, type Drag, type Gizmo } from './gizmos';
@@ -1568,7 +1568,7 @@
 <section
   class="canvas"
   aria-label={t('Canvas')}
-  style:--canvas={editor.canvas || DEFAULT_CANVAS}
+  style:--canvas={stageBackground(editor.background)}
   data-wire={editor.showWire && editor.scene ? true : undefined}
   data-empty={!editor.scene || undefined}
   data-dragging={dropping || undefined}

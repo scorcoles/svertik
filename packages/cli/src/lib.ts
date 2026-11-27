@@ -1,7 +1,8 @@
 // svertik without a browser: read projects, draw them to SVG or PNG and describe the effects.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { createRequire } from 'node:module';
+import { createRequire, registerHooks } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
 import { Window } from 'happy-dom';
 import {
@@ -60,14 +61,41 @@ export interface Loaded {
  * A project's JSON (or a bare scene's) or an SVG (which becomes an object without effects). SVGs the project
  * keeps outside (`href`) are read next to the file.
  */
+/**
+ * A svertikJS script (.js, .mjs, .ts): runs it and takes its default export, a `scene(…)` (or a SceneV1, or
+ * a function returning either). `@svertik/js` resolves to the CLI's own copy, wherever the script lives.
+ */
+export async function loadScript(fileName: string): Promise<Loaded & { warnings: string[] }> {
+  shareSvertikJS();
+  const mod = (await import(pathToFileURL(resolve(fileName)).href)) as { default?: unknown };
+  let value = mod.default;
+  if (typeof value === 'function') value = await (value as () => unknown)();
+  const name = fileName.replace(/^.*[\\/]/, '').replace(/\.(m?[jt]s)$/i, '');
+  if (value && typeof (value as { build?: unknown }).build === 'function') {
+    const { scene, warnings } = (value as { build: () => { scene: SceneV1; warnings: string[] } }).build();
+    return { scene, name, warnings };
+  }
+  if (isScene(value)) return { scene: value, name, warnings: [] };
+  throw new Error(`${fileName} must export default a scene (export default scene({ … }, …))`);
+}
+let shared = false;
+function shareSvertikJS() {
+  if (shared) return;
+  shared = true;
+  const url = import.meta.resolve('@svertik/js');
+  registerHooks({ resolve: (specifier, context, next) => (specifier === '@svertik/js' ? { url, shortCircuit: true } : next(specifier, context)) });
+}
+
 export function loadInput(text: string, fileName: string): Loaded {
   const base = fileName.replace(/^.*[\\/]/, '').replace(/\.(json|svg)$/i, '');
   if (/<svg[\s>]/i.test(text) && !/^\s*\{/.test(text)) {
     return { scene: { version: 1, objects: [{ kind: 'object', id: 'object-1', name: `${base}.svg`, source: text, stack: [] }] }, name: base };
   }
-  const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: unknown };
+  const data = JSON.parse(text) as { svertik?: string; name?: string; scene?: unknown; canvas?: string };
   const scene = data.svertik === 'project' ? data.scene : data;
   if (!isScene(scene)) throw new Error(`${fileName} is neither an svertik project nor an SVG`);
+  // Projects from before scene.background kept it as the editor's canvas colour.
+  if (data.svertik === 'project' && data.canvas && !scene.background) scene.background = data.canvas;
   const missing = missingSources(scene);
   if (!missing.length) return { scene, name: data.name ?? base };
   const files = new Map<string, string>();
@@ -97,13 +125,10 @@ function prepareTrail(scene: SceneV1, t: number): void {
   for (let s = Math.max(0, t - window); s < t - 1e-9; s += step) engine.toSVG(sampleScene(scene, s));
 }
 
-/** The plain SVG at time `t` (s); with `background`, a background rectangle. */
+/** The plain SVG at time `t` (s); `background` replaces the scene's own (`scene.background`). */
 export function renderSVG(scene: SceneV1, t = 0, background?: string): string {
   prepareTrail(scene, t);
-  const svg = engine.toSVG(sampleScene(scene, t));
-  if (!background) return svg;
-  const vb = /viewBox="([^"]+)"/.exec(svg)?.[1]?.split(/\s+/) ?? ['0', '0', '0', '0'];
-  return svg.replace(/(<svg[^>]*>)/, `$1\n  <rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="${background}"/>`);
+  return engine.toSVG(sampleScene(background ? { ...scene, background } : scene, t));
 }
 
 /**

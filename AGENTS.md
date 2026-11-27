@@ -39,6 +39,9 @@ pnpm svertik render scene.json -o frame.png --time 1.5
 # Render the entire animation as numbered PNG frames
 pnpm svertik render scene.json --frames ./frames/ --fps 30
 
+# Render a svertikJS script (its default export is the scene; see packages/js/README.md)
+pnpm svertik render scene.ts -o out.png
+
 # Dump all effect and primitive parameter schemas in JSON format
 pnpm svertik effects --json
 ```
@@ -138,6 +141,8 @@ An instance with `mouse: { event, rate?, distance?, button?, count?, lifetime?, 
 `physicsBounds: true` on SceneV1 (needs a fixed `document`; editor: **Document → Walls**) turns the document's edges into static walls for every Physics in the scene (Adapt: the screen's edges), so bodies bounce inside without hidden wall rectangles.
 
 `clipToDocument: true` on SceneV1 hides, in both Play hosts, whatever lies outside the document (by default it overflows the stage and shows in Contain's bands). `createPlayer` applies it as a CSS `clip-path` on the SVG; exports already stop at the document. Editor: **Document → Clip**. Not the editor-only View → Hide outside.
+
+`background: "#rrggbb"` on SceneV1 (or `#rrggbbaa`, translucent; absent = transparent; editor: **Document → Background**) is the scene's background colour. Exports (SVG, PNG, frames, video, animated SVG, Lottie) draw it over the whole viewBox; both Play hosts paint it on the whole stage, Contain's bands included (Clip clips it too). Use it instead of a full-size background rectangle. The CLI's `--background` replaces it. Colours anywhere may be `#rrggbbaa` (opacity); palette entries stay `#rrggbb`.
 
 ## Infinite time and cycle
 

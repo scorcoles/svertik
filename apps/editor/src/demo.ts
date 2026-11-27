@@ -6,9 +6,9 @@ export function shatterProject() {
     svertik: 'project',
     version: 1,
     name: 'svertik shatter',
-    canvas: '#0b0b0e',
     scene: {
       version: 1,
+      background: '#0b0b0e',
       objects: [
         // Impact flash, in front of everything (almost always transparent).
         { kind: 'shape', id: 'flash', name: 'Flash', shape: 'rectangle', params: { width: 1300, height: 860, fillColor: '#ffffff' }, stack: [], opacity: 0 },
@@ -204,7 +204,7 @@ export function titleSequenceProject() {
       ],
     },
   };
-  return { svertik: 'project', version: 1, name: 'svertik title sequence', canvas: stage, scene };
+  return { svertik: 'project', version: 1, name: 'svertik title sequence', scene: { ...scene, background: stage } };
 }
 
 // Playground: a kaleidoscope you paint with the pointer. Dragging emits sparks (Mouse Instance on `move`)
@@ -295,7 +295,7 @@ export function playgroundProject() {
       ],
     },
   };
-  return { svertik: 'project', version: 1, name: 'svertik playground', canvas: stage, scene };
+  return { svertik: 'project', version: 1, name: 'svertik playground', scene: { ...scene, background: stage } };
 }
 
 // Orrery: clockwork against real dynamics around one sun. Three planets run on flattened orbits with
@@ -390,7 +390,7 @@ export function orreryProject() {
     ],
     animation: { duration: 30, loop: true, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik orrery', canvas: stage, scene };
+  return { svertik: 'project', version: 1, name: 'svertik orrery', scene: { ...scene, background: stage } };
 }
 
 // Print Lab: a risograph sheet that reprints itself. seedEvery gives scene.seedGenerator a new value every
@@ -498,7 +498,7 @@ export function printLabProject() {
     ],
     animation: { duration: 10, loop: false, infinite: true, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik print lab', canvas: paper, scene };
+  return { svertik: 'project', version: 1, name: 'svertik print lab', scene: { ...scene, background: paper } };
 }
 
 // Plotter: a specimen sheet of the line generators, one per panel and one layer each (Flow Field, Wave
@@ -580,7 +580,7 @@ export function plotterProject() {
     ],
     animation: { duration: 12, loop: true, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik plotter', canvas: stage, scene };
+  return { svertik: 'project', version: 1, name: 'svertik plotter', scene: { ...scene, background: stage } };
 }
 
 // Cells: a living specimen under the microscope. Inside a Petri dish: drifting Voronoi tissue (Blob cells,
@@ -662,7 +662,7 @@ export function cellsProject() {
     ],
     animation: { duration: 20, loop: false, infinite: true, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik cells', canvas: stage, scene };
+  return { svertik: 'project', version: 1, name: 'svertik cells', scene: { ...scene, background: stage } };
 }
 
 // Harbor Fireworks: a particle show over the water that never repeats. Five shells take turns: each rises
@@ -745,7 +745,7 @@ export function fireworksProject() {
     ],
     animation: { duration: 10, loop: false, infinite: true, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik harbor fireworks', canvas: stage, scene };
+  return { svertik: 'project', version: 1, name: 'svertik harbor fireworks', scene: { ...scene, background: stage } };
 }
 
 // Soft Cells: an homage to the rigid-body web experiments of the mid-2000s. Dark, slightly translucent
@@ -793,7 +793,7 @@ export function softCellsProject() {
     ],
     animation: { duration: 14, loop: true, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik soft cells', canvas: paper, scene };
+  return { svertik: 'project', version: 1, name: 'svertik soft cells', scene: { ...scene, background: paper } };
 }
 
 // Lift & Sink: one Physics world, two pulls. The world's own Acceleration is a gentle lift upwards (helium),
@@ -867,7 +867,7 @@ export function liftSinkProject() {
     ],
     animation: { duration: 10, infinite: true, loop: false, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik lift & sink', canvas: paper, scene };
+  return { svertik: 'project', version: 1, name: 'svertik lift & sink', scene: { ...scene, background: paper } };
 }
 
 // Fridge Magnets: chunky letter magnets on a fridge door, seen straight on, so nothing falls. Each letter is
@@ -922,7 +922,7 @@ export function fridgeMagnetsProject() {
     ],
     animation: { duration: 10, infinite: true, loop: false, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik fridge magnets', canvas: door, scene };
+  return { svertik: 'project', version: 1, name: 'svertik fridge magnets', scene: { ...scene, background: door } };
 }
 
 // Wires: 48 cables hanging between two poles, at Rope's full resolution (120 segments each: about 5,800
@@ -966,5 +966,5 @@ export function wiresProject() {
     ],
     animation: { duration: 10, infinite: true, loop: false, fps: 30, tracks: [] },
   };
-  return { svertik: 'project', version: 1, name: 'svertik wires', canvas: night, scene };
+  return { svertik: 'project', version: 1, name: 'svertik wires', scene: { ...scene, background: night } };
 }

@@ -1,36 +1,9 @@
-// Runs the panel's JS in a Web Worker: no access to the page, and stopped if it hangs.
+// Runs the panel's JS (svertikJS) in a Web Worker: no access to the page, and stopped if it hangs.
 import type { SceneV1 } from '@svertik/engine';
 
 export type RunnerMessage =
-  | { type: 'scene'; scene: SceneV1 }
+  | { type: 'scene'; scene: SceneV1; warnings: string[] }
   | { type: 'error'; message: string; line: number | null; stack?: string };
-
-// Worker code. The script is wrapped in a function: `onFrame` comes from outside
-// and the function returns the `scene` the user declared.
-const WORKER = `
-let scene = null;
-const HEADER_LINES = 2;
-function lineOf(e) {
-  const m = /<anonymous>:(\\d+):(\\d+)/.exec(e && e.stack || '');
-  return m ? Number(m[1]) - HEADER_LINES : null;
-}
-self.onmessage = (e) => {
-  const msg = e.data;
-  if (msg.type === 'run') {
-    try {
-      const body = msg.code.replace(/^\\s*import[^;]*;/gm, (s) => s.replace(/[^\\n]/g, ' '));
-      const run = new Function('onFrame', body + '\\n;return typeof scene === "undefined" ? null : scene;');
-      // The editor previews the scene live; frame callbacks are for the exported player.
-      scene = run(() => {});
-      if (!scene || !(Array.isArray(scene.objects) || Array.isArray(scene.stack))) throw new Error('The code must declare const scene = { … }');
-      self.postMessage({ type: 'scene', scene });
-    } catch (err) {
-      self.postMessage({ type: 'error', message: String(err && err.message || err), line: lineOf(err), stack: String(err && err.stack || '') });
-      return;
-    }
-  }
-};
-`;
 
 export class Runner {
   #worker: Worker | null = null;
@@ -42,9 +15,7 @@ export class Runner {
   }
 
   #spawn() {
-    const url = URL.createObjectURL(new Blob([WORKER], { type: 'text/javascript' }));
-    const w = new Worker(url);
-    URL.revokeObjectURL(url);
+    const w = new Worker(new URL('./runner.worker.ts', import.meta.url), { type: 'module' });
     // The worker answers each run once (a scene or an error): after that it is quiet, not stuck.
     w.onmessage = (e: MessageEvent<RunnerMessage>) => {
       this.idle();

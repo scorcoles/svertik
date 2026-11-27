@@ -9,6 +9,7 @@
   import type { Editor } from './editor.svelte';
   import { sceneJSON } from './exporters';
   import { Runner } from './runner';
+  import { prettyJS } from './prettier';
 
   interface Props {
     editor: Editor;
@@ -32,7 +33,22 @@
     return s;
   };
   const jsonDoc = $derived(editor.scene ? sceneJSON(editor.scene) : '');
-  const jsDoc = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as SceneV1, editor.script) : '');
+  const jsPlain = $derived(editor.scene ? jsDocument($state.snapshot(editor.scene) as SceneV1, editor.script) : '');
+  // Prettier (remembered in this browser): the JS tab shows the code formatted by it.
+  const readPretty = () => { try { return localStorage.getItem('svertik.prettier') === '1'; } catch { return false; } };
+  let pretty = $state(readPretty());
+  let jsDoc = $state('');
+  $effect(() => {
+    const plain = jsPlain;
+    if (!pretty || !plain) { jsDoc = plain; return; }
+    let current = true;
+    prettyJS(plain).then((out) => { if (current) jsDoc = out; }, () => { if (current) jsDoc = plain; });
+    return () => { current = false; };
+  });
+  function togglePretty() {
+    pretty = !pretty;
+    try { if (pretty) localStorage.setItem('svertik.prettier', '1'); else localStorage.removeItem('svertik.prettier'); } catch { /* no storage */ }
+  }
   const jsFold = $derived(sourceRanges(jsDoc));
   // In the JSON, SVGs go on one long line: they fold too.
   const jsonFold = $derived([...jsonDoc.matchAll(/"source": "/g)].map((m) => {
@@ -89,6 +105,7 @@
     if (m.type === 'scene') {
       try {
         editor.applyScene(validate(m.scene));
+        warnings = [...m.warnings, ...warnings];
         error = null;
         onactivity('Applied JavaScript scene');
       } catch (e) {
@@ -146,7 +163,7 @@
     return (await oncopy(engine.toSVG(frame()), 'SVG')) !== false;
   }
 
-  const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'scene + onFrame', SVG: t('flat output · read-only') };
+  const hints: Record<string, string> = { JSON: 'scene · editable', JS: 'svertikJS · editable', SVG: t('flat output · read-only') };
 
   $effect(() => {
     if (error) ondiagnostic(t('Code'), 'error', `${error.line ? `Line ${error.line}: ` : ''}${error.message}`, error.stack);
@@ -172,6 +189,7 @@
   <div class="head-extra">
     {#if editor.showInfo}<span class="hint">{hints[tab]}</span>{/if}
     <span class="spacer"></span>
+    {#if tab === 'JS'}<button type="button" class="pretty" aria-pressed={pretty} title={t('Format the code with Prettier')} onclick={togglePretty}>Prettier</button>{/if}
     <TextZoom value={editor.textZoom} onchange={(v) => editor.setTextZoom(v)} />
     <IconButton
       icon={maximized ? 'restore' : 'maximize'}
@@ -233,4 +251,7 @@
   footer.error { color: var(--sv-signal-error); }
   .warning { color: var(--sv-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .muted { color: var(--sv-text-muted); }
+  .pretty { height: 20px; padding: 0 var(--sv-space-6); font: inherit; color: var(--sv-text-secondary); background: none; border: var(--sv-border-1) solid var(--sv-rule-default); border-radius: 0; cursor: pointer; }
+  .pretty:hover { color: var(--sv-text-primary); border-color: var(--sv-text-muted); }
+  .pretty[aria-pressed='true'] { color: var(--sv-text-primary); border-color: var(--sv-accent-fill); }
 </style>

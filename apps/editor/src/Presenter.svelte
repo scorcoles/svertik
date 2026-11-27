@@ -9,7 +9,7 @@
   import { previewCard } from './preview';
   import { onMount } from 'svelte';
   import { Icon } from '@svertik/ui';
-  import { DEFAULT_CANVAS, type Editor } from './editor.svelte';
+  import { DEFAULT_CANVAS, stageBackground, type Editor } from './editor.svelte';
   import { createFpsMeter, type FpsMeter } from './fpsmeter';
   let { editor }: { editor: Editor } = $props();
   let svg = $state<SVGSVGElement>();
@@ -91,7 +91,7 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
     if (!svg || capturing) return;
     capturing = true;
     try {
-      await downloadFrame(svg, editor.canvas || DEFAULT_CANVAS, editor.name);
+      await downloadFrame(svg, editor.background || 'transparent', editor.name);
       say(t('Frame downloaded'));
     } catch {
       say(t('Could not download the frame.'));
@@ -102,7 +102,7 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
   // The preview card: the frame on screen as it is shared.
   const share = () => shareScene(editor, { say, clear: unsay }, 'play', async () => {
     if (!svg) throw new Error('No frame');
-    const background = editor.canvas || DEFAULT_CANVAS;
+    const background = editor.background || DEFAULT_CANVAS;
     return previewCard(await captureFrame(svg, background), background);
   });
 </script>
@@ -117,7 +117,7 @@ meter?.renderer(painted, livePlayer?.renderer() ?? 'auto');
   }}
 />
 
-<div class="presenter" role="dialog" aria-label={t('Play')} style:background={wireOn ? '#101216' : editor.canvas || DEFAULT_CANVAS}>
+<div class="presenter" role="dialog" aria-label={t('Play')} style:background={wireOn ? '#101216' : stageBackground(editor.background)}>
   <svg bind:this={svg} class="stage" class:full-viewport={!!editor.viewportFit} aria-label={t('svertik scene')}></svg>
   <div class="tools" data-active={controlsVisible || undefined}>
     <button type="button" onclick={capture} disabled={capturing} aria-label={t('Download current frame as PNG')} title={t('Download current frame as PNG')}>

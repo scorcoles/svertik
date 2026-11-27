@@ -7,11 +7,15 @@ import type { SceneNode, SceneV1 } from './document';
 import type { ModifierInstance } from './engine';
 import { hasTextExpressions, isNumericExpression, sceneHasExpressions } from './expression';
 
-/** Curve from one key to the next. `hold`: keeps the value until the next one (a jump). */
+/**
+ * Curve from one key to the next. `hold`: keeps the value until the next one (a jump). A custom curve is
+ * written as in CSS, `cubic-bezier(x1, y1, x2, y2)`: x within 0–1, y free (it may overshoot).
+ */
 export type Ease =
   | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
   | 'expo-in' | 'expo-out' | 'back-in' | 'back-out' | 'elastic-in' | 'elastic-out' | 'bounce-in' | 'bounce-out'
-  | 'hold';
+  | 'hold'
+  | `cubic-bezier(${string})`;
 export const EASES: Ease[] = [
   'linear', 'ease-in', 'ease-out', 'ease-in-out',
   'expo-in', 'expo-out', 'back-in', 'back-out', 'elastic-in', 'elastic-out', 'bounce-in', 'bounce-out',
@@ -92,7 +96,69 @@ const EASE: Record<Ease, (x: number) => number> = {
   'bounce-in': inOf(EASE_OUT['bounce-out']),
   hold: () => 0,
 };
-export const ease = (name: Ease | undefined, x: number) => (EASE[name ?? 'ease-in-out'] ?? EASE.linear)(Math.max(0, Math.min(1, x)));
+export const ease = (name: Ease | undefined, x: number) => {
+  const custom = name?.startsWith('cubic-bezier(') ? bezierCurve(name) : null;
+  return (custom ?? EASE[name as Exclude<Ease, `cubic-bezier(${string})`> ?? 'ease-in-out'] ?? EASE.linear)(Math.max(0, Math.min(1, x)));
+};
+
+export type Bezier = [number, number, number, number];
+/** The control points of a custom curve, `cubic-bezier(x1, y1, x2, y2)` (x clamped to 0–1); null if it isn't one. */
+export function parseBezier(name: string | undefined): Bezier | null {
+  const m = name?.match(/^cubic-bezier\(\s*([-\d.e]+)\s*,\s*([-\d.e]+)\s*,\s*([-\d.e]+)\s*,\s*([-\d.e]+)\s*\)$/);
+  if (!m) return null;
+  const [x1, y1, x2, y2] = m.slice(1).map(Number) as Bezier;
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+  return [Math.max(0, Math.min(1, x1)), y1, Math.max(0, Math.min(1, x2)), y2];
+}
+/** A custom curve from its control points (rounded), as it is stored. */
+export const bezierEase = ([x1, y1, x2, y2]: Bezier): Ease => {
+  const r = (n: number) => String(Math.round(n * 1000) / 1000);
+  return `cubic-bezier(${r(Math.max(0, Math.min(1, x1)))}, ${r(y1)}, ${r(Math.max(0, Math.min(1, x2)))}, ${r(y2)})`;
+};
+/**
+ * The control points that draw (or come closest to) a named curve, to start a custom one from it; null for
+ * those a single Bézier can't draw (elastic, bounce, hold).
+ */
+export function bezierOf(name: Ease | undefined): Bezier | null {
+  const custom = parseBezier(name);
+  if (custom) return custom;
+  const NAMED: Partial<Record<Ease, Bezier>> = {
+    linear: [0, 0, 1, 1], 'ease-in': [0.32, 0, 0.67, 0], 'ease-out': [0.33, 1, 0.68, 1], 'ease-in-out': [0.65, 0, 0.35, 1],
+    'expo-in': [0.7, 0, 0.84, 0], 'expo-out': [0.16, 1, 0.3, 1], 'back-in': [0.36, 0, 0.66, -0.56], 'back-out': [0.34, 1.56, 0.64, 1],
+  };
+  return NAMED[name ?? 'ease-in-out'] ?? null;
+}
+const bezierCache = new Map<string, ((x: number) => number) | null>();
+/** A cubic-bezier easing as a function of time (x → y), as CSS solves it: x(s) inverted by Newton, then bisection. */
+function bezierCurve(name: string): ((x: number) => number) | null {
+  if (bezierCache.has(name)) return bezierCache.get(name)!;
+  const points = parseBezier(name);
+  let fn: ((x: number) => number) | null = null;
+  if (points) {
+    const [x1, y1, x2, y2] = points;
+    const at = (a: number, b: number, s: number) => 3 * a * s * (1 - s) ** 2 + 3 * b * s * s * (1 - s) + s ** 3;
+    const slope = (a: number, b: number, s: number) => 3 * a * (1 - s) ** 2 + 6 * (b - a) * s * (1 - s) + 3 * (1 - b) * s * s;
+    fn = (x) => {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      let s = x;
+      for (let i = 0; i < 8; i++) {
+        const d = slope(x1, x2, s);
+        if (Math.abs(d) < 1e-6) break;
+        const next = s - (at(x1, x2, s) - x) / d;
+        if (next < 0 || next > 1) break;
+        s = next;
+      }
+      if (Math.abs(at(x1, x2, s) - x) > 1e-5) {
+        let lo = 0, hi = 1;
+        for (let i = 0; i < 40; i++) { s = (lo + hi) / 2; if (at(x1, x2, s) < x) lo = s; else hi = s; }
+      }
+      return at(y1, y2, s);
+    };
+  }
+  bezierCache.set(name, fn);
+  return fn;
+}
 
 /** Blends two values: numbers, points and colours interpolate; the rest (modes, texts…) holds until the next key. */
 export function lerpValue(a: unknown, b: unknown, k: number): unknown {

@@ -37,3 +37,12 @@ describe('palettes', () => {
     for (const p of PALETTES) for (const c of p.colors) expect(c).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
+
+describe('palettes and translucent colours', () => {
+  it('swap the hue of #rrggbbaa and keep its alpha', () => {
+    const s: SceneV1 = { version: 1, objects: [{ kind: 'shape', id: 'a', name: 'a', shape: 'rectangle', params: { fillColor: '#00000080' }, stack: [] }] };
+    expect(sceneColors(s)).toEqual(['#000000']);
+    applyPalette(s, ['#2f4bd8']);
+    expect((s.objects[0] as unknown as { params: { fillColor: string } }).params.fillColor).toBe('#2f4bd880');
+  });
+});

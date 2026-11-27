@@ -2,9 +2,9 @@
   "svertik": "project",
   "version": 1,
   "name": "Tidal · Orbital Study",
-  "canvas": "#07141F",
   "scene": {
     "version": 1,
+    "background": "#07141f",
     "document": { "width": 1400, "height": 900 },
     "notes": "A dark editorial study of attraction, impact, and settling. The immovable hollow ring attracts bodies toward its solid rim. The square satellites use a custom mass center so impacts create visible tumbling. Select the Rigid Body effect on a satellite to drag its mass center. Playback loops over 10 seconds; the ring remains fixed while the bodies keep their momentum between impacts.",
     "objects": [

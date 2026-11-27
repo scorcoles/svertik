@@ -6,6 +6,8 @@ export default defineConfig({
   // Component interaction tests use the same client runtime as the editor.
   resolve: { conditions: ['browser'] },
   base: './',
+  // The JS tab's runner imports svertikJS (and the engine): a module worker can split chunks.
+  worker: { format: 'es' },
   build: {
     rolldownOptions: {
       onwarn(warning, defaultHandler) {

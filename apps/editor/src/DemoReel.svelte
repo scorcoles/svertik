@@ -12,8 +12,8 @@
   const FEATURED: DemoName[] = ['title', 'playground', 'orrery', 'shatter'];
   const tiles = FEATURED.map((which) => {
     const demo = DEMOS.find((d) => d.which === which)!;
-    const project = demo.create() as { canvas?: string; scene: SceneV1 };
-    return { which, title: demo.title, description: t(demo.description), label: `${demo.title}: ${t(demo.description)}`, scene: project.scene, canvas: project.canvas };
+    const project = demo.create() as { scene: SceneV1 };
+    return { which, title: demo.title, description: t(demo.description), label: `${demo.title}: ${t(demo.description)}`, scene: project.scene, canvas: project.scene.background };
   });
   let svgs = $state<SVGSVGElement[]>([]);
 

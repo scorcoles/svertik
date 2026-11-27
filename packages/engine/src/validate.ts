@@ -1,6 +1,7 @@
 import { isPathContours, parsePathPointParam, readPathPointTarget } from './manual-path';
 import { mouseParams } from './mouse';
 import { isRangedVariable } from './scene';
+import { parseColor } from './color';
 import { isNumericExpression } from './expression';
 import { parsePercent } from './units';
 import { signalSchemas } from './modifiers/signal-schemas';
@@ -39,6 +40,7 @@ export function validateScene(value: unknown, modifiers: readonly ModifierDef<an
   if (!Array.isArray(raw.objects)) return { errors: [...errors, 'objects must be an array'], warnings };
   const scene = raw as SceneV1;
   if (scene.clipToDocument !== undefined && typeof scene.clipToDocument !== 'boolean') errors.push('clipToDocument must be true or false');
+  if (scene.background !== undefined && (typeof scene.background !== 'string' || !/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(scene.background) || !parseColor(scene.background))) errors.push('background must be a hex colour (#rrggbb or #rrggbbaa)');
   if (scene.fullViewport !== undefined && typeof scene.fullViewport !== 'boolean' && !['contain', 'cover', 'stretch', 'adapt'].includes(scene.fullViewport as string)) errors.push('fullViewport must be true/false or "contain", "cover", "stretch" or "adapt"');
   if (scene.adaptContent !== undefined && typeof scene.adaptContent !== 'boolean') errors.push('adaptContent must be true or false');
   if (scene.physicsBounds !== undefined && typeof scene.physicsBounds !== 'boolean') errors.push('physicsBounds must be true or false');

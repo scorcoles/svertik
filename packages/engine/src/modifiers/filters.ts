@@ -3,6 +3,7 @@
 // blur costs when painting, especially on phones. Units: the document's (px).
 import type { Geometry } from '../geometry';
 import { defineModifier, type FilterPlace, type ParamSpec } from '../modifier';
+import { parseColor } from '../color';
 
 const same = (geo: Geometry) => geo;
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -162,10 +163,8 @@ export const displace = defineModifier({
 
 /** A colour as [r, g, b] from 0 to 1 (black if not understood). */
 const rgb01 = (c: string): [number, number, number] => {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim());
-  if (!m) return [0, 0, 0];
-  const h = m[1]!.length === 3 ? [...m[1]!].map((x) => x + x).join('') : m[1]!;
-  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+  const p = parseColor(c);
+  return p ? [p[0] / 255, p[1] / 255, p[2] / 255] : [0, 0, 0];
 };
 
 /**

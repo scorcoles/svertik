@@ -17,6 +17,7 @@ const scene: SceneV1 = {
   version: 1,
   custom: { density: 0.65 }, // expression variables: scene.custom.name
   document: { width: 800, height: 450 },
+  background: '#0d0d10', // the scene's background colour (#rrggbb or #rrggbbaa); absent = transparent
   objects: [
     {
       kind: 'shape', id: 'star-1', name: 'Star', shape: 'star',
@@ -122,7 +123,7 @@ Every node: `id` (unique), `name`, `stack` (effects, applied top to bottom), and
 - `on: "node"` animates `x`, `y`, `scale`, `rotation`, `opacity`; `on: "shape"` a primitive param;
   `on: "modifier"` an effect param (also `enabled`, true/false).
 - `ease` (on the key where a segment starts): `linear`, `ease-in`, `ease-out`, `ease-in-out`, `expo-in|out`,
-  `back-in|out`, `elastic-in|out`, `bounce-in|out`, `hold`.
+  `back-in|out`, `elastic-in|out`, `bounce-in|out`, `hold`, or a custom `cubic-bezier(x1, y1, x2, y2)` as in CSS.
 - `repeat`: how many times the keys play (0 = forever); `every`: seconds from one start to the next.
 
 ### Interactions

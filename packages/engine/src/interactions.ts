@@ -382,6 +382,9 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
   // leaves bands). A CSS inset on the <svg>, in its own pixels, from where the viewBox lands on screen; it
   // follows resizes and a changing viewBox. The canvas renderer already stops at the viewBox.
   const originalClip = svg.style.clipPath;
+  // The scene's background, on the whole stage (Contain's bands too); Clip also clips it.
+  const originalBackground = svg.style.background;
+  if (scene.background) svg.style.background = scene.background;
   let clipKey = '';
   const clipToDocument = () => {
     if (!scene.clipToDocument || typeof svg.getScreenCTM !== 'function') return;
@@ -903,6 +906,7 @@ export function createPlayer(engine: Engine, svg: SVGSVGElement, scene: SceneV1,
         if (typeof window !== 'undefined') window.removeEventListener('resize', clipToDocument);
         svg.style.clipPath = originalClip;
       }
+      if (scene.background) svg.style.background = originalBackground;
       mouse.clear();
       if (fit) {
         if (originalAspectRatio === null) svg.removeAttribute('preserveAspectRatio');

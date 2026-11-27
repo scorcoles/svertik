@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneV1 } from '@svertik/engine';
+import { runCode } from '@svertik/js';
 import { DEFAULT_SCRIPT, exportJS, extractScript, jsDocument, jsLiteral, sourceRanges, syntaxErrorLine } from './code';
 
 const svg = '<svg viewBox="0 0 10 10"><rect width="5" height="5"/></svg>';
@@ -22,13 +23,13 @@ describe('panel JS', () => {
     expect(jsLiteral({ a: 'x', 'b-c': 1 })).toBe("{\n  a: 'x',\n  'b-c': 1\n}");
   });
 
-  it('one constant per SVG, named after the file', () => {
+  it('the scene in svertikJS, one constant per SVG named after the file', () => {
     const doc = jsDocument(scene, DEFAULT_SCRIPT);
-    expect(doc).toMatch(/^import \{ createEngine, wave \} from '@svertik\/engine';/);
+    expect(doc).toMatch(/^import \{ scene, group, svg \} from '@svertik\/js';/);
     expect(doc).toContain('const starLogo = `<svg');
     expect(doc).toContain('const svg2x = `<svg');
-    expect(doc).toContain('source: starLogo,');
-    expect(doc).toContain("{ id: 'w', type: 'wave', enabled: true, params: { phase: 0 } },");
+    expect(doc).toContain("svg('Star Logo.svg', starLogo)");
+    expect(doc).toContain('.wave()');
     expect(doc.endsWith(DEFAULT_SCRIPT)).toBe(true);
   });
 
@@ -51,10 +52,11 @@ describe('panel JS', () => {
     expect(() => new Function(js.replace(/^import[^;]*;/m, ''))).not.toThrow();
   });
 
-  it('the panel JS, when run, returns the same scene', () => {
-    const body = jsDocument(scene, DEFAULT_SCRIPT).replace(/^import[^;]*;/m, '');
-    const run = new Function('onFrame', body + '\n;return scene;');
-    expect(run(() => {})).toEqual(scene);
+  it('the panel JS, when run, returns the same scene (with readable ids)', () => {
+    const built = runCode(jsDocument(scene, DEFAULT_SCRIPT)).scene;
+    expect(built.objects.map((o) => [o.kind, o.name])).toEqual([['object', 'Star Logo.svg'], ['group', 'Group']]);
+    expect(built.objects[0]).toMatchObject({ id: 'star_logo_svg', source: svg, stack: [{ type: 'wave' }] });
+    expect(built.objects[1]).toMatchObject({ children: [{ name: '2x.svg', source: svg, transform: { x: 40 } }] });
   });
 
   it('finds the line of a syntax error', () => {
@@ -87,4 +89,14 @@ it('exports static Full viewport scenes with the responsive player', () => {
 
 it('exports trackless Infinite scenes using the player', () => {
   expect(exportJS({ version: 1, objects: [], animation: { duration: 10, infinite: true, loop: false, tracks: [] } }, '')).toContain('createPlayer(engine, document.querySelector');
+});
+
+describe('Prettier in the JS tab', () => {
+  it('formatted code still separates the script and runs to the same scene', async () => {
+    const { prettyJS } = await import('./prettier');
+    const mine = '// mine\n';
+    const doc = await prettyJS(jsDocument(scene, mine));
+    expect(extractScript(doc)).toBe(mine);
+    expect(runCode(doc).scene).toEqual(runCode(jsDocument(scene, mine)).scene);
+  });
 });

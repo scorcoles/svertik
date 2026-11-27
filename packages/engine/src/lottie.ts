@@ -45,6 +45,12 @@ export function toLottie(engine: Engine, scene: SceneV1, options: { name?: strin
     }
     return layer(l.name, lottieShapes(l.shapes, toDoc), staticTransform(), l.ip, l.op, blendOf(l.shapes));
   });
+  // The scene's background: a solid layer at the back, its alpha as the layer's opacity.
+  const bg = scene.background ? parseColor(scene.background) : null;
+  if (bg) {
+    const hex = `#${bg.slice(0, 3).map((n) => Math.round(n).toString(16).padStart(2, '0')).join('')}`;
+    layers.unshift({ ddd: 0, ind: 0, ty: 1, nm: 'Background', sr: 1, ks: { ...staticTransform(), o: { a: 0, k: r3(bg[3] * 100) } }, ao: 0, sc: hex, sw: Math.round(vw), sh: Math.round(vh), ip: 0, op: a.frames, st: 0, bm: 0 });
+  }
   // In Lottie, the first layer is the front one.
   layers.reverse().forEach((l, i) => (l.ind = i + 1));
 

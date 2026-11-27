@@ -173,7 +173,7 @@
     <div class="palette-editor">
       {#each colors as color, i (i)}
         <div class="palette-entry">
-          <ColorField value={color} label={t('Palette color {number}', { number: i + 1 })} {swatches} onchange={(v) => onchange(colors.map((c, j) => j === i ? normalizeHex(v) ?? c : c))} />
+          <ColorField value={color} alpha={false} label={t('Palette color {number}', { number: i + 1 })} {swatches} onchange={(v) => onchange(colors.map((c, j) => j === i ? normalizeHex(v) ?? c : c))} />
           <IconButton icon="close" label={t('Remove palette color {number}', { number: i + 1 })} disabled={colors.length <= 1} onclick={() => onchange(colors.filter((_, j) => j !== i))} />
         </div>
       {/each}

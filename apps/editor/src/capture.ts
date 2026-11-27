@@ -29,6 +29,8 @@ export async function captureFrame(svg: SVGSVGElement, background: string): Prom
   snapshot.setAttribute('width', String(width));
   snapshot.setAttribute('height', String(height));
   snapshot.removeAttribute('class');
+  // The scene's background is filled below, under the drawing; the player's CSS copy would double it.
+  snapshot.style.background = '';
   snapshot.style.width = `${width}px`;
   snapshot.style.height = `${height}px`;
   // mountCanvas keeps a hidden <foreignObject> in the SVG even on SVG-rendered frames.

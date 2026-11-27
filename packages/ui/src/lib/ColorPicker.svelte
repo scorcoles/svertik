@@ -1,30 +1,35 @@
 <script lang="ts">
   import { t } from './i18n';
   import { untrack } from 'svelte';
-  // A custom colour picker: a saturation (horizontal) and brightness (vertical) square plus a hue bar.
-  // Works in HSV and returns hex (#rrggbb).
+  import { joinHex, splitHex } from './color-hex';
+  // A custom colour picker: a saturation (horizontal) and brightness (vertical) square, a hue bar and,
+  // with `alpha`, an opacity bar. Works in HSV and returns hex (#rrggbb, or #rrggbbaa when translucent).
   interface Props {
     value: string;
     width?: number;
+    /** Shows the opacity bar (on by default); without it the alpha is dropped. */
+    alpha?: boolean;
     onchange?: (value: string) => void;
   }
-  let { value, width = 180, onchange }: Props = $props();
+  let { value, width = 180, alpha = true, onchange }: Props = $props();
   const EyeDropperAPI = typeof window === 'undefined'
     ? undefined
     : (window as Window & { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper;
 
   // Hue is kept apart: in greys (s = 0) or black (v = 0) the hex does not keep it.
   let hsv = $state(untrack(() => toHsv(value)));
+  let a = $state(untrack(() => (alpha ? splitHex(value).a : 1)));
   let last = untrack(() => value);
   $effect(() => {
     if (value !== last) {
       const next = toHsv(value);
       hsv = next.s === 0 || next.v === 0 ? { ...next, h: hsv.h } : next;
+      a = alpha ? splitHex(value).a : 1;
       last = value;
     }
   });
   const emit = () => {
-    last = toHex(hsv);
+    last = joinHex(toHex(hsv), a);
     onchange?.(last);
   };
 
@@ -41,21 +46,20 @@
     el.addEventListener('pointermove', at);
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
-  function keys(e: KeyboardEvent, kind: 'sv' | 'hue') {
+  function keys(e: KeyboardEvent, kind: 'sv' | 'hue' | 'alpha') {
     const k = e.shiftKey ? 0.1 : 0.01;
     const d = { ArrowLeft: [-k, 0], ArrowRight: [k, 0], ArrowUp: [0, k], ArrowDown: [0, -k] }[e.key];
     if (!d) return;
     e.preventDefault();
     const c = (n: number) => Math.max(0, Math.min(1, n));
-    if (kind === 'hue') hsv = { ...hsv, h: (hsv.h + (d[0]! || d[1]!) * 360 + 360) % 360 };
+    if (kind === 'alpha') a = c(a + (d[0]! || d[1]!));
+    else if (kind === 'hue') hsv = { ...hsv, h: (hsv.h + (d[0]! || d[1]!) * 360 + 360) % 360 };
     else hsv = { ...hsv, s: c(hsv.s + d[0]!), v: c(hsv.v + d[1]!) };
     emit();
   }
 
   function toHsv(hex: string) {
-    const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-    const digits = m?.[1]?.length === 3 ? [...m[1]].map((x) => x + x).join('') : m?.[1];
-    const n = digits ? parseInt(digits, 16) : 0;
+    const n = parseInt(splitHex(hex).rgb.slice(1), 16);
     const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => x / 255) as [number, number, number];
     const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
     let h = 0;
@@ -74,7 +78,7 @@
     try {
       const { sRGBHex } = await new EyeDropperAPI().open();
       hsv = toHsv(sRGBHex);
-      last = sRGBHex.toLowerCase();
+      last = joinHex(sRGBHex, a);
       onchange?.(last);
     } catch (error) {
       if (error instanceof DOMException && error.name !== 'AbortError') throw error;
@@ -109,6 +113,23 @@
   >
     <span class="thumb bar" style:left="{(hsv.h / 360) * 100}%" style:background="hsl({hsv.h} 100% 50%)"></span>
   </div>
+  {#if alpha}
+    <div
+      class="alpha"
+      role="slider"
+      tabindex="0"
+      aria-label={t('Opacity')}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(a * 100)}
+      aria-valuetext={`${Math.round(a * 100)}%`}
+      style:--rgb={toHex(hsv)}
+      onpointerdown={(e) => drag(e, (fx) => (a = Math.round(fx * 100) / 100))}
+      onkeydown={(e) => keys(e, 'alpha')}
+    >
+      <span class="thumb bar" style:left="{a * 100}%" style:background={joinHex(toHex(hsv), a)}></span>
+    </div>
+  {/if}
   {#if EyeDropperAPI}
     <button class="eyedropper" type="button" onclick={() => void pickFromScreen()} aria-label={t('Pick a color from the screen')} title={t('Pick a color from the screen')}>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.9 1.8 3.3 3.3-2 2-1-1-5.9 5.9-2.5.5.5-2.5 5.9-5.9-1-1 2.7-1.3ZM3.5 12.5l-1 1" /></svg>
@@ -133,8 +154,18 @@
     cursor: ew-resize;
     touch-action: none;
   }
+  .alpha {
+    position: relative;
+    height: 10px;
+    background:
+      linear-gradient(to right, transparent, var(--rgb)),
+      repeating-conic-gradient(#c8c8c8 0 25%, #ffffff 0 50%) 0 0 / 6px 6px;
+    cursor: ew-resize;
+    touch-action: none;
+  }
   .sv:focus-visible,
-  .hue:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: 2px; }
+  .hue:focus-visible,
+  .alpha:focus-visible { outline: 1px solid var(--sv-accent-text); outline-offset: 2px; }
   .thumb {
     position: absolute;
     width: 10px;

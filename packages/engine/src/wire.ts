@@ -71,7 +71,7 @@ export function wireCSS(scene: SceneV1, root: string, prefix = 'wire-hatch'): st
     const kind = kinds.get(id);
     return `${root}.wire path[data-node=${JSON.stringify(id)}] { --wire-color: ${kind === 'fixed' ? '#facc15' : kind === 'mobile' ? '#22d3ee' : color}; --wire-fill: ${kind ? `url(#${prefix}-${kind})` : 'none'}; }`;
   }).join('\n');
-  return `${root}.wire { background: #101216; }\n${root}.wire path[data-svertik-shape] { fill: var(--wire-fill, none) !important; stroke: var(--wire-color, #22d3ee) !important; stroke-width: var(--wire-width, 1px) !important; opacity: 0.78; vector-effect: non-scaling-stroke; pointer-events: none; }\n${perNode}`;
+  return `${root}.wire { background: #101216 !important; }\n${root}.wire path[data-svertik-shape] { fill: var(--wire-fill, none) !important; stroke: var(--wire-color, #22d3ee) !important; stroke-width: var(--wire-width, 1px) !important; opacity: 0.78; vector-effect: non-scaling-stroke; pointer-events: none; }\n${perNode}`;
 }
 
 /** The invisible interaction copy uses the original paint, never the wire's CSS. */

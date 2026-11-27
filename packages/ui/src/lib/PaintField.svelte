@@ -8,6 +8,7 @@
   import Select from './Select.svelte';
   import Segmented from './Segmented.svelte';
   import { DOCUMENT_PALETTE, usePalettes } from './palettes';
+  import { hexPattern, joinHex, normalizeTyped, splitHex, swatchBackground } from './color-hex';
 
   type Stop = { offset: number; color: string; opacity?: number };
   type GradientValue = {
@@ -42,17 +43,13 @@
     const p = palettes.list.find((x) => x.name === palettes.current);
     return p ? { name: p.name, colors: p.colors.map((c) => c.toLowerCase()).slice(0, 21) } : { name: DOCUMENT_PALETTE, colors: docSwatches };
   });
-  const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const HEX = hexPattern();
 
   function emit(v: string | GradientValue) {
     value = v;
     onchange?.(v);
   }
-  const setSolid = (v: string) => {
-    const digits = v.replace(/^#/, '');
-    const expanded = digits.length === 3 ? [...digits].map((x) => x + x).join('') : digits;
-    emit(`#${expanded.toLowerCase()}`);
-  };
+  const setSolid = (v: string) => emit(normalizeTyped(v));
 
   function toSolid() { emit(solid); }
   function toGradient(kind: 'linear' | 'radial' = 'linear') {
@@ -62,7 +59,7 @@
   }
 
   const cssPreview = $derived.by(() => {
-    if (!grad) return solid;
+    if (!grad) return swatchBackground(solid);
     const stops = [...grad.stops].sort((a, b) => a.offset - b.offset).map((s) => {
       const c = s.color ?? '#000';
       const o = s.opacity ?? 1;
@@ -140,7 +137,7 @@
             />
             <div class="grid" role="listbox" aria-label={t('Swatches')}>
               {#each BASE as c (c)}
-                <button type="button" class="chip" role="option" aria-selected={c === solid.toLowerCase()} aria-label={c} title={c} style:background={c} onclick={() => setSolid(c)}></button>
+                <button type="button" class="chip" role="option" aria-selected={c === splitHex(solid).rgb} aria-label={c} title={c} style:background={c} onclick={() => setSolid(joinHex(c, splitHex(solid).a))}></button>
               {/each}
             </div>
             {#if palettes}
@@ -154,7 +151,7 @@
             {#if shown.colors.length}
               <div class="grid" role="listbox" aria-label={shown.name}>
                 {#each shown.colors as c (c)}
-                  <button type="button" class="chip" role="option" aria-selected={c === solid.toLowerCase()} aria-label={c} title={c} style:background={c} onclick={() => setSolid(c)}></button>
+                  <button type="button" class="chip" role="option" aria-selected={c === splitHex(solid).rgb} aria-label={c} title={c} style:background={c} onclick={() => setSolid(joinHex(c, splitHex(solid).a))}></button>
                 {/each}
               </div>
             {:else if palettes}
@@ -188,7 +185,7 @@
               {#each grad.stops as stop, i (i)}
                 <div class="stop">
                   <input class="off" type="number" min="0" max="1" step="0.01" value={stop.offset} aria-label={t('Offset')} onchange={(e)=>setStop(i,{offset: Number(e.currentTarget.value)})} />
-                  <ColorField value={stop.color} label={t('Stop color')} {swatches} onchange={(v: string)=>setStop(i,{color:v})} />
+                  <ColorField value={stop.color} alpha={false} label={t('Stop color')} {swatches} onchange={(v: string)=>setStop(i,{color:v})} />
                   <input class="op" type="number" min="0" max="1" step="0.01" value={stop.opacity ?? 1} aria-label={t('Opacity')} onchange={(e)=>setStop(i,{opacity: Number(e.currentTarget.value)})} />
                   <button type="button" class="del" disabled={grad.stops.length<=2} onclick={()=>removeStop(i)}>×</button>
                 </div>

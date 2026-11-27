@@ -79,13 +79,22 @@ export const registry = new Map<string, ModifierDef>(builtins.map((m) => [m.type
 export const nestedOnly = new Set(['shapevalues']);
 export const modifierTypes = builtins.map((m) => m.type).filter((type) => !nestedOnly.has(type));
 
-/** Default canvas colour: the one used until the document sets its own. */
+/** What the editor shows behind a scene without a background (exports stay transparent). */
 export const DEFAULT_CANVAS = '#ffffff';
+
+/** CSS for a stage behind the scene: its background over the editor's default (translucent ones show it). */
+export const stageBackground = (background: string) =>
+  background ? `linear-gradient(${background}, ${background}), ${DEFAULT_CANVAS}` : DEFAULT_CANVAS;
+
+/** Projects, links and autosaves from before `scene.background` kept it as the editor's canvas colour. */
+function adoptCanvas(scene: SceneV1 | null | undefined, canvas: string | undefined) {
+  if (scene && canvas && !scene.background) scene.background = canvas;
+}
 
 /** The colour a Tracer draws an object's trail in: the object's fill, or its stroke, or the accent. */
 function tracerColor(node: SceneNode): string {
   const params = node.kind === 'shape' ? (node.params as Record<string, unknown>) : {};
-  const hex = (v: unknown) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : undefined);
+  const hex = (v: unknown) => (typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v) ? v : undefined);
   return (params.fill !== false && hex(params.fillColor)) || (params.stroke === true && hex(params.strokeColor)) || '#09fdd1';
 }
 
@@ -602,8 +611,8 @@ export class Editor {
   }
   /** Document name (the first SVG's, until there is another). */
   name = $state('untitled');
-  /** Canvas colour (only for viewing; not in the exported SVG). Empty: the theme's. */
-  canvas = $state(readPref('svertik.canvas'));
+  /** The scene's background (the project's root scene); empty: transparent, shown over DEFAULT_CANVAS. */
+  get background() { return this.#rootScene?.background ?? ''; }
   textZoom = $state(Math.max(80, Math.min(180, Number(readPref('svertik.textZoom')) || 100)));
   setTextZoom(value: number) {
     const zoom = Math.max(80, Math.min(180, Math.round(value / 10) * 10));
@@ -611,10 +620,11 @@ export class Editor {
     this.textZoom = zoom;
     writePref('svertik.textZoom', String(zoom));
   }
-  setCanvas(color: string) {
-    if (color === this.canvas) return;
-    this.canvas = color;
-    writePref('svertik.canvas', color);
+  setBackground(color: string) {
+    const root = this.#rootScene;
+    if (!root || color === (root.background ?? '')) return;
+    if (color) root.background = color;
+    else delete root.background;
     this.record();
   }
   setNotes(notes: string) {
@@ -1195,10 +1205,11 @@ export class Editor {
   docColors = $derived.by(() => {
     if (!this.scene) return [] as string[];
     const out = new Set<string>();
-    const hex = /#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi;
+    // Swatches are opaque: a translucent colour (#rrggbbaa) adds its #rrggbb.
+    const hex = /#[0-9a-f]{6}(?:[0-9a-f]{2})?\b|#[0-9a-f]{3}\b/gi;
     const add = (v: unknown) => {
       if (typeof v !== 'string') return;
-      for (const m of v.match(hex) ?? []) out.add(m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}`.toLowerCase() : m.toLowerCase());
+      for (const m of v.match(hex) ?? []) out.add(m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}`.toLowerCase() : m.slice(0, 7).toLowerCase());
     };
     const fromStack = (list: ModifierInstance[]) => list.forEach((m) => { Object.values(m.params ?? {}).forEach(add); fromStack(m.children ?? []); });
     for (const { node } of walkNodes(this.scene.objects)) {
@@ -2567,12 +2578,13 @@ export class Editor {
     this.record();
     return true;
   }
-  setEase(trackId: string, at: number, e: Ease) {
+  /** A segment's curve. `final` false while a custom curve is being dragged: the drag is one undo step. */
+  setEase(trackId: string, at: number, e: Ease, final = true) {
     const k = this.animation?.tracks.find((x) => x.id === trackId)?.keys.find((x) => x.t === at);
     if (!k) return;
     k.ease = e;
     this.#applyTime();
-    this.record(true);
+    this.record(final);
   }
   removeKey(trackId: string, at: number) {
     const anim = this.animation;
@@ -3345,7 +3357,7 @@ export class Editor {
     const push = () => {
       this.#pending = false;
       this.#prune();
-      const snap = JSON.stringify({ scene: this.#rootScene, name: this.name, script: this.script, canvas: this.canvas });
+      const snap = JSON.stringify({ scene: this.#rootScene, name: this.name, script: this.script });
       if (snap === this.#history[this.#index]) return;
       this.#history = this.#history.slice(0, this.#index + 1);
       this.#history.push(snap);
@@ -3369,12 +3381,11 @@ export class Editor {
   #restore(i: number) {
     const snap = this.#history[i];
     if (!snap) return;
-    const { scene, name, script, canvas } = JSON.parse(snap) as { scene: SceneV1 | null; name: string; script?: string; canvas?: string };
+    const { scene, name, script } = JSON.parse(snap) as { scene: SceneV1 | null; name: string; script?: string };
     this.#rootScene = scene;
     this.compositionPath = this.compositionPath.slice(0, this.compositionBreadcrumbs.length);
     this.#compositionViews = this.#compositionViews.slice(0, this.compositionPath.length);
     this.name = name;
-    this.canvas = canvas ?? '';
     this.script = script ?? DEFAULT_SCRIPT;
     this.#index = i;
     if (this.selected && this.scene && !locateNode(this.scene.objects, this.selected) && !locateModifier(this.scene, this.selected)) {
@@ -3436,9 +3447,6 @@ export class Editor {
     this.playing = false;
     this.timelineOpen = false;
     this.codeOpen = false;
-    // Default background: not inherited from another document (nor the saved preference).
-    this.canvas = '';
-    writePref('svertik.canvas', '');
     this.error = null;
     this.#newRecent();
     this.#history = [];
@@ -3457,7 +3465,7 @@ export class Editor {
     // Packs keep their original: their frozen geometry is rebuilt on open, it isn't saved.
     const scene = stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1);
     return compactJSON({
-      svertik: 'project', version: 1, name: this.name, canvas: this.canvas || undefined, script: this.script,
+      svertik: 'project', version: 1, name: this.name, script: this.script,
       embedSources: this.embedSources ? undefined : false,
       scene: this.embedSources ? scene : detachSources(scene).scene,
     });
@@ -3502,6 +3510,7 @@ export class Editor {
     this.#compositionViews = [];
     this.demoOrigin = null;
     this.#restorePacks(scene);
+    adoptCanvas(scene, data.canvas);
     this.scene = scene;
     this.#revealLayers(scene);
     // Primitives, with all their parameters (missing ones at their default): the panel needs them.
@@ -3510,7 +3519,6 @@ export class Editor {
       if (node.kind === 'shape' && def) node.params = { ...resolveParams(def.params), ...node.params };
     }
     this.name = data.name || fileName?.replace(/^.*[\\/]/, '').replace(/\.json$/i, '') || 'untitled';
-    if (data.canvas) this.canvas = data.canvas;
     this.script = data.script ?? DEFAULT_SCRIPT;
     this.missingSvgs = missingSources(this.scene);
     this.embedSources = data.embedSources !== false && !this.missingSvgs.length;
@@ -3540,7 +3548,7 @@ export class Editor {
     this.flush();
     let encoded: string;
     try {
-      encoded = await encodeState({ scene: stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1), name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+      encoded = await encodeState({ scene: stripPackGeometry($state.snapshot(this.#rootScene) as SceneV1), name: this.name, script: this.script });
     } catch {
       // Autosave is a convenience: if compression fails (or is cut short), keep the previous one.
       return;
@@ -3592,7 +3600,7 @@ export class Editor {
    */
   async shareURL(target: ShareTarget = 'play', preview?: () => Promise<Blob>): Promise<string | null> {
     if (!this.scene) return null;
-    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV1, name: this.name, script: this.script, ...(this.canvas ? { canvas: this.canvas } : {}) });
+    const encoded = await encodeState({ scene: $state.snapshot(this.scene) as SceneV1, name: this.name, script: this.script });
     // The card is drawn while the scene uploads; a link without a picture still works.
     const card = preview?.().catch(() => null);
     const id = await shortenState(encoded);
@@ -3641,12 +3649,12 @@ export class Editor {
     this.compositionPath = [];
     this.#compositionViews = [];
     this.#restorePacks(scene);
+    adoptCanvas(scene, state.canvas);
     this.scene = scene;
     this.#revealLayers(scene);
     this.name = state.name.replace(/\.svg$/i, '');
     this.missingSvgs = missingSources(scene);
     if (state.script) this.script = state.script;
-    if (state.canvas) this.canvas = state.canvas;
     this.selected = scene.objects[0]?.id ?? null;
     this.#history = [];
     this.#index = -1;

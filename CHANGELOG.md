@@ -2,6 +2,17 @@
 
 svertik is alpha software. Save project files regularly.
 
+## Unreleased
+
+### Added
+
+- Custom animation curves: the curve popover of a timeline segment has a box at the top with the curve and its two Bézier handles to drag (value may overshoot); it starts from the named curve and becomes Custom, one undo step per drag. Stored as in CSS, `"ease": "cubic-bezier(x1, y1, x2, y2)"`, also for agents and hand-written scenes.
+- Opacity in the colour picker: an opacity bar under the hue and a percentage beside the hex, in every colour field and Paint's solid colour. A translucent colour is stored as `#rrggbbaa` (opaque ones stay `#rrggbb`); swatches keep the opacity and change only the hue, and palette swaps keep it too. Palette entries and gradient stops (they have their own Opacity) stay opaque.
+- Scene background: `background` on the scene (Document → Background; None = transparent, translucent colours allowed). It is part of the scene: the canvas, Play (the whole stage, bands included) and every export (SVG, PNG, frames, MP4, animated SVG, Lottie) show it, so a background no longer needs a rectangle. It replaces the editor-only canvas colour; projects and links that had one get it as their background when opened. The CLI's `--background` overrides it.
+- svertikJS (`@svertik/js`): scenes written in JavaScript instead of JSON. Objects chain their effects (`ellipse('dots').clone({…}).spherize({…})`), tweens use `.to()`, `.from()` and `.fromTo()` with duration, delay, ease names like `power2.out`, repeat and yoyo, `fx` writes formulas and `expose` adds a variable with a label and a range. Factories, chain methods and parameter types come from the engine's effects and shapes. `pnpm svertik render scene.ts` (also `.js`, `.mjs`) runs a script and renders the scene it exports.
+- The code panel's JS tab shows the scene in svertikJS and applies what you write there, as the JSON tab does (warnings included). Objects keep their names; ids nothing points at become readable, taken from the names. Copy JS still gives the self-contained snippet for a web page.
+- Prettier button in the JS tab: shows the code formatted by Prettier (loaded the first time it is used; remembered in this browser).
+
 ## 0.0.31
 
 ### Added

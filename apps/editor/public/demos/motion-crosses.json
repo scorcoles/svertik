@@ -2,9 +2,9 @@
   "svertik": "project",
   "version": 1,
   "name": "Motion",
-  "canvas": "#F2E8DA",
   "scene": {
     "version": 1,
+    "background": "#f2e8da",
     "document": {
       "width": 1000,
       "height": 700

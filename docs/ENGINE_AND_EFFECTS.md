@@ -248,6 +248,8 @@ The **Effector** modifiers (`step`, `stagger`, `range`, `field`, `explosion`, `c
 
 Use **Image Fill** from the Style effects menu to paint a shape from a raster image object in the same document. Select that object in **Source**. **Hide source** is on by default: the raster remains available to the fill but is omitted from drawing and from a parent's physics input, so it cannot fall as a second body. Turn it off to show the source object. Choose Cover, Contain or Stretch, then adjust Scale and Position. Image Fill uses the original bounds of the stack as one shared frame, so Crack shards sample the matching region whether Image Fill is before or after Crack. Clone copies retain that image material, and Voronoi transfers it to each generated cell. The frame follows Gravity as pieces fall. SVG and Canvas rendering preserve image fills; Lottie export warns that it cannot.
 
+**Colours** are hex strings. `#rrggbbaa` adds opacity (`"#ff000080"` is red at 50%); the editor's colour picker writes it when its opacity bar is below 100% and keeps opaque colours as `#rrggbb`. The opacity multiplies with Opacity and Paint's opacities. Palette entries (Color's `palette`) stay `#rrggbb`; gradient stops carry their own `opacity`.
+
 <!-- generated:catalog:start -->
 
 *Generated from the engine schemas by `pnpm svertik docs`; do not edit by hand. Each parameter: type (or options), default, range, unit and when it applies.*
@@ -1081,7 +1083,7 @@ In the editor, click a keyframe to select it without moving the playhead. Drag e
 - `on: "node"`: Animates `"x"`, `"y"`, `"scale"`, `"rotation"`, `"opacity"`, `"pivot"`.
 - `on: "shape"`: Animates primitive parameters (e.g. `radius`, `innerRadius`, `dashOffset`, `strokeWidth`).
 - `on: "modifier"`: Animates any animatable modifier parameter (e.g. `angle`, `phase`, `distance`, or `enabled: true/false`).
-- Supported Easings: `"linear"`, `"ease-in"`, `"ease-out"`, `"ease-in-out"`, `"expo-in"`, `"expo-out"`, `"back-in"`, `"back-out"`, `"elastic-in"`, `"elastic-out"`, `"bounce-in"`, `"bounce-out"`, `"hold"`.
+- Supported Easings: `"linear"`, `"ease-in"`, `"ease-out"`, `"ease-in-out"`, `"expo-in"`, `"expo-out"`, `"back-in"`, `"back-out"`, `"elastic-in"`, `"elastic-out"`, `"bounce-in"`, `"bounce-out"`, `"hold"`. A custom curve is written as in CSS: `"cubic-bezier(x1, y1, x2, y2)"` (x within 0–1, y free, so it can overshoot), e.g. `"cubic-bezier(0.34, 1.56, 0.64, 1)"` for a springy arrival. In the editor, the curve popover of a segment has a box at the top to drag its two handles; it starts from the named curve and becomes Custom.
 
 ---
 
@@ -1395,6 +1397,8 @@ The setting is saved as optional `SceneV1.fullViewport`: `true` (contain), `"cov
 Optional `SceneV1.physicsBounds: true` (**Document → Walls**, needs a fixed document) makes the document's edges walls for every Physics in the scene: four static solids just outside the document, as thick as the document is large, in addition to each Physics' own Solids. Bodies bounce off them with that Physics' Bounce and Friction, in the editor, in Play and in exports; with Adapt, the walls are the screen's edges. Hidden wall rectangles are no longer needed for a closed box. Resizing the window while an Adapt scene plays moves the walls once the resize settles; the Physics then recomputes its world from the start up to the current time with the new walls, so bodies may jump.
 
 Optional `SceneV1.clipToDocument: true` (**Document → Clip**) hides in Play whatever lies outside the document: by default drawing overflows the stage and shows in Contain's bands. `createPlayer` sets a CSS `clip-path: inset(…)` on the SVG from where the viewBox lands on screen, and updates it on resize and when the viewBox changes. The Canvas renderer already stops at the viewBox; headless exports are unaffected (they already end at the document). The editor's View → Hide outside is a separate, editor-only view setting.
+
+Optional `SceneV1.background` (**Document → Background**) is the scene's background colour: `#rrggbb`, or `#rrggbbaa` for a translucent one; absent means transparent. `toSVG`, PNG and frame renders, video, animated SVG and Lottie (a solid layer at the back, its alpha as the layer's opacity) draw it as a rectangle over the whole viewBox: the document, or the drawing's box when there is none. `createPlayer` paints it as the SVG element's CSS background, so it fills the whole stage, Contain's bands included; `clipToDocument` clips it with the drawing, and Wire keeps its dark background. The editor shows it behind the canvas (over white when translucent). Prefer it to a background rectangle the size of the document. `svertik render --background` replaces it. Projects saved before it kept this colour as the editor-only `canvas` field; the editor and the player move it into `scene.background` on open.
 
 ## Infinite time
 

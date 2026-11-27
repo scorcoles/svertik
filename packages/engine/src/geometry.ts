@@ -171,6 +171,8 @@ export interface Geometry {
   viewBox: [number, number, number, number];
   /** SVG filters (shadow, blur…) of the objects that have them, by id. See `Shape.wrap`. */
   filters?: Record<string, FilterDef>;
+  /** The scene's background colour (only on a whole document's geometry). Static exports draw it. */
+  background?: string;
   /**
    * Only in a node's source: the point placed at its position (x, y). Without it, the centre of its
    * box. A left-anchored text doesn't move when its words change.

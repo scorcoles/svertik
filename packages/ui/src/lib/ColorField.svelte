@@ -3,6 +3,7 @@
   import { Popover } from 'bits-ui';
   import ColorPicker from './ColorPicker.svelte';
   import { DOCUMENT_PALETTE, usePalettes } from './palettes';
+  import { hexPattern, joinHex, normalizeTyped, splitHex, swatchBackground } from './color-hex';
 
   interface Props {
     value: string;
@@ -17,8 +18,10 @@
     none?: boolean;
     /** Offers "None" among the swatches; picking a colour turns it back on (the caller's onchange). */
     onnone?: () => void;
+    /** Allows opacity (#rrggbbaa) with a bar and a percentage; off where only #rrggbb fits (palettes). */
+    alpha?: boolean;
   }
-  let { value = $bindable(), label, id, onchange, swatches = [], compact = false, none = false, onnone }: Props = $props();
+  let { value = $bindable(), label, id, onchange, swatches = [], compact = false, none = false, onnone, alpha = true }: Props = $props();
   /** The "no colour" look: white, crossed from bottom left to top right by a red line. */
   const NONE_BG = 'linear-gradient(to top right, #fff calc(50% - 1px), #e5484d calc(50% - 0.6px), #e5484d calc(50% + 0.6px), #fff calc(50% + 1px))';
 
@@ -36,14 +39,20 @@
 
   let draft = $state('');
   let editing = $state(false);
-  const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const HEX = $derived(hexPattern(alpha));
+  const opacity = $derived(Math.round(splitHex(value).a * 100));
 
   const set = (v: string) => {
-    const digits = v.replace(/^#/, '');
-    const expanded = digits.length === 3 ? [...digits].map((x) => x + x).join('') : digits;
-    value = `#${expanded.toLowerCase()}`;
+    value = normalizeTyped(v, alpha);
     onchange?.(value);
   };
+  /** A swatch keeps the current opacity: picking a colour changes only its hue. */
+  const pick = (c: string) => set(alpha ? joinHex(c, splitHex(value).a) : c);
+  function setOpacity(input: HTMLInputElement) {
+    const n = parseFloat(input.value);
+    if (Number.isFinite(n)) set(joinHex(value, Math.max(0, Math.min(100, n)) / 100));
+    else input.value = `${opacity}`;
+  }
   function commit() {
     if (HEX.test(draft.trim())) set(draft.trim());
     editing = false;
@@ -52,21 +61,34 @@
 
 <div class="sv-color" data-compact={compact || undefined} data-invalid={editing && !HEX.test(draft.trim()) ? '' : undefined}>
   <Popover.Root bind:open>
-    <Popover.Trigger class="sv-color-swatch" style="background: {none ? NONE_BG : value}" aria-label={label ? `${label} swatches` : t('Color swatches')} title={none ? t('None') : undefined} />
+    <Popover.Trigger class="sv-color-swatch" style="background: {none ? NONE_BG : swatchBackground(value)}" aria-label={label ? `${label} swatches` : t('Color swatches')} title={none ? t('None') : undefined} />
     <Popover.Portal>
       <Popover.Content class="sv-color-popover" side="bottom" align="start" sideOffset={4}>
-        <ColorPicker {value} width={184} onchange={set} />
-        <input
-          class="hex-in"
-          spellcheck="false"
-          aria-label={label ? `${label} hex` : 'Hex'}
-          value={value.toUpperCase()}
-          onchange={(e) => { const v = e.currentTarget.value.trim(); if (HEX.test(v)) set(v); else e.currentTarget.value = value.toUpperCase(); }}
-          onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        />
+        <ColorPicker {value} {alpha} width={184} onchange={set} />
+        <div class="hex-row">
+          <input
+            class="hex-in"
+            spellcheck="false"
+            aria-label={label ? `${label} hex` : 'Hex'}
+            value={value.toUpperCase()}
+            onchange={(e) => { const v = e.currentTarget.value.trim(); if (HEX.test(v)) set(v); else e.currentTarget.value = value.toUpperCase(); }}
+            onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          />
+          {#if alpha}<label class="pct">
+            <input
+              type="text"
+              inputmode="decimal"
+              spellcheck="false"
+              aria-label={label ? t('{label} opacity', { label }) : t('Opacity')}
+              value={opacity}
+              onchange={(e) => setOpacity(e.currentTarget)}
+              onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            /><span aria-hidden="true">%</span>
+          </label>{/if}
+        </div>
         <div class="grid" role="listbox" aria-label={t('Swatches')}>
           {#each BASE as c (c)}
-            <button type="button" class="chip" role="option" aria-selected={!none && c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
+            <button type="button" class="chip" role="option" aria-selected={!none && c === splitHex(value).rgb} aria-label={c} title={c} style:background={c} onclick={() => pick(c)}></button>
           {/each}
           {#if onnone}<button type="button" class="chip" role="option" aria-selected={none} aria-label={t('None')} title={t('None')} style:background={NONE_BG} onclick={() => { onnone(); open = false; }}></button>{/if}
         </div>
@@ -81,7 +103,7 @@
         {#if shown.colors.length}
           <div class="grid" role="listbox" aria-label={shown.name}>
             {#each shown.colors as c (c)}
-              <button type="button" class="chip" role="option" aria-selected={c === value} aria-label={c} title={c} style:background={c} onclick={() => set(c)}></button>
+              <button type="button" class="chip" role="option" aria-selected={c === splitHex(value).rgb} aria-label={c} title={c} style:background={c} onclick={() => pick(c)}></button>
             {/each}
           </div>
         {:else if palettes}
@@ -152,10 +174,25 @@
   }
   .pal:hover { border-color: var(--sv-rule-strong); }
   .pal:focus-visible { border-color: var(--sv-accent-fill); }
-  .hex-in {
-    width: 100%;
+  .hex-row { display: flex; gap: var(--sv-space-6); margin: var(--sv-space-6) 0 var(--sv-space-8); }
+  .pct {
+    display: flex;
+    align-items: center;
+    flex: none;
+    width: 52px;
     height: 20px;
-    margin: var(--sv-space-6) 0 var(--sv-space-8);
+    padding: 0 var(--sv-space-6);
+    color: var(--sv-text-muted);
+    background: var(--sv-surface-field);
+    border: var(--sv-border-1) solid var(--sv-rule-default);
+    box-sizing: border-box;
+  }
+  .pct:focus-within { border-color: var(--sv-accent-fill); }
+  .pct input { flex: 1; min-width: 0; padding: 0; font: inherit; color: var(--sv-text-primary); background: none; border: 0; outline: none; text-align: right; }
+  .hex-in {
+    flex: 1;
+    min-width: 0;
+    height: 20px;
     padding: 0 var(--sv-space-6);
     font: inherit;
     color: var(--sv-text-primary);

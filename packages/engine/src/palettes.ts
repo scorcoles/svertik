@@ -24,8 +24,10 @@ export const PALETTES: Palette[] = [
   { name: 'Mono', colors: ['#000000', '#262626', '#4d4d4d', '#808080', '#b3b3b3', '#e0e0e0', '#ffffff'] },
 ];
 
-const HEX = /#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi;
-const full = (m: string) => (m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}` : m).toLowerCase();
+// #rrggbb with an optional alpha byte (#rrggbbaa), or #rgb. The alpha is kept apart: palettes swap the hue only.
+const HEX = /#[0-9a-f]{6}(?:[0-9a-f]{2})?\b|#[0-9a-f]{3}\b/gi;
+const full = (m: string) => (m.length === 4 ? `#${[...m.slice(1)].map((c) => c + c).join('')}` : m.slice(0, 7)).toLowerCase();
+const alphaOf = (m: string) => (m.length === 9 ? m.slice(7).toLowerCase() : '');
 
 /** Every string in the scene that may hold colours: parameters, SVG sources and animation keys. */
 function eachText(scene: SceneV1, fn: (value: string, set: (v: string) => void) => void) {
@@ -81,7 +83,7 @@ export function applyPalette(scene: SceneV1, palette: string[]): number {
   for (const [a, b] of map) if (a !== b) changed++;
   if (!changed) return 0;
   eachText(scene, (v, set) => {
-    const next = v.replace(HEX, (m) => map.get(full(m)) ?? m);
+    const next = v.replace(HEX, (m) => { const to = map.get(full(m)); return to ? to + alphaOf(m) : m; });
     if (next !== v) set(next);
   });
   return changed;

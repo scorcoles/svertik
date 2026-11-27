@@ -139,6 +139,10 @@ export interface RangedVariable {
   min?: number;
   max?: number;
   step?: number;
+  /** What a control for it says (svertikJS `expose`); the variable's name without it. */
+  label?: string;
+  /** Unit shown beside its value (px, °, s…). */
+  unit?: string;
 }
 /** Whether a custom variable is a number with a range. */
 export const isRangedVariable = (v: unknown): v is RangedVariable =>
@@ -202,6 +206,12 @@ export interface SceneV1 {
    * own View → Hide outside.
    */
   clipToDocument?: boolean;
+  /**
+   * Background colour (`#rrggbb`, or `#rrggbbaa` translucent); absent = transparent. Exports draw it as a
+   * rectangle over the whole viewBox (the document, or the drawing's box without one). The live hosts
+   * (`createPlayer`, the editor canvas) paint it on the stage behind the <svg>, Contain's bands included.
+   */
+  background?: string;
   /** Global seed for effect expressions; nested compositions inherit it unless they override it. */
   seedGenerator?: number;
   /**

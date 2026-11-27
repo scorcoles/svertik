@@ -4,7 +4,7 @@
   // effect or primitive matches now is marked.
   import { t } from '@svertik/ui';
   import { bounds, builtins, createEngine, renderInto, sampleScene, shapeRegistry, walkNodes, type ModifierInstance, type ParamSpec, type SceneNode, type SceneV1 } from '@svertik/engine';
-  import { DEFAULT_CANVAS, registry, type Editor } from './editor.svelte';
+  import { DEFAULT_CANVAS, registry, stageBackground, type Editor } from './editor.svelte';
   import { EFFECT_PRESETS, PRESET_ZOOM, SHAPE_PRESETS, keptByShapes, matchesPreset, presetValues, type EffectPreset } from './effect-presets';
 
   let { editor, shape = false }: { editor: Editor; shape?: boolean } = $props();
@@ -118,7 +118,7 @@
     {#each presets as preset, i ((m?.type ?? primitive?.shape) + ':' + i)}
       <button type="button" class="preset" data-active={i === active || undefined} title={preset.tip ?? preset.name}
         aria-pressed={i === active} onclick={() => apply(preset)} onpointerenter={() => enter(i)} onpointerleave={() => leave(i)}>
-        <svg bind:this={tiles[i]} class="thumb" style:background={editor.canvas || DEFAULT_CANVAS} data-failed={failed[i] || undefined} aria-hidden="true" preserveAspectRatio="xMidYMid meet"></svg>
+        <svg bind:this={tiles[i]} class="thumb" style:background={stageBackground(editor.background)} data-failed={failed[i] || undefined} aria-hidden="true" preserveAspectRatio="xMidYMid meet"></svg>
         <span class="name">{preset.name}</span>
       </button>
     {/each}

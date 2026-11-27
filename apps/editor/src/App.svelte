@@ -449,7 +449,8 @@
     if (!editor.scene || videoExport) return;
     const scene = snapshot();
     const name = editor.name;
-    const background = editor.canvas || DEFAULT_CANVAS;
+    // Under the scene's background (which the frames draw): opaque white, as video has no alpha.
+    const background = DEFAULT_CANVAS;
     const controller = new AbortController();
     videoExport = { progress: 0, controller };
     try {
@@ -801,7 +802,7 @@
     onsave={() => saveProject()}
     onsaveas={canPickFiles() ? () => saveProject(true) : undefined}
     oncopyjson={() => copy(sceneJSON(snapshot()), 'JSON')}
-    onshare={() => shareScene(editor, { say: (text, ms = 2400) => say(text, ms), clear: unsay }, 'edit', () => previewCard(svgForCard(engine.toSVG(frame())), editor.canvas || DEFAULT_CANVAS))}
+    onshare={() => shareScene(editor, { say: (text, ms = 2400) => say(text, ms), clear: unsay }, 'edit', () => previewCard(svgForCard(engine.toSVG(frame())), editor.background || DEFAULT_CANVAS))}
     onexport={exportSVG}
     onexportpng={() => exportPNG(2)}
     onexportmp4={exportMP4}
@@ -956,7 +957,8 @@
     grid-template-areas: 'rail left inspector';
     min-height: 0;
   }
-  .left { grid-area: left; display: grid; min-height: 0; min-width: 0; }
+  /* One column that never grows past the space left by the side panel: wide content (the timeline's bar) scrolls inside its panel. */
+  .left { grid-area: left; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; min-width: 0; }
   main.panel-maximized { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left'; }
   main.console-right { grid-template-columns: auto minmax(0, 1fr) 6px var(--console-width, 380px) var(--inspector-width, 300px); grid-template-areas: 'rail left resize console inspector'; }
   .resize-x { grid-area: resize; padding: 0; cursor: ew-resize; touch-action: none; background: var(--sv-surface-panel); border: 0; border-left: var(--sv-border-1) solid var(--sv-rule-default); }

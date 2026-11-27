@@ -19,14 +19,16 @@
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
+    "@fontsource/commit-mono": "^5.3.0",
     "@lezer/highlight": "^1.2.5",
     "@lezer/javascript": "^1.5.6",
     "@svertik/engine": "workspace:^",
+    "@svertik/js": "workspace:^",
     "@svertik/ui": "workspace:^",
     "bits-ui": "^2.20.6",
     "codemirror": "^6.0.2",
     "mediabunny": "^1.66.0",
-    "@fontsource/commit-mono": "^5.3.0"
+    "prettier": "^3"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

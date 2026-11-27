@@ -1,0 +1,25 @@
+{
+  "name": "@svertik/js",
+  "version": "0.0.31",
+  "type": "module",
+  "description": "svertikJS: write svertik scenes in JavaScript, chaining effects and tweens. Builds a SceneV1.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@svertik/engine": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "happy-dom": "^21.0.4"
+  }
+}

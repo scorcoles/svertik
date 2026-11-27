@@ -8,7 +8,7 @@ import type { Engine } from './engine';
 import type { Geometry, Shape } from './geometry';
 import type { Mat } from './matrix';
 import { analyzeMotion, type MotionLayer } from './motion';
-import { filterDefs, gradientDefs, styleAttrs, toPathData, wrapAttr } from './render';
+import { backgroundRect, filterDefs, gradientDefs, styleAttrs, toPathData, wrapAttr } from './render';
 
 export interface AnimatedSVGExport {
   svg: string;
@@ -117,7 +117,7 @@ export function toAnimatedSVG(engine: Engine, scene: SceneV1): AnimatedSVGExport
         `@media (prefers-reduced-motion:reduce){.m,.v{animation-play-state:paused}}` +
         `</style>`;
   const [x, y, w, h] = a.viewBox;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}">${style}${defs ? `<defs>${defs}</defs>` : ''}\n${lines.join('\n')}\n</svg>\n`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}">${style}${defs ? `<defs>${defs}</defs>` : ''}\n${backgroundRect(a.viewBox, scene.background)}${lines.join('\n')}\n</svg>\n`;
 
   const warnings: string[] = [];
   if (scene.interactions?.length) warnings.push('Interactions (hover, click, enter) are not exported: the animated SVG plays on its own. For them, use the exported code.');

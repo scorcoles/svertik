@@ -15,7 +15,7 @@
     pickingBackground = true;
     try {
       const EyeDropperApi = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
-      editor.setCanvas((await new EyeDropperApi().open()).sRGBHex);
+      editor.setBackground((await new EyeDropperApi().open()).sRGBHex);
     } catch {
       // Cancelling the screen picker leaves the background unchanged.
     } finally {
@@ -150,12 +150,11 @@
       <Button label={t('Link all seeds')} title={t('Link numeric effect seeds to this generator, preserving their current differences')} onclick={() => editor.linkSeedsToGenerator()} />
     </div>
   </Section>
-  <Section title={t('Canvas')} bind:open={sectionOpen.canvas}>
-    <ParamRow label={t('Background')} info={t('For viewing only; it is not included in the exported SVG.')} showInfo={editor.showInfo}>
-      <ColorField value={editor.canvas || DEFAULT_CANVAS} label={t('Canvas background')} swatches={editor.docColors} onchange={(v) => editor.setCanvas(v)} />
+  <Section title={t('Background')} bind:open={sectionOpen.canvas}>
+    <ParamRow label={t('Color')} info={t('Behind the whole scene: on the canvas, in Play and in every export. None: transparent.')} showInfo={editor.showInfo}>
+      <ColorField value={editor.background || DEFAULT_CANVAS} none={!editor.background} onnone={() => editor.setBackground('')} label={t('Scene background')} swatches={editor.docColors} onchange={(v) => editor.setBackground(v)} />
       <span class="background-actions">
         <IconButton icon="eyedropper" label={canPick ? t('Pick document background from screen') : t('Screen color picker is not supported in this browser')} disabled={!canPick || pickingBackground} onclick={pickBackground} />
-        {#if editor.canvas}<IconButton icon="close" label={t('Use the default canvas background')} onclick={() => editor.setCanvas('')} />{/if}
       </span>
     </ParamRow>
   </Section>

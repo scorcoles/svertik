@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeEffects, describeScene, frameTimes, loadInput, registerBundledFonts, renderPNG, renderSVG } from '../src/lib';
+import { describeEffects, describeScene, frameTimes, loadInput, loadScript, registerBundledFonts, renderPNG, renderSVG } from '../src/lib';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -55,5 +55,16 @@ describe('command line tool', () => {
     const d = describeEffects();
     expect(d.effects.find((e) => e.type === 'spherize')!.params.strength).toMatchObject({ type: 'number', min: -1, max: 1 });
     expect(d.shapes.map((s) => s.type)).toContain('text');
+  });
+});
+
+describe('svertikJS scripts', () => {
+  it('runs the script and renders its default export', async () => {
+    const { scene, name, warnings } = await loadScript(join(import.meta.dirname, 'fixtures/stars.ts'));
+    expect(name).toBe('stars');
+    expect(warnings).toEqual([]);
+    expect(scene.objects[0]).toMatchObject({ id: 's', shape: 'star', stack: [{ type: 'twist' }] });
+    expect(scene.animation?.tracks[0]).toMatchObject({ node: 's', param: 'rotation' });
+    expect(renderSVG(scene, 0.5)).toContain('fill="#101010"');
   });
 });

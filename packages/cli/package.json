@@ -2,7 +2,7 @@
   "name": "@svertik/cli",
   "version": "0.0.31",
   "type": "module",
-  "description": "svertik in the terminal: renders projects to SVG or PNG, animation frames, and lists the effects.",
+  "description": "svertik in the terminal: renders projects (JSON or svertikJS scripts) to SVG or PNG, animation frames, and lists the effects.",
   "bin": {
     "svertik": "./bin/svertik.mjs"
   },
@@ -20,6 +20,7 @@
     "@svertik/engine": "workspace:^",
     "happy-dom": "^21.0.4",
     "tsx": "4.23.15",
-    "@fontsource/commit-mono": "^5.3.0"
+    "@fontsource/commit-mono": "^5.3.0",
+    "@svertik/js": "workspace:^"
   }
 }

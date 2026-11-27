@@ -6,7 +6,8 @@
   import { parsePathPointParam, isPathContours } from '@svertik/engine';
   import { Popover } from 'bits-ui';
   import { tick } from 'svelte';
-  import { EASES, ease, compositionParams, shapeRegistry, walkNodes, type Ease, type Track } from '@svertik/engine';
+  import { EASES, bezierEase, bezierOf, ease, parseBezier, compositionParams, shapeRegistry, walkNodes, type Ease, type Track } from '@svertik/engine';
+  import BezierField from './BezierField.svelte';
   import { Checkbox, IconButton, NumberField, Select } from '@svertik/ui';
   import { locateNode, locateModifier, registry, type Editor } from './editor.svelte';
 
@@ -337,7 +338,7 @@
     {#if selectedKey}
       <span class="rule" aria-hidden="true"></span>
       <span class="field">{t('Ease')}
-        <Select value={selectedKey.key.ease ?? 'ease-in-out'} options={EASES} label={t('Ease')} width="104px" onchange={(v) => editor.setEase(selectedKey.tr.id, selectedKey.key.t, v as Ease)} />
+        <Select value={selectedKey.key.ease ?? 'ease-in-out'} options={parseBezier(selectedKey.key.ease) ? [...EASES, selectedKey.key.ease!] : EASES} label={t('Ease')} width="104px" onchange={(v) => editor.setEase(selectedKey.tr.id, selectedKey.key.t, v as Ease)} />
       </span>
       <IconButton icon="trash" label={selectedKeys.length > 1 ? t('Delete {count} keyframes (Del)', { count: selectedKeys.length }) : t('Delete keyframe (Del)')} onclick={() => { editor.removeKeys(selectedKeys); setSelectedKeys([]); }} />
       <span class="rule" aria-hidden="true"></span>
@@ -455,6 +456,10 @@
               </Popover.Trigger>
               <Popover.Portal>
                 <Popover.Content class="sv-menu ease-menu" sideOffset={4}>
+                  <!-- A curve drawn by hand: starts from the named one (its closest Bézier) and becomes Custom. -->
+                  <BezierField value={bezierOf(a.ease) ?? [0.65, 0, 0.35, 1]} custom={!!parseBezier(a.ease)}
+                    onchange={(points, final) => { editor.setEase(tr.id, a.t, bezierEase(points), final); selected = { track: tr.id, t: a.t }; }} />
+                  <div class="ease-list">
                   {#each EASES as e (e)}
                     <button
                       type="button"
@@ -466,6 +471,7 @@
                       {e}
                     </button>
                   {/each}
+                  </div>
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
@@ -509,8 +515,9 @@
 </section>
 
 <style>
-  .timeline { display: flex; flex-direction: column; min-height: 0; background: var(--sv-surface-panel); border-top: var(--sv-border-1) solid var(--sv-rule-default); }
-  header { display: flex; align-items: center; gap: var(--sv-space-4); height: 32px; padding: 0 var(--sv-space-8); flex: none; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
+  .timeline { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--sv-surface-panel); border-top: var(--sv-border-1) solid var(--sv-rule-default); }
+  /* In a narrow column (a widened side panel) the bar scrolls sideways instead of pushing the timeline out. */
+  header { display: flex; align-items: center; gap: var(--sv-space-4); height: 32px; padding: 0 var(--sv-space-8); flex: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; border-bottom: var(--sv-border-1) solid var(--sv-rule-default); }
   .time { min-width: 108px; font-variant-numeric: tabular-nums; color: var(--sv-text-primary); }
   .dim { color: var(--sv-text-muted); }
   .rule { width: 1px; height: 16px; margin: 0 var(--sv-space-6); background: var(--sv-rule-default); }
@@ -577,7 +584,10 @@
   :global(.segment path) { fill: none; stroke: var(--sv-text-muted); stroke-width: 1; opacity: 0.55; }
   :global(.segment:hover path), :global(.segment[data-on] path) { stroke: var(--sv-accent-text); opacity: 1; }
   :global(.segment:hover) { background: rgb(255 255 255 / 0.03); }
-  :global(.ease-menu) { width: 160px; }
+  /* The hand-drawn curve on the left, the named ones on the right. */
+  :global(.sv-menu.ease-menu) { display: flex; align-items: flex-start; width: max-content; max-width: calc(100vw - 16px); }
+  :global(.ease-menu .ease-list) { flex: none; width: 160px; }
+  :global(.ease-menu .bezier) { flex: none; }
   :global(.ease-item) { width: 100%; font: inherit; background: none; border: 0; text-align: left; }
   :global(.ease-item:hover), :global(.ease-item:focus-visible) { background: var(--sv-surface-hover); }
   :global(.ease-item svg) { flex: none; overflow: visible; }

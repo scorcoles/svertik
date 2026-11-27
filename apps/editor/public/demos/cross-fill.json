@@ -2,9 +2,9 @@
   "svertik": "project",
   "version": 1,
   "name": "Cross Fill",
-  "canvas": "#F2E8DA",
   "scene": {
     "version": 1,
+    "background": "#f2e8da",
     "document": {
       "width": 800,
       "height": 650

@@ -65,9 +65,11 @@ export function withSources(scene: SceneV1, base: string = document.baseURI): Pr
 export async function loadScene(url: string): Promise<SceneV1> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`svertik: can't read "${url}" (${res.status})`);
-  const data = (await res.json()) as { svertik?: string; scene?: unknown };
+  const data = (await res.json()) as { svertik?: string; scene?: unknown; canvas?: string };
   const scene = (data.svertik === 'project' ? data.scene : data) as SceneV1;
   if (!isScene(scene)) throw new Error(`svertik: "${url}" is not a scene`);
+  // Projects from before scene.background kept it as the editor's canvas colour.
+  if (data.svertik === 'project' && data.canvas && !scene.background) scene.background = data.canvas;
   return withSources(scene, url);
 }
 

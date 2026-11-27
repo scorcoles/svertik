@@ -814,7 +814,7 @@ export function createDocumentEvaluator(
       diagnosticMap.set(`${diagnostic.code}:${diagnostic.effectId ?? ''}`, diagnostic);
     }
     const diagnostics = [...diagnosticMap.values()];
-    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}) }, ...(diagnostics.length ? { diagnostics } : {}), sources: { viewBox, shapes: placedSources }, nodes, geometryOf, resultOf };
+    return { geometry: { viewBox, shapes, ...(filters ? { filters } : {}), ...(scene.background ? { background: scene.background } : {}) }, ...(diagnostics.length ? { diagnostics } : {}), sources: { viewBox, shapes: placedSources }, nodes, geometryOf, resultOf };
   }
 
   return { evaluate };

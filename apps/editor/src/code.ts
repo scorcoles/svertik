@@ -1,5 +1,7 @@
-// The code panel's JS: the generated scene on top, the user's script below.
+// The code panel's JS: the scene as svertikJS on top, the user's script below. `generatedPart` (the scene
+// as a JSON literal) stays for exported, self-contained JS.
 import { parser } from '@lezer/javascript';
+import { toCode } from '@svertik/js';
 import { sceneFonts, walkNodes, type ModifierInstance, type SceneNode, type SceneV1 } from '@svertik/engine';
 
 /** First line with a syntax error (JS SyntaxErrors do not say where). */
@@ -100,16 +102,20 @@ export function generatedPart(scene: SceneV1): string {
   ].join('\n');
 }
 
-/** The full text shown in the JS tab. */
+/** The full text shown in the JS tab: the scene in svertikJS, then the user's script. */
 export function jsDocument(scene: SceneV1, script: string) {
-  return generatedPart(scene) + script;
+  return `${toCode(scene)}\n${script}`;
 }
 
-/** What the user wrote after the scene (if it is not found, everything counts as script). */
+/** What the user wrote after the scene: after the line that closes `export default scene(…)`. */
 export function extractScript(text: string): string {
-  const m = /const scene = \{[\s\S]*?\n\};\n/.exec(text);
-  if (!m) return DEFAULT_SCRIPT;
-  return text.slice(m.index + m[0].length).replace(/^\n/, '');
+  const lines = text.split('\n');
+  const start = lines.findIndex((l) => l.startsWith('export default '));
+  if (start < 0) return DEFAULT_SCRIPT;
+  // The scene call ends on a line of its own, ");" (or on its first line when it holds no objects).
+  const end = lines[start]!.trimEnd().endsWith(');') ? start : lines.findIndex((l, i) => i > start && /^\);?\s*$/.test(l));
+  if (end < 0) return DEFAULT_SCRIPT;
+  return lines.slice(end + 1).join('\n').replace(/^\n/, '');
 }
 
 /** Position of each literal with an SVG (const x = `<svg…`), to fold them. */
