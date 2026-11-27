@@ -25,6 +25,14 @@ export default scene({ width: 800, height: 800, background: '#111111' }, dots, o
 Render it with the CLI: `pnpm svertik render scene.ts -o out.png` (also `.js` and `.mjs`; `info` works too).
 In code, `scene(…).build()` gives `{ scene, warnings }`, and `JSON.stringify(scene(…))` the SceneV1.
 
+## In the editor
+
+The code panel's **JS** tab shows the open scene as svertikJS. Edit it and the scene follows: the code runs in
+a worker a moment after you stop typing, and an error points at its line instead of touching the scene. A
+scene or project pasted there as JSON is applied as it is. Whatever you write after the line that closes
+`export default scene(…)` is your own script, kept with the project. **Prettier** shows the code formatted by
+Prettier (loaded the first time you use it; the browser remembers the choice).
+
 ## Objects
 
 One factory per shape: `rectangle`, `ellipse`, `donut`, `polygon`, `star`, `cross`, `arrow`, `line`,
